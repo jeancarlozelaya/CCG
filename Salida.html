@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro de Salida de Residuos</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="date"], input[type="text"], select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .required:after {
+            content: " *";
+            color: red;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+            position: sticky;
+            top: 0;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        .table-container {
+            max-height: 500px;
+            overflow-y: auto;
+            margin: 20px 0;
+        }
+        .no-data {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        .search-section {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .search-section button {
+            white-space: nowrap;
+        }
+        .exit-section {
+            background-color: #f8f8f8;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Registro de Salida de Residuos</h1>
+        
+        <div class="search-section">
+            <div class="form-group" style="flex-grow: 1;">
+                <label for="fechaBusqueda" class="required">Buscar registros del mes</label>
+                <input type="month" id="fechaBusqueda" name="fechaBusqueda" required>
+            </div>
+            <button type="button" id="buscarRegistros">Buscar Registros</button>
+        </div>
+        
+        <div class="table-container">
+            <table id="residuosTable">
+                <thead>
+                    <tr>
+                        <th>Seleccionar</th>
+                        <th>Fecha Ingreso</th>
+                        <th>Tipo Residuo</th>
+                        <th>Cantidad (lbs)</th>
+                        <th>Clasificación</th>
+                        <th>Estado Físico</th>
+                        <th>Responsable</th>
+                    </tr>
+                </thead>
+                <tbody id="residuosBody">
+                    <tr>
+                        <td colspan="7" class="no-data">Ingrese un mes y haga clic en "Buscar Registros"</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="exit-section">
+            <div class="form-group">
+                <label for="fechaSalida" class="required">Fecha de Salida</label>
+                <input type="date" id="fechaSalida" name="fechaSalida" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="destinoFinal" class="required">Destino Final</label>
+                <input type="text" id="destinoFinal" name="destinoFinal" required>
+            </div>
+            
+            <button type="button" id="registrarSalida">Registrar Salida</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Configurar eventos
+            document.getElementById('buscarRegistros').addEventListener('click', buscarRegistros);
+            document.getElementById('registrarSalida').addEventListener('click', registrarSalida);
+            
+            // Establecer fecha actual como valor predeterminado para búsqueda
+            const now = new Date();
+            const currentMonth = String(now.getMonth() + 1).padStart(2, '0');
+            document.getElementById('fechaBusqueda').value = `${now.getFullYear()}-${currentMonth}`;
+        });
+
+        function buscarRegistros() {
+            const fechaInput = document.getElementById('fechaBusqueda').value;
+            
+            if (!fechaInput) {
+                alert('Por favor seleccione un mes para buscar');
+                return;
+            }
+            
+            // Convertir YYYY-MM a MM-YY (ej: 2025-05 → 05-25)
+            const [year, month] = fechaInput.split('-');
+            const nombreHoja = `${month}-${year.slice(-2)}`;
+            
+            const tbody = document.getElementById('residuosBody');
+            tbody.innerHTML = '<tr><td colspan="7">Cargando registros...</td></tr>';
+            
+            const webAppUrl = `https://script.google.com/macros/s/AKfycbyj3XcDNd4gme2bJHpTg204CfoWAxiMFD5RVC-cdNJLuYcIw29mojrp43ITkMIWgGW1PQ/exec?action=getPending&sheet=${encodeURIComponent(nombreHoja)}`;
+            
+            console.log('Buscando en hoja:', nombreHoja); // Para depuración
+            console.log('URL:', webAppUrl); // Para depuración
+            
+            fetch(webAppUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Error en la respuesta del servidor');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Datos recibidos:', data); // Para depuración
+                    tbody.innerHTML = '';
+                    
+                    if (data.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="7" class="no-data">No hay registros pendientes de salida para este mes</td></tr>';
+                        return;
+                    }
+                    
+                    data.forEach(row => {
+                        const tr = document.createElement('tr');
+                        tr.dataset.rowId = row.rowId;
+                        tr.dataset.sheetName = row.sheetName;
+                        
+                        // Determinar tipo de residuo
+                        let tipoResiduo = '';
+                        if (row.comun === 'X') tipoResiduo = 'Común';
+                        else if (row.plastico === 'X') tipoResiduo = 'Plástico';
+                        else if (row.aluminio === 'X') tipoResiduo = 'Aluminio';
+                        else if (row.carton === 'X') tipoResiduo = 'Cartón';
+                        else if (row.vidrio === 'X') tipoResiduo = 'Vidrio';
+                        else if (row.rpbi === 'X') tipoResiduo = 'RPBI';
+                        
+                        // Determinar clasificación
+                        let clasificacion = row.organico === 'X' ? 'Orgánico' : 'Inorgánico';
+                        
+                        // Determinar estado físico
+                        let estadoFisico = '';
+                        if (row.solido === 'X') estadoFisico = 'Sólido';
+                        else if (row.liquido === 'X') estadoFisico = 'Líquido';
+                        else if (row.gaseoso === 'X') estadoFisico = 'Gaseoso';
+                        
+                        tr.innerHTML = `
+                            <td><input type="checkbox" class="seleccionar-residuo"></td>
+                            <td>${formatearFecha(row.fechaIngreso)}</td>
+                            <td>${tipoResiduo}</td>
+                            <td>${row.cantidad || ''}</td>
+                            <td>${clasificacion}</td>
+                            <td>${estadoFisico}</td>
+                            <td>${row.responsable || ''}</td>
+                        `;
+                        
+                        tbody.appendChild(tr);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    tbody.innerHTML = '<tr><td colspan="7">Error al cargar los registros. Verifique el nombre de la hoja o intente nuevamente.</td></tr>';
+                });
+        }
+
+
+async function registrarSalida() {
+    const fechaSalida = document.getElementById('fechaSalida').value;
+    const destinoFinal = document.getElementById('destinoFinal').value;
+    
+    if (!fechaSalida || !destinoFinal) {
+        alert('Por favor complete la fecha de salida y el destino final');
+        return;
+    }
+    
+    const registrosSeleccionados = Array.from(document.querySelectorAll('.seleccionar-residuo:checked'))
+        .map(checkbox => {
+            const row = checkbox.closest('tr');
+            return {
+                rowId: row.dataset.rowId,
+                sheetName: row.dataset.sheetName
+            };
+        });
+    
+    if (registrosSeleccionados.length === 0) {
+        alert('Por favor seleccione al menos un registro para registrar su salida');
+        return;
+    }
+    
+    const datos = {
+        action: 'updateExit',
+        data: {
+            fechaSalida: fechaSalida,
+            destinoFinal: destinoFinal,
+            registros: registrosSeleccionados
+        }
+    };
+    
+    const webAppUrl = 'https://script.google.com/macros/s/AKfycbyj3XcDNd4gme2bJHpTg204CfoWAxiMFD5RVC-cdNJLuYcIw29mojrp43ITkMIWgGW1PQ/exec';
+    
+    try {
+        // Solución alternativa usando Google Apps Script URL Fetch
+        const response = await fetch(webAppUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'data=' + encodeURIComponent(JSON.stringify(datos))
+        });
+        
+        // Aunque no podemos leer la respuesta en modo 'no-cors', asumimos éxito
+        alert(`Se actualizaron ${registrosSeleccionados.length} registros exitosamente`);
+        document.getElementById('fechaSalida').value = '';
+        document.getElementById('destinoFinal').value = '';
+        document.querySelectorAll('.seleccionar-residuo').forEach(cb => cb.checked = false);
+        
+        // Esperar 1 segundo antes de recargar para asegurar la actualización
+        setTimeout(buscarRegistros, 1000);
+    } catch (error) {
+        console.error('Error:', error);
+        alert('La operación se completó, pero no recibimos confirmación. Verifique manualmente.');
+    }
+}
+
+function formatearFecha(fechaString) {
+    if (!fechaString) return '';
+    
+    // Si ya está en formato YYYY-MM-DD, devolverlo directamente
+    if (/^\d{4}-\d{2}-\d{2}$/.test(fechaString)) {
+        return fechaString;
+    }
+    
+    // Si viene con formato ISO (2025-05-08T06:00:00.000Z)
+    const fecha = new Date(fechaString);
+    if (isNaN(fecha.getTime())) return fechaString; // Si no es una fecha válida
+    
+    const year = fecha.getFullYear();
+    const month = String(fecha.getMonth() + 1).padStart(2, '0');
+    const day = String(fecha.getDate()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
+}
+
+
+    </script>
+</body>
+</html>

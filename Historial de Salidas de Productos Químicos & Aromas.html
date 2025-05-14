@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historial de Salidas de Productos Químicos & Aromas</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+
+ <!-- Incluir SweetAlert2 -->
+ <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f9f9f9;
+        color: #333;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+    }
+
+    /* Header */
+    .header {
+        background-color: #007BFF;
+        color: white;
+        text-align: center;
+        padding: 15px;
+        width: 100%;
+        font-size: 1.5em;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Contenedor del formulario */
+    .container {
+        background: #ffffff;
+        padding: 30px;
+        border-radius: 10px;
+        width: 90%;
+        max-width: 600px;
+        box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+        margin-top: 20px;
+        text-align: center;
+        margin: 40px auto;
+        grid-row: 2;
+        height: auto;
+        box-sizing: border-box;
+    }
+
+    h1 {
+        text-align: center;
+        color: #333;
+    }
+
+    label {
+        display: block;
+        margin-top: 10px;
+        font-weight: bold;
+    }
+
+    input[type="date"],
+    textarea,
+    input[type="file"],
+    button {
+        width: 100%;
+        margin-top: 5px;
+        padding: 10px;
+        font-size: 16px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        box-sizing: border-box;
+    }
+
+    button {
+        background-color: #007bff;
+        color: #fff;
+        border: none;
+        cursor: pointer;
+        padding: 12px 0;
+    }
+
+    button:hover {
+        background-color: #0056b3;
+    }
+
+    /* Estilo para los contenedores de preguntas */
+    .question-container {
+        margin-bottom: 20px;
+        text-align: left;
+        padding: 10px;
+        border: 2px solid #ccc;
+        border-radius: 5px;
+        background-color: #f9f9f9;
+        transition: border-color 0.3s;
+        box-sizing: border-box;
+    }
+
+    /* Estilo para el campo de descripción */
+    .question-container textarea {
+    	padding: 15px; /* Aumentar el espacio interno */
+    	border: 2px solid #ccc;
+    	border-radius: 5px;
+    	width: 100%;
+    	font-size: 16px;
+    	background-color: #f9f9f9;
+    	color: #333;
+    	transition: border-color 0.3s;
+    	box-sizing: border-box;
+    	margin-top: 5px;
+    	height: 200px; /* Aumentar la altura para hacerlo más grande */
+    	resize: vertical; /* Permite al usuario cambiar el tamaño verticalmente */
+    }
+
+    .question-container:hover {
+        border-color: #007BFF;
+    }
+
+/* Estilo para los botones de radio */
+.question-container input[type="radio"] {
+    margin-right: 10px; /* Espacio entre el botón y el texto */
+    accent-color: #007BFF; /* Color del botón de selección */
+    cursor: pointer;
+    transform: scale(1.2); /* Tamaño del botón de selección */
+}
+
+/* Estilo para el contenedor cuando se selecciona un botón */
+.question-container input[type="radio"]:checked + label {
+    font-weight: bold;
+    color: #007BFF;
+}
+
+.radio-group {
+    display: flex;
+    align-items: center; /* Alinea verticalmente el texto y el botón */
+    margin-bottom: 10px; /* Espacio entre opciones */
+}
+
+.radio-group input[type="radio"] {
+    margin: 0 10px 0 0; /* Espacio a la derecha del botón */
+    accent-color: #007BFF; /* Color del botón de selección */
+    cursor: pointer;
+    transform: scale(1.6); /* Aumenta el tamaño del botón */
+}
+
+.radio-group label {
+    font-size: 16px;
+    color: #333;
+    cursor: pointer; /* Cambia el cursor al pasar sobre el texto */
+}
+
+    .question-container input[type="date"],
+    .question-container textarea,
+    .question-container select {
+        padding: 10px;
+        border: 2px solid #ccc;
+        border-radius: 5px;
+        width: 100%;
+        font-size: 16px;
+        background-color: #f9f9f9;
+        color: #333;
+        transition: border-color 0.3s;
+        box-sizing: border-box;
+        margin-top: 5px;
+    }
+
+    .question-container input[type="date"]:focus,
+    .question-container textarea:focus,
+    .question-container select:focus {
+        border-color: #007BFF;
+        outline: none;
+    }
+
+    /* Estilos de las etiquetas */
+    .question-container label {
+        font-weight: bold;
+        font-size: 16px;
+        margin-bottom: 5px;
+        display: block;
+    }
+
+    /* Estilo del overlay (pantalla bloqueada) */
+    #overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);  /* Fondo semitransparente */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;  /* Asegúrate de que esté por encima de otros elementos */
+    }
+
+    #loadingMessage {
+        color: white;  /* Texto en blanco */
+        font-size: 24px;  /* Tamaño de fuente para que se vea bien */
+        font-family: 'Times New Roman', Times, serif;  /* Fuente Times New Roman */
+        text-align: center;
+        padding: 20px;  /* Espaciado interno */
+    }
+
+  			/* Estilos para la sección "tema" */
+  			#producto,
+#filtroProducto,
+#dia,
+#mes,
+#anio,
+  			#cantidad {
+  			padding: 10px;
+  			border: 2px solid #ccc;
+  			border-radius: 5px;
+  			width: 100%;
+  			font-size: 16px;
+  			background-color: #f9f9f9;
+  			color: #333;
+  			transition: border-color 0.3s;
+  			resize: vertical;
+  			box-sizing: border-box;
+  			}
+  			#oficina:focus {
+  			border-color: #007BFF;
+  			outline: none;
+  			}
+
+  			/* Estilo personalizado para el contenido del mensaje */
+  			.swal-content {
+      			font-size: 0.9em;  /* Reduce el tamaño del texto */
+      			line-height: 1.4;  /* Ajusta el espaciado entre líneas */
+  			}
+  
+  			/* Estilo personalizado para el botón */
+  			.swal-button {
+      			font-size: 0.9em;  /* Ajusta el tamaño del texto del botón */
+      			padding: 10px 20px;  /* Reduce el tamaño del botón si es necesario */
+  			}
+  
+  			/* Estilo personalizado para el popup/modal */
+  			.swal-popup {
+      			width: 300px;  /* Ajusta el ancho máximo del modal */
+      			max-width: 90%;  /* Permite que el modal sea flexible en pantallas pequeñas */
+  			}
+
+
+.input-error {
+    border: 2px solid red;
+}
+
+.error-message {
+    margin-top: 4px;
+    display: block;
+}
+
+table {
+  width: 100%; /* La tabla ocupa todo el ancho disponible */
+  border-collapse: collapse;
+  margin: 20px 0;
+  background: white;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  table-layout: fixed; /* Distribuye columnas proporcionalmente */
+}
+
+th, td {
+  padding: 12px;
+  text-align: center; /* Centra contenido */
+  border-bottom: 1px solid #ddd;
+  word-wrap: break-word; /* Ajusta contenido largo */
+  overflow: hidden; /* Evita desbordamientos */
+}
+
+th {
+  background-color: #4CAF50;
+  color: white;
+  font-size: 0.8em;
+  text-transform: uppercase;
+  position: sticky; /* Mantiene los encabezados fijos */
+  top: 0; /* Posición en la parte superior del contenedor */
+  z-index: 2; /* Asegura que esté encima del contenido */
+}
+
+tr:hover {
+  background-color: #f1f1f1;
+}
+
+tbody tr:nth-child(even) {
+  background-color: #f9f9f9; /* Alterna colores */
+}
+
+/* Colores de vencimiento */
+.vencimiento-cercano {
+  background-color: yellow !important;
+}
+
+.vencimiento-expirado {
+  background-color: red !important;
+  color: white; /* Contraste */
+}
+
+/* Contenedor para la barra de desplazamiento */
+#tabla-contenedor {
+  max-height: 300px; /* Limita la altura del contenedor */
+  overflow-y: auto; /* Activa desplazamiento vertical */
+  overflow-x: hidden; /* Oculta desplazamiento horizontal */
+  border: 1px solid #ddd; /* Opcional: bordes para el contenedor */
+}
+
+/* Ajustes para dispositivos pequeños */
+@media (max-width: 768px) {
+  table {
+    font-size: 0.9em; /* Reduce el tamaño del texto */
+  }
+
+  th, td {
+    padding: 8px; /* Reduce el relleno */
+  }
+}
+
+.simbologia {
+    font-size: 1em;
+    color: #333;
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+.simbologia span {
+}
+
+.por-vencerse {
+
+  			padding: 2px 5px;
+
+  			border: 2px solid #ccc;
+  			border-radius: 5px;
+  			width: 100%;
+  			font-size: 15px;
+  			background-color: yellow;
+  			color: black;
+
+}
+
+.vencido {
+
+  			padding: 2px 5px;
+
+  			border: 2px solid #ccc;
+  			border-radius: 5px;
+  			width: 100%;
+  			font-size: 15px;
+  			background-color: red;
+  			color: white;
+
+}
+
+.fecha-container {
+    display: flex;
+    align-items: center;
+}
+
+.fecha-container input {
+    width: 30px;
+    text-align: center;
+    font-size: 12px;
+    padding: 5px;
+    margin: 0 2px;
+}
+
+.fecha-container span {
+    font-size: 12px;
+    margin: 0 2px;
+}
+
+</style>
+
+</head>
+<body>
+    <div class="header">
+        Pisos Brillantes
+    </div>
+
+    <div class="container">
+        <h2>Historial de Salidas de Productos Químicos & Aromas</h2>
+
+<div style="border-bottom: 1px solid #ccc; margin: 20px 0;"></div>
+
+        <div class="form-container">
+
+<div class="question-container">
+    <label for="fechaInicio">Fecha Inicio:</label>
+    <input type="date" id="fechaInicio">
+
+    <label for="fechaFin">Fecha Fin:</label>
+    <input type="date" id="fechaFin">
+
+    <label for="filtroProducto"></label>
+    <input type="text" id="filtroProducto" placeholder="Nombre del Producto">
+
+</div>
+
+<div id="tabla-contenedor">
+<table id="tabla-inventario">
+    <thead>
+      <tr>
+        <th>Retiro</th>
+        <th>Producto</th>
+        <th>Vence</th>
+        <th>Cantidad</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+            </div>
+
+<div style="margin-top: 20px;">
+    <strong>Total de Productos:</strong> <span id="totalCantidad">0</span>
+</div>
+
+    </div>
+
+<script>
+// Función para filtrar la tabla
+function filtrarTabla() {
+    const fechaInicio = document.getElementById("fechaInicio").value;
+    const fechaFin = document.getElementById("fechaFin").value;
+    const filtroProducto = document.getElementById("filtroProducto").value.toLowerCase();
+
+    const filas = document.querySelectorAll("#tabla-inventario tbody tr");
+    let totalCantidad = 0;
+
+    // Convierte las fechas del rango a objetos Date
+    const fechaInicioDate = fechaInicio ? new Date(fechaInicio) : null; // yyyy-mm-dd
+    const fechaFinDate = fechaFin ? new Date(fechaFin) : null; // yyyy-mm-dd
+
+    filas.forEach(fila => {
+        const columnas = fila.querySelectorAll("td");
+        const fechaTexto = columnas[0].textContent; // Fecha en formato dd/mm/yyyy
+        const producto = columnas[1].textContent.toLowerCase(); // Producto
+        const cantidad = parseFloat(columnas[3].textContent) || 0; // Cantidad
+
+        // Convierte la fecha de la tabla a un objeto Date
+        const [dia, mes, anio] = fechaTexto.split("/").map(Number);
+        const fechaTablaDate = new Date(anio, mes - 1, dia); // Año, Mes (0-indexado), Día
+
+        // Verifica si la fecha está en el rango
+        const estaEnRango =
+            (!fechaInicioDate || fechaTablaDate >= fechaInicioDate) &&
+            (!fechaFinDate || fechaTablaDate <= fechaFinDate);
+
+        // Verifica si el producto coincide
+        const coincideProducto = !filtroProducto || producto.includes(filtroProducto);
+
+        if (estaEnRango && coincideProducto) {
+            fila.style.display = ""; // Muestra la fila
+            totalCantidad += cantidad; // Suma la cantidad
+        } else {
+            fila.style.display = "none"; // Oculta la fila
+        }
+    });
+
+    document.getElementById("totalCantidad").textContent = totalCantidad; // Muestra el total
+}
+
+// Escucha eventos en los campos de fecha y producto
+document.getElementById("fechaInicio").addEventListener("input", filtrarTabla);
+document.getElementById("fechaFin").addEventListener("input", filtrarTabla);
+document.getElementById("filtroProducto").addEventListener("input", filtrarTabla);
+
+async function obtenerDatos() {
+  const scriptURL = "https://script.google.com/macros/s/AKfycbwVMcwv6vjjKq5sbwdeY7qgdzDkpNXYILG-OZ5Gb7yLLA5s2dCFATgVGEi8Aqf6LRjeBw/exec";
+
+  try {
+    const response = await fetch(scriptURL);
+    const datos = await response.json();
+    mostrarDatosEnTabla(datos);
+  } catch (error) {
+    console.error("Error al obtener los datos:", error);
+  }
+}
+
+function formatearFecha(fechaISO) {
+  const fecha = new Date(fechaISO);
+  const dia = String(fecha.getDate()).padStart(2, "0");
+  const mes = String(fecha.getMonth() + 1).padStart(2, "0");
+  const anio = fecha.getFullYear();
+  return `${dia}/${mes}/${anio}`;
+}
+
+function mostrarDatosEnTabla(datos) {
+  const tablaCuerpo = document.querySelector("#tabla-inventario tbody");
+  tablaCuerpo.innerHTML = ""; // Limpiar datos previos
+
+  datos.forEach(fila => {
+    const [fecha, producto, vencimiento, cantidad] = fila;
+
+    const fechaFormateada = fecha ? formatearFecha(fecha) : "";
+    const vencimientoFormateado = vencimiento ? formatearFecha(vencimiento) : "";
+    const filaHTML = `
+      <tr>
+        <td>${fechaFormateada}</td>
+        <td>${producto || ""}</td>
+        <td>${vencimientoFormateado}</td>
+        <td>${cantidad || ""}</td>
+      </tr>
+    `;
+    tablaCuerpo.insertAdjacentHTML("beforeend", filaHTML);
+  });
+}
+
+obtenerDatos();
+</script>
+
+</body>
+</html>

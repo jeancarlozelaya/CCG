@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Requisición de Productos</title>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <style>
+    .header {
+      background-color: #007BFF;
+      color: white;
+      text-align: center;
+      padding: 15px 0;
+      font-size: 1.5em;
+      box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    @media screen and (max-width: 600px) {
+      .back-button {
+        font-size: 0.9em;
+        padding: 12px 18px;
+        top: 57px;
+        left: 0px;
+      }
+    }
+
+    @media screen and (display-mode: standalone) {
+      body {
+        margin: 0;
+        padding: 0;
+      }
+    }
+
+    .form-container label {
+      display: block;
+      margin: 10px 0 5px;
+      font-size: 14px;
+      color: #555;
+    }
+    
+    .form-container select, .form-container input {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 15px;
+      font-size: 14px;
+      border-radius: 6px;
+      border: 1px solid #ddd;
+      box-sizing: border-box;
+      transition: all 0.3s ease;
+    }
+    
+    .form-container select:focus, .form-container input:focus {
+      border-color: #007bff;
+      outline: none;
+    }
+
+    .form-container input[type="date"] {
+      padding: 12px;
+    }
+
+    .form-container .select-container {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+    }
+    
+    h1 {
+      text-align: center;
+      color: #333;
+      margin-top: 20px;
+      font-size: 24px;
+      margin-bottom: 30px;
+    }
+    
+    .form-container {
+      width: 80%;
+      max-width: 900px;
+      margin: 20px auto;
+      padding: 20px;
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .producto {
+      margin-bottom: 20px;
+      padding: 12px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      background-color: #f9f9f9;
+      cursor: pointer;
+      transition: background-color 0.3s;
+      border: 1px solid #ddd;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .producto:hover {
+      background-color: #e0e0e0;
+    }
+
+    .producto img {
+      width: 40px;
+      height: 40px;
+      object-fit: contain;
+    }
+
+    .producto label {
+      display: block;
+      color: #333;
+      flex-grow: 1;
+    }
+    
+    .producto .cantidad {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      align-items: center;
+    }
+    
+    .cantidad button, .cantidad input {
+      width: 30px;
+      height: 30px;
+      font-size: 14px;
+      cursor: pointer;
+      border-radius: 4px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    .cantidad input {
+      width: 50%;
+      max-width: 200px;
+      text-align: center;
+      font-size: 14px;
+    }
+
+    @media (min-width: 768px) {
+      .cantidad input {
+        width: 150px;
+        font-size: 16px;
+      }
+    }
+
+    @media (min-width: 1024px) {
+      .cantidad input {
+        width: 180px;
+      }
+    }
+
+    .cantidad button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+    
+    .cantidad input:disabled {
+      background-color: #e0e0e0;
+      color: #999;
+    }
+    
+    .agotado {
+      color: red;
+    }
+    
+    .disponible {
+      color: green;
+    }
+    
+    .productos-container {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    #seguir {
+      margin-top: 0;
+      margin-right: 10px;
+      padding: 10px 20px;
+      width: 100%;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      display: inline-block;
+    }
+    
+    #seguir:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+    
+    .button-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .button-container button {
+      font-size: 16px;
+      padding: 10px 20px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      width: 45%;
+      box-sizing: border-box;
+    }
+
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+    
+    .cantidad button.minus {
+      background-color: #dc3545;
+    }
+    
+    .cantidad button.plus {
+      background-color: #28a745;
+    }
+    
+    @media (max-width: 768px) {
+      .producto {
+        font-size: 12px;
+      }
+      
+      .productos-container {
+        grid-template-columns: repeat(2, 1fr);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        background-color: white;
+        padding: 15px 0;
+      }
+      
+      .producto {
+        width: calc(50% - 7.5px);
+        box-sizing: border-box;
+      }
+    }
+
+    .swal-content {
+      font-size: 0.9em;
+      line-height: 1.4;
+    }
+    
+    .swal-button, .swal-button-cancel {
+      font-size: 0.9em;
+      padding: 10px 20px;
+      min-width: 100px;
+      text-align: center;
+    }
+    
+    .swal-popup {
+      width: 300px;
+      max-width: 90%;
+    }
+    
+    .swal-button {
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 4px;
+    }
+    
+    .swal-button-cancel {
+      background-color: #f5f5f5;
+      color: #333;
+      border: none;
+      border-radius: 4px;
+    }
+
+    #overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+    
+    #loadingMessage {
+      color: white;
+      font-size: 24px;
+      font-family: 'Times New Roman', Times, serif;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .question-container {
+      margin-bottom: 20px;
+      text-align: left;
+      padding: 10px;
+      border: 2px solid #ccc;
+      border-radius: 5px;
+      background-color: #f9f9f9;
+      transition: border-color 0.3s;
+      box-sizing: border-box;
+    }
+    
+    .question-container textarea {
+      padding: 15px;
+      border: 2px solid #ccc;
+      border-radius: 5px;
+      width: 100%;
+      font-size: 16px;
+      background-color: #f9f9f9;
+      color: #333;
+      transition: border-color 0.3s;
+      box-sizing: border-box;
+      margin-top: 5px;
+      height: 200px;
+      resize: vertical;
+    }
+    
+    .question-container:hover {
+      border-color: #007BFF;
+    }
+
+    .question-container input[type="date"],
+    .question-container textarea,
+    .question-container select {
+      padding: 10px;
+      border: 2px solid #ccc;
+      border-radius: 5px;
+      width: 100%;
+      font-size: 16px;
+      background-color: #f9f9f9;
+      color: #333;
+      transition: border-color 0.3s;
+      box-sizing: border-box;
+      margin-top: 5px;
+    }
+    
+    .question-container input[type="date"]:focus,
+    .question-container textarea:focus,
+    .question-container select:focus {
+      border-color: #007BFF;
+      outline: none;
+    }
+    
+    .question-container label {
+      font-weight: bold;
+      font-size: 16px;
+      margin-bottom: 5px;
+      display: block;
+    }
+
+    .search-container {
+      margin: 20px 0;
+      width: 100%;
+    }
+    
+    #buscador {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      box-sizing: border-box;
+      margin-bottom: 15px;
+    }
+    
+    #buscador:focus {
+      border-color: #007bff;
+      outline: none;
+    }
+
+    #sugerencias-colaborador {
+      position: relative;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 1000;
+      width: 100%;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-top: -10px;
+      display: none;
+    }
+    
+    .sugerencia-item {
+      padding: 10px 15px;
+      cursor: pointer;
+      font-size: 14px;
+      color: #333;
+      border-bottom: 1px solid #f0f0f0;
+      transition: background-color 0.2s;
+    }
+    
+    .sugerencia-item:last-child {
+      border-bottom: none;
+    }
+    
+    .sugerencia-item:hover {
+      background-color: #f5f5f5;
+    }
+    
+    #colaborador {
+      position: relative;
+    }
+    
+    .sugerencia-item.highlighted {
+      background-color: #e0e0e0;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">Pisos Brillantes</div>
+  
+  <div class="form-container">
+    <h1>Requisición de Productos</h1>
+
+    <div class="question-container">
+      <div>
+        <label for="fecha"><strong>Fecha:</strong></label>
+        <input type="date" id="fecha" name="fecha">
+      </div>
+
+      <label for="colaborador"><strong>Colaborador:</strong></label>
+      <input type="text" id="colaborador" name="colaborador" placeholder="Escribe el nombre del colaborador..." autocomplete="off">
+      <div id="sugerencias-colaborador"></div>
+
+      <label for="area"><strong>Destino:</strong></label>
+      <select id="area" name="area">
+        <option value="">Seleccionar destino</option>
+        <option value="Torre 1">Torre 1</option>
+        <option value="Torre 2">Torre 2</option>
+        <option value="CBA">CBA</option>
+        <option value="CBB">CBB</option>
+        <option value="CBC">CBC</option>
+      </select>
+    </div>
+
+    <label><strong>Seleccione los productos a requisar:</strong></label>
+
+    <form id="formulario">
+      <div class="search-container">
+        <input type="text" id="buscador" placeholder="Buscar productos...">
+      </div>
+
+      <div class="productos-container" id="productos"></div>
+      <br>
+
+      <div class="button-container">
+        <button type="button" id="seguir" disabled onclick="enviardatos()">Enviar</button>
+      </div>
+    </form>
+  </div>
+
+  <div id="overlay" style="display: none;">
+    <div id="loadingMessage">
+      <p>Procesando...🥱</p>
+    </div>
+  </div>
+
+<script>
+  // Variables globales
+  let productos = [];
+  let todosColaboradores = [];
+
+  // Configuración inicial al cargar la página
+  document.addEventListener('DOMContentLoaded', function() {
+    // Establecer fecha actual
+    var today = new Date();
+    var yyyy = today.getFullYear();
+    var mm = String(today.getMonth() + 1).padStart(2, '0');
+    var dd = String(today.getDate()).padStart(2, '0');
+    document.getElementById("fecha").value = yyyy + '-' + mm + '-' + dd;
+    
+    // Cargar colaboradores
+    cargarColaboradores();
+    
+    // Cargar productos desde Google Sheets
+    cargarProductos();
+    
+    // Configurar eventos
+    configurarEventos();
+  });
+
+  // Función para cargar colaboradores
+  function cargarColaboradores() {
+    $.get("https://script.google.com/macros/s/AKfycbzzvl0vc-99DAvF6NuKFQq4ez0k--poWJZAmN0K-tn14EixqpHfIxIQjrQ8CaUNFkm5mQ/exec", function(data) {
+      todosColaboradores = data.map(colaborador => colaborador.trim());
+    });
+  }
+
+  // Función para cargar productos desde Google Sheets
+  function cargarProductos() {
+    $('#overlay').show();
+    
+    $.get("https://script.google.com/macros/s/AKfycbyMZUEvDw8iWtbfRomnjmYaz1ZGD52FybVRnow4XWohUfD9Z52a_68yDMYwxugc24Rj/exec", function(data) {
+      $('#overlay').hide();
+      
+      if (data.error) {
+        Swal.fire('Error', 'No se pudieron cargar los productos', 'error');
+        return;
+      }
+      
+      productos = data.productos;
+      mostrarProductosEnUI();
+      
+    }).fail(function() {
+      $('#overlay').hide();
+      Swal.fire('Error', 'No se pudo conectar al servidor', 'error');
+    });
+  }
+
+  // Función para mostrar productos en la interfaz
+  function mostrarProductosEnUI() {
+    const productosContainer = $('#productos');
+    productosContainer.empty();
+    
+    productos.forEach((producto, index) => {
+      let productoHtml = `
+        <div class="producto" id="${producto.id}">
+          <img src="${producto.imagen || ''}" alt="${producto.nombre}" onerror="this.style.display='none'">
+          <label>${producto.nombre}</label>
+          <span id="cantidadRestante${index}" class="${producto.cantidad === 0 ? 'agotado' : producto.cantidad > 0 ? 'disponible' : ''}">
+            ${producto.cantidad === 0 ? '0 restantes' : `${producto.cantidad} restantes`}
+          </span>
+          <div class="cantidad">
+            <button type="button" class="minus" onclick="cambiarCantidad(${index}, -1)" ${producto.cantidad === 0 ? 'disabled' : ''}>-</button>
+            <input type="number" id="cantidad${index}" value="0" min="0" ${producto.cantidad === 0 ? 'disabled' : ''} oninput="validarCantidad(${index})">
+            <button type="button" class="plus" onclick="cambiarCantidad(${index}, 1)" ${producto.cantidad === 0 ? 'disabled' : ''}>+</button>
+          </div>
+        </div>
+      `;
+      productosContainer.append(productoHtml);
+    });
+  }
+
+  // Función para configurar eventos
+  function configurarEventos() {
+    // Buscador de productos
+    $('#buscador').on('input', filtrarProductos);
+    
+    // Validación de formulario
+    $("#fecha, #colaborador, #area").on("change", verificarProductos);
+    
+    // Autocompletado colaborador
+    $('#colaborador')
+      .on('input', manejarInputColaborador)
+      .on('keydown', manejarTecladoColaborador);
+    
+    // Clic fuera del autocompletado
+    $(document).click(function(e) {
+      if (!$(e.target).closest('#colaborador, #sugerencias-colaborador').length) {
+        $('#sugerencias-colaborador').hide();
+      }
+    });
+  }
+
+  // Función para filtrar productos
+  function filtrarProductos() {
+    const textoBusqueda = $('#buscador').val().toLowerCase();
+    const $productos = $('.producto');
+    
+    $productos.hide();
+    
+    $productos.each(function() {
+      const nombreProducto = $(this).find('label').text().toLowerCase();
+      if (nombreProducto.includes(textoBusqueda)) {
+        $(this).show();
+      }
+    });
+  }
+
+  // Función para cambiar cantidad
+  function cambiarCantidad(index, valor) {
+    let cantidadInput = $(`#cantidad${index}`);
+    let cantidadActual = parseInt(cantidadInput.val());
+    let cantidadRestante = parseInt($(`#cantidadRestante${index}`).text());
+
+    if (cantidadActual + valor >= 0 && cantidadActual + valor <= cantidadRestante) {
+      cantidadInput.val(cantidadActual + valor);
+      verificarProductos();
+    }
+  }
+
+  // Función para validar cantidad
+  function validarCantidad(index) {
+    let cantidadInput = $(`#cantidad${index}`);
+    let cantidadActual = parseInt(cantidadInput.val());
+    let cantidadRestante = parseInt($(`#cantidadRestante${index}`).text());
+
+    if (cantidadActual > cantidadRestante) {
+      cantidadInput.val(cantidadRestante);
+    }
+
+    verificarProductos();
+  }
+
+  // Función para verificar productos seleccionados
+  function verificarProductos() {
+    let productosSeleccionados = false;
+    
+    productos.forEach((producto, index) => {
+      if (parseInt($(`#cantidad${index}`).val()) > 0) {
+        productosSeleccionados = true;
+      }
+    });
+
+    let fecha = $("#fecha").val();
+    let colaborador = $("#colaborador").val();
+    let area = $("#area").val();
+
+    if (productosSeleccionados && fecha.trim() !== "" && colaborador.trim() !== "" && area.trim() !== "") {
+      $("#seguir").prop("disabled", false);
+    } else {
+      $("#seguir").prop("disabled", true);
+    }
+  }
+
+  // Función para manejar input de colaborador
+  function manejarInputColaborador() {
+    const texto = $(this).val().toLowerCase().trim();
+    const $sugerencias = $('#sugerencias-colaborador');
+    
+    if (texto.length >= 2) {
+      const sugerenciasFiltradas = todosColaboradores
+        .filter(colaborador => colaborador.toLowerCase().includes(texto))
+        .slice(0, 8);
+      
+      mostrarSugerencias(sugerenciasFiltradas, texto);
+    } else {
+      $sugerencias.hide();
+    }
+  }
+
+  // Función para mostrar sugerencias
+  function mostrarSugerencias(sugerencias, textoBusqueda) {
+    const $contenedor = $('#sugerencias-colaborador');
+    $contenedor.empty();
+    
+    if (sugerencias.length > 0) {
+      sugerencias.forEach(colaborador => {
+        const nombreLimpio = colaborador.trim();
+        const inicioMatch = nombreLimpio.toLowerCase().indexOf(textoBusqueda);
+        const finMatch = inicioMatch + textoBusqueda.length;
+        
+        if (inicioMatch >= 0) {
+          const antes = nombreLimpio.substring(0, inicioMatch);
+          const match = nombreLimpio.substring(inicioMatch, finMatch);
+          const despues = nombreLimpio.substring(finMatch);
+          
+          $contenedor.append(`
+            <div class="sugerencia-item">
+              ${antes}<strong>${match}</strong>${despues}
+            </div>
+          `);
+        } else {
+          $contenedor.append(`<div class="sugerencia-item">${nombreLimpio}</div>`);
+        }
+      });
+      
+      $contenedor.show();
+      $('.sugerencia-item').click(seleccionarSugerencia);
+    } else {
+      $contenedor.hide();
+    }
+  }
+
+  // Función para seleccionar sugerencia
+  function seleccionarSugerencia() {
+    const textoSeleccionado = $(this).text().replace(/<\/?strong>/g, '').trim();
+    $('#colaborador').val(textoSeleccionado);
+    $('#sugerencias-colaborador').hide();
+    verificarProductos();
+  }
+
+  // Función para manejar teclado en autocompletado
+  function manejarTecladoColaborador(e) {
+    const $items = $('.sugerencia-item');
+    if ($items.length === 0) return;
+    
+    const $current = $items.filter('.highlighted');
+    
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      $current.removeClass('highlighted');
+      const $next = $current.next('.sugerencia-item').length ? $current.next() : $items.first();
+      $next.addClass('highlighted').get(0).scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      $current.removeClass('highlighted');
+      const $prev = $current.prev('.sugerencia-item').length ? $current.prev() : $items.last();
+      $prev.addClass('highlighted').get(0).scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'Enter' && $current.length) {
+      e.preventDefault();
+      $('#colaborador').val($current.text().replace(/<\/?strong>/g, ''));
+      $('#sugerencias-colaborador').hide();
+      verificarProductos();
+    }
+  }
+
+  // Función para enviar datos
+  function enviardatos() {
+    let seleccion = [];
+    let totalProductos = 0;
+
+    productos.forEach((producto, index) => {
+      let cantidadSeleccionada = parseInt($(`#cantidad${index}`).val()) || 0;
+      if (cantidadSeleccionada > 0) {
+        seleccion.push({
+          producto: producto.nombre,
+          cantidad: cantidadSeleccionada,
+          imagen: producto.imagen
+        });
+        totalProductos += cantidadSeleccionada;
+      }
+    });
+
+    let fecha = $('#fecha').val();
+    let colaborador = $('#colaborador').val();
+    let area = $('#area').val();
+
+    if (seleccion.length > 0) {
+      let htmlResumen = `
+        <div style="max-height: 50vh; overflow-y: auto; margin-bottom: 15px; font-size: 0.85em;">
+          <h3 style="margin-bottom: 12px; color: #007BFF; text-align: center; font-size: 1.1em;">Resumen de Requisición</h3>
+          <div style="margin-bottom: 10px; text-align: center;">
+            <strong>Fecha:</strong> ${fecha}<br>
+            <strong>Colaborador:</strong> ${colaborador}<br>
+            <strong>Área:</strong> ${area}
+          </div>
+          <h4 style="margin: 12px 0 8px; color: #28a745; text-align: center; font-size: 1em;">Productos seleccionados (${totalProductos}):</h4>
+          <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+            <thead>
+              <tr style="background-color: #f8f9fa;">
+                <th style="padding: 6px; text-align: center; border-bottom: 1px solid #ddd;">Producto</th>
+                <th style="padding: 6px; text-align: center; border-bottom: 1px solid #ddd;">Cantidad</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+
+      seleccion.forEach(item => {
+        htmlResumen += `
+          <tr style="border-bottom: 1px solid #f0f0f0;">
+            <td style="padding: 6px; vertical-align: middle;">
+              <div style="display: flex; align-items: center;">
+                ${item.imagen ? `<img src="${item.imagen}" style="width: 25px; height: 25px; object-fit: contain; margin-right: 8px; border-radius: 3px;" onerror="this.style.display='none'">` : ''}
+                <span>${item.producto}</span>
+              </div>
+            </td>
+            <td style="padding: 6px; text-align: center; vertical-align: middle;">
+              <span style="font-weight: bold; color: #dc3545;">${item.cantidad}</span>
+            </td>
+          </tr>
+        `;
+      });
+
+      htmlResumen += `
+            </tbody>
+          </table>
+        </div>
+        <p style="margin-top: 12px; font-size: 0.8em; color: #6c757d; text-align: center;">¿Confirmas el envío de esta requisición?</p>
+      `;
+
+      Swal.fire({
+        title: 'Confirmar Requisición',
+        html: htmlResumen,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, enviar',
+        cancelButtonText: 'No, revisar',
+        confirmButtonColor: '#28a745',
+        cancelButtonColor: '#6c757d',
+        width: '600px'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          document.getElementById('overlay').style.display = 'flex';
+
+          $.ajax({
+            url: "https://script.google.com/macros/s/AKfycbwwqupwaqSFGkHaKTN4W5CfKQ666RlKZmYDNOUwhN5Gl4Eob9VKR_tYlckJYkpl6KOJ/exec",
+            type: "POST",
+            data: {
+              seleccion: JSON.stringify(seleccion),
+              fecha: fecha,
+              colaborador: colaborador,
+              area: area
+            },
+            success: function(response) {
+              document.getElementById('overlay').style.display = 'none';
+              console.log("Respuesta del servidor:", response);
+
+              Swal.fire({
+                title: '¡Éxito!',
+                html: `
+                  <div style="text-align: center;">
+                    <p style="font-size: 1.1em; margin-bottom: 15px;">Requisición enviada correctamente 🎉</p>
+                    <div style="color: #28a745; font-size: 2em;">
+                      <i class="fas fa-check-circle"></i>
+                    </div>
+                  </div>
+                `,
+                icon: 'success',
+                confirmButtonText: 'Aceptar'
+              }).then(() => {
+                location.reload();
+              });
+            },
+            error: function(xhr, status, error) {
+              document.getElementById('overlay').style.display = 'none';
+              console.error("Error al enviar los datos:", xhr.responseText);
+
+              Swal.fire({
+                title: 'Error',
+                text: 'Hubo un problema al enviar los datos. Por favor inténtalo nuevamente.',
+                icon: 'error',
+                confirmButtonText: 'Entendido'
+              });
+            }
+          });
+        }
+      });
+    } 
+  }
+</script>
+</body>
+</html>

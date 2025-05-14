@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pisos Brillantes</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body, html {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            width: 100%;
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+
+        .header {
+            background-color: #007BFF;
+            color: white;
+            text-align: center;
+            padding: 15px;
+            width: 100%;
+            font-size: 1.5em;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            box-sizing: border-box;
+        }
+
+        .container {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+            text-align: center;
+            margin: 40px auto;
+            grid-row: 2;
+            height: auto;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin: 0 0 20px 0;
+        }
+
+        label {
+            display: block;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        input[type="date"],
+        input[type="time"],
+        input[type="text"],
+        textarea,
+        select,
+        button {
+            width: 100%;
+            margin-top: 5px;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+
+        button {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            padding: 12px 0;
+            font-size: 16px;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .question-container {
+            margin-bottom: 20px;
+            text-align: left;
+            padding: 10px;
+            border: 2px solid #ccc;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            transition: border-color 0.3s;
+            box-sizing: border-box;
+        }
+
+        .question-container:hover {
+            border-color: #007BFF;
+        }
+
+        /* Estilos para los nuevos checkboxes modernos */
+        .checkbox-moderno {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .checkbox-item {
+            padding: 10px 15px;
+            background-color: #e9ecef;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            user-select: none;
+            font-size: 15px;
+            border: 1px solid #dee2e6;
+        }
+
+        .checkbox-item:hover {
+            background-color: #d1e7ff;
+            border-color: #86b7fe;
+        }
+
+        .checkbox-item.selected {
+            background-color: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            display: none;
+        }
+
+        #overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        #loadingMessage {
+            color: white;
+            font-size: 24px;
+            font-family: 'Times New Roman', Times, serif;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .swal-actions {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            width: 80%;
+            margin: 0 auto;
+            flex-wrap: nowrap;
+        }
+
+        .swal-content {
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+
+        .swal2-html-container {
+            margin-bottom: 15px;
+        }
+
+        .swal-button,
+        .swal-button-cancel {
+            flex: 1;
+            min-width: 120px;
+            padding: 10px 20px;
+            font-size: 14px;
+            text-align: center;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            transition: background-color 0.3s ease;
+        }
+
+        .swal-popup {
+            width: 300px;
+            max-width: 90%;
+        }
+
+        .swal-button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+
+        .swal-button-cancel {
+            background-color: #FF6347;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+
+        .swal2-actions {
+            display: flex !important;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: nowrap;
+        }
+
+        .swal2-icon.swal2-icon-show {
+            background-color: transparent !important;
+        }
+
+        .no-border-icon {
+            border: none !important;
+            background-color: transparent !important;
+        }
+
+        #enviarBtn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            padding: 12px 0;
+            font-size: 16px;
+            border-radius: 5px;
+            transition: background-color 0.3s ease, opacity 0.3s ease;
+            margin-top: 20px;
+        }
+
+        #enviarBtn:disabled {
+            background-color: #ccc;
+            color: #666666;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        #enviarBtn:not(:disabled):hover {
+            background-color: #0056b3;
+        }
+
+        .botones-container {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .botones-container button {
+            flex: 1;
+            margin: 0;
+            padding: 12px 0;
+            font-size: 16px;
+        }
+
+        #buscar-btn {
+            background-color: #28a745;
+        }
+
+        #buscar-btn:hover {
+            background-color: #218838;
+        }
+
+        #reiniciarBtn {
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            display: none; /* Oculto inicialmente */
+        }
+
+        #reiniciarBtn:hover {
+            background-color: #5a6268;
+        }
+
+        /* Estilos para campos bloqueados */
+        .locked-field {
+            background-color: #f5f5f5;
+            color: #666;
+            cursor: not-allowed;
+        }
+
+        /* Nuevos estilos añadidos */
+        .hidden-section {
+            display: none;
+        }
+        
+        #registros-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        #registros-table th, #registros-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        
+        #registros-table th {
+            background-color: #f2f2f2;
+        }
+        
+        #registros-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        #sugerencias-responsable {
+            position: relative;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            width: 100%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-top: -10px;
+            display: none;
+        }
+        
+        .sugerencia-item {
+            padding: 10px 15px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #333;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background-color 0.2s;
+        }
+        
+        .sugerencia-item:last-child {
+            border-bottom: none;
+        }
+        
+        .sugerencia-item:hover {
+            background-color: #f5f5f5;
+        }
+        
+        #responsable {
+            position: relative;
+        }
+
+        .sugerencia-item.highlighted {
+            background-color: #e0e0e0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        Pisos Brillantes
+    </div>
+    <div class="container">
+        <h1>Limpieza de Repaso de Baños Comunes</h1>
+        <div class="form-container">
+            <form id="bitacoraForm">
+                <!-- Sección visible inicialmente -->
+                <div class="question-container">
+                    <label for="fecha">Fecha:</label>
+                    <input type="date" id="fecha" name="fecha" required>
+                </div>
+
+                <div class="question-container">
+                    <label for="edificio">Edificio:</label>
+                    <select id="edificio" name="edificio" required onchange="actualizarNiveles()">
+                        <option value="">Seleccione un edificio</option>
+                        <option value="Torre #1">Torre #1</option>
+                        <option value="Torre #2">Torre #2</option>
+                        <option value="CBA">CBA</option>
+                        <option value="CBB">CBB</option>
+                        <option value="CBC">CBC</option>
+                    </select>
+                </div>
+
+                <div class="question-container">
+                    <label for="nivel">Nivel:</label>
+                    <select id="nivel" name="nivel" required disabled>
+                        <option value="">Seleccione un nivel</option>
+                    </select>
+                </div>
+
+                <div class="botones-container">
+                    <button type="button" id="buscar-btn" onclick="buscarRegistros()">Buscar Registros</button>
+                    <button type="button" id="reiniciarBtn" onclick="reiniciarFormulario()">Reiniciar</button>
+                </div>
+
+                <!-- Tabla de registros existentes -->
+                <div id="registros-container">
+                    <table id="registros-table">
+                        <thead>
+                            <tr>
+                                <th>Responsable</th>
+                                <th>Hora Inicial</th>
+                                <th>Hora Final</th>
+                                <th>Observaciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="registros-body">
+                            <!-- Los datos se llenarán dinámicamente -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Div espaciador -->
+                <div style="height: 30px;"></div>
+
+                <!-- Sección oculta inicialmente -->
+                <div id="seccion-completa" class="hidden-section">
+                    <div class="question-container">
+                        <label for="responsable">Responsable:</label>
+                        <input type="text" id="responsable" name="responsable" placeholder="Escribe el nombre del responsable..." autocomplete="off" required>
+                        <div id="sugerencias-responsable"></div>
+                    </div>
+
+                    <div class="question-container">
+                        <label for="horaInicial">Hora Inicial:</label>
+                        <input type="time" id="horaInicial" name="horaInicial" required>
+                    </div>
+
+                    <div class="question-container">
+                        <label for="horaFinal">Hora Final:</label>
+                        <input type="time" id="horaFinal" name="horaFinal">
+                    </div>
+
+                    <div class="question-container">
+                        <h3>Áreas limpiadas:</h3>
+                        <div class="checkbox-moderno">
+                            <label class="checkbox-item" data-for="pisos">
+                                <input type="checkbox" id="pisos" name="pisos">
+                                Pisos
+                            </label>
+                            <label class="checkbox-item" data-for="paredes">
+                                <input type="checkbox" id="paredes" name="paredes">
+                                Paredes
+                            </label>
+                            <label class="checkbox-item" data-for="puertas">
+                                <input type="checkbox" id="puertas" name="puertas">
+                                Puertas
+                            </label>
+                            <label class="checkbox-item" data-for="sanitarios">
+                                <input type="checkbox" id="sanitarios" name="sanitarios">
+                                Sanitarios
+                            </label>
+                            <label class="checkbox-item" data-for="urinarios">
+                                <input type="checkbox" id="urinarios" name="urinarios">
+                                Urinarios
+                            </label>
+                            <label class="checkbox-item" data-for="lavamanos">
+                                <input type="checkbox" id="lavamanos" name="lavamanos">
+                                Lavamanos
+                            </label>
+                            <label class="checkbox-item" data-for="espejos">
+                                <input type="checkbox" id="espejos" name="espejos">
+                                Espejos
+                            </label>
+                            <label class="checkbox-item" data-for="ventanas">
+                                <input type="checkbox" id="ventanas" name="ventanas">
+                                Ventanas
+                            </label>
+                            <label class="checkbox-item" data-for="basureros">
+                                <input type="checkbox" id="basureros" name="basureros">
+                                Basureros
+                            </label>
+                            <label class="checkbox-item" data-for="aromatizantes">
+                                <input type="checkbox" id="aromatizantes" name="aromatizantes">
+                                Aromatizantes
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="question-container">
+                        <label for="observaciones">Observaciones:</label>
+                        <textarea id="observaciones" name="observaciones" rows="4"></textarea>
+                    </div>
+
+                    <button type="button" id="enviarBtn" onclick="confirmarEnvio()">Enviar</button>
+                </div>
+
+                <!-- Contenedor para bloquear la pantalla -->
+                <div id="overlay" style="display: none;">
+                    <div id="loadingMessage">
+                        <p>Procesando...🥱</p>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+<script>
+    // Variables globales
+    let todosColaboradores = [];
+    
+    // Función para bloquear campos de búsqueda
+    function bloquearCamposBusqueda() {
+        $('#fecha').addClass('locked-field').prop('disabled', true);
+        $('#edificio').addClass('locked-field').prop('disabled', true);
+        $('#nivel').addClass('locked-field').prop('disabled', true);
+        $('#buscar-btn').prop('disabled', true);
+        $('#reiniciarBtn').show();
+    }
+
+    // Función para reiniciar el formulario
+    function reiniciarFormulario() {
+        location.reload();
+    }
+
+    // Precargar la fecha actual
+    function prellenarFechaHora() {
+        let today = new Date();
+        let year = today.getFullYear();
+        let month = String(today.getMonth() + 1).padStart(2, "0");
+        let day = String(today.getDate()).padStart(2, "0");
+        document.getElementById("fecha").value = `${year}-${month}-${day}`;
+        
+        // Hora inicial exacta (sin redondear)
+        let hours = String(today.getHours()).padStart(2, "0");
+        let minutes = String(today.getMinutes()).padStart(2, "0");
+        document.getElementById("horaInicial").value = `${hours}:${minutes}`;
+        
+        // Hora final en blanco
+        document.getElementById("horaFinal").value = "";
+    }
+
+    // Actualizar niveles según el edificio seleccionado
+    function actualizarNiveles() {
+        const edificio = document.getElementById("edificio").value;
+        const nivelSelect = document.getElementById("nivel");
+        
+        // Limpiar opciones actuales
+        nivelSelect.innerHTML = '<option value="">Seleccione un nivel</option>';
+        nivelSelect.disabled = !edificio;
+        
+        if (!edificio) return;
+        
+        let maxNiveles = 0;
+        
+        switch(edificio) {
+            case "Torre #1":
+                maxNiveles = 23;
+                break;
+            case "Torre #2":
+                maxNiveles = 24;
+                break;
+            case "CBA":
+                maxNiveles = 5;
+                break;
+            case "CBB":
+            case "CBC":
+                maxNiveles = 7;
+                break;
+        }
+        
+        // Agregar opciones de niveles
+        for (let i = 1; i <= maxNiveles; i++) {
+            const option = document.createElement("option");
+            option.value = i;
+            option.textContent = `Nivel ${i}`;
+            nivelSelect.appendChild(option);
+        }
+    }
+
+    function buscarRegistros() {
+        const fechaInput = $('#fecha').val(); // Formato yyyy-mm-dd
+        const edificio = $('#edificio').val();
+        const nivel = $('#nivel').val();
+        
+        if (!fechaInput || !edificio || !nivel) {
+            Swal.fire("Error", "Por favor complete todos los campos para buscar", "error");
+            return;
+        }
+        
+        // Convertir fecha de formato HTML (yyyy-mm-dd) a dd/mm/yyyy
+        const fechaParts = fechaInput.split('-');
+        const fechaFormateada = `${fechaParts[2]}/${fechaParts[1]}/${fechaParts[0]}`;
+        
+        $('#overlay').show();
+        
+        const scriptUrl = "https://script.google.com/macros/s/AKfycbwBzzx05fXTsN52bzQEmW2WXK3sG43HHNmWLW0Ap7Hj1Y1WphyXUtYNLIpzb-oo4qM0/exec";
+        
+        $.get(scriptUrl, {
+            fecha: fechaFormateada,
+            edificio: edificio,
+            nivel: nivel
+        }, function(response) {
+            $('#overlay').hide();
+            
+            if (response.result === "success") {
+                if (response.data && response.data.length > 0) {
+                    mostrarRegistros(response.data);
+                } else {
+                    $('#registros-body').html('<tr><td colspan="4" style="text-align: center;">No se encontraron registros para esta fecha</td></tr>');
+                }
+                $('#seccion-completa').removeClass('hidden-section');
+                bloquearCamposBusqueda();
+            } else {
+                Swal.fire("Error", response.message || "Error al buscar registros", "error");
+            }
+        }).fail(function(error) {
+            $('#overlay').hide();
+            console.error("Error en la solicitud:", error);
+            Swal.fire("Error", "Error al conectar con el servidor", "error");
+        });
+    }
+
+    function mostrarRegistros(data) {
+        const tbody = $('#registros-body');
+        tbody.empty();
+        
+        data.forEach(registro => {
+            const row = `
+                <tr>
+                    <td>${registro.responsable}</td>
+                    <td>${registro.horaInicial}</td>
+                    <td>${registro.horaFinal}</td>
+                    <td>${registro.observaciones}</td>
+                </tr>
+            `;
+            tbody.append(row);
+        });
+    }
+
+    // Función para confirmar el envío
+// Función para confirmar el envío
+function confirmarEnvio() {
+    // Validar campos requeridos
+    if (!document.getElementById("fecha").value) {
+        Swal.fire("Error", "Por favor ingrese la fecha", "error");
+        return;
+    }
+    
+    if (!document.getElementById("responsable").value) {
+        Swal.fire("Error", "Por favor ingrese el responsable", "error");
+        return;
+    }
+    
+    const horaInicial = document.getElementById("horaInicial").value;
+    const horaFinal = document.getElementById("horaFinal").value;
+    
+    if (!horaInicial) {
+        Swal.fire("Error", "Por favor ingrese la hora inicial", "error");
+        return;
+    }
+    
+    if (!horaFinal) {
+        Swal.fire("Error", "Por favor ingrese la hora final", "error");
+        return;
+    }
+    
+    // Validar que la hora final sea posterior a la hora inicial
+    if (horaFinal <= horaInicial) {
+        Swal.fire("Error", "La hora final debe ser posterior a la hora inicial", "error");
+        return;
+    }
+    
+    if (!document.getElementById("edificio").value) {
+        Swal.fire("Error", "Por favor seleccione un edificio", "error");
+        return;
+    }
+    
+    if (!document.getElementById("nivel").value) {
+        Swal.fire("Error", "Por favor seleccione un nivel", "error");
+        return;
+    }
+
+    Swal.fire({
+        text: "¿Estás seguro de que deseas enviar la bitácora?",
+        icon: "question",
+        showCancelButton: true,
+        confirmButtonText: "Sí, enviar",
+        cancelButtonText: "Cancelar",
+        customClass: {
+            popup: "swal-popup",
+            confirmButton: "swal-button",
+            cancelButton: "swal-button-cancel",
+            actions: "swal-actions",
+        },
+    }).then((result) => {
+        if (result.isConfirmed) {
+            enviarDatos();
+        }
+    });
+}
+
+
+
+    // Función para enviar datos a Google Sheets
+    function enviarDatos() {
+        // Obtener valores del formulario
+        const fecha = $('#fecha').val();
+        const responsable = $('#responsable').val();
+        const horaInicial = $('#horaInicial').val();
+        const horaFinal = $('#horaFinal').val();
+        const edificio = $('#edificio').val();
+        const nivel = $('#nivel').val();
+        const observaciones = $('#observaciones').val();
+        
+        // Obtener valores de checkboxes
+        const areasLimpieza = {
+            pisos: $('#pisos').is(':checked'),
+            paredes: $('#paredes').is(':checked'),
+            puertas: $('#puertas').is(':checked'),
+            sanitarios: $('#sanitarios').is(':checked'),
+            urinarios: $('#urinarios').is(':checked'),
+            lavamanos: $('#lavamanos').is(':checked'),
+            espejos: $('#espejos').is(':checked'),
+            ventanas: $('#ventanas').is(':checked'),
+            basureros: $('#basureros').is(':checked'),
+            aromatizantes: $('#aromatizantes').is(':checked')
+        };
+        
+        // Mostrar overlay de carga
+        document.getElementById('overlay').style.display = 'flex';
+        
+        // Preparar datos para enviar
+        const datosEnvio = {
+            fecha: fecha,
+            responsable: responsable,
+            horaInicial: horaInicial,
+            horaFinal: horaFinal,
+            edificio: edificio,
+            nivel: nivel,
+            observaciones: observaciones,
+            pisos: areasLimpieza.pisos ? "✓" : "",
+            paredes: areasLimpieza.paredes ? "✓" : "",
+            puertas: areasLimpieza.puertas ? "✓" : "",
+            sanitarios: areasLimpieza.sanitarios ? "✓" : "",
+            urinarios: areasLimpieza.urinarios ? "✓" : "",
+            lavamanos: areasLimpieza.lavamanos ? "✓" : "",
+            espejos: areasLimpieza.espejos ? "✓" : "",
+            ventanas: areasLimpieza.ventanas ? "✓" : "",
+            basureros: areasLimpieza.basureros ? "✓" : "",
+            aromatizantes: areasLimpieza.aromatizantes ? "✓" : ""
+        };
+        
+        // URL de tu Google Apps Script para enviar datos
+        const scriptUrl = "https://script.google.com/macros/s/AKfycbzhsanAikNeQ49BwLL-_TKWLrbGYJoHj70VIeUAGD-aSRMBjjn3h6e6SZIzjI11StjkKg/exec";
+        
+        // Enviar datos usando AJAX
+        $.ajax({
+            url: scriptUrl,
+            type: "POST",
+            data: datosEnvio,
+            success: function(response) {
+                document.getElementById('overlay').style.display = 'none';
+                console.log("Respuesta del servidor:", response);
+                
+                Swal.fire({
+                    title: '¡Éxito!',
+                    html: `
+                        <div style="text-align: center;">
+                            <p style="font-size: 1.1em; margin-bottom: 15px;">
+                                Bitácora enviada correctamente 🎉
+                            </p>
+                            <div style="color: #28a745; font-size: 2em;">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <p style="margin-top: 15px; font-size: 0.9em; color: #6c757d;">
+                                ${edificio} - Nivel ${nivel}
+                            </p>
+                        </div>
+                    `,
+                    icon: 'success',
+                    confirmButtonText: 'Aceptar'
+                }).then(() => {
+                    // Limpiar formulario después del envío exitoso
+                    document.getElementById("bitacoraForm").reset();
+                    document.getElementById("nivel").disabled = true;
+                    $('#seccion-completa').addClass('hidden-section');
+                    $('#registros-body').empty();
+                    reiniciarFormulario();
+                });
+            },
+            error: function(xhr, status, error) {
+                document.getElementById('overlay').style.display = 'none';
+                console.error("Error al enviar los datos:", xhr.responseText);
+                
+                Swal.fire({
+                    title: 'Error',
+                    text: 'Hubo un problema al enviar la bitácora. Por favor inténtalo nuevamente.',
+                    icon: 'error',
+                    confirmButtonText: 'Entendido'
+                });
+            }
+        });
+    }
+
+    // Función para cargar colaboradores desde Google Sheets
+    function cargarColaboradores() {
+        $.get("https://script.google.com/macros/s/AKfycbzzvl0vc-99DAvF6NuKFQq4ez0k--poWJZAmN0K-tn14EixqpHfIxIQjrQ8CaUNFkm5mQ/exec", function(data) {
+            todosColaboradores = data.map(colaborador => colaborador.trim());
+        });
+    }
+
+    // Función para manejar input de responsable
+    function manejarInputResponsable() {
+        const texto = $(this).val().toLowerCase().trim();
+        const $sugerencias = $('#sugerencias-responsable');
+        
+        if (texto.length >= 2) {
+            const sugerenciasFiltradas = todosColaboradores
+                .filter(colaborador => colaborador.toLowerCase().includes(texto))
+                .slice(0, 8);
+            
+            mostrarSugerenciasResponsable(sugerenciasFiltradas, texto);
+        } else {
+            $sugerencias.hide();
+        }
+    }
+
+    // Función para mostrar sugerencias
+    function mostrarSugerenciasResponsable(sugerencias, textoBusqueda) {
+        const $contenedor = $('#sugerencias-responsable');
+        $contenedor.empty();
+        
+        if (sugerencias.length > 0) {
+            sugerencias.forEach(colaborador => {
+                const nombreLimpio = colaborador.trim();
+                const inicioMatch = nombreLimpio.toLowerCase().indexOf(textoBusqueda);
+                const finMatch = inicioMatch + textoBusqueda.length;
+                
+                if (inicioMatch >= 0) {
+                    const antes = nombreLimpio.substring(0, inicioMatch);
+                    const match = nombreLimpio.substring(inicioMatch, finMatch);
+                    const despues = nombreLimpio.substring(finMatch);
+                    
+                    $contenedor.append(`
+                        <div class="sugerencia-item">
+                            ${antes}<strong>${match}</strong>${despues}
+                        </div>
+                    `);
+                } else {
+                    $contenedor.append(`<div class="sugerencia-item">${nombreLimpio}</div>`);
+                }
+            });
+            
+            $contenedor.show();
+            $('.sugerencia-item').click(seleccionarSugerenciaResponsable);
+        } else {
+            $contenedor.hide();
+        }
+    }
+
+    // Función para seleccionar sugerencia
+    function seleccionarSugerenciaResponsable() {
+        const textoSeleccionado = $(this).text().replace(/<\/?strong>/g, '').trim();
+        $('#responsable').val(textoSeleccionado);
+        $('#sugerencias-responsable').hide();
+    }
+
+    // Función para manejar teclado en autocompletado
+    function manejarTecladoResponsable(e) {
+        const $items = $('.sugerencia-item');
+        if ($items.length === 0) return;
+        
+        const $current = $items.filter('.highlighted');
+        
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            $current.removeClass('highlighted');
+            const $next = $current.next('.sugerencia-item').length ? $current.next() : $items.first();
+            $next.addClass('highlighted').get(0).scrollIntoView({ block: 'nearest' });
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            $current.removeClass('highlighted');
+            const $prev = $current.prev('.sugerencia-item').length ? $current.prev() : $items.last();
+            $prev.addClass('highlighted').get(0).scrollIntoView({ block: 'nearest' });
+        } else if (e.key === 'Enter' && $current.length) {
+            e.preventDefault();
+            $('#responsable').val($current.text().replace(/<\/?strong>/g, ''));
+            $('#sugerencias-responsable').hide();
+        }
+    }
+
+    // Manejar clic en los checkboxes modernos
+    function manejarCheckboxes() {
+        $('.checkbox-item').click(function() {
+            const checkboxId = $(this).data('for');
+            const checkbox = $('#' + checkboxId);
+            const isChecked = !checkbox.prop('checked');
+            
+            checkbox.prop('checked', isChecked);
+            $(this).toggleClass('selected', isChecked);
+        });
+    }
+
+    // Inicialización
+    document.addEventListener("DOMContentLoaded", function() {
+        prellenarFechaHora();
+        document.getElementById("edificio").addEventListener("change", actualizarNiveles);
+        
+        // Cargar colaboradores
+        cargarColaboradores();
+        
+        // Configurar eventos para el autocompletado
+        $('#responsable')
+            .on('input', manejarInputResponsable)
+            .on('keydown', manejarTecladoResponsable);
+        
+        // Clic fuera del autocompletado
+        $(document).click(function(e) {
+            if (!$(e.target).closest('#responsable, #sugerencias-responsable').length) {
+                $('#sugerencias-responsable').hide();
+            }
+        });
+        
+        // Configurar eventos para los checkboxes modernos
+        manejarCheckboxes();
+    });
+</script>
+</body>
+</html>

@@ -286,13 +286,24 @@
         <div class="card">
             <h1>Registro de Salida de Residuos</h1>
             
-            <div class="search-section">
-                <div class="form-group">
-                    <label for="fechaBusqueda" class="required">Buscar registros del mes</label>
-                    <input type="month" id="fechaBusqueda" name="fechaBusqueda" required>
-                </div>
-                <button type="button" id="buscarRegistros">Buscar Registros</button>
-            </div>
+<div class="search-section">
+    <div class="form-group">
+        <label for="edificio" class="required">Edificio</label>
+        <select id="edificio" name="edificio" required>
+            <option value="" disabled selected>Seleccione un edificio</option>
+            <option value="Torre #1">Torre #1</option>
+            <option value="Torre #2">Torre #2</option>
+            <option value="CBA">CBA</option>
+            <option value="CBB">CBB</option>
+            <option value="CBC">CBC</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="fechaBusqueda" class="required">Buscar registros del mes</label>
+        <input type="month" id="fechaBusqueda" name="fechaBusqueda" required>
+    </div>
+    <button type="button" id="buscarRegistros">Buscar Registros</button>
+</div>
             
             <div class="table-container">
                 <table id="residuosTable">
@@ -356,156 +367,168 @@
             });
         });
 
-        function buscarRegistros() {
-            const fechaInput = document.getElementById('fechaBusqueda').value;
-            
-            if (!fechaInput) {
-                alert('Por favor seleccione un mes para buscar');
-                return;
-            }
-            
-            // Mostrar spinner de carga
-            document.getElementById('loading').style.display = 'flex';
-            
-            // Convertir YYYY-MM a MM-YY (ej: 2025-05 → 05-25)
-            const [year, month] = fechaInput.split('-');
-            const nombreHoja = `${month}-${year.slice(-2)}`;
-            
-            const tbody = document.getElementById('residuosBody');
-            tbody.innerHTML = '<tr><td colspan="7">Cargando registros...</td></tr>';
-            
-            const webAppUrl = `https://script.google.com/macros/s/AKfycbyj3XcDNd4gme2bJHpTg204CfoWAxiMFD5RVC-cdNJLuYcIw29mojrp43ITkMIWgGW1PQ/exec?action=getPending&sheet=${encodeURIComponent(nombreHoja)}`;
-            
-            fetch(webAppUrl)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Error en la respuesta del servidor');
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    // Ocultar spinner
-                    document.getElementById('loading').style.display = 'none';
-                    
-                    tbody.innerHTML = '';
-                    
-                    if (data.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="7" class="no-data">No hay registros pendientes de salida para este mes</td></tr>';
-                        return;
-                    }
-                    
-                    data.forEach(row => {
-                        const tr = document.createElement('tr');
-                        tr.dataset.rowId = row.rowId;
-                        tr.dataset.sheetName = row.sheetName;
-                        
-                        // Determinar tipo de residuo
-                        let tipoResiduo = '';
-                        if (row.comun === 'X') tipoResiduo = 'Común';
-                        else if (row.plastico === 'X') tipoResiduo = 'Plástico';
-                        else if (row.aluminio === 'X') tipoResiduo = 'Aluminio';
-                        else if (row.carton === 'X') tipoResiduo = 'Cartón';
-                        else if (row.vidrio === 'X') tipoResiduo = 'Vidrio';
-                        else if (row.rpbi === 'X') tipoResiduo = 'RPBI';
-                        
-                        // Determinar clasificación
-                        let clasificacion = row.organico === 'X' ? 'Orgánico' : 'Inorgánico';
-                        
-                        // Determinar estado físico
-                        let estadoFisico = '';
-                        if (row.solido === 'X') estadoFisico = 'Sólido';
-                        else if (row.liquido === 'X') estadoFisico = 'Líquido';
-                        else if (row.gaseoso === 'X') estadoFisico = 'Gaseoso';
-                        
-                        tr.innerHTML = `
-                            <td class="checkbox-container"><input type="checkbox" class="seleccionar-residuo"></td>
-                            <td>${formatearFecha(row.fechaIngreso)}</td>
-                            <td>${tipoResiduo}</td>
-                            <td>${row.cantidad || ''}</td>
-                            <td>${clasificacion}</td>
-                            <td>${estadoFisico}</td>
-                            <td>${row.responsable || ''}</td>
-                        `;
-                        
-                        tbody.appendChild(tr);
-                    });
-                })
-                .catch(error => {
-                    // Ocultar spinner
-                    document.getElementById('loading').style.display = 'none';
-                    
-                    console.error('Error:', error);
-                    tbody.innerHTML = '<tr><td colspan="7">Error al cargar los registros. Verifique el nombre de la hoja o intente nuevamente.</td></tr>';
-                });
-        }
+// Mapeo de edificios a IDs de hojas de cálculo
+const edificios = {
+    'Torre #1': '1-9nVUE0cxm6UZX0Wiq6KjVT_7ZuXYc_14IxQfjcX1S0',
+    'Torre #2': '1Khpn9BpmqaFwOEfYMK-jaz3pYDg25o4L5ZuaS_3IVkc',
+    'CBA': '1T8Pdz5tPKslkLLMNZWfukPISqyFcrxFG5HkTWAbYpjI',
+    'CBB': '1pId3ghYj4OtnV9tv2hl-rq5LuHh_5PTA40-3Y8X_yas',
+    'CBC': '1EZ8HHrPCzHV0P99f_7e28duteCdXnNBWJSsj2EUHIPE'
+};
 
-        async function registrarSalida() {
-            const fechaSalida = document.getElementById('fechaSalida').value;
-            const destinoFinal = document.getElementById('destinoFinal').value;
+function buscarRegistros() {
+    const fechaInput = document.getElementById('fechaBusqueda').value;
+    const edificio = document.getElementById('edificio').value;
+    
+    if (!fechaInput || !edificio) {
+        alert('Por favor seleccione un edificio y un mes para buscar');
+        return;
+    }
+    
+    // Mostrar spinner de carga
+    document.getElementById('loading').style.display = 'flex';
+    
+    // Convertir YYYY-MM a MM-YY (ej: 2025-05 → 05-25)
+    const [year, month] = fechaInput.split('-');
+    const nombreHoja = `${month}-${year.slice(-2)}`;
+    
+    const tbody = document.getElementById('residuosBody');
+    tbody.innerHTML = '<tr><td colspan="7">Cargando registros...</td></tr>';
+    
+    // Incluir el edificio en la URL
+    const webAppUrl = `https://script.google.com/macros/s/AKfycbx49VCXBHZJScQx2T-W53JVSL-EsFDW4FVnFkBKCYmKMdS1MOqb4v6rC6Ij7GdumMVX/exec?action=getPending&sheet=${encodeURIComponent(nombreHoja)}&edificio=${encodeURIComponent(edificio)}`;
+    
+    fetch(webAppUrl)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Error en la respuesta del servidor');
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Ocultar spinner
+            document.getElementById('loading').style.display = 'none';
             
-            if (!fechaSalida || !destinoFinal) {
-                alert('Por favor complete la fecha de salida y el destino final');
+            tbody.innerHTML = '';
+            
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="no-data">No hay registros pendientes de salida para este mes</td></tr>';
                 return;
             }
             
-            const registrosSeleccionados = Array.from(document.querySelectorAll('.seleccionar-residuo:checked'))
-                .map(checkbox => {
-                    const row = checkbox.closest('tr');
-                    return {
-                        rowId: row.dataset.rowId,
-                        sheetName: row.dataset.sheetName
-                    };
-                });
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.dataset.rowId = row.rowId;
+                tr.dataset.sheetName = row.sheetName;
+                tr.dataset.edificio = edificio; // Almacenar el edificio para el registro de salida
+                
+                // Determinar tipo de residuo
+                let tipoResiduo = '';
+                if (row.comun === 'X') tipoResiduo = 'Común';
+                else if (row.plastico === 'X') tipoResiduo = 'Plástico';
+                else if (row.aluminio === 'X') tipoResiduo = 'Aluminio';
+                else if (row.carton === 'X') tipoResiduo = 'Cartón';
+                else if (row.vidrio === 'X') tipoResiduo = 'Vidrio';
+                else if (row.rpbi === 'X') tipoResiduo = 'RPBI';
+                
+                // Determinar clasificación
+                let clasificacion = row.organico === 'X' ? 'Orgánico' : 'Inorgánico';
+                
+                // Determinar estado físico
+                let estadoFisico = '';
+                if (row.solido === 'X') estadoFisico = 'Sólido';
+                else if (row.liquido === 'X') estadoFisico = 'Líquido';
+                else if (row.gaseoso === 'X') estadoFisico = 'Gaseoso';
+                
+                tr.innerHTML = `
+                    <td class="checkbox-container"><input type="checkbox" class="seleccionar-residuo"></td>
+                    <td>${formatearFecha(row.fechaIngreso)}</td>
+                    <td>${tipoResiduo}</td>
+                    <td>${row.cantidad || ''}</td>
+                    <td>${clasificacion}</td>
+                    <td>${estadoFisico}</td>
+                    <td>${row.responsable || ''}</td>
+                `;
+                
+                tbody.appendChild(tr);
+            });
+        })
+        .catch(error => {
+            // Ocultar spinner
+            document.getElementById('loading').style.display = 'none';
             
-            if (registrosSeleccionados.length === 0) {
-                alert('Por favor seleccione al menos un registro para registrar su salida');
-                return;
-            }
-            
-            // Mostrar spinner de carga
-            document.getElementById('loading').style.display = 'flex';
-            
-            const datos = {
-                action: 'updateExit',
-                data: {
-                    fechaSalida: fechaSalida,
-                    destinoFinal: destinoFinal,
-                    registros: registrosSeleccionados
-                }
+            console.error('Error:', error);
+            tbody.innerHTML = '<tr><td colspan="7">Error al cargar los registros. Verifique el nombre de la hoja o intente nuevamente.</td></tr>';
+        });
+}
+
+async function registrarSalida() {
+    const fechaSalida = document.getElementById('fechaSalida').value;
+    const destinoFinal = document.getElementById('destinoFinal').value;
+    
+    if (!fechaSalida || !destinoFinal) {
+        alert('Por favor complete la fecha de salida y el destino final');
+        return;
+    }
+    
+    const registrosSeleccionados = Array.from(document.querySelectorAll('.seleccionar-residuo:checked'))
+        .map(checkbox => {
+            const row = checkbox.closest('tr');
+            return {
+                rowId: row.dataset.rowId,
+                sheetName: row.dataset.sheetName,
+                edificio: row.dataset.edificio // Incluir el edificio
             };
-            
-            const webAppUrl = 'https://script.google.com/macros/s/AKfycbyj3XcDNd4gme2bJHpTg204CfoWAxiMFD5RVC-cdNJLuYcIw29mojrp43ITkMIWgGW1PQ/exec';
-            
-            try {
-                // Solución alternativa usando Google Apps Script URL Fetch
-                const response = await fetch(webAppUrl, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: 'data=' + encodeURIComponent(JSON.stringify(datos))
-                });
-                
-                // Ocultar spinner
-                document.getElementById('loading').style.display = 'none';
-                
-                // Aunque no podemos leer la respuesta en modo 'no-cors', asumimos éxito
-                alert(`Se actualizaron ${registrosSeleccionados.length} registros exitosamente`);
-                document.getElementById('fechaSalida').value = '';
-                document.getElementById('destinoFinal').value = '';
-                document.querySelectorAll('.seleccionar-residuo').forEach(cb => cb.checked = false);
-                
-                // Esperar 1 segundo antes de recargar para asegurar la actualización
-                setTimeout(buscarRegistros, 1000);
-            } catch (error) {
-                // Ocultar spinner
-                document.getElementById('loading').style.display = 'none';
-                
-                console.error('Error:', error);
-                alert('La operación se completó, pero no recibimos confirmación. Verifique manualmente.');
-            }
+        });
+    
+    if (registrosSeleccionados.length === 0) {
+        alert('Por favor seleccione al menos un registro para registrar su salida');
+        return;
+    }
+    
+    // Mostrar spinner de carga
+    document.getElementById('loading').style.display = 'flex';
+    
+    const datos = {
+        action: 'updateExit',
+        data: {
+            fechaSalida: fechaSalida,
+            destinoFinal: destinoFinal,
+            registros: registrosSeleccionados
         }
+    };
+    
+    const webAppUrl = 'https://script.google.com/macros/s/AKfycbx49VCXBHZJScQx2T-W53JVSL-EsFDW4FVnFkBKCYmKMdS1MOqb4v6rC6Ij7GdumMVX/exec';
+    
+    try {
+        const response = await fetch(webAppUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'data=' + encodeURIComponent(JSON.stringify(datos))
+        });
+        
+        // Ocultar spinner
+        document.getElementById('loading').style.display = 'none';
+        
+        alert(`Se actualizaron ${registrosSeleccionados.length} registros exitosamente`);
+        document.getElementById('fechaSalida').value = '';
+        document.getElementById('destinoFinal').value = '';
+        document.querySelectorAll('.seleccionar-residuo').forEach(cb => cb.checked = false);
+        
+        // Esperar 1 segundo antes de recargar para asegurar la actualización
+        setTimeout(buscarRegistros, 1000);
+    } catch (error) {
+        // Ocultar spinner
+        document.getElementById('loading').style.display = 'none';
+        
+        console.error('Error:', error);
+        alert('La operación se completó, pero no recibimos confirmación. Verifique manualmente.');
+    }
+}
+
 
         function formatearFecha(fechaString) {
             if (!fechaString) return '';

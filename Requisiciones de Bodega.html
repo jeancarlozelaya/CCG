@@ -535,20 +535,21 @@
     productosContainer.empty();
     
     productos.forEach((producto, index) => {
-      let productoHtml = `
-        <div class="producto" id="${producto.id}">
-          <img src="${producto.imagen || ''}" alt="${producto.nombre}" onerror="this.style.display='none'">
-          <label>${producto.nombre}</label>
-          <span id="cantidadRestante${index}" class="${producto.cantidad === 0 ? 'agotado' : producto.cantidad > 0 ? 'disponible' : ''}">
-            ${producto.cantidad === 0 ? '0 restantes' : `${producto.cantidad} restantes`}
-          </span>
-          <div class="cantidad">
-            <button type="button" class="minus" onclick="cambiarCantidad(${index}, -1)" ${producto.cantidad === 0 ? 'disabled' : ''}>-</button>
-            <input type="number" id="cantidad${index}" value="0" min="0" ${producto.cantidad === 0 ? 'disabled' : ''} oninput="validarCantidad(${index})">
-            <button type="button" class="plus" onclick="cambiarCantidad(${index}, 1)" ${producto.cantidad === 0 ? 'disabled' : ''}>+</button>
-          </div>
-        </div>
-      `;
+let productoHtml = `
+  <div class="producto" id="${producto.id}">
+    <img src="${producto.imagen || ''}" alt="${producto.nombre}" onerror="this.style.display='none'">
+    <label>${producto.nombre}</label>
+    ${producto.devolucion === 'X' ? '<span style="color: green; font-size: 0.8em;">Retornable</span>' : ''}
+    <span id="cantidadRestante${index}" class="${producto.cantidad === 0 ? 'agotado' : producto.cantidad > 0 ? 'disponible' : ''}">
+      ${producto.cantidad === 0 ? '0 restantes' : `${producto.cantidad} restantes`}
+    </span>
+    <div class="cantidad">
+      <button type="button" class="minus" onclick="cambiarCantidad(${index}, -1)" ${producto.cantidad === 0 ? 'disabled' : ''}>-</button>
+      <input type="number" id="cantidad${index}" value="0" min="0" ${producto.cantidad === 0 ? 'disabled' : ''} oninput="validarCantidad(${index})">
+      <button type="button" class="plus" onclick="cambiarCantidad(${index}, 1)" ${producto.cantidad === 0 ? 'disabled' : ''}>+</button>
+    </div>
+  </div>
+`;
       productosContainer.append(productoHtml);
     });
   }
@@ -721,6 +722,7 @@
   function enviardatos() {
     let seleccion = [];
     let totalProductos = 0;
+    let productosRetornables = 0;
 
     productos.forEach((producto, index) => {
       let cantidadSeleccionada = parseInt($(`#cantidad${index}`).val()) || 0;
@@ -728,9 +730,13 @@
         seleccion.push({
           producto: producto.nombre,
           cantidad: cantidadSeleccionada,
-          imagen: producto.imagen
+          imagen: producto.imagen,
+          retornable: producto.devolucion === 'X'
         });
         totalProductos += cantidadSeleccionada;
+        if (producto.devolucion === 'X') {
+          productosRetornables += cantidadSeleccionada;
+        }
       }
     });
 
@@ -739,40 +745,46 @@
     let area = $('#area').val();
 
     if (seleccion.length > 0) {
-      let htmlResumen = `
-        <div style="max-height: 50vh; overflow-y: auto; margin-bottom: 15px; font-size: 0.85em;">
-          <h3 style="margin-bottom: 12px; color: #007BFF; text-align: center; font-size: 1.1em;">Resumen de Requisición</h3>
-          <div style="margin-bottom: 10px; text-align: center;">
-            <strong>Fecha:</strong> ${fecha}<br>
-            <strong>Colaborador:</strong> ${colaborador}<br>
-            <strong>Área:</strong> ${area}
-          </div>
-          <h4 style="margin: 12px 0 8px; color: #28a745; text-align: center; font-size: 1em;">Productos seleccionados (${totalProductos}):</h4>
-          <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
-            <thead>
-              <tr style="background-color: #f8f9fa;">
-                <th style="padding: 6px; text-align: center; border-bottom: 1px solid #ddd;">Producto</th>
-                <th style="padding: 6px; text-align: center; border-bottom: 1px solid #ddd;">Cantidad</th>
-              </tr>
-            </thead>
-            <tbody>
-      `;
+    let htmlResumen = `
+      <div style="max-height: 50vh; overflow-y: auto; margin-bottom: 15px; font-size: 0.85em;">
+        <h3 style="margin-bottom: 12px; color: #007BFF; text-align: center; font-size: 1.1em;">Resumen de Requisición</h3>
+        <div style="margin-bottom: 10px; text-align: center;">
+          <strong>Fecha:</strong> ${fecha}<br>
+          <strong>Colaborador:</strong> ${colaborador}<br>
+          <strong>Área:</strong> ${area}<br>
+          ${productosRetornables > 0 ? `<strong style="color: green;">Productos retornables:</strong> ${productosRetornables} (se registrarán en devoluciones)<br>` : ''}
+        </div>
+        <h4 style="margin: 12px 0 8px; color: #28a745; text-align: center; font-size: 1em;">Productos seleccionados (${totalProductos}):</h4>
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+          <thead>
+            <tr style="background-color: #f8f9fa;">
+              <th style="padding: 6px; text-align: center; border-bottom: 1px solid #ddd;">Producto</th>
+              <th style="padding: 6px; text-align: center; border-bottom: 1px solid #ddd;">Cantidad</th>
+              <th style="padding: 6px; text-align: center; border-bottom: 1px solid #ddd;">Tipo</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
 
-      seleccion.forEach(item => {
-        htmlResumen += `
-          <tr style="border-bottom: 1px solid #f0f0f0;">
-            <td style="padding: 6px; vertical-align: middle;">
-              <div style="display: flex; align-items: center;">
-                ${item.imagen ? `<img src="${item.imagen}" style="width: 25px; height: 25px; object-fit: contain; margin-right: 8px; border-radius: 3px;" onerror="this.style.display='none'">` : ''}
-                <span>${item.producto}</span>
-              </div>
-            </td>
-            <td style="padding: 6px; text-align: center; vertical-align: middle;">
-              <span style="font-weight: bold; color: #dc3545;">${item.cantidad}</span>
-            </td>
-          </tr>
-        `;
-      });
+    seleccion.forEach(item => {
+      htmlResumen += `
+        <tr style="border-bottom: 1px solid #f0f0f0;">
+          <td style="padding: 6px; vertical-align: middle;">
+            <div style="display: flex; align-items: center;">
+              ${item.imagen ? `<img src="${item.imagen}" style="width: 25px; height: 25px; object-fit: contain; margin-right: 8px; border-radius: 3px;" onerror="this.style.display='none'">` : ''}
+              <span>${item.producto}</span>
+            </div>
+          </td>
+          <td style="padding: 6px; text-align: center; vertical-align: middle;">
+            <span style="font-weight: bold; color: #dc3545;">${item.cantidad}</span>
+          </td>
+          <td style="padding: 6px; text-align: center; vertical-align: middle;">
+            ${item.retornable ? '<span style="color: green;">Retornable</span>' : 'No retornable'}
+          </td>
+        </tr>
+      `;
+    });
+
 
       htmlResumen += `
             </tbody>

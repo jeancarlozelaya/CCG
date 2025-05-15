@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Devoluciones de Desperdicio</title>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <style>
+    /* Estilos similares a la página de requisición */
+    .header {
+      background-color: #007BFF;
+      color: white;
+      text-align: center;
+      padding: 15px 0;
+      font-size: 1.5em;
+      box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+    }
+    
+    h1 {
+      text-align: center;
+      color: #333;
+      margin-top: 20px;
+      font-size: 24px;
+      margin-bottom: 30px;
+    }
+    
+    .form-container {
+      width: 80%;
+      max-width: 1000px;
+      margin: 20px auto;
+      padding: 20px;
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 0.9em;
+    }
+
+    th, td {
+      padding: 12px 15px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+
+    th {
+      background-color: #007BFF;
+      color: white;
+      font-weight: bold;
+    }
+
+    tr:hover {
+      background-color: #f5f5f5;
+    }
+
+    .cantidad-input {
+      width: 80px;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      text-align: center;
+    }
+
+    .button-container {
+      display: flex;
+      justify-content: center;
+      margin-top: 20px;
+    }
+    
+    .button-container button {
+      font-size: 16px;
+      padding: 12px 24px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+
+    .estado-pendiente {
+      color: white;
+      background-color: #dc3545;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+
+    .estado-completo {
+      color: white;
+      background-color: #28a745;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+
+    #overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      display: none;
+    }
+    
+    #loadingMessage {
+      color: white;
+      font-size: 24px;
+      font-family: 'Times New Roman', Times, serif;
+      text-align: center;
+      padding: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">Pisos Brillantes</div>
+  
+  <div class="form-container">
+    <h1>Devoluciones de Desperdicio</h1>
+
+    <div id="tabla-devoluciones-container">
+      <table id="tabla-devoluciones">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Hora</th>
+            <th>Colaborador</th>
+            <th>Área</th>
+            <th>Producto</th>
+            <th>Cantidad Original</th>
+            <th>Cantidad Devuelta</th>
+            <th>Cantidad Pendiente</th>
+            <th>Estado</th>
+            <th>Devolver</th>
+          </tr>
+        </thead>
+        <tbody id="devoluciones-body">
+          <!-- Los datos se cargarán aquí -->
+        </tbody>
+      </table>
+    </div>
+
+    <div class="button-container">
+      <button type="button" id="btn-enviar" disabled onclick="enviarDevoluciones()">Enviar Devoluciones</button>
+    </div>
+  </div>
+
+  <div id="overlay">
+    <div id="loadingMessage">
+      <p>Procesando...🥱</p>
+    </div>
+  </div>
+
+<script>
+  // Variables globales
+  let devoluciones = [];
+  let datosEditados = {};
+
+  // Configuración inicial al cargar la página
+  document.addEventListener('DOMContentLoaded', function() {
+    cargarDevolucionesPendientes();
+    
+    // Configurar evento para validar el botón de enviar
+    document.getElementById('btn-enviar').addEventListener('click', enviarDevoluciones);
+  });
+
+  // Función para cargar las devoluciones pendientes
+function cargarDevolucionesPendientes() {
+  $('#overlay').show();
+  
+  // Limpiar mensajes previos
+  $('#devoluciones-body').empty().append('<tr><td colspan="10" style="text-align: center;">Cargando datos...</td></tr>');
+  
+  // URL del script de Google Apps (REEMPLAZA CON TU URL REAL)
+  const scriptUrl = "https://script.google.com/macros/s/AKfycbwQrmkh9WK_cVCPkxEKOmBxwxS1PWF1gPYCQqFzmzNHxQ5aeEsGoAmKZZh87iiQrzwA/exec?action=obtenerDevoluciones";
+  
+  $.ajax({
+    url: scriptUrl,
+    type: "GET",
+    dataType: "json",
+    success: function(data) {
+      $('#overlay').hide();
+      
+      console.log("Respuesta del servidor:", data); // Depuración
+      
+      if (data.error) {
+        mostrarError(data.mensaje || "Error al cargar devoluciones");
+        return;
+      }
+      
+      if (!data.devoluciones) {
+        mostrarError("Formato de respuesta inválido");
+        return;
+      }
+      
+      devoluciones = data.devoluciones;
+      mostrarDevolucionesEnUI();
+    },
+    error: function(xhr, status, error) {
+      $('#overlay').hide();
+      console.error("Error en la solicitud:", status, error, xhr.responseText);
+      
+      let errorMsg = "Error al conectar con el servidor";
+      try {
+        const response = JSON.parse(xhr.responseText);
+        errorMsg = response.error || response.mensaje || errorMsg;
+      } catch (e) {}
+      
+      mostrarError(errorMsg);
+    }
+  });
+}
+
+function mostrarError(mensaje) {
+  $('#devoluciones-body').empty().append(`<tr><td colspan="10" style="text-align: center; color: red;">${mensaje}</td></tr>`);
+  document.getElementById('btn-enviar').disabled = true;
+  
+  Swal.fire({
+    title: 'Error',
+    text: mensaje,
+    icon: 'error',
+    confirmButtonText: 'Entendido'
+  });
+}
+
+
+
+  // Función para mostrar las devoluciones en la interfaz
+  function mostrarDevolucionesEnUI() {
+    const tbody = $('#devoluciones-body');
+    tbody.empty();
+    
+    if (devoluciones.length === 0) {
+      tbody.append('<tr><td colspan="10" style="text-align: center;">No hay devoluciones pendientes</td></tr>');
+      return;
+    }
+    
+    devoluciones.forEach((devolucion, index) => {
+      const row = `
+        <tr id="row-${index}">
+          <td>${devolucion.fecha}</td>
+          <td>${devolucion.hora}</td>
+          <td>${devolucion.colaborador}</td>
+          <td>${devolucion.area}</td>
+          <td>${devolucion.producto}</td>
+          <td>${devolucion.cantidadSalida}</td>
+          <td>${devolucion.cantidadDevuelta}</td>
+          <td>${devolucion.cantidadPendiente}</td>
+          <td class="${devolucion.estado === 'Pendiente' ? 'estado-pendiente' : 'estado-completo'}">${devolucion.estado}</td>
+          <td>
+            <input type="number" 
+                   class="cantidad-input" 
+                   id="input-${index}" 
+                   min="0" 
+                   max="${devolucion.cantidadPendiente}" 
+                   value="0"
+                   oninput="validarCantidad(${index}, ${devolucion.cantidadPendiente})">
+          </td>
+        </tr>
+      `;
+      tbody.append(row);
+    });
+    
+    // Habilitar el botón de enviar si hay devoluciones
+    document.getElementById('btn-enviar').disabled = devoluciones.length === 0;
+  }
+
+  // Función para validar la cantidad ingresada
+  function validarCantidad(index, max) {
+    const input = document.getElementById(`input-${index}`);
+    let value = parseInt(input.value) || 0;
+    
+    if (value < 0) {
+      input.value = 0;
+      value = 0;
+    } else if (value > max) {
+      input.value = max;
+      value = max;
+    }
+    
+    // Guardar el dato editado
+    if (value > 0) {
+      datosEditados[index] = value;
+    } else {
+      delete datosEditados[index];
+    }
+    
+    // Habilitar/deshabilitar botón de enviar según haya datos editados
+    document.getElementById('btn-enviar').disabled = Object.keys(datosEditados).length === 0;
+  }
+
+  // Función para enviar las devoluciones
+function enviarDevoluciones() {
+    if (Object.keys(datosEditados).length === 0) {
+        Swal.fire('Advertencia', 'No has ingresado cantidades para devolver', 'warning');
+        return;
+    }
+
+    // Preparar los datos para enviar
+    const datosParaEnviar = [];
+    
+    Object.keys(datosEditados).forEach(key => {
+        const index = parseInt(key);
+        datosParaEnviar.push({
+            rowId: devoluciones[index].rowId,
+            cantidad: datosEditados[key]
+        });
+    });
+
+    // Mostrar confirmación
+    Swal.fire({
+        title: 'Confirmar Devoluciones',
+        html: `¿Estás seguro de enviar las devoluciones seleccionadas?<br><br>
+               Se actualizarán <strong>${datosParaEnviar.length}</strong> registros.`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, enviar',
+        cancelButtonText: 'No, cancelar',
+        confirmButtonColor: '#28a745',
+        cancelButtonColor: '#dc3545'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            $('#overlay').show();
+            
+            // URL del script de Google Apps
+            const scriptUrl = "https://script.google.com/macros/s/AKfycbyZPzFs6KJcnDL6f-AeC4n0Pz4E0o9tPvq73MYgGVgelWh38xD9_CvhvjbCXmzxkKk/exec";
+            
+            // Crear iframe oculto para el envío
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.name = 'hiddenFrame';
+            document.body.appendChild(iframe);
+            
+            // Crear formulario
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = scriptUrl;
+            form.target = 'hiddenFrame';
+            
+            // Agregar campos para los datos
+            const actionInput = document.createElement('input');
+            actionInput.type = 'hidden';
+            actionInput.name = 'action';
+            actionInput.value = 'actualizarDevoluciones';
+            form.appendChild(actionInput);
+            
+            const dataInput = document.createElement('input');
+            dataInput.type = 'hidden';
+            dataInput.name = 'devoluciones';
+            dataInput.value = JSON.stringify(datosParaEnviar);
+            form.appendChild(dataInput);
+            
+            // Agregar formulario al cuerpo y enviar
+            document.body.appendChild(form);
+            form.submit();
+            
+            // Esperar 3 segundos (tiempo suficiente para la actualización)
+            setTimeout(() => {
+                $('#overlay').hide();
+                Swal.fire({
+                    title: '¡Éxito!',
+                    html: 'Devoluciones registradas correctamente',
+                    icon: 'success',
+                    confirmButtonText: 'Aceptar'
+                }).then(() => {
+                    location.reload();
+                });
+                
+                // Limpiar el formulario e iframe
+                document.body.removeChild(form);
+                document.body.removeChild(iframe);
+            }, 3000);
+        }
+    });
+}
+
+
+</script>
+</body>
+</html>

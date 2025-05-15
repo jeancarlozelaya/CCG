@@ -131,6 +131,33 @@
       text-align: center;
       padding: 20px;
     }
+
+  /* Añade estos estilos al final de tu sección CSS */
+  
+  /* Contenedor de la tabla para desplazamiento */
+  .table-container {
+    width: 100%;
+    overflow-x: visible; /* Por defecto sin barra de desplazamiento */
+  }
+  
+  /* Estilos para pantallas pequeñas (menos de 768px) */
+  @media screen and (max-width: 768px) {
+    .table-container {
+      overflow-x: auto; /* Activa el desplazamiento horizontal */
+      -webkit-overflow-scrolling: touch; /* Mejor desplazamiento en iOS */
+    }
+    
+    /* Opcional: puedes ajustar el tamaño de fuente para móviles */
+    table {
+      font-size: 0.8em;
+    }
+    
+    th, td {
+      padding: 8px 10px;
+    }
+  }
+
+
   </style>
 </head>
 <body>
@@ -139,8 +166,8 @@
   <div class="form-container">
     <h1>Devoluciones de Desperdicio</h1>
 
-    <div id="tabla-devoluciones-container">
-      <table id="tabla-devoluciones">
+    <div id="tabla-devoluciones-container" class="table-container">
+        <table id="tabla-devoluciones">
         <thead>
           <tr>
             <th>Fecha</th>
@@ -247,44 +274,45 @@ function mostrarError(mensaje) {
 
 
   // Función para mostrar las devoluciones en la interfaz
-  function mostrarDevolucionesEnUI() {
-    const tbody = $('#devoluciones-body');
-    tbody.empty();
-    
-    if (devoluciones.length === 0) {
-      tbody.append('<tr><td colspan="10" style="text-align: center;">No hay devoluciones pendientes</td></tr>');
-      return;
-    }
-    
-    devoluciones.forEach((devolucion, index) => {
-      const row = `
-        <tr id="row-${index}">
-          <td>${devolucion.fecha}</td>
-          <td>${devolucion.hora}</td>
-          <td>${devolucion.colaborador}</td>
-          <td>${devolucion.area}</td>
-          <td>${devolucion.producto}</td>
-          <td>${devolucion.cantidadSalida}</td>
-          <td>${devolucion.cantidadDevuelta}</td>
-          <td>${devolucion.cantidadPendiente}</td>
-          <td class="${devolucion.estado === 'Pendiente' ? 'estado-pendiente' : 'estado-completo'}">${devolucion.estado}</td>
-          <td>
-            <input type="number" 
-                   class="cantidad-input" 
-                   id="input-${index}" 
-                   min="0" 
-                   max="${devolucion.cantidadPendiente}" 
-                   value="0"
-                   oninput="validarCantidad(${index}, ${devolucion.cantidadPendiente})">
-          </td>
-        </tr>
-      `;
-      tbody.append(row);
-    });
-    
-    // Habilitar el botón de enviar si hay devoluciones
-    document.getElementById('btn-enviar').disabled = devoluciones.length === 0;
+function mostrarDevolucionesEnUI() {
+  const tbody = $('#devoluciones-body');
+  tbody.empty();
+  
+  if (devoluciones.length === 0) {
+    tbody.append('<tr><td colspan="10" style="text-align: center;">No hay devoluciones pendientes</td></tr>');
+    return;
   }
+  
+  devoluciones.forEach((devolucion, index) => {
+    const row = `
+      <tr id="row-${index}">
+        <td>${formatearFecha(devolucion.fecha)}</td>
+        <td>${formatearHora(devolucion.hora)}</td>
+        <td>${devolucion.colaborador}</td>
+        <td>${devolucion.area}</td>
+        <td>${devolucion.producto}</td>
+        <td>${devolucion.cantidadSalida}</td>
+        <td>${devolucion.cantidadDevuelta}</td>
+        <td>${devolucion.cantidadPendiente}</td>
+        <td class="${devolucion.estado === 'Pendiente' ? 'estado-pendiente' : 'estado-completo'}">${devolucion.estado}</td>
+        <td>
+          <input type="number" 
+                 class="cantidad-input" 
+                 id="input-${index}" 
+                 min="0" 
+                 max="${devolucion.cantidadPendiente}" 
+                 value="0"
+                 oninput="validarCantidad(${index}, ${devolucion.cantidadPendiente})">
+        </td>
+      </tr>
+    `;
+    tbody.append(row);
+  });
+  
+  // Habilitar el botón de enviar si hay devoluciones
+  document.getElementById('btn-enviar').disabled = devoluciones.length === 0;
+}
+
 
   // Función para validar la cantidad ingresada
   function validarCantidad(index, max) {
@@ -393,6 +421,35 @@ function enviarDevoluciones() {
             }, 3000);
         }
     });
+}
+
+
+// Función para formatear la fecha (YYYY-MM-DD)
+function formatearFecha(fechaISO) {
+  if (!fechaISO) return '';
+  const fecha = new Date(fechaISO);
+  // Asegurarnos de que es una fecha válida
+  if (isNaN(fecha.getTime())) return fechaISO;
+  
+  const año = fecha.getFullYear();
+  const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+  const dia = String(fecha.getDate()).padStart(2, '0');
+  
+  return `${año}-${mes}-${dia}`;
+}
+
+// Función para formatear la hora (HH:MM:SS)
+function formatearHora(fechaISO) {
+  if (!fechaISO) return '';
+  const fecha = new Date(fechaISO);
+  // Asegurarnos de que es una fecha válida
+  if (isNaN(fecha.getTime())) return fechaISO;
+  
+  const horas = String(fecha.getHours()).padStart(2, '0');
+  const minutos = String(fecha.getMinutes()).padStart(2, '0');
+  const segundos = String(fecha.getSeconds()).padStart(2, '0');
+  
+  return `${horas}:${minutos}:${segundos}`;
 }
 
 

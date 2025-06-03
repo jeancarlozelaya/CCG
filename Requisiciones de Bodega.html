@@ -368,9 +368,6 @@
       outline: none;
     }
 
-
-
-
 #overlay {
   display: none;
   position: fixed;
@@ -416,7 +413,10 @@
   to { transform: rotate(360deg); }
 }
 
-
+/* Estilo para el input de colaborador en mayúsculas */
+.uppercase-input {
+  text-transform: uppercase;
+}
   </style>
 </head>
 <body>
@@ -431,34 +431,19 @@
         <input type="date" id="fecha" name="fecha">
       </div>
 
+      <label for="colaborador"><strong>Colaborador:</strong></label>
+      <input type="text" id="colaborador" name="colaborador" class="uppercase-input" placeholder="Escriba el nombre del colaborador">
 
-
-        <label for="colaborador"><strong>Colaborador:</strong></label>
-        <select id="colaborador" name="colaborador">
-            <option value="">Seleccionar colaborador</option>
-            <option value="Colaborador Externo">Colaborador Externo</option>
-            <option value="Ariel Antonio Machado Guzman">Ariel Antonio Machado Guzman</option>
-            <option value="Cintia Yojana Dubon Machado">Cintia Yojana Dubon Machado</option>
-            <option value="Gertrudis Yamileth Acosta Hernandez">Gertrudis Yamileth Acosta Hernandez</option>
-            <option value="Maria Abel Portillo Lagos">Maria Abel Portillo Lagos</option>
-            <option value="Maria Esther Donaire Vasquez">Maria Esther Donaire Vasquez</option>
-            <option value="Mayra Consuelo Nicolás Hernandez">Mayra Consuelo Nicolás Hernandez</option>
-            <option value="Olban Omar Acosta Bustillo">Olban Omar Acosta Bustillo</option>
-            <option value="Yarahi Arleny Lopez Lara">Yarahi Arleny Lopez Lara</option>
-            <option value="Yosselin Iveth Velasquez Sanchez">Yosselin Iveth Velasquez Sanchez</option>
-            <option value="Jeancarlo Zelaya">Jeancarlo Zelaya</option>
-        </select>
-
-        <label for="area"><strong>Destino:</strong></label>
-        <select id="area" name="area">
-            <option value="">Seleccionar destino</option>
-            <option value="Torre #1">Torre #1</option>
-            <option value="Torre #2">Torre #2</option>
-            <option value="CBA">CBA</option>
-            <option value="CBB">CBB</option>
-            <option value="CBC">CBC</option>
-            <option value="Sótanos">Sótanos</option>
-        </select>
+      <label for="area"><strong>Destino:</strong></label>
+      <select id="area" name="area">
+          <option value="">Seleccionar destino</option>
+          <option value="Torre #1">Torre #1</option>
+          <option value="Torre #2">Torre #2</option>
+          <option value="CBA">CBA</option>
+          <option value="CBB">CBB</option>
+          <option value="CBC">CBC</option>
+          <option value="Sótanos">Sótanos</option>
+      </select>
     </div>
 
     <label><strong>Seleccione los productos a requisar:</strong></label>
@@ -503,9 +488,12 @@
     
     // Configurar eventos
     configurarEventos();
+
+    // Forzar mayúsculas en el campo colaborador
+    document.getElementById('colaborador').addEventListener('input', function() {
+      this.value = this.value.toUpperCase();
+    });
   });
-
-
 
   // Función para cargar productos desde Google Sheets
   function cargarProductos() {
@@ -529,45 +517,44 @@
   }
 
   // Función para mostrar productos en la interfaz
-// Función para mostrar productos en la interfaz
-function mostrarProductosEnUI() {
-  const productosContainer = $('#productos');
-  productosContainer.empty();
-  
-  // Variable para controlar si debemos crear un nuevo contenedor
-  let nuevoContenedor = false;
-  
-  productos.forEach((producto, index) => {
-    // Si el producto es "-", marcamos para crear un nuevo contenedor en la siguiente iteración
-    if (producto.nombre.trim() === "-") {
-      nuevoContenedor = true;
-      return; // Saltamos este producto
-    }
+  function mostrarProductosEnUI() {
+    const productosContainer = $('#productos');
+    productosContainer.empty();
     
-    // Si necesitamos un nuevo contenedor, lo creamos
-    if (nuevoContenedor) {
-      productosContainer.append('<div style="flex-basis: 100%; height: 0;"></div>'); // Esto fuerza un salto de línea
-      nuevoContenedor = false;
-    }
+    // Variable para controlar si debemos crear un nuevo contenedor
+    let nuevoContenedor = false;
     
-    let productoHtml = `
-      <div class="producto" id="${producto.id}">
-        <img src="${producto.imagen || ''}" alt="${producto.nombre}" onerror="this.style.display='none'">
-        <label>${producto.nombre}</label>
-        ${producto.devolucion === 'X' ? '<span style="color: green; font-size: 0.8em;">Retornable</span>' : ''}
-        <span id="cantidadRestante${index}" class="${producto.cantidad === 0 ? 'agotado' : producto.cantidad > 0 ? 'disponible' : ''}">
-          ${producto.cantidad === 0 ? '0 restantes' : `${producto.cantidad} restantes`}
-        </span>
-        <div class="cantidad">
-          <button type="button" class="minus" onclick="cambiarCantidad(${index}, -1)" ${producto.cantidad === 0 ? 'disabled' : ''}>-</button>
-          <input type="number" id="cantidad${index}" value="0" min="0" ${producto.cantidad === 0 ? 'disabled' : ''} oninput="validarCantidad(${index})">
-          <button type="button" class="plus" onclick="cambiarCantidad(${index}, 1)" ${producto.cantidad === 0 ? 'disabled' : ''}>+</button>
+    productos.forEach((producto, index) => {
+      // Si el producto es "-", marcamos para crear un nuevo contenedor en la siguiente iteración
+      if (producto.nombre.trim() === "-") {
+        nuevoContenedor = true;
+        return; // Saltamos este producto
+      }
+      
+      // Si necesitamos un nuevo contenedor, lo creamos
+      if (nuevoContenedor) {
+        productosContainer.append('<div style="flex-basis: 100%; height: 0;"></div>'); // Esto fuerza un salto de línea
+        nuevoContenedor = false;
+      }
+      
+      let productoHtml = `
+        <div class="producto" id="${producto.id}">
+          <img src="${producto.imagen || ''}" alt="${producto.nombre}" onerror="this.style.display='none'">
+          <label>${producto.nombre}</label>
+          ${producto.devolucion === 'X' ? '<span style="color: green; font-size: 0.8em;">Retornable</span>' : ''}
+          <span id="cantidadRestante${index}" class="${producto.cantidad === 0 ? 'agotado' : producto.cantidad > 0 ? 'disponible' : ''}">
+            ${producto.cantidad === 0 ? '0 restantes' : `${producto.cantidad} restantes`}
+          </span>
+          <div class="cantidad">
+            <button type="button" class="minus" onclick="cambiarCantidad(${index}, -1)" ${producto.cantidad === 0 ? 'disabled' : ''}>-</button>
+            <input type="number" id="cantidad${index}" value="0" min="0" ${producto.cantidad === 0 ? 'disabled' : ''} oninput="validarCantidad(${index})">
+            <button type="button" class="plus" onclick="cambiarCantidad(${index}, 1)" ${producto.cantidad === 0 ? 'disabled' : ''}>+</button>
+          </div>
         </div>
-      </div>
-    `;
-    productosContainer.append(productoHtml);
-  });
-}
+      `;
+      productosContainer.append(productoHtml);
+    });
+  }
 
   // Función para configurar eventos
   function configurarEventos() {
@@ -576,7 +563,6 @@ function mostrarProductosEnUI() {
     
     // Validación de formulario
     $("#fecha, #colaborador, #area").on("change", verificarProductos);
-
   }
 
   // Función para filtrar productos
@@ -640,8 +626,6 @@ function mostrarProductosEnUI() {
     }
   }
 
-
-
   // Función para enviar datos
   function enviardatos() {
     let seleccion = [];
@@ -700,11 +684,9 @@ function mostrarProductosEnUI() {
           <td style="padding: 6px; text-align: center; vertical-align: middle;">
             <span style="font-weight: bold; color: #dc3545;">${item.cantidad}</span>
           </td>
-
         </tr>
       `;
     });
-
 
       htmlResumen += `
             </tbody>

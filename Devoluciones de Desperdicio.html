@@ -105,12 +105,12 @@
     
     .form-container {
       width: 80%;
-      max-width: 1000px;
+      max-width: 1300px; /* MODIFICADO: Aumentado el ancho máximo */
       margin: 20px auto;
       padding: 20px;
       background-color: #fff;
       border-radius: 8px;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 44px 8px rgba(0, 0, 0, 0.1);
     }
 
     table {
@@ -136,7 +136,7 @@
       background-color: #f5f5f5;
     }
 
-    .cantidad-input {
+    .cantidad-input, .nivel-input { /* Added .nivel-input */
       width: 80px;
       padding: 8px;
       border: 1px solid #ddd;
@@ -286,7 +286,6 @@
   </style>
 </head>
 <body>
-  <!-- Protección por contraseña (ahora oculta inicialmente) -->
   <div id="password-protection">
     <div id="password-form">
       <button class="close-btn" onclick="cerrarDialogoContrasena()">&times;</button>
@@ -298,7 +297,6 @@
     </div>
   </div>
 
-  <!-- Contenido principal (visible desde el inicio) -->
   <div id="main-content">
     <div class="header">Pisos Brillantes</div>
     
@@ -323,11 +321,10 @@
               <th>Cantidad Pendiente</th>
               <th>Estado</th>
               <th>Devolver</th>
-            </tr>
+              <th>Nivel</th> </tr>
           </thead>
           <tbody id="devoluciones-body">
-            <!-- Los datos se cargarán aquí -->
-          </tbody>
+            </tbody>
         </table>
       </div>
 
@@ -347,8 +344,8 @@
 
 <script>
   // Variables globales
-  let devoluciones = [];
-  let datosEditados = {};
+  let devoluciones = []; // Stores all fetched pending returns
+  let datosEditados = {}; // Tracks which rows have been interacted with (quantity or level entered)
   const CORRECT_PASSWORD = "macdel1";
   const AUTH_KEY = "pb_auth";
   const AUTH_EXPIRATION_HOURS = 24; // La autenticación dura 24 horas
@@ -365,7 +362,7 @@
   // Función para verificar si ya está autenticado para el día
   function verificarAutenticacion() {
     if (Object.keys(datosEditados).length === 0) {
-      Swal.fire('Advertencia', 'No has ingresado cantidades para devolver', 'warning');
+      Swal.fire('Advertencia', 'No has ingresado cantidades o niveles para devolver', 'warning');
       return;
     }
     
@@ -448,7 +445,7 @@
     $('#overlay').show();
     
     // Limpiar mensajes previos
-    $('#devoluciones-body').empty().append('<tr><td colspan="10" style="text-align: center;">Cargando datos...</td></tr>');
+    $('#devoluciones-body').empty().append('<tr><td colspan="11" style="text-align: center;">Cargando datos...</td></tr>'); // Updated colspan to 11
     
     // URL del script de Google Apps (REEMPLAZA CON TU URL REAL)
     const scriptUrl = "https://script.google.com/macros/s/AKfycbwQrmkh9WK_cVCPkxEKOmBxwxS1PWF1gPYCQqFzmzNHxQ5aeEsGoAmKZZh87iiQrzwA/exec?action=obtenerDevoluciones";
@@ -473,6 +470,11 @@
         }
         
         devoluciones = data.devoluciones;
+        // Initialize cantidadDevolver and nivel for each item
+        devoluciones.forEach(item => {
+            item.cantidadDevolverInput = 0; // The value from the input field
+            item.nivelInput = ''; // The value from the level input field
+        });
         mostrarDevolucionesEnUI();
       },
       error: function(xhr, status, error) {
@@ -491,7 +493,7 @@
   }
 
   function mostrarError(mensaje) {
-    $('#devoluciones-body').empty().append(`<tr><td colspan="10" style="text-align: center; color: red;">${mensaje}</td></tr>`);
+    $('#devoluciones-body').empty().append(`<tr><td colspan="11" style="text-align: center; color: red;">${mensaje}</td></tr>`); // Updated colspan to 11
     document.getElementById('btn-enviar').disabled = true;
     
     Swal.fire({
@@ -508,7 +510,7 @@
     tbody.empty();
     
     if (devoluciones.length === 0) {
-      tbody.append('<tr><td colspan="10" class="no-results">No hay devoluciones pendientes</td></tr>');
+      tbody.append('<tr><td colspan="11" class="no-results">No hay devoluciones pendientes</td></tr>'); // Updated colspan to 11
       return;
     }
     
@@ -527,11 +529,18 @@
           <td>
             <input type="number" 
                    class="cantidad-input" 
-                   id="input-${index}" 
+                   id="input-cantidad-${index}" 
                    min="0" 
                    max="${devolucion.cantidadPendiente}" 
-                   value="0"
-                   oninput="validarCantidad(${index}, ${devolucion.cantidadPendiente})">
+                   value="${devolucion.cantidadDevolverInput}"
+                   oninput="manejarInputDevolver(${index}, ${devolucion.cantidadPendiente})">
+          </td>
+          <td> <input type="number"
+                   class="nivel-input"
+                   id="input-nivel-${index}"
+                   min="0"
+                   value="${devolucion.nivelInput}"
+                   oninput="manejarInputNivel(${index})">
           </td>
         </tr>
       `;
@@ -567,38 +576,69 @@
     const noResultsRow = document.querySelector('#devoluciones-body .no-results');
     if (!hasResults && rows.length > 0) {
       if (!noResultsRow) {
-        $('#devoluciones-body').append('<tr><td colspan="10" class="no-results">No se encontraron resultados</td></tr>');
+        $('#devoluciones-body').append('<tr><td colspan="11" class="no-results">No se encontraron resultados</td></tr>'); // Updated colspan to 11
       }
     } else if (noResultsRow) {
       noResultsRow.remove();
     }
   }
 
-
-
-  // Función para validar la cantidad ingresada
-  function validarCantidad(index, max) {
-    const input = document.getElementById(`input-${index}`);
-    let value = parseInt(input.value) || 0;
-    
-    if (value < 0) {
-      input.value = 0;
-      value = 0;
-    } else if (value > max) {
-      input.value = max;
-      value = max;
-    }
-    
-    // Guardar el dato editado
-    if (value > 0) {
-      datosEditados[index] = value;
-    } else {
-      delete datosEditados[index];
-    }
-    
-    // Habilitar/deshabilitar botón de enviar según haya datos editados
-    document.getElementById('btn-enviar').disabled = Object.keys(datosEditados).length === 0;
+  // Function to handle quantity input changes
+  function manejarInputDevolver(index, max) {
+      const input = document.getElementById(`input-cantidad-${index}`);
+      let value = parseInt(input.value) || 0;
+      
+      if (value < 0) {
+          input.value = 0;
+          value = 0;
+      } else if (value > max) {
+          input.value = max;
+          value = max;
+      }
+      
+      // Update the global devoluciones array for this item
+      devoluciones[index].cantidadDevolverInput = value;
+      
+      // Mark this row as edited if either quantity or level has a value > 0 or is not empty
+      if (value > 0 || devoluciones[index].nivelInput !== '') {
+          datosEditados[index] = true;
+      } else {
+          delete datosEditados[index];
+      }
+      
+      // Enable/disable send button based on edited data
+      document.getElementById('btn-enviar').disabled = Object.keys(datosEditados).length === 0;
   }
+
+  // Function to handle nivel input changes
+  function manejarInputNivel(index) {
+      const input = document.getElementById(`input-nivel-${index}`);
+      let value = input.value.trim(); // Get string value and trim whitespace
+
+      // If value is not a number, clear it
+      if (value !== '' && isNaN(parseInt(value))) {
+        input.value = '';
+        value = '';
+      } else if (value !== '') {
+        // Ensure it's a positive number if entered
+        value = Math.max(0, parseInt(value)).toString();
+        input.value = value;
+      }
+
+      // Update the global devoluciones array for this item
+      devoluciones[index].nivelInput = value;
+      
+      // Mark this row as edited if either quantity or level has a value > 0 or is not empty
+      if (devoluciones[index].cantidadDevolverInput > 0 || value !== '') {
+          datosEditados[index] = true;
+      } else {
+          delete datosEditados[index];
+      }
+      
+      // Enable/disable send button based on edited data
+      document.getElementById('btn-enviar').disabled = Object.keys(datosEditados).length === 0;
+  }
+
 
   // Función para enviar las devoluciones (ahora se llama después de verificar la contraseña)
   function enviarDevoluciones() {
@@ -607,11 +647,35 @@
       
       Object.keys(datosEditados).forEach(key => {
           const index = parseInt(key);
-          datosParaEnviar.push({
-              rowId: devoluciones[index].rowId,
-              cantidad: datosEditados[key]
-          });
+          const currentDevolucion = devoluciones[index];
+
+          // Only send if quantity to devolve is greater than 0 AND level is provided
+          // Or if level is provided and quantity is 0 (though this might need clarification from user for UX)
+          if (currentDevolucion.cantidadDevolverInput > 0) { // Only send if a quantity to devolve is entered
+              if (currentDevolucion.nivelInput === '') {
+                  Swal.fire('Advertencia', `Por favor, ingrese el Nivel para el producto '${currentDevolucion.producto}' del área '${currentDevolucion.area}' antes de enviar.`, 'warning');
+                  throw new Error('Nivel no ingresado para una devolución.'); // Stop the process
+              }
+
+              datosParaEnviar.push({
+                  rowId: currentDevolucion.rowId, // For updating original sheet
+                  cantidad: currentDevolucion.cantidadDevolverInput, // Amount to be devolved
+                  nivel: currentDevolucion.nivelInput, // New level data
+                  
+                  // Original data from the fetched item for history
+                  fechaOriginal: currentDevolucion.fecha,
+                  horaOriginal: currentDevolucion.hora,
+                  colaborador: currentDevolucion.colaborador,
+                  area: currentDevolucion.area,
+                  producto: currentDevolucion.producto
+              });
+          }
       });
+
+      if (datosParaEnviar.length === 0) {
+        Swal.fire('Advertencia', 'No hay devoluciones válidas para enviar. Ingrese una cantidad mayor a 0 y el nivel.', 'warning');
+        return;
+      }
 
       $('#overlay').show();
       

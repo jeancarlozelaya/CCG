@@ -136,7 +136,7 @@
       background-color: #f5f5f5;
     }
 
-    .cantidad-input, .nivel-input { /* Added .nivel-input */
+    .cantidad-input, .nivel-input, .cuerpos-bajos-select { /* Added .cuerpos-bajos-select */
       width: 80px;
       padding: 8px;
       border: 1px solid #ddd;
@@ -321,7 +321,8 @@
               <th>Cantidad Pendiente</th>
               <th>Estado</th>
               <th>Devolver</th>
-              <th>Nivel</th> </tr>
+              <th>Nivel</th>
+              <th>Cuerpos Bajos</th> </tr>
           </thead>
           <tbody id="devoluciones-body">
             </tbody>
@@ -362,7 +363,7 @@
   // Función para verificar si ya está autenticado para el día
   function verificarAutenticacion() {
     if (Object.keys(datosEditados).length === 0) {
-      Swal.fire('Advertencia', 'No has ingresado cantidades o niveles para devolver', 'warning');
+      Swal.fire('Advertencia', 'No has ingresado cantidades, niveles o selecciones de Cuerpos Bajos para devolver', 'warning');
       return;
     }
     
@@ -445,7 +446,7 @@
     $('#overlay').show();
     
     // Limpiar mensajes previos
-    $('#devoluciones-body').empty().append('<tr><td colspan="11" style="text-align: center;">Cargando datos...</td></tr>'); // Updated colspan to 11
+    $('#devoluciones-body').empty().append('<tr><td colspan="12" style="text-align: center;">Cargando datos...</td></tr>'); // Updated colspan to 12
     
     // URL del script de Google Apps (REEMPLAZA CON TU URL REAL)
     const scriptUrl = "https://script.google.com/macros/s/AKfycbwQrmkh9WK_cVCPkxEKOmBxwxS1PWF1gPYCQqFzmzNHxQ5aeEsGoAmKZZh87iiQrzwA/exec?action=obtenerDevoluciones";
@@ -474,6 +475,7 @@
         devoluciones.forEach(item => {
             item.cantidadDevolverInput = 0; // The value from the input field
             item.nivelInput = ''; // The value from the level input field
+            item.cuerposBajosInput = ''; // Nueva propiedad para Cuerpos Bajos
         });
         mostrarDevolucionesEnUI();
       },
@@ -493,7 +495,7 @@
   }
 
   function mostrarError(mensaje) {
-    $('#devoluciones-body').empty().append(`<tr><td colspan="11" style="text-align: center; color: red;">${mensaje}</td></tr>`); // Updated colspan to 11
+    $('#devoluciones-body').empty().append(`<tr><td colspan="12" style="text-align: center; color: red;">${mensaje}</td></tr>`); // Updated colspan to 12
     document.getElementById('btn-enviar').disabled = true;
     
     Swal.fire({
@@ -510,11 +512,23 @@
     tbody.empty();
     
     if (devoluciones.length === 0) {
-      tbody.append('<tr><td colspan="11" class="no-results">No hay devoluciones pendientes</td></tr>'); // Updated colspan to 11
+      tbody.append('<tr><td colspan="12" class="no-results">No hay devoluciones pendientes</td></tr>'); // Updated colspan to 12
       return;
     }
     
     devoluciones.forEach((devolucion, index) => {
+      const isCuerposBajos = devolucion.area === 'Cuerpos Bajos';
+      const cuerposBajosHtml = isCuerposBajos ? `
+        <select class="cuerpos-bajos-select"
+                id="select-cuerpos-bajos-${index}"
+                onchange="manejarInputCuerposBajos(${index})">
+            <option value="">Seleccione</option>
+            <option value="CBA" ${devolucion.cuerposBajosInput === 'CBA' ? 'selected' : ''}>CBA</option>
+            <option value="CBB" ${devolucion.cuerposBajosInput === 'CBB' ? 'selected' : ''}>CBB</option>
+            <option value="CBC" ${devolucion.cuerposBajosInput === 'CBC' ? 'selected' : ''}>CBC</option>
+        </select>
+      ` : `<span>N/A</span>`; // O un campo deshabilitado si prefieres
+
       const row = `
         <tr id="row-${index}" class="data-row">
           <td>${formatearFecha(devolucion.fecha)}</td>
@@ -542,7 +556,7 @@
                    value="${devolucion.nivelInput}"
                    oninput="manejarInputNivel(${index})">
           </td>
-        </tr>
+          <td>${cuerposBajosHtml}</td> </tr>
       `;
       tbody.append(row);
     });
@@ -576,7 +590,7 @@
     const noResultsRow = document.querySelector('#devoluciones-body .no-results');
     if (!hasResults && rows.length > 0) {
       if (!noResultsRow) {
-        $('#devoluciones-body').append('<tr><td colspan="11" class="no-results">No se encontraron resultados</td></tr>'); // Updated colspan to 11
+        $('#devoluciones-body').append('<tr><td colspan="12" class="no-results">No se encontraron resultados</td></tr>'); // Updated colspan to 12
       }
     } else if (noResultsRow) {
       noResultsRow.remove();
@@ -599,12 +613,8 @@
       // Update the global devoluciones array for this item
       devoluciones[index].cantidadDevolverInput = value;
       
-      // Mark this row as edited if either quantity or level has a value > 0 or is not empty
-      if (value > 0 || devoluciones[index].nivelInput !== '') {
-          datosEditados[index] = true;
-      } else {
-          delete datosEditados[index];
-      }
+      // Mark this row as edited if any relevant field has a value
+      actualizarEstadoFilaEditada(index);
       
       // Enable/disable send button based on edited data
       document.getElementById('btn-enviar').disabled = Object.keys(datosEditados).length === 0;
@@ -628,15 +638,33 @@
       // Update the global devoluciones array for this item
       devoluciones[index].nivelInput = value;
       
-      // Mark this row as edited if either quantity or level has a value > 0 or is not empty
-      if (devoluciones[index].cantidadDevolverInput > 0 || value !== '') {
+      // Mark this row as edited if any relevant field has a value
+      actualizarEstadoFilaEditada(index);
+      
+      // Enable/disable send button based on edited data
+      document.getElementById('btn-enviar').disabled = Object.keys(datosEditados).length === 0;
+  }
+
+  // Nueva función para manejar el cambio en el selector de Cuerpos Bajos
+  function manejarInputCuerposBajos(index) {
+      const select = document.getElementById(`select-cuerpos-bajos-${index}`);
+      devoluciones[index].cuerposBajosInput = select.value;
+
+      // Mark this row as edited if any relevant field has a value
+      actualizarEstadoFilaEditada(index);
+
+      document.getElementById('btn-enviar').disabled = Object.keys(datosEditados).length === 0;
+  }
+
+  // Función auxiliar para actualizar el estado de una fila como editada
+  function actualizarEstadoFilaEditada(index) {
+      const item = devoluciones[index];
+      // Se considera editada si se ha ingresado cantidad, nivel, o si se seleccionó una opción de cuerpos bajos (y no es la opción por defecto vacía)
+      if (item.cantidadDevolverInput > 0 || item.nivelInput !== '' || (item.area === 'Cuerpos Bajos' && item.cuerposBajosInput !== '')) {
           datosEditados[index] = true;
       } else {
           delete datosEditados[index];
       }
-      
-      // Enable/disable send button based on edited data
-      document.getElementById('btn-enviar').disabled = Object.keys(datosEditados).length === 0;
   }
 
 
@@ -649,18 +677,28 @@
           const index = parseInt(key);
           const currentDevolucion = devoluciones[index];
 
-          // Only send if quantity to devolve is greater than 0 AND level is provided
-          // Or if level is provided and quantity is 0 (though this might need clarification from user for UX)
-          if (currentDevolucion.cantidadDevolverInput > 0) { // Only send if a quantity to devolve is entered
-              if (currentDevolucion.nivelInput === '') {
-                  Swal.fire('Advertencia', `Por favor, ingrese el Nivel para el producto '${currentDevolucion.producto}' del área '${currentDevolucion.area}' antes de enviar.`, 'warning');
-                  throw new Error('Nivel no ingresado para una devolución.'); // Stop the process
+          // Validación mejorada:
+          // Se requiere Cantidad > 0 O (Nivel lleno Y/O Cuerpos Bajos seleccionado si aplica)
+          const cantidadValida = currentDevolucion.cantidadDevolverInput > 0;
+          const nivelValido = currentDevolucion.nivelInput !== '';
+          const cuerposBajosValido = currentDevolucion.area !== 'Cuerpos Bajos' || (currentDevolucion.area === 'Cuerpos Bajos' && currentDevolucion.cuerposBajosInput !== '');
+
+          if (cantidadValida || nivelValido || cuerposBajosValido) { // Al menos uno de los campos de entrada relevantes debe tener valor
+              if (cantidadValida && !nivelValido) { // Si hay cantidad, debe haber nivel
+                  Swal.fire('Advertencia', `Para el producto '${currentDevolucion.producto}' del área '${currentDevolucion.area}', ingresó una cantidad para devolver pero no el Nivel. Por favor, complete la información.`, 'warning');
+                  throw new Error('Nivel no ingresado para una devolución con cantidad.'); // Detener el proceso
+              }
+
+              if (currentDevolucion.area === 'Cuerpos Bajos' && !currentDevolucion.cuerposBajosInput) {
+                  Swal.fire('Advertencia', `Para el producto '${currentDevolucion.producto}' del área 'Cuerpos Bajos', por favor, seleccione una opción de Cuerpos Bajos (CBA, CBB, CBC).`, 'warning');
+                  throw new Error('Opción de Cuerpos Bajos no seleccionada.'); // Detener el proceso
               }
 
               datosParaEnviar.push({
                   rowId: currentDevolucion.rowId, // For updating original sheet
                   cantidad: currentDevolucion.cantidadDevolverInput, // Amount to be devolved
                   nivel: currentDevolucion.nivelInput, // New level data
+                  cuerposBajos: currentDevolucion.cuerposBajosInput, // Nuevo campo para Cuerpos Bajos
                   
                   // Original data from the fetched item for history
                   fechaOriginal: currentDevolucion.fecha,
@@ -673,7 +711,7 @@
       });
 
       if (datosParaEnviar.length === 0) {
-        Swal.fire('Advertencia', 'No hay devoluciones válidas para enviar. Ingrese una cantidad mayor a 0 y el nivel.', 'warning');
+        Swal.fire('Advertencia', 'No hay devoluciones válidas para enviar. Ingrese una cantidad mayor a 0, un nivel o seleccione una opción de Cuerpos Bajos donde aplique.', 'warning');
         return;
       }
 

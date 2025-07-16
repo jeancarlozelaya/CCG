@@ -485,13 +485,11 @@
   });
 
   function verificarAutenticacion() {
-    // Check if any quantity > 0, or level/cuerposBajos are filled
-    const hasValidEntries = Object.values(editedEntries).some(entry => 
-        (entry.cantidad > 0) || (entry.nivel !== '') || (entry.area === 'Cuerpos Bajos' && entry.cuerposBajos !== '')
-    );
+    // Check if any quantity > 0
+    const hasValidEntries = Object.values(editedEntries).some(entry => entry.cantidad > 0);
 
     if (!hasValidEntries) {
-      Swal.fire('Advertencia', 'No has ingresado cantidades, niveles o selecciones de Cuerpos Bajos para devolver en ninguna entrada.', 'warning');
+      Swal.fire('Advertencia', 'No has ingresado cantidades para devolver (deben ser mayores a 0).', 'warning');
       return;
     }
     
@@ -769,9 +767,7 @@
       $(`#row-${entryId}`).remove(); // Remove from UI
       
       // Check if any entries are left to enable/disable button
-      const hasValidEntries = Object.values(editedEntries).some(entry => 
-        (entry.cantidad > 0) || (entry.nivel !== '') || (entry.area === 'Cuerpos Bajos' && entry.cuerposBajos !== '')
-      );
+      const hasValidEntries = Object.values(editedEntries).some(entry => entry.cantidad > 0);
       document.getElementById('btn-enviar').disabled = !hasValidEntries;
 
       // No Swal.fire here, silent deletion
@@ -908,9 +904,8 @@
 
   // Consolidated function to update the send button's state
   function actualizarEstadoBotonEnviar() {
-      const hasValidEntries = Object.values(editedEntries).some(entry => 
-          (entry.cantidad > 0) || (entry.nivel !== '') || (entry.area === 'Cuerpos Bajos' && entry.cuerposBajos !== '')
-      );
+      // The button is enabled if ANY entry has a quantity > 0
+      const hasValidEntries = Object.values(editedEntries).some(entry => entry.cantidad > 0);
       document.getElementById('btn-enviar').disabled = !hasValidEntries;
   }
 
@@ -926,21 +921,22 @@
           const nivelValido = currentEntry.nivel !== '';
           const cuerposBajosValido = currentEntry.area !== 'Cuerpos Bajos' || (currentEntry.area === 'Cuerpos Bajos' && currentEntry.cuerposBajos !== '');
 
-          // If this specific entry has any data, validate it
-          if (cantidadValida || nivelValido || (currentEntry.area === 'Cuerpos Bajos' && currentEntry.cuerposBajos !== '')) {
-              if (cantidadValida && !nivelValido) {
+          // MODIFICACIÓN CLAVE AQUÍ: Solo incluir la entrada si tiene cantidad > 0.
+          if (cantidadValida) { // Only proceed if quantity is greater than 0
+              // Validations for Nivel and Cuerpos Bajos are now dependent on cantidadValida
+              if (!nivelValido) { // If cantidad > 0, Nivel must be valid
                   Swal.fire('Advertencia', `Para el producto '${currentEntry.producto}' del área '${currentEntry.area}', ingresó una cantidad para devolver pero no el Nivel en una de las entradas. Por favor, complete la información.`, 'warning');
                   validationError = true;
                   break; 
               }
 
-              if (currentEntry.area === 'Cuerpos Bajos' && !currentEntry.cuerposBajos) {
+              if (currentEntry.area === 'Cuerpos Bajos' && !currentEntry.cuerposBajos) { // If area is Cuerpos Bajos and cantidad > 0, Cuerpos Bajos must be valid
                   Swal.fire('Advertencia', `Para el producto '${currentEntry.producto}' del área 'Cuerpos Bajos', por favor, seleccione una opción de Cuerpos Bajos (CBA, CBB, CBC) en una de las entradas.`, 'warning');
                   validationError = true;
                   break; 
               }
               
-              // Only add to datosParaEnviar if it's a valid entry that needs processing
+              // Only add to datosParaEnviar if all conditions are met and it's a valid entry that needs processing
               datosParaEnviar.push({
                   rowId: currentEntry.rowId, // Original rowId from the sheet
                   cantidad: currentEntry.cantidad,
@@ -958,8 +954,9 @@
           return; // Stop the process due to validation errors
       }
 
+      // NUEVO MENSAJE DE ADVERTENCIA si no hay entradas válidas para enviar
       if (datosParaEnviar.length === 0) {
-        Swal.fire('Advertencia', 'No hay devoluciones válidas para enviar. Ingrese una cantidad mayor a 0, un nivel o seleccione una opción de Cuerpos Bajos donde aplique.', 'warning');
+        Swal.fire('Advertencia', 'No hay devoluciones válidas para enviar. Ingrese una cantidad mayor a 0 para proceder.', 'warning');
         return;
       }
 

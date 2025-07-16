@@ -160,6 +160,7 @@
       display: flex;
       justify-content: center;
       margin-top: 20px;
+      gap: 20px; /* Espacio entre los botones */
     }
     
     .button-container button {
@@ -170,6 +171,14 @@
       border: none;
       border-radius: 4px;
       cursor: pointer;
+    }
+
+    #btn-resumen {
+        background-color: #007BFF; /* Color diferente para el botón Resumen */
+    }
+
+    #btn-resumen:hover {
+        background-color: #0069d9;
     }
 
     button:disabled {
@@ -413,6 +422,148 @@
         min-width: 40px; /* Asegura un ancho mínimo para el input */
         width: 40px; /* MODIFICADO: Ancho fijo para el input de cantidad */
     }
+
+    /* Estilos para la ventana modal de resumen */
+    .modal {
+      display: none; /* Hidden by default */
+      position: fixed; /* Stay in place */
+      z-index: 10000; /* Sit on top */
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto; /* Enable scroll if needed */
+      background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-content {
+      background-color: #fefefe;
+      margin: auto;
+      padding: 20px;
+      border: 1px solid #888;
+      width: 80%;
+      max-width: 900px;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      position: relative;
+    }
+
+    .close-modal-btn {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+      position: absolute;
+      top: 10px;
+      right: 20px;
+    }
+
+    .close-modal-btn:hover,
+    .close-modal-btn:focus {
+      color: black;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    #resumen-tabla-container {
+        max-height: 70vh; /* Altura máxima para la tabla de resumen */
+        overflow-y: auto;
+        margin-top: 20px;
+    }
+
+    #resumen-tabla {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    /* Centrar celdas de la tabla de resumen */
+    #resumen-tabla th, #resumen-tabla td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: center; /* AHORA CENTRADO */
+    }
+
+    #resumen-tabla th {
+        background-color: #007BFF;
+        color: white;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+    }
+
+    #resumen-tabla tbody tr:nth-child(even) {
+        background-color: #f2f2f2;
+    }
+
+    #resumen-tabla tbody tr:hover {
+        background-color: #ddd;
+    }
+
+    /* Estilos para el campo de búsqueda del resumen */
+    .resumen-search-container {
+      margin-bottom: 15px;
+      text-align: center;
+    }
+
+    #resumen-search-input {
+      width: 80%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 1em;
+    }
+
+    /* Estilos para el pie de tabla de resumen */
+    #resumen-tabla tfoot {
+      font-weight: bold;
+      background-color: #e0e0e0;
+    }
+    #resumen-tabla tfoot td {
+      border-top: 2px solid #007BFF;
+      padding-top: 10px;
+    }
+
+    /* NUEVOS ESTILOS para los totales fuera de la tabla */
+    #resumen-totals-section {
+        margin-top: 20px;
+        /* text-align: right; */ /* Eliminado para permitir text-align: left en product-sums */
+        font-weight: bold;
+        padding: 10px;
+        border-top: 2px solid #007BFF;
+        background-color: #e9ecef;
+        border-radius: 4px;
+    }
+    
+    #resumen-product-sums {
+        text-align: left; /* Asegura que la lista de productos esté a la izquierda */
+        margin-top: 0px; /* Eliminado el margen superior para que no haya espacio extra */
+        font-weight: normal; /* Los items individuales no son tan negrita como el total */
+        /* border-top: 1px solid #ccc; */ /* Eliminado el borde superior */
+        padding-top: 0px; /* Eliminado el padding superior */
+    }
+    
+    #resumen-product-sums h4 {
+        margin-top: 0;
+        margin-bottom: 8px;
+        color: #333;
+        font-size: 1.1em; /* Ligeramente más grande para el título */
+    }
+    
+    #resumen-product-sums p {
+        margin: 4px 0;
+        padding-left: 10px;
+    }
+
+    /* Estilo para centrar el título del modal */
+    .modal-title {
+        text-align: center;
+        margin-top: 0;
+        margin-bottom: 20px;
+        color: #333;
+        font-size: 1.5em;
+    }
   </style>
 </head>
 <body>
@@ -457,6 +608,7 @@
 
       <div class="button-container">
         <button type="button" id="btn-enviar" disabled onclick="verificarAutenticacion()">Enviar Devoluciones</button>
+        <button type="button" id="btn-resumen" onclick="abrirModalResumen()">Resumen</button>
       </div>
     </div>
 
@@ -469,11 +621,43 @@
     </div>
   </div>
 
+  <div id="resumenModal" class="modal">
+    <div class="modal-content">
+      <span class="close-modal-btn" onclick="cerrarModalResumen()">&times;</span>
+      <h2 class="modal-title">Resumen de Gasto de Insumos</h2>
+      
+      <div class="resumen-search-container">
+        <input type="text" id="resumen-search-input" placeholder="Filtrar por Edificio, Nivel o Producto (separado por espacios)" oninput="filtrarResumen()">
+      </div>
+
+      <div id="resumen-tabla-container">
+        <table id="resumen-tabla">
+          <thead>
+            <tr>
+              <th>Edificio</th>
+              <th>Nivel</th>
+              <th>Producto</th>
+              <th>Total de Consumo</th>
+            </tr>
+          </thead>
+          <tbody id="resumen-tbody">
+            </tbody>
+        </table>
+      </div>
+
+      <div id="resumen-totals-section">
+          <div id="resumen-product-sums">
+              </div>
+      </div>
+    </div>
+  </div>
+
 <script>
   // Variables globales
   let devoluciones = []; // Stores all fetched pending returns (original data from sheet)
   let editedEntries = {}; 
   let entryCounter = 0; // To generate unique IDs for dynamically added entries
+  let resumenData = []; // Store the fetched resumen data for filtering
 
   const CORRECT_PASSWORD = "macdel1";
   const AUTH_KEY = "pb_auth";
@@ -1003,6 +1187,143 @@
           document.body.removeChild(form);
           document.body.removeChild(iframe);
       }, 3000);
+  }
+
+  // Funciones para el Modal de Resumen
+  function abrirModalResumen() {
+      document.getElementById('resumenModal').style.display = 'flex';
+      cargarResumenDevoluciones();
+  }
+
+  function cerrarModalResumen() {
+      document.getElementById('resumenModal').style.display = 'none';
+  }
+
+  function cargarResumenDevoluciones() {
+      const resumenTbody = $('#resumen-tbody');
+      resumenTbody.empty().append('<tr><td colspan="4" style="text-align: center;">Cargando resumen...</td></tr>');
+      
+      // Reiniciar el input de búsqueda del resumen
+      $('#resumen-search-input').val('');
+
+      // AQUI ES DONDE SE USA LA NUEVA URL DEL SCRIPT DE RESUMEN
+      const scriptResumenUrl = "https://script.google.com/macros/s/AKfycbwJKU4mJvqMjenGjobggSFmaSPSZgYF8cXzhr82h0Gbq-y3SsSqKqoHj2GU9IhAMw6C/exec?action=obtenerResumen"; 
+      
+      $.ajax({
+          url: scriptResumenUrl,
+          type: "GET",
+          dataType: "json",
+          success: function(data) {
+              resumenTbody.empty();
+              if (data.error) {
+                  resumenTbody.append(`<tr><td colspan="4" style="text-align: center; color: red;">Error: ${data.mensaje}</td></tr>`);
+                  Swal.fire('Error', data.mensaje, 'error');
+                  return;
+              }
+              if (!data.resumen || data.resumen.length === 0) {
+                  resumenTbody.append('<tr><td colspan="4" style="text-align: center;">No hay datos en el historial para generar el resumen.</td></tr>');
+                  // Reset product sums
+                  $('#resumen-product-sums').empty();
+                  return;
+              }
+
+              resumenData = data.resumen; // Store data for filtering and sorting
+              mostrarResumenEnTabla(resumenData); // Initial display
+          },
+          error: function(xhr, status, error) {
+              resumenTbody.empty().append(`<tr><td colspan="4" style="text-align: center; color: red;">Error al cargar resumen: ${error}</td></tr>`);
+              Swal.fire('Error', 'Error al cargar el resumen: ' + error, 'error');
+              // Reset product sums
+              $('#resumen-product-sums').empty();
+          }
+      });
+  }
+
+  function mostrarResumenEnTabla(dataToShow) {
+    const resumenTbody = $('#resumen-tbody');
+    resumenTbody.empty();
+    let totalGeneral = 0; // Aunque no se muestra, se podría calcular si fuera necesario en el futuro
+    const productSums = {}; // Object to store sums per product
+
+    // Sort data first
+    dataToShow.sort((a, b) => {
+        // Sort by area (alphabetical)
+        const areaCompare = a.area.localeCompare(b.area);
+        if (areaCompare !== 0) return areaCompare;
+
+        // Then by nivel (numerical)
+        const nivelA = parseInt(a.nivel);
+        const nivelB = parseInt(b.nivel);
+        if (!isNaN(nivelA) && !isNaN(nivelB)) {
+            const nivelCompare = nivelA - nivelB;
+            if (nivelCompare !== 0) return nivelCompare;
+        } else if (isNaN(nivelA) && !isNaN(nivelB)) {
+            return 1; // NivelA is not a number, B is
+        } else if (!isNaN(nivelA) && isNaN(nivelB)) {
+            return -1; // NivelA is a number, B is not
+        }
+        // If both are not numbers or equal, sort by product
+        return a.producto.localeCompare(b.producto);
+    });
+
+    if (dataToShow.length === 0) {
+        resumenTbody.append('<tr><td colspan="4" style="text-align: center;">No se encontraron resultados para el filtro actual.</td></tr>');
+    } else {
+        dataToShow.forEach(item => {
+            resumenTbody.append(`
+                <tr>
+                    <td>${item.area}</td>
+                    <td>${item.nivel}</td>
+                    <td>${item.producto}</td>
+                    <td>${item.cantidadTotal}</td>
+                </tr>
+            `);
+            totalGeneral += item.cantidadTotal; // Still calculate, just not displayed as "Total General"
+
+            // Accumulate sum per product
+            if (productSums[item.producto]) {
+                productSums[item.producto] += item.cantidadTotal;
+            } else {
+                productSums[item.producto] = item.cantidadTotal;
+            }
+        });
+    }
+
+    // Update Product Sums display
+    const resumenProductSumsDiv = $('#resumen-product-sums');
+    resumenProductSumsDiv.empty(); // Clear previous sums
+    if (Object.keys(productSums).length > 0) {
+        resumenProductSumsDiv.append('<h4>Resumen de Consumo:</h4>'); // Nuevo título
+        // Añado " unidades" después de cada cantidad en el resumen de consumo
+        for (const product in productSums) {
+            resumenProductSumsDiv.append(`<p>${product}: ${productSums[product].toLocaleString('es-HN')} unidades</p>`);
+        }
+    }
+  }
+
+  function filtrarResumen() {
+      const searchText = $('#resumen-search-input').val().toLowerCase().trim();
+      // Split the search text by spaces, and filter out empty strings
+      const keywords = searchText.split(' ').filter(keyword => keyword.length > 0);
+
+      const filteredData = resumenData.filter(item => {
+          const area = item.area.toLowerCase();
+          const nivel = String(item.nivel).toLowerCase();
+          const producto = item.producto.toLowerCase();
+
+          // If no keywords, show all data
+          if (keywords.length === 0) {
+              return true;
+          }
+
+          // Check if ALL keywords are found in ANY of the item's relevant fields (AND condition)
+          return keywords.every(keyword =>
+              area.includes(keyword) ||
+              nivel.includes(keyword) ||
+              producto.includes(keyword)
+          );
+      });
+      mostrarResumenEnTabla(filteredData);
   }
 
   // Las funciones de formateo de fecha/hora ya no se necesitan para mostrar, pero se mantienen por si acaso.

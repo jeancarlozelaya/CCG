@@ -537,6 +537,9 @@
         border-top: 2px solid #007BFF;
         background-color: #e9ecef;
         border-radius: 4px;
+        /* INICIO DE CAMBIO: Ocultar por defecto */
+        display: none; 
+        /* FIN DE CAMBIO */
     }
     
     #resumen-product-sums {
@@ -598,20 +601,41 @@
         color: #333;
     }
 
+    /* ESTILOS DE FECHA MEJORADOS */
     .date-filter-container input[type="date"] {
         padding: 8px 12px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
+        border: 1px solid #ccc; /* Cambiado a un gris más neutro */
+        border-radius: 6px; /* Ligeramente más redondeado */
         font-size: 1em;
         -webkit-appearance: none; /* Eliminar estilo predeterminado en algunos navegadores */
         -moz-appearance: none;
         appearance: none;
+        background-color: #f8f8f8; /* Fondo ligeramente gris */
+        cursor: pointer; /* Indica que es clickeable */
+        transition: border-color 0.2s ease, box-shadow 0.2s ease; /* Transición suave */
+    }
+
+    .date-filter-container input[type="date"]::-webkit-calendar-picker-indicator {
+        /* Estilo para el ícono del calendario en navegadores Webkit (Chrome, Edge, Safari) */
+        background: none; /* Elimina el fondo por defecto del ícono */
+        color: #007BFF; /* Color del ícono */
+        font-size: 1.2em; /* Tamaño del ícono */
+        cursor: pointer;
+        opacity: 1; /* Asegura que sea visible */
+        /* Para darle un color azul similar al tema */
+        -webkit-filter: invert(0.5) sepia(1) saturate(5) hue-rotate(175deg); 
+        filter: invert(0.5) sepia(1) saturate(5) hue-rotate(175deg);
+    }
+
+    .date-filter-container input[type="date"]:hover {
+        border-color: #007BFF; /* Borde azul al pasar el ratón */
     }
 
     .date-filter-container input[type="date"]:focus {
         outline: none;
         border-color: #007BFF;
-        box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+        box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25); /* Sombra más pronunciada al enfocar */
+        background-color: #ffffff; /* Fondo blanco al enfocar */
     }
 
     #btn-cargar-resumen-fechas {
@@ -737,10 +761,55 @@
   const AUTH_KEY = "pb_auth";
   const AUTH_EXPIRATION_HOURS = 24; // La autenticación dura 24 horas
 
+  // Variables para el control de toques rápidos en el título del modal
+  let tapCount = 0;
+  let lastTapTime = 0;
+  const TAP_THRESHOLD_MS = 500; // Tiempo máximo entre toques para que cuenten como rápidos
+
   document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('main-content').style.display = 'block';
     cargarDevolucionesPendientes();
+
+    // INICIO DE CAMBIO: Listener para el título del modal para toques múltiples
+    const modalTitle = document.querySelector('.modal-title');
+    if (modalTitle) {
+      modalTitle.addEventListener('click', function() {
+        const currentTime = new Date().getTime();
+
+        if (currentTime - lastTapTime < TAP_THRESHOLD_MS) {
+          tapCount++;
+          if (tapCount === 15) { // CAMBIADO: 15 toques para activar/desactivar
+            const totalsSection = document.getElementById('resumen-totals-section');
+            if (totalsSection.style.display === 'none') {
+                totalsSection.style.display = 'block';
+            } else {
+                totalsSection.style.display = 'none';
+            }
+            tapCount = 0; // Reiniciar el contador después de activar/desactivar
+          }
+        } else {
+          tapCount = 1; // Reiniciar si el tiempo entre toques es demasiado largo
+        }
+        lastTapTime = currentTime;
+      });
+    }
+    // FIN DE CAMBIO
   });
+
+  // INICIO DE CAMBIO: Listener para la combinación de teclas
+  document.addEventListener('keydown', function(event) {
+    // Check for Ctrl (or Cmd on Mac) + Shift + S
+    if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'S') {
+        const totalsSection = document.getElementById('resumen-totals-section');
+        if (totalsSection.style.display === 'none') {
+            totalsSection.style.display = 'block';
+        } else {
+            totalsSection.style.display = 'none';
+        }
+        event.preventDefault(); // Previene el comportamiento por defecto del navegador para esta combinación
+    }
+  });
+  // FIN DE CAMBIO
 
   function verificarAutenticacion() {
     // Check if any quantity > 0
@@ -1234,7 +1303,7 @@
 
       $('#overlay').show();
       
-      const scriptUrl = "https://script.google.com/macros/s/AKfycbyZPzFs6KJcnDL6f-AeC4n0Pz4E0o9tPvq73MYgGVgelWh38xD9_CvhvjbCXmzxkKk/exec";
+      const scriptUrl = "https://script.google.com/macros/s/AKfycbyZPzFs6KJcnDL6f-AeC4n0Pz4E0o9tPvq73MYjGVgelWh38xD9_CvhvjbCXmzxkKk/exec";
       
       const iframe = document.createElement('iframe');
       iframe.style.display = 'none';
@@ -1278,32 +1347,35 @@
   }
 
   // Funciones para el Modal de Resumen
-    function abrirModalResumen() {
-        document.getElementById('resumenModal').style.display = 'flex';
-        // Limpiar y resetear campos de fecha y el resumen
-        $('#resumen-search-input').val('');
-        $('#resumen-tbody').empty().append('<tr><td colspan="4" style="text-align: center;">Seleccione un rango de fechas y haga clic en "Cargar Resumen".</td></tr>');
-        $('#resumen-product-sums').empty();
-        resumenData = [];
-        filteredResumenData = [];
-        allSummaryDates = [];
+  function abrirModalResumen() {
+      document.getElementById('resumenModal').style.display = 'flex';
+      // Limpiar y resetear campos de fecha y el resumen
+      $('#resumen-search-input').val('');
+      $('#resumen-tbody').empty().append('<tr><td colspan="4" style="text-align: center;">Seleccione un rango de fechas y haga clic en "Cargar Resumen".</td></tr>');
+      $('#resumen-product-sums').empty();
+      resumenData = [];
+      filteredResumenData = [];
+      allSummaryDates = [];
 
-        // ***** NUEVO CÓDIGO AÑADIDO O MODIFICADO AQUÍ *****
-        const today = new Date();
-        const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      // Establecer fechas por defecto
+      const today = new Date();
+      const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
-        // Formatear las fechas para el input[type="date"] (YYYY-MM-DD)
-        const formatDate = (date) => {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        };
+      // Formatear las fechas para el input[type="date"] (YYYY-MM-DD)
+      const formatDate = (date) => {
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+      };
 
-        $('#fecha-inicio-resumen').val(formatDate(firstDayOfMonth));
-        $('#fecha-fin-resumen').val(formatDate(today));
-        // ***** FIN DEL CÓDIGO AÑADIDO O MODIFICADO *****
-    }
+      $('#fecha-inicio-resumen').val(formatDate(firstDayOfMonth));
+      $('#fecha-fin-resumen').val(formatDate(today));
+      
+      // INICIO DE CAMBIO: Asegurarse de que la sección de totales esté oculta al abrir el modal
+      document.getElementById('resumen-totals-section').style.display = 'none';
+      // FIN DE CAMBIO
+  }
 
   function cerrarModalResumen() {
       document.getElementById('resumenModal').style.display = 'none';
@@ -1502,6 +1574,43 @@
           `Rango de Fechas: ${formatDateForPDF(minDate)} - ${formatDateForPDF(maxDate)}` :
           'Rango de Fechas no disponible';
 
+      // Función auxiliar para formatear la fecha a DD-MM-YYYY para el nombre del archivo
+      const formatDateForFilename = (date) => {
+          if (!date) return 'N/A';
+          const day = String(date.getDate()).padStart(2, '0');
+          const month = String(date.getMonth() + 1).padStart(2, '0'); // Meses son 0-indexados
+          const year = date.getFullYear();
+          return `${day}-${month}-${year}`; // Usamos guiones para el nombre del archivo
+      };
+
+      // Obtener las fechas de los inputs para el nombre del archivo
+      const fechaInicioInput = document.getElementById('fecha-inicio-resumen').value; // e.g., "2025-07-16"
+      const fechaFinInput = document.getElementById('fecha-fin-resumen').value;     // e.g., "2025-07-16"
+
+      // CORRECCIÓN AQUÍ: Parsear la fecha para evitar problemas de zona horaria
+      let startDateForFilename = null;
+      if (fechaInicioInput) {
+          const [year, month, day] = fechaInicioInput.split('-').map(Number);
+          startDateForFilename = new Date(year, month - 1, day); // month - 1 porque los meses son 0-indexados
+      }
+
+      let endDateForFilename = null;
+      if (fechaFinInput) {
+          const [year, month, day] = fechaFinInput.split('-').map(Number);
+          endDateForFilename = new Date(year, month - 1, day); // month - 1 porque los meses son 0-indexados
+      }
+
+      let filename = 'Resumen de Gasto de Insumos';
+      if (startDateForFilename && endDateForFilename) {
+          filename += ` (${formatDateForFilename(startDateForFilename)} - ${formatDateForFilename(endDateForFilename)})`;
+      } else if (startDateForFilename) {
+          filename += ` (${formatDateForFilename(startDateForFilename)})`;
+      } else if (endDateForFilename) {
+          filename += ` (${formatDateForFilename(endDateForFilename)})`;
+      }
+      filename += '.pdf';
+
+
       // Configurar el título del documento
       doc.setFontSize(16);
       doc.text("Resumen de Gasto de Insumos", doc.internal.pageSize.getWidth() / 2, 15, { align: "center" });
@@ -1532,27 +1641,31 @@
           }
       });
 
-      // Añadir el resumen de consumo al PDF
-      const finalY = doc.lastAutoTable.finalY + 10; // Obtener la posición final de la tabla
-      doc.setFontSize(12);
-      doc.text("Resumen de Consumo:", 14, finalY);
+      // INICIO DE CAMBIO: Condición para añadir el resumen de consumo al PDF
+      const totalsSection = document.getElementById('resumen-totals-section');
+      if (totalsSection.style.display !== 'none') { // Solo añadir si la sección está visible
+        const finalY = doc.lastAutoTable.finalY + 10; // Obtener la posición final de la tabla
+        doc.setFontSize(12);
+        doc.text("Resumen de Consumo:", 14, finalY);
 
-      const productSums = {}; // Calcular sumas por producto nuevamente para el PDF
-      filteredResumenData.forEach(item => {
-          if (productSums[item.producto]) {
-              productSums[item.producto] += item.cantidadTotal;
-          } else {
-              productSums[item.producto] = item.cantidadTotal;
-          }
-      });
+        const productSums = {}; // Calcular sumas por producto nuevamente para el PDF
+        filteredResumenData.forEach(item => {
+            if (productSums[item.producto]) {
+                productSums[item.producto] += item.cantidadTotal;
+            } else {
+                productSums[item.producto] = item.cantidadTotal;
+            }
+        });
 
-      let currentY = finalY + 7;
-      for (const product in productSums) {
-          doc.text(`- ${product}: ${productSums[product].toLocaleString('es-HN')} unidades`, 18, currentY);
-          currentY += 5;
+        let currentY = finalY + 7;
+        for (const product in productSums) {
+            doc.text(`- ${product}: ${productSums[product].toLocaleString('es-HN')} unidades`, 18, currentY);
+            currentY += 5;
+        }
       }
+      // FIN DE CAMBIO
 
-      doc.save('resumen_gasto_insumos.pdf');
+      doc.save(filename); // Se usa el nombre de archivo dinámico
   }
 
   // Las funciones de formateo de fecha/hora ya no se necesitan para mostrar, pero se mantienen por si acaso.

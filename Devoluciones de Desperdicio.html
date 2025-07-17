@@ -6,6 +6,9 @@
   <title>Pisos Brillantes</title>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+
   <style>
     /* Estilos para el bloqueo de contraseña */
     #password-protection {
@@ -564,6 +567,21 @@
         color: #333;
         font-size: 1.5em;
     }
+    /* Estilo para el botón de PDF */
+    #btn-generar-pdf {
+        background-color: #dc3545; /* Rojo para PDF */
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+        margin-left: 10px; /* Espacio para separarlo del filtro */
+    }
+
+    #btn-generar-pdf:hover {
+        background-color: #c82333;
+    }
   </style>
 </head>
 <body>
@@ -585,14 +603,14 @@
       <h1>Devoluciones de Productos</h1>
 
       <div class="search-container">
-        <input type="text" id="search-input" placeholder="Buscar por Área o Producto..." oninput="filtrarTabla()">
+        <input type="text" id="search-input" placeholder="Buscar por Edificio o Producto..." oninput="filtrarTabla()">
       </div>
 
       <div id="tabla-devoluciones-container" class="table-container">
           <table id="tabla-devoluciones">
           <thead>
             <tr>
-              <th>Área</th>
+              <th>Edificio</th>
               <th>Producto</th>
               <th>Cantidad Pendiente</th>
               <th>Devolver</th>
@@ -628,6 +646,7 @@
       
       <div class="resumen-search-container">
         <input type="text" id="resumen-search-input" placeholder="Filtrar por Edificio, Nivel o Producto (separado por espacios)" oninput="filtrarResumen()">
+        <button type="button" id="btn-generar-pdf" onclick="generarPDFResumen()">Generar PDF</button>
       </div>
 
       <div id="resumen-tabla-container">
@@ -658,6 +677,8 @@
   let editedEntries = {}; 
   let entryCounter = 0; // To generate unique IDs for dynamically added entries
   let resumenData = []; // Store the fetched resumen data for filtering
+  let filteredResumenData = []; // NUEVO: Para guardar los datos filtrados del resumen
+  let allSummaryDates = []; // NUEVO: Para guardar todas las fechas recibidas del resumen del script
 
   const CORRECT_PASSWORD = "macdel1";
   const AUTH_KEY = "pb_auth";
@@ -815,7 +836,7 @@
           fechaOriginal: devolucion.fecha,
           horaOriginal: devolucion.hora,
           colaborador: devolucion.colaborador,
-          area: devolucion.area,
+          area: devolucion.area, // Aquí 'area' se usará como 'Edificio'
           producto: devolucion.producto,
           cantidadSalida: devolucion.cantidadSalida,
           cantidadDevuelta: devolucion.cantidadDevuelta,
@@ -849,7 +870,7 @@
 
       const rowHtml = `
         <tr id="row-${entryId}" class="${rowClass}" data-original-index="${originalIndex}">
-          <td class="area">${entryNumber === 0 ? devolucion.area : ''}</td>
+          <td class="edificio">${entryNumber === 0 ? devolucion.area : ''}</td> 
           <td class="producto">${entryNumber === 0 ? devolucion.producto : ''}</td>
           <td>${entryNumber === 0 ? devolucion.cantidadPendiente : ''}</td>
           <td>
@@ -866,11 +887,12 @@
             </div>
           </td>
           <td> 
-<input type="text"
-       class="nivel-input"
-       id="input-nivel-${entryId}"
-       min="0" value="${editedEntries[entryId].nivel}"
-       oninput="manejarInputNivel('${entryId}')">
+            <input type="text"
+                   class="nivel-input"
+                   id="input-nivel-${entryId}"
+                   min="0"
+                   value="${editedEntries[entryId].nivel}"
+                   oninput="manejarInputNivel('${entryId}')">
           </td>
           <td>${cuerposBajosHtml}</td>
           <td>
@@ -964,39 +986,48 @@
   }
 
 
+  // MODIFICADO: filtrarTabla para aceptar múltiples términos y buscar en Edificio (antes Área) y Producto
   function filtrarTabla() {
-    const searchText = document.getElementById('search-input').value.toLowerCase();
+    const searchText = document.getElementById('search-input').value.toLowerCase().trim();
+    const keywords = searchText.split(' ').filter(keyword => keyword.length > 0); // Divide por espacios
+
     const rows = document.querySelectorAll('#devoluciones-body .data-row');
     let hasResults = false;
     
     rows.forEach(row => {
-      // Only check the original row's text content for filtering.
-      // Additional entries (entryNumber > 0) will follow the visibility of their parent.
       const originalIndex = row.dataset.originalIndex;
-      const entryNumber = parseInt(row.id.split('-')[2]); // Get the entry number from ID like "row-X-Y"
+      const entryNumber = parseInt(row.id.split('-')[2]);
 
-      if (entryNumber === 0) { // Only filter based on the main entry
-          const area = row.querySelector('.area').textContent.toLowerCase();
+      if (entryNumber === 0) { // Solo filtrar basándose en la entrada principal
+          // CAMBIADO: de '.area' a '.edificio'
+          const edificio = row.querySelector('.edificio').textContent.toLowerCase(); 
           const producto = row.querySelector('.producto').textContent.toLowerCase();
           
-          // Updated search to only use area or product, as collaborator is hidden
-          if (area.includes(searchText) || producto.includes(searchText)) {
+          let matches = true;
+          if (keywords.length > 0) {
+              matches = keywords.every(keyword => 
+                  edificio.includes(keyword) || 
+                  producto.includes(keyword)
+              );
+          }
+
+          if (matches) {
             row.style.display = '';
             hasResults = true;
-            // Also show any associated additional entries
+            // También mostrar cualquier entrada adicional asociada
             $(`tr[data-original-index='${originalIndex}'][id^='row-${originalIndex}-']`).show();
           } else {
             row.style.display = 'none';
-            // Also hide any associated additional entries
+            // También ocultar cualquier entrada adicional asociada
             $(`tr[data-original-index='${originalIndex}'][id^='row-${originalIndex}-']`).hide();
           }
       }
     });
     
     const noResultsRow = document.querySelector('#devoluciones-body .no-results');
-    if (!hasResults && devoluciones.length > 0) { // Only show no results if there were items to begin with
+    if (!hasResults && devoluciones.length > 0) {
       if (!noResultsRow) {
-        $('#devoluciones-body').append('<tr><td colspan="7" class="no-results">No se encontraron resultados</td></tr>'); // Colspan 7
+        $('#devoluciones-body').append('<tr><td colspan="7" class="no-results">No se encontraron resultados</td></tr>');
       }
     } else if (noResultsRow) {
       noResultsRow.remove();
@@ -1061,32 +1092,25 @@
   }
 
 
-  // Function to handle nivel input changes for a specific entry
+  // MODIFICADO: manejarInputNivel para permitir 'X' o números
   function manejarInputNivel(entryId) {
       const input = document.getElementById(`input-nivel-${entryId}`);
-      let value = input.value.trim();
+      let value = input.value.trim(); 
 
-      // Convert to uppercase for comparison if it's 'x'
       const upperCaseValue = value.toUpperCase();
 
-      // Check if the value is 'X'
       if (upperCaseValue === 'X') {
-          // If it's 'X', store it as is
           editedEntries[entryId].nivel = upperCaseValue;
       } else if (value !== '' && isNaN(parseInt(value))) {
-          // If not 'X' and not a valid number, clear the input
           input.value = '';
-          editedEntries[entryId].nivel = ''; // Also clear the stored value
+          editedEntries[entryId].nivel = '';
       } else if (value !== '') {
-          // If it's a number, ensure it's non-negative and store it
           value = Math.max(0, parseInt(value)).toString();
           input.value = value;
           editedEntries[entryId].nivel = value;
       } else {
-          // If the input is empty
           editedEntries[entryId].nivel = '';
       }
-
       actualizarEstadoBotonEnviar();
   }
 
@@ -1235,17 +1259,23 @@
                   resumenTbody.append('<tr><td colspan="4" style="text-align: center;">No hay datos en el historial para generar el resumen.</td></tr>');
                   // Reset product sums
                   $('#resumen-product-sums').empty();
+                  filteredResumenData = []; // NUEVO: Limpiar datos filtrados
+                  allSummaryDates = []; // NUEVO: Limpiar todas las fechas
                   return;
               }
 
               resumenData = data.resumen; // Store data for filtering and sorting
-              mostrarResumenEnTabla(resumenData); // Initial display
+              filteredResumenData = [...resumenData]; // Inicializar con todos los datos
+              allSummaryDates = data.allTransactionDates || []; // NUEVO: Guardar todas las fechas transaccionales
+              mostrarResumenEnTabla(filteredResumenData); // Initial display
           },
           error: function(xhr, status, error) {
               resumenTbody.empty().append(`<tr><td colspan="4" style="text-align: center; color: red;">Error al cargar resumen: ${error}</td></tr>`);
               Swal.fire('Error', 'Error al cargar el resumen: ' + error, 'error');
               // Reset product sums
               $('#resumen-product-sums').empty();
+              filteredResumenData = []; // NUEVO: Limpiar datos filtrados
+              allSummaryDates = []; // NUEVO: Limpiar todas las fechas
           }
       });
   }
@@ -1253,25 +1283,33 @@
   function mostrarResumenEnTabla(dataToShow) {
     const resumenTbody = $('#resumen-tbody');
     resumenTbody.empty();
-    let totalGeneral = 0; // Aunque no se muestra, se podría calcular si fuera necesario en el futuro
-    const productSums = {}; // Object to store sums per product
+    let totalGeneral = 0; 
+    const productSums = {}; 
 
     // Sort data first
     dataToShow.sort((a, b) => {
-        // Sort by area (alphabetical)
+        // Sort by area (alphabetical) - AHORA ES EDIFICIO
         const areaCompare = a.area.localeCompare(b.area);
         if (areaCompare !== 0) return areaCompare;
 
-        // Then by nivel (numerical)
-        const nivelA = parseInt(a.nivel);
-        const nivelB = parseInt(b.nivel);
-        if (!isNaN(nivelA) && !isNaN(nivelB)) {
-            const nivelCompare = nivelA - nivelB;
+        // Then by nivel (numerical) - Considera 'X'
+        // CORREGIDO: Convertir a String antes de toUpperCase()
+        const nivelA = String(a.nivel).toUpperCase();
+        const nivelB = String(b.nivel).toUpperCase();
+
+        if (nivelA === 'X' && nivelB !== 'X') return 1; // 'X' va al final
+        if (nivelA !== 'X' && nivelB === 'X') return -1; // 'X' va al final
+        if (nivelA === 'X' && nivelB === 'X') return 0; // Si ambos son 'X', son iguales
+
+        const numNivelA = parseInt(nivelA);
+        const numNivelB = parseInt(nivelB);
+        if (!isNaN(numNivelA) && !isNaN(numNivelB)) {
+            const nivelCompare = numNivelA - numNivelB;
             if (nivelCompare !== 0) return nivelCompare;
-        } else if (isNaN(nivelA) && !isNaN(nivelB)) {
-            return 1; // NivelA is not a number, B is
-        } else if (!isNaN(nivelA) && isNaN(nivelB)) {
-            return -1; // NivelA is a number, B is not
+        } else if (isNaN(numNivelA) && !isNaN(numNivelB)) {
+            return 1; 
+        } else if (!isNaN(numNivelA) && isNaN(numNivelB)) {
+            return -1; 
         }
         // If both are not numbers or equal, sort by product
         return a.producto.localeCompare(b.producto);
@@ -1289,7 +1327,7 @@
                     <td>${item.cantidadTotal}</td>
                 </tr>
             `);
-            totalGeneral += item.cantidadTotal; // Still calculate, just not displayed as "Total General"
+            totalGeneral += item.cantidadTotal; 
 
             // Accumulate sum per product
             if (productSums[item.producto]) {
@@ -1314,27 +1352,119 @@
 
   function filtrarResumen() {
       const searchText = $('#resumen-search-input').val().toLowerCase().trim();
-      // Split the search text by spaces, and filter out empty strings
       const keywords = searchText.split(' ').filter(keyword => keyword.length > 0);
 
-      const filteredData = resumenData.filter(item => {
-          const area = item.area.toLowerCase();
-          const nivel = String(item.nivel).toLowerCase();
+      filteredResumenData = resumenData.filter(item => { // Asignar a filteredResumenData
+          const area = item.area.toLowerCase(); // Corresponde a Edificio
+          const nivel = String(item.nivel).toLowerCase(); // CORREGIDO: Convertir a String
           const producto = item.producto.toLowerCase();
 
-          // If no keywords, show all data
           if (keywords.length === 0) {
               return true;
           }
 
-          // Check if ALL keywords are found in ANY of the item's relevant fields (AND condition)
           return keywords.every(keyword =>
               area.includes(keyword) ||
               nivel.includes(keyword) ||
               producto.includes(keyword)
           );
       });
-      mostrarResumenEnTabla(filteredData);
+      mostrarResumenEnTabla(filteredResumenData); // Mostrar los datos filtrados
+  }
+
+  // NUEVA FUNCIÓN: Generar PDF del Resumen
+  function generarPDFResumen() {
+      if (filteredResumenData.length === 0) {
+          Swal.fire('Advertencia', 'No hay datos en el resumen para generar un PDF.', 'warning');
+          return;
+      }
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+
+      // Encontrar el rango de fechas de TODAS las transacciones del resumen
+      let minDate = null;
+      let maxDate = null;
+
+      // Usa allSummaryDates para calcular el rango de fechas
+      allSummaryDates.forEach(dateStr => {
+          if (dateStr) {
+              const currentDate = new Date(dateStr);
+              if (!isNaN(currentDate.getTime())) { // Asegurarse de que la fecha es válida
+                  if (minDate === null || currentDate < minDate) {
+                      minDate = currentDate;
+                  }
+                  if (maxDate === null || currentDate > maxDate) {
+                      maxDate = currentDate;
+                  }
+              }
+          }
+      });
+
+      // Función auxiliar para formatear la fecha a DD/MM/YYYY
+      const formatDateForPDF = (date) => {
+          if (!date) return 'N/A';
+          const day = String(date.getDate()).padStart(2, '0');
+          const month = String(date.getMonth() + 1).padStart(2, '0'); // Meses son 0-indexados
+          const year = date.getFullYear();
+          return `${day}/${month}/${year}`;
+      };
+
+      const dateRangeText = (minDate && maxDate) ? 
+          `Rango de Fechas: ${formatDateForPDF(minDate)} - ${formatDateForPDF(maxDate)}` :
+          'Rango de Fechas no disponible';
+
+      // Configurar el título del documento
+      doc.setFontSize(16);
+      doc.text("Resumen de Gasto de Insumos", doc.internal.pageSize.getWidth() / 2, 15, { align: "center" });
+
+      // Añadir el rango de fechas
+      doc.setFontSize(10); // Tamaño de fuente más pequeño para la fecha
+      doc.text(dateRangeText, doc.internal.pageSize.getWidth() / 2, 22, { align: "center" });
+
+
+      // Preparar los datos para la tabla
+      const headers = [["Edificio", "Nivel", "Producto", "Total de Consumo"]];
+      const data = filteredResumenData.map(item => [item.area, item.nivel, item.producto, item.cantidadTotal]);
+
+      // Generar la tabla con autoTable
+      doc.autoTable({
+          startY: 30, // Ajustado para dar espacio al rango de fechas
+          head: headers,
+          body: data,
+          theme: 'grid', // Estilo de tabla
+          styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak', halign: 'center' }, // Estilos de celda
+          headStyles: { fillColor: [0, 123, 255], textColor: 255, fontStyle: 'bold', halign: 'center' }, // Estilos de encabezado
+          margin: { top: 20 },
+          didDrawPage: function(data) {
+              // Footer
+              let str = "Página " + doc.internal.getNumberOfPages();
+              doc.setFontSize(8);
+              doc.text(str, data.settings.margin.left, doc.internal.pageSize.height - 10);
+          }
+      });
+
+      // Añadir el resumen de consumo al PDF
+      const finalY = doc.lastAutoTable.finalY + 10; // Obtener la posición final de la tabla
+      doc.setFontSize(12);
+      doc.text("Resumen de Consumo:", 14, finalY);
+
+      const productSums = {}; // Calcular sumas por producto nuevamente para el PDF
+      filteredResumenData.forEach(item => {
+          if (productSums[item.producto]) {
+              productSums[item.producto] += item.cantidadTotal;
+          } else {
+              productSums[item.producto] = item.cantidadTotal;
+          }
+      });
+
+      let currentY = finalY + 7;
+      for (const product in productSums) {
+          doc.text(`- ${product}: ${productSums[product].toLocaleString('es-HN')} unidades`, 18, currentY);
+          currentY += 5;
+      }
+
+      doc.save('resumen_gasto_insumos.pdf');
   }
 
   // Las funciones de formateo de fecha/hora ya no se necesitan para mostrar, pero se mantienen por si acaso.

@@ -8,6 +8,7 @@
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
     /* Estilos para el bloqueo de contraseña */
@@ -274,9 +275,6 @@
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
-
-
-
 
     .search-container {
       margin-bottom: 20px;
@@ -651,6 +649,128 @@
     #btn-cargar-resumen-fechas:hover {
         background-color: #218838;
     }
+
+    /* Estilos para el botón de gráficos */
+    #btn-mostrar-graficos {
+        background-color: #6f42c1; /* Color morado para gráficos */
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+        margin-left: 10px;
+    }
+
+    #btn-mostrar-graficos:hover {
+        background-color: #5a32a3;
+    }
+
+    /* Estilos para el modal de gráficos */
+    #graficosModal {
+      display: none;
+      position: fixed;
+      z-index: 10001; /* Mayor que el modal de resumen */
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0,0,0,0.4);
+      justify-content: center;
+      align-items: center;
+    }
+
+    .graficos-modal-content {
+      background-color: #fefefe;
+      margin: auto;
+      padding: 20px;
+      border: 1px solid #888;
+      width: 90%;
+      max-width: 1200px;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      position: relative;
+    }
+
+    .graficos-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-around;
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .grafico-item {
+      flex: 1 1 45%;
+      min-width: 400px;
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .grafico-item h3 {
+      text-align: center;
+      margin-top: 0;
+      color: #333;
+    }
+
+    .grafico-canvas {
+      width: 100% !important;
+      height: 300px !important;
+    }
+
+    /* Estilos para el selector de tipo de gráfico */
+    .chart-type-selector {
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .chart-type-selector select {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 1em;
+      background-color: #f8f8f8;
+      cursor: pointer;
+    }
+
+    .chart-type-selector select:focus {
+      outline: none;
+      border-color: #007BFF;
+      box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+    }
+
+    /* Nuevos estilos para los contenedores de gráficos por edificio y producto */
+    .graficos-productos-container, .graficos-edificios-container {
+      width: 100%;
+      margin-top: 20px;
+    }
+
+    .graficos-productos-container h3, .graficos-edificios-container h3 {
+      text-align: center;
+      margin-bottom: 15px;
+      color: #333;
+      border-bottom: 2px solid #007BFF;
+      padding-bottom: 5px;
+    }
+
+    .graficos-productos-grid, .graficos-edificios-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+      gap: 20px;
+      margin-top: 10px;
+    }
+
+
+.grafico-item {
+    flex: 1 1 400px; /* Tamaño mínimo de 400px pero flexible */
+    margin: 10px;
+    max-width: 45%; /* Máximo 45% del contenedor */
+}
+
+
   </style>
 </head>
 <body>
@@ -719,11 +839,14 @@
         <label for="fecha-fin-resumen">Hasta:</label>
         <input type="date" id="fecha-fin-resumen">
         <button type="button" id="btn-cargar-resumen-fechas" onclick="cargarResumenDevoluciones()">Cargar Resumen</button>
+        <button type="button" id="btn-generar-pdf" onclick="generarPDFResumen()">Generar PDF</button>
+
+        <button type="button" id="btn-mostrar-graficos" onclick="abrirModalGraficos()">Mostrar Gráficos</button>
+
       </div>
 
       <div class="resumen-search-container">
         <input type="text" id="resumen-search-input" placeholder="Filtrar por Edificio, Nivel o Producto (separado por espacios)" oninput="filtrarResumen()">
-        <button type="button" id="btn-generar-pdf" onclick="generarPDFResumen()">Generar PDF</button>
       </div>
 
       <div id="resumen-tabla-container">
@@ -748,6 +871,51 @@
     </div>
   </div>
 
+  <!-- Nuevo modal para gráficos -->
+  <div id="graficosModal" class="modal">
+    <div class="graficos-modal-content">
+      <span class="close-modal-btn" onclick="cerrarModalGraficos()">&times;</span>
+      <h2 class="modal-title">Gráficos de Consumo</h2>
+      
+      <div class="chart-type-selector">
+        <label for="chart-type">Tipo de Gráfico: </label>
+        <select id="chart-type" onchange="actualizarGraficos()">
+          <option value="bar">Barras</option>
+         <!--  <option value="pie">Torta</option> -->
+          <option value="line">Líneas</option>
+        </select>
+      </div>
+      
+<div class="graficos-container" style="display: flex; flex-wrap: wrap; justify-content: center;">
+        <div class="grafico-item">
+          <h3>Consumo por Producto</h3>
+          <canvas id="productoChart" class="grafico-canvas"></canvas>
+        </div>
+        
+        <!-- Nuevo contenedor para gráficos por edificio por producto -->
+        <div class="graficos-productos-container">
+          <h3>Consumo por Edificio (por Producto)</h3>
+          <div id="graficos-productos" class="graficos-productos-grid">
+            <!-- Los gráficos se generarán dinámicamente aquí -->
+          </div>
+        </div>
+        
+        <!-- Nuevo contenedor para gráficos por nivel por edificio -->
+        <div class="graficos-edificios-container">
+          <h3>Consumo por Nivel (por Edificio)</h3>
+          <div id="graficos-edificios" class="graficos-edificios-grid">
+            <!-- Los gráficos se generarán dinámicamente aquí -->
+          </div>
+        </div>
+        
+        <div class="grafico-item">
+          <h3>Consumo Diario</h3>
+          <canvas id="diarioChart" class="grafico-canvas"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
 <script>
   // Variables globales
   let devoluciones = []; // Stores all fetched pending returns (original data from sheet)
@@ -756,6 +924,7 @@
   let resumenData = []; // Store the fetched resumen data for filtering
   let filteredResumenData = []; // NUEVO: Para guardar los datos filtrados del resumen
   let allSummaryDates = []; // NUEVO: Para guardar todas las fechas recibidas del resumen del script
+  let charts = {}; // Objeto para almacenar las instancias de los gráficos
 
   const CORRECT_PASSWORD = "macdel1";
   const AUTH_KEY = "pb_auth";
@@ -946,7 +1115,7 @@
     }
     
     devoluciones.forEach((devolucion, index) => {
-      // Each original row will have at least one entry, indexed as "index-0"
+      // Each original row will have at least one entry, indexed as "index-0" 
       const entryId = `${index}-0`; 
       editedEntries[entryId] = { // Initialize the first entry for this row
           rowId: devolucion.rowId,
@@ -1482,7 +1651,7 @@
             resumenTbody.append(`
                 <tr>
                     <td>${item.area}</td>
-                    <td>${item.nivel}</td>
+                    <td>${item.nivel === '0' ? 'Sin Nivel' : item.nivel}</td> <!-- Mostrar "Sin Nivel" para nivel 0 -->
                     <td>${item.producto}</td>
                     <td>${item.cantidadTotal}</td>
                 </tr>
@@ -1622,7 +1791,7 @@
 
       // Preparar los datos para la tabla
       const headers = [["Edificio", "Nivel", "Producto", "Total de Consumo"]];
-      const data = filteredResumenData.map(item => [item.area, item.nivel, item.producto, item.cantidadTotal]);
+      const data = filteredResumenData.map(item => [item.area, item.nivel === '0' ? 'Sin Nivel' : item.nivel, item.producto, item.cantidadTotal]);
 
       // Generar la tabla con autoTable
       doc.autoTable({
@@ -1666,6 +1835,363 @@
       // FIN DE CAMBIO
 
       doc.save(filename); // Se usa el nombre de archivo dinámico
+  }
+
+  // Funciones para el modal de gráficos
+  function abrirModalGraficos() {
+      if (filteredResumenData.length === 0) {
+          Swal.fire('Advertencia', 'No hay datos en el resumen para generar gráficos. Cargue un resumen primero.', 'warning');
+          return;
+      }
+
+      document.getElementById('graficosModal').style.display = 'flex';
+      generarGraficos();
+  }
+
+  function cerrarModalGraficos() {
+      document.getElementById('graficosModal').style.display = 'none';
+      // Destruir los gráficos existentes
+      Object.values(charts).forEach(chart => {
+          if (chart) chart.destroy();
+      });
+      charts = {};
+  }
+
+function generarGraficos() {
+    // Destruir gráficos existentes
+    Object.values(charts).forEach(chart => {
+        if (chart) chart.destroy();
+    });
+    charts = {};
+
+    const datosGraficos = prepararDatosParaGraficos();
+    const chartType = document.getElementById('chart-type').value;
+    const graficosContainer = document.querySelector('.graficos-container');
+    graficosContainer.innerHTML = '';
+
+    // Configuración común para tooltips
+    const commonTooltipOptions = {
+        callbacks: {
+            label: function(context) {
+                return `${context.label || context.dataset.label}: ${context.raw} unidades`;
+            }
+        },
+        intersect: false,
+        mode: 'index',
+        position: 'nearest',
+        filter: () => true
+    };
+
+    // 1. Gráfico de productos
+    const productoDiv = document.createElement('div');
+    productoDiv.className = 'grafico-item';
+    productoDiv.innerHTML = '<h3>Consumo por Producto</h3><canvas id="productoChart" class="grafico-canvas"></canvas>';
+    graficosContainer.appendChild(productoDiv);
+
+    const productoCtx = document.getElementById('productoChart').getContext('2d');
+    charts.productoChart = new Chart(productoCtx, {
+        type: chartType,
+        data: {
+            labels: datosGraficos.productos.labels,
+            datasets: [{
+                label: 'Consumo por Producto',
+                data: datosGraficos.productos.data,
+                backgroundColor: generarColores(datosGraficos.productos.labels.length),
+                borderColor: '#333',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: chartType === 'pie' ? 'right' : 'top',
+                },
+                tooltip: commonTooltipOptions
+            },
+            scales: chartType !== 'pie' ? {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Cantidad (unidades)'
+                    }
+                }
+            } : undefined
+        }
+    });
+
+    // 2. Gráficos por edificio y producto
+    for (const producto in datosGraficos.edificios) {
+        const edificioDiv = document.createElement('div');
+        edificioDiv.className = 'grafico-item';
+        edificioDiv.innerHTML = `<h3>Consumo en Edificios (${producto})</h3><canvas id="edificioChart-${producto}" class="grafico-canvas"></canvas>`;
+        graficosContainer.appendChild(edificioDiv);
+
+        const edificioCtx = document.getElementById(`edificioChart-${producto}`).getContext('2d');
+        charts[`edificioChart-${producto}`] = new Chart(edificioCtx, {
+            type: chartType,
+            data: {
+                labels: datosGraficos.edificios[producto].labels,
+                datasets: [{
+                    label: `Consumo de ${producto}`,
+                    data: datosGraficos.edificios[producto].data,
+                    backgroundColor: generarColores(datosGraficos.edificios[producto].labels.length),
+                    borderColor: '#333',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: chartType === 'pie' ? 'right' : 'top',
+                    },
+                    tooltip: commonTooltipOptions
+                },
+                scales: chartType !== 'pie' ? {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Cantidad (unidades)'
+                        }
+                    }
+                } : undefined
+            }
+        });
+    }
+
+    // 3. Gráficos por nivel, edificio y producto
+    for (const edificio in datosGraficos.niveles) {
+        for (const producto in datosGraficos.niveles[edificio]) {
+            const nivelDiv = document.createElement('div');
+            nivelDiv.className = 'grafico-item';
+            nivelDiv.innerHTML = `<h3>Consumo en ${edificio} - ${producto} por Nivel</h3><canvas id="nivelChart-${edificio}-${producto}" class="grafico-canvas"></canvas>`;
+            graficosContainer.appendChild(nivelDiv);
+
+            const nivelCtx = document.getElementById(`nivelChart-${edificio}-${producto}`).getContext('2d');
+            charts[`nivelChart-${edificio}-${producto}`] = new Chart(nivelCtx, {
+                type: chartType,
+                data: {
+                    labels: datosGraficos.niveles[edificio][producto].labels,
+                    datasets: [{
+                        label: `Consumo en ${edificio}`,
+                        data: datosGraficos.niveles[edificio][producto].data,
+                        backgroundColor: generarColores(datosGraficos.niveles[edificio][producto].labels.length),
+                        borderColor: '#333',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: chartType === 'pie' ? 'right' : 'top',
+                        },
+                        tooltip: commonTooltipOptions
+                    },
+                    scales: chartType !== 'pie' ? {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Cantidad (unidades)'
+                            }
+                        }
+                    } : undefined
+                }
+            });
+        }
+    }
+
+    // 4. Gráficos diarios por producto
+    for (const producto in datosGraficos.diario) {
+        if (datosGraficos.diario[producto].labels.length > 0) {
+            const diarioDiv = document.createElement('div');
+            diarioDiv.className = 'grafico-item';
+            diarioDiv.innerHTML = `<h3>Consumo Diario (${producto})</h3><canvas id="diarioChart-${producto}" class="grafico-canvas"></canvas>`;
+            graficosContainer.appendChild(diarioDiv);
+
+            const diarioCtx = document.getElementById(`diarioChart-${producto}`).getContext('2d');
+            charts[`diarioChart-${producto}`] = new Chart(diarioCtx, {
+                type: 'line',
+                data: {
+                    labels: datosGraficos.diario[producto].labels,
+                    datasets: [{
+                        label: `Consumo Diario ${producto}`,
+                        data: datosGraficos.diario[producto].data,
+                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 2,
+                        tension: 0.1,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: commonTooltipOptions
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Cantidad (unidades)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Fecha'
+                            }
+                        }
+                    },
+                    elements: {
+                        point: {
+                            radius: function(context) {
+                                return context.raw > 0 ? 5 : 3;
+                            },
+                            hoverRadius: 7
+                        }
+                    }
+                }
+            });
+        }
+    }
+}
+
+
+
+  function actualizarGraficos() {
+      generarGraficos();
+  }
+
+function prepararDatosParaGraficos() {
+    const datos = {
+        productos: { labels: [], data: [] },
+        edificios: {},    // { producto: { labels: [edificios], data: [] } }
+        niveles: {},      // { edificio: { producto: { labels: [niveles], data: [] } } }
+        diario: {}        // { producto: { labels: [fechas], data: [] } }
+    };
+
+    // 1. Agrupar datos por producto (total general)
+    const productosMap = {};
+    filteredResumenData.forEach(item => {
+        if (productosMap[item.producto]) {
+            productosMap[item.producto] += item.cantidadTotal;
+        } else {
+            productosMap[item.producto] = item.cantidadTotal;
+        }
+    });
+    datos.productos.labels = Object.keys(productosMap);
+    datos.productos.data = Object.values(productosMap);
+
+    // 2. Agrupar datos por edificio (por producto)
+    filteredResumenData.forEach(item => {
+        if (!datos.edificios[item.producto]) {
+            datos.edificios[item.producto] = { labels: [], data: [] };
+        }
+        
+        const edificioIndex = datos.edificios[item.producto].labels.indexOf(item.area);
+        if (edificioIndex === -1) {
+            datos.edificios[item.producto].labels.push(item.area);
+            datos.edificios[item.producto].data.push(item.cantidadTotal);
+        } else {
+            datos.edificios[item.producto].data[edificioIndex] += item.cantidadTotal;
+        }
+    });
+
+    // 3. Agrupar datos por nivel (por edificio Y por producto)
+    filteredResumenData.forEach((item, i) => {
+        // Inicializar estructura para el edificio si no existe
+        if (!datos.niveles[item.area]) {
+            datos.niveles[item.area] = {};
+        }
+        
+        // Inicializar estructura para el producto dentro del edificio si no existe
+        if (!datos.niveles[item.area][item.producto]) {
+            datos.niveles[item.area][item.producto] = { labels: [], data: [] };
+        }
+        
+        // Convertir "Sin Nivel" a "0"
+        const nivel = !item.nivel || item.nivel === 'Sin Nivel' ? '0' : item.nivel;
+        
+        const nivelIndex = datos.niveles[item.area][item.producto].labels.indexOf(nivel);
+        if (nivelIndex === -1) {
+            datos.niveles[item.area][item.producto].labels.push(nivel);
+            datos.niveles[item.area][item.producto].data.push(item.cantidadTotal);
+        } else {
+            datos.niveles[item.area][item.producto].data[nivelIndex] += item.cantidadTotal;
+        }
+
+        // 4. Agrupar datos diarios por producto
+        if (allSummaryDates[i]) {
+            if (!datos.diario[item.producto]) {
+                datos.diario[item.producto] = { labels: [], data: [] };
+            }
+            
+            const fechaFormateada = formatearFechaParaGrafico(allSummaryDates[i]);
+            const fechaIndex = datos.diario[item.producto].labels.indexOf(fechaFormateada);
+            
+            if (fechaIndex === -1) {
+                datos.diario[item.producto].labels.push(fechaFormateada);
+                datos.diario[item.producto].data.push(item.cantidadTotal);
+            } else {
+                datos.diario[item.producto].data[fechaIndex] += item.cantidadTotal;
+            }
+        }
+    });
+
+    // Ordenar fechas en cada producto
+    for (const producto in datos.diario) {
+        const fechas = datos.diario[producto].labels.map((label, i) => ({
+            label,
+            data: datos.diario[producto].data[i]
+        }));
+        
+        fechas.sort((a, b) => {
+            const [diaA, mesA] = a.label.split('/').map(Number);
+            const [diaB, mesB] = b.label.split('/').map(Number);
+            return mesA - mesB || diaA - diaB;
+        });
+        
+        datos.diario[producto].labels = fechas.map(f => f.label);
+        datos.diario[producto].data = fechas.map(f => f.data);
+    }
+
+    return datos;
+}
+
+
+function generarColores(cantidad) {
+    const colores = [];
+    const hueStep = Math.max(1, 360 / Math.max(1, cantidad)); // Evitar división por cero
+    
+    for (let i = 0; i < cantidad; i++) {
+        const hue = i * hueStep;
+        colores.push(`hsl(${hue}, 70%, 60%)`);
+    }
+    
+    return colores;
+}
+
+  function formatearFechaParaGrafico(fechaISO) {
+      if (!fechaISO) return '';
+      const fecha = new Date(fechaISO);
+      if (isNaN(fecha.getTime())) return fechaISO;
+      
+      const dia = String(fecha.getDate()).padStart(2, '0');
+      const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+      return `${dia}/${mes}`;
   }
 
   // Las funciones de formateo de fecha/hora ya no se necesitan para mostrar, pero se mantienen por si acaso.

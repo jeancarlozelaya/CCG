@@ -696,24 +696,40 @@
                 return; // Saltar a la siguiente iteración
             }
             
+            // Determinar el texto de cantidad restante y la clase
+            let cantidadRestanteText;
+            let cantidadRestanteClass;
+
+            if (producto.cantidad === '-') {
+                cantidadRestanteText = '&#8734; restantes'; // Infinito
+                cantidadRestanteClass = 'disponible'; // Considerar siempre disponible
+            } else if (producto.cantidad === 0) {
+                cantidadRestanteText = '0 restantes';
+                cantidadRestanteClass = 'agotado';
+            } else {
+                cantidadRestanteText = `${producto.cantidad} restantes`;
+                cantidadRestanteClass = 'disponible';
+            }
+
             // Crear el elemento del producto (igual que antes)
             let productoHtml = `
                 <div class="producto" id="${producto.id}">
                     <img src="${producto.imagen || ''}" alt="${producto.nombre}" onerror="this.style.display='none'">
                     <label>${producto.nombre}</label>
                     ${producto.devolucion === 'X' ? '<span style="color: green; font-size: 0.8em;">Retornable</span>' : ''}
-                    <span id="cantidadRestante${index}" class="${producto.cantidad === 0 ? 'agotado' : producto.cantidad > 0 ? 'disponible' : ''}">
-                        ${producto.cantidad === 0 ? '0 restantes' : `${producto.cantidad} restantes`}
+                    <span id="cantidadRestante${index}" class="${cantidadRestanteClass}">
+                        ${cantidadRestanteText}
                     </span>
                     <div class="cantidad">
-                        <button type="button" class="minus" onclick="cambiarCantidad(${index}, -1)" ${producto.cantidad === 0 ? 'disabled' : ''}>-</button>
-                        <input type="number" id="cantidad${index}" value="0" min="0" ${producto.cantidad === 0 ? 'disabled' : ''} oninput="validarCantidad(${index})">
-                        <button type="button" class="plus" onclick="cambiarCantidad(${index}, 1)" ${producto.cantidad === 0 ? 'disabled' : ''}>+</button>
+                        <button type="button" class="minus" onclick="cambiarCantidad(${index}, -1)">-</button>
+                        <input type="number" id="cantidad${index}" value="0" min="0" oninput="validarCantidad(${index})">
+                        <button type="button" class="plus" onclick="cambiarCantidad(${index}, 1)">+</button>
                     </div>
                 </div>
             `;
             
             productosContainer.append(productoHtml);
+            updateQuantityControls(index); // Llamar para establecer el estado inicial de los botones
         });
 
         // Configurar el evento de clic para los separadores de categoría
@@ -779,37 +795,103 @@
     function cambiarCantidad(index, valor) {
         let cantidadInput = $(`#cantidad${index}`);
         let cantidadActual = parseInt(cantidadInput.val());
-        let cantidadRestanteSpan = $(`#cantidadRestante${index}`);
-        let cantidadRestanteTexto = cantidadRestanteSpan.text();
-        let cantidadRestanteMatch = cantidadRestanteTexto.match(/\d+/);
-        let cantidadRestante = cantidadRestanteMatch ? parseInt(cantidadRestanteMatch[0]) : 0;
+        let productoOriginal = productos[index];
 
-        if (cantidadActual + valor >= 0 && cantidadActual + valor <= cantidadRestante) {
-            cantidadInput.val(cantidadActual + valor);
-            verificarProductos();
-        } else if (cantidadActual + valor < 0) {
-            cantidadInput.val(0); // Asegura que no baje de 0
-            verificarProductos();
+        if (productoOriginal.cantidad === '-') {
+            // Para productos "químicos" (cantidad infinita)
+            if (cantidadActual + valor >= 0) {
+                cantidadInput.val(cantidadActual + valor);
+            }
+        } else {
+            // Para productos con cantidad contable
+            let cantidadRestanteSpan = $(`#cantidadRestante${index}`);
+            let cantidadRestanteTexto = cantidadRestanteSpan.text();
+            let cantidadRestanteMatch = cantidadRestanteTexto.match(/\d+/); // Obtener solo números
+            let cantidadRestante = cantidadRestanteMatch ? parseInt(cantidadRestanteMatch[0]) : 0;
+
+            if (cantidadActual + valor >= 0 && cantidadActual + valor <= cantidadRestante) {
+                cantidadInput.val(cantidadActual + valor);
+            } else if (cantidadActual + valor < 0) {
+                cantidadInput.val(0); // Asegura que no baje de 0
+            }
         }
+
+        updateQuantityControls(index); // Actualizar estado de los botones
+        verificarProductos();
     }
 
     // Función para validar cantidad
     function validarCantidad(index) {
         let cantidadInput = $(`#cantidad${index}`);
         let cantidadActual = parseInt(cantidadInput.val());
-        let cantidadRestanteSpan = $(`#cantidadRestante${index}`);
-        let cantidadRestanteTexto = cantidadRestanteSpan.text();
-        let cantidadRestanteMatch = cantidadRestanteTexto.match(/\d+/);
-        let cantidadRestante = cantidadRestanteMatch ? parseInt(cantidadRestanteMatch[0]) : 0;
+        let productoOriginal = productos[index];
 
         if (isNaN(cantidadActual) || cantidadActual < 0) {
             cantidadInput.val(0);
-        } else if (cantidadActual > cantidadRestante) {
-            cantidadInput.val(cantidadRestante);
+            cantidadActual = 0; // Actualizar cantidadActual después de establecer a 0
         }
 
+        if (productoOriginal.cantidad !== '-') {
+            // Para productos con cantidad contable, aplicar límite superior
+            let cantidadRestanteSpan = $(`#cantidadRestante${index}`);
+            let cantidadRestanteTexto = cantidadRestanteSpan.text();
+            let cantidadRestanteMatch = cantidadRestanteTexto.match(/\d+/); // Obtener solo números
+            let cantidadRestante = cantidadRestanteMatch ? parseInt(cantidadRestanteMatch[0]) : 0;
+
+            if (cantidadActual > cantidadRestante) {
+                cantidadInput.val(cantidadRestante);
+            }
+        }
+
+        updateQuantityControls(index); // Actualizar estado de los botones
         verificarProductos();
     }
+
+    // Nueva función para actualizar el estado de los botones de cantidad y el input
+    function updateQuantityControls(index) {
+        let cantidadInput = $(`#cantidad${index}`);
+        let cantidadActual = parseInt(cantidadInput.val());
+        let productoOriginal = productos[index];
+        let minusButton = cantidadInput.prev('.minus');
+        let plusButton = cantidadInput.next('.plus');
+
+        // Deshabilitar botón de restar si la cantidad actual es 0
+        if (cantidadActual <= 0) {
+            minusButton.prop('disabled', true);
+        } else {
+            minusButton.prop('disabled', false);
+        }
+
+        if (productoOriginal.cantidad !== '-') {
+            // Para productos contables
+            let cantidadRestanteSpan = $(`#cantidadRestante${index}`);
+            let cantidadRestanteTexto = cantidadRestanteSpan.text();
+            let cantidadRestanteMatch = cantidadRestanteTexto.match(/\d+/);
+            let cantidadRestante = cantidadRestanteMatch ? parseInt(cantidadRestanteMatch[0]) : 0;
+
+            // Deshabilitar input y botones si no hay existencias
+            if (cantidadRestante === 0) {
+                cantidadInput.prop('disabled', true);
+                minusButton.prop('disabled', true);
+                plusButton.prop('disabled', true);
+                cantidadInput.val(0); // Asegurarse de que el valor sea 0
+            } else {
+                cantidadInput.prop('disabled', false);
+                // Deshabilitar botón de sumar si se ha alcanzado la cantidad máxima disponible
+                if (cantidadActual >= cantidadRestante) {
+                    plusButton.prop('disabled', true);
+                } else {
+                    plusButton.prop('disabled', false);
+                }
+            }
+        } else {
+            // Para productos "químicos" (cantidad infinita)
+            cantidadInput.prop('disabled', false); // El input siempre está habilitado
+            plusButton.prop('disabled', false); // El botón de sumar siempre está habilitado
+            // El botón de restar se controla por `cantidadActual <= 0` como arriba
+        }
+    }
+
 
     // Función para verificar productos seleccionados
     function verificarProductos() {

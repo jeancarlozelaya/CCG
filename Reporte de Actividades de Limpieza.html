@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0">
+    <title>Reporte de Limpiezas Profundas</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f9f9f9;
+        color: #333;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+    }
+
+    /* Header */
+    .header {
+        background-color: #007BFF;
+        color: white;
+        text-align: center;
+        padding: 15px;
+        width: 100%;
+        font-size: 1.5em;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Contenedor del formulario */
+    .container {
+        background: #ffffff;
+        padding: 30px;
+        border-radius: 10px;
+        width: 90%;
+        max-width: 600px;
+        box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+        margin-top: 20px;
+        text-align: center;
+        margin: 40px auto;
+        grid-row: 2;
+        height: auto;
+        box-sizing: border-box;
+    }
+
+    h1 {
+        text-align: center;
+        color: #333;
+    }
+
+    label {
+        display: block;
+        margin-top: 10px;
+        font-weight: bold;
+    }
+
+    input[type="date"],
+    textarea,
+    input[type="file"],
+    button {
+        width: 100%;
+        margin-top: 5px;
+        padding: 10px;
+        font-size: 16px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        box-sizing: border-box;
+    }
+    
+    select {
+        width: 100%;
+        margin-top: 5px;
+        padding: 10px;
+        font-size: 16px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        box-sizing: border-box;
+        background-color: #f9f9f9; /* Color de fondo para el select */
+        color: #333;
+    }
+
+    button {
+        background-color: #007bff;
+        color: #fff;
+        border: none;
+        cursor: pointer;
+        padding: 12px 0;
+    }
+
+    button:hover:not(:disabled) { /* Solo al hacer hover si no está deshabilitado */
+        background-color: #0056b3;
+    }
+
+    button:disabled { /* Estilo para el botón deshabilitado */
+        background-color: #cccccc;
+        cursor: not-allowed;
+    }
+
+    /* Estilo para los contenedores de vista previa */
+    .image-preview {
+        width: 100%;
+        max-height: 200px;
+        overflow-y: auto;
+        border: 0px solid #ccc;
+        padding: 10px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        box-sizing: border-box;
+    }
+
+    .image-preview-item {
+        position: relative;
+        width: 85px;
+        height: 85px;
+        overflow: hidden;
+        border-radius: 5px;
+        border: 1px solid #ddd;
+    }
+
+    .image-preview-item img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .delete-icon {
+        position: absolute;
+        top: 5px;
+        left: 5px;
+        width: 20px;
+        height: 20px;
+        background: rgba(255, 0, 0, 0.8);
+        color: #fff;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+
+    .image-preview-item:hover .delete-icon {
+        opacity: 1;
+    }
+
+    /* Estilos para el área de carga de imágenes */
+    .file-upload {
+        display: block;
+        position: relative;
+        width: 100%;
+        padding: 20px;
+        background: #f0f8ff;
+        border: 2px dashed #007BFF; /* Borde inicial azul */
+        text-align: center;
+        border-radius: 10px;
+        font-size: 16px;
+        cursor: pointer;
+        margin-top: 10px;
+        box-sizing: border-box;
+        padding: 40px 20px;
+        color: #007BFF;
+        transition: background-color 0.3s ease, border-color 0.3s ease;
+        margin: 10px 0;
+    }
+
+    .file-upload:hover {
+        border-color: #0056b3;
+    }
+
+    .file-upload input[type="file"] {
+        display: none;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
+    }
+
+    /* Estilo para los contenedores de preguntas */
+    .question-container {
+        margin-bottom: 20px;
+        text-align: left;
+        padding: 10px;
+        border: 2px solid #ccc; /* Borde predeterminado */
+        border-radius: 5px;
+        background-color: #f9f9f9;
+        transition: border-color 0.3s;
+        box-sizing: border-box;
+    }
+
+    /* Estilo para el campo de descripción */
+    .question-container textarea {
+    	padding: 15px; 
+    	border: 2px solid #ccc; /* Borde predeterminado */
+    	border-radius: 5px;
+    	width: 100%;
+    	font-size: 16px;
+    	background-color: #f9f9f9;
+    	color: #333;
+    	transition: border-color 0.3s;
+    	box-sizing: border-box;
+    	margin-top: 5px;
+    	height: 200px; 
+    	resize: vertical; 
+    }
+
+    .question-container:hover {
+        border-color: #007BFF;
+    }
+
+    .question-container input[type="date"],
+    .question-container textarea,
+    .question-container select,
+    .question-container input[type="number"] { 
+        padding: 10px;
+        border: 2px solid #ccc; /* Borde predeterminado */
+        border-radius: 5px;
+        width: 100%;
+        font-size: 16px;
+        background-color: #f9f9f9;
+        color: #333;
+        transition: border-color 0.3s;
+        box-sizing: border-box;
+        margin-top: 5px;
+    }
+
+    .question-container input[type="date"]:focus,
+    .question-container textarea:focus,
+    .question-container select:focus,
+    .question-container input[type="number"]:focus { 
+        border-color: #007BFF;
+        outline: none;
+    }
+
+    /* Estilos de las etiquetas */
+    .question-container label {
+        font-weight: bold;
+        font-size: 16px;
+        margin-bottom: 5px;
+        display: block;
+    }
+
+    /* Clases para los bordes de validación */
+    .field-error {
+        border-color: red !important;
+    }
+
+    .field-success {
+        border-color: green !important;
+    }
+</style>
+
+
+</head>
+<body>
+
+ <div class="header">
+  Pisos Brillantes
+ </div>
+
+ <div class="container">
+    <h1>Reporte de Actividades de Limpieza</h1>
+    <div class="form-container">
+        <div class="question-container" id="fechaContainer">
+            <label for="fecha">Fecha:</label>
+            <input type="date" id="fecha" name="fecha" required>
+        </div>
+
+        <div class="question-container" id="edificioContainer">
+            <label for="edificio">Edificio:</label>
+            <select id="edificio" name="edificio" required>
+                <option value="">Selecciona un edificio</option>
+                <option value="Torre #1">Torre #1</option>
+                <option value="Torre #2">Torre #2</option>
+                <option value="CBA">CBA</option>
+                <option value="CBB">CBB</option>
+                <option value="CBC">CBC</option>
+                <option value="Sótano">Sótano</option>
+            </select>
+        </div>
+
+        <div class="question-container" id="nivelContainer" style="display: none;">
+            <label for="nivel">Nivel:</label>
+            <input type="number" id="nivel" name="nivel" placeholder="Ingrese el número de nivel" required>
+        </div>
+
+        <div class="question-container" id="actividadContainer">
+            <label for="actividad">Actividad:</label>
+            <select id="actividad" name="actividad" required>
+                <option value="">Selecciona una actividad</option>
+                <option value="Repaso de Baño">Repaso de Baño</option>
+                <option value="Profunda de Baño">Profunda de Baño</option>
+                <option value="Limpieza de Oficina">Limpieza de Oficina</option>
+            </select>
+        </div>
+
+        <div class="question-container" id="subActividadContainer" style="display: none;">
+            <label for="subActividad">Sub-actividad:</label>
+            <select id="subActividad" name="subActividad" required>
+                <option value="">Selecciona una sub-actividad</option>
+            </select>
+        </div>
+
+        <div class="question-container" id="oficinaContainer" style="display: none;">
+            <label for="oficina">Oficina:</label>
+            <input type="number" id="oficina" name="oficina" placeholder="Ingrese el número de oficina">
+        </div>
+
+        <div class="question-container" id="descripcionContainer" style="display: none;">
+            <label for="descripcion">Descripción de la actividad:</label>
+            <textarea id="descripcion" name="descripcion" rows="5" placeholder="Describe la actividad realizada"></textarea>
+        </div>
+
+        <div class="question-container" id="adjunto3Container">
+            <label for="adjunto3">Fotos de la Limpieza (Antes):</label>
+            <div class="file-upload" id="drag-area3" onclick="document.getElementById('adjunto3').click()">
+                <input type="file" id="adjunto3" name="adjunto3" accept="image/*" multiple>
+                <span class="file-upload-text">Haz clic o arrastra imágenes para adjuntarlas</span>
+            </div>
+            <div id="preview3" class="image-preview"></div>
+        </div>
+
+        <div class="question-container" id="adjunto4Container">
+            <label for="adjunto4">Fotos de la Limpieza (Después):</label>
+            <div class="file-upload" id="drag-area4" onclick="document.getElementById('adjunto4').click()">
+                <input type="file" id="adjunto4" name="adjunto4" accept="image/*" multiple>
+                <span class="file-upload-text">Haz clic o arrastra imágenes para adjuntarlas</span>
+            </div>
+            <div id="preview4" class="image-preview"></div>
+        </div>
+
+        <button type="button" id="generarReporteBtn" onclick="generarPDF()" disabled>Generar Reporte</button>
+    </div>
+</div>
+
+<script>
+    const formFields = [
+        { id: 'fecha', type: 'input' },
+        { id: 'edificio', type: 'select' },
+        { id: 'nivel', type: 'input' },
+        { id: 'actividad', type: 'select' }, 
+        { id: 'subActividad', type: 'select' }, 
+        { id: 'preview3', type: 'image' },
+        { id: 'preview4', type: 'image' }
+    ];
+
+    // Establecer la fecha actual por defecto
+    window.onload = function() {
+        const fechaInput = document.getElementById("fecha");
+        const today = new Date();
+        const year = today.getFullYear();
+        let mm = today.getMonth() + 1; 
+        let dd = today.getDate();
+
+        if (mm < 10) mm = '0' + mm;
+        if (dd < 10) dd = '0' + dd;
+
+        const formattedDate = year + '-' + mm + '-' + dd;
+        fechaInput.value = formattedDate;
+
+        formFields.forEach(field => validateField(field.id));
+        updateButtonState();
+    };
+
+    const selectedFiles = {
+        preview3: [],
+        preview4: [] 
+    };
+
+    // Lógica para el menú anidado y la visibilidad del campo de oficina
+    document.getElementById('actividad').addEventListener('change', function() {
+        const subActividadContainer = document.getElementById('subActividadContainer');
+        const subActividadSelect = document.getElementById('subActividad');
+        const oficinaContainer = document.getElementById('oficinaContainer');
+        const oficinaInput = document.getElementById('oficina');
+        const currentActivity = this.value;
+
+        // Limpiar y ocultar todo por defecto
+        subActividadSelect.innerHTML = '<option value="">Selecciona una sub-actividad</option>';
+        subActividadContainer.style.display = 'none';
+        subActividadSelect.removeAttribute('required');
+        oficinaContainer.style.display = 'none';
+        oficinaInput.removeAttribute('required');
+        oficinaInput.value = '';
+
+        // Eliminar 'oficina' de formFields si está presente
+        const oficinaIndex = formFields.findIndex(f => f.id === 'oficina');
+        if (oficinaIndex > -1) {
+            formFields.splice(oficinaIndex, 1);
+        }
+
+        if (currentActivity === 'Repaso de Baño' || currentActivity === 'Profunda de Baño') {
+            subActividadContainer.style.display = 'block';
+            subActividadSelect.setAttribute('required', 'required');
+            const options = ['Baño de Hombre', 'Baño de Mujer', 'Baño Privado'];
+            options.forEach(option => {
+                const opt = document.createElement('option');
+                opt.value = option;
+                opt.textContent = option;
+                subActividadSelect.appendChild(opt);
+            });
+        } else if (currentActivity === 'Limpieza de Oficina') {
+            subActividadContainer.style.display = 'block';
+            subActividadSelect.setAttribute('required', 'required');
+            oficinaContainer.style.display = 'block';
+            oficinaInput.setAttribute('required', 'required');
+            const options = ['Aspirado', 'Rutinaria'];
+            options.forEach(option => {
+                const opt = document.createElement('option');
+                opt.value = option;
+                opt.textContent = option;
+                subActividadSelect.appendChild(opt);
+            });
+            // Añadir el campo de oficina a la lista de validación
+            if (!formFields.find(f => f.id === 'oficina')) {
+                formFields.push({ id: 'oficina', type: 'input' });
+                // Añadir event listeners para oficinaInput
+                oficinaInput.addEventListener('input', updateButtonState);
+                oficinaInput.addEventListener('change', updateButtonState);
+            }
+        }
+
+        validateField('actividad');
+        validateField('subActividad');
+        validateField('oficina');
+        updateButtonState();
+    });
+
+    document.getElementById('subActividad').addEventListener('change', function() {
+        validateField('subActividad');
+        updateButtonState();
+    });
+
+
+    // Lógica para establecer el nivel máximo según el edificio
+    document.getElementById('edificio').addEventListener('change', function() {
+        const nivelInput = document.getElementById('nivel');
+        const nivelContainer = document.getElementById('nivelContainer'); 
+        const selectedEdificio = this.value;
+        let maxLevel = -1; // Valor por defecto
+
+        // Reiniciar el valor del nivel cada vez que se cambia de edificio
+        nivelInput.value = '';
+
+        if (selectedEdificio === '') { // Si no hay edificio seleccionado (opción vacía)
+            nivelContainer.style.display = 'none'; // Ocultar el contenedor
+            nivelInput.removeAttribute('required'); // No es requerido si está oculto
+            nivelInput.oninput = null; // Remover el listener oninput si está oculto
+        } else {
+            nivelContainer.style.display = 'block'; // Mostrar el contenedor
+            nivelInput.setAttribute('required', 'required'); // Hacerlo requerido cuando es visible
+
+            switch (selectedEdificio) {
+                case 'Torre #1':
+                    maxLevel = 23;
+                    break;
+                case 'Torre #2':
+                    maxLevel = 24;
+                    break;
+                case 'CBA':
+                    maxLevel = 5;
+                    break;
+                case 'CBB':
+                    maxLevel = 7;
+                    break;
+                case 'CBC':
+                    maxLevel = 7;
+                    break;
+                case 'Sótano':
+                    maxLevel = 4;
+                    break;
+                default:
+                    maxLevel = -1; // Sin máximo específico si no hay edificio seleccionado o es desconocido
+                    break;
+            }
+
+            if (maxLevel !== -1) {
+                nivelInput.setAttribute('max', maxLevel);
+                nivelInput.setAttribute('min', 0); // Asumiendo que el nivel mínimo es 0
+                nivelInput.placeholder = `Ingrese el número de nivel (0-${maxLevel})`;
+
+                // Validar el valor de nivel en tiempo real mientras el usuario escribe
+                nivelInput.oninput = function() {
+                    let currentVal = parseInt(this.value);
+                    const maxVal = parseInt(this.max);
+                    const minVal = parseInt(this.min);
+
+                    if (!isNaN(currentVal)) {
+                        if (!isNaN(maxVal) && currentVal > maxVal) {
+                            this.value = maxVal; // Establecer al valor máximo
+                        } else if (!isNaN(minVal) && currentVal < minVal) {
+                            this.value = minVal; // Establecer al valor mínimo
+                        }
+                    }
+                    updateButtonState(); // Actualizar el estado del botón y la validación visual
+                };
+
+            } else {
+                nivelInput.removeAttribute('max');
+                nivelInput.removeAttribute('min');
+                nivelInput.placeholder = `Ingrese el número de nivel`;
+                nivelInput.oninput = null; // Remover el listener oninput si no hay máximo específico
+            }
+        }
+        
+        validateField('nivel'); 
+        updateButtonState(); 
+    });
+
+
+    // Función para validar un campo específico y aplicar el estilo de borde
+    function validateField(fieldId) {
+        const element = document.getElementById(fieldId);
+        if (!element) return true; 
+
+        const container = element.closest('.question-container') || element;
+
+        let isValid = false;
+        if (fieldId === 'preview3') {
+            isValid = selectedFiles.preview3.length > 0;
+        } else if (fieldId === 'preview4') {
+            isValid = selectedFiles.preview4.length > 0;
+        } else if (element.tagName === 'SELECT' || element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+            // Verificar si el contenedor del campo está oculto
+            if ((fieldId === 'oficina' || fieldId === 'nivel' || fieldId === 'subActividad') && container.style.display === 'none') {
+                isValid = true; // Si está oculto, se considera válido para la validación del formulario
+            } else if (fieldId === 'nivel') {
+                const nivelValue = parseInt(element.value);
+                const maxLevel = parseInt(element.getAttribute('max'));
+                // La validación del nivel incluye ser un número, no negativo y dentro del rango [0, maxLevel]
+                isValid = element.value.trim() !== '' && !isNaN(nivelValue) && nivelValue >= 0 && (isNaN(maxLevel) || nivelValue <= maxLevel);
+            }
+            else {
+                isValid = element.value.trim() !== ''; // De lo contrario, verificar su valor
+            }
+        }
+
+        if (isValid) {
+            container.classList.remove('field-error');
+            container.classList.add('field-success');
+        } else {
+            container.classList.remove('field-success');
+            container.classList.add('field-error');
+        }
+        return isValid;
+    }
+
+    // Función para actualizar el estado del botón "Generar Reporte"
+    function updateButtonState() {
+        const generarReporteBtn = document.getElementById('generarReporteBtn');
+        let allFieldsValid = true;
+
+        formFields.forEach(field => {
+            if (!validateField(field.id)) { 
+                allFieldsValid = false;
+            }
+        });
+
+        generarReporteBtn.disabled = !allFieldsValid;
+    }
+
+    // Añadir EventListeners a los campos para la validación en tiempo real
+    formFields.forEach(field => {
+        if (field.type === 'input' || field.type === 'select' || field.type === 'textarea') {
+            const element = document.getElementById(field.id);
+            if (element) { 
+                // Ya se agregó el oninput específico para 'nivel' en su propia lógica de cambio de edificio.
+                // Aquí solo agregamos los event listeners generales si no es el campo de nivel.
+                if (field.id !== 'nivel') {
+                    element.addEventListener('input', updateButtonState);
+                }
+                element.addEventListener('change', updateButtonState);
+            }
+        }
+    });
+
+    function handleFileInput(event, previewId) {
+        const files = event.target.files;
+        const previewContainer = document.getElementById(previewId);
+
+        Array.from(files).forEach((file) => {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const div = document.createElement('div');
+                div.classList.add('image-preview-item');
+                div.innerHTML = `
+                    <img src="${e.target.result}" alt="Preview">
+                    <div class="delete-icon" onclick="deleteImage('${previewId}', ${selectedFiles[previewId].length})">×</div>
+                `;
+                previewContainer.appendChild(div);
+
+                selectedFiles[previewId].push(file);
+                updateButtonState(); 
+            };
+            reader.readAsDataURL(file);
+        });
+
+        event.target.value = "";
+    }
+
+    function deleteImage(previewId, index) {
+        const previewContainer = document.getElementById(previewId);
+
+        if (previewContainer.children[index]) {
+            previewContainer.removeChild(previewContainer.children[index]);
+            selectedFiles[previewId].splice(index, 1);
+
+            Array.from(previewContainer.children).forEach((child, newIndex) => {
+                const deleteIcon = child.querySelector('.delete-icon');
+                if (deleteIcon) {
+                    deleteIcon.setAttribute('onclick', `deleteImage('${previewId}', ${newIndex})`);
+                }
+            });
+            updateButtonState(); 
+        }
+    }
+
+    document.getElementById('adjunto3').addEventListener('change', (e) => handleFileInput(e, 'preview3')); 
+    document.getElementById('adjunto4').addEventListener('change', (e) => handleFileInput(e, 'preview4')); 
+
+    const dragAreas = ['drag-area3', 'drag-area4']; 
+    dragAreas.forEach(area => {
+        const dragArea = document.getElementById(area);
+        dragArea.addEventListener('dragover', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            dragArea.style.backgroundColor = "#e0f7ff"; 
+        });
+
+        dragArea.addEventListener('dragleave', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            dragArea.style.backgroundColor = "#f0f8ff"; 
+        });
+
+        dragArea.addEventListener('drop', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const files = event.dataTransfer.files;
+            const previewId = area.replace("drag-area", "preview");
+            handleFileInput({ target: { files } }, previewId);
+        });
+    });
+
+    async function generarPDF() {
+        if (document.getElementById('generarReporteBtn').disabled) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Campos Incompletos',
+                text: 'Por favor, complete todos los campos obligatorios antes de generar el reporte.',
+                confirmButtonColor: '#007bff'
+            });
+            return; 
+        }
+
+        Swal.fire({
+            title: 'Procesando...',
+            html: 'Generando su reporte PDF. Por favor, espere. <br> <span style="font-size: 0.8em;">Esto puede tardar un momento si hay muchas imágenes.</span>',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ format: 'letter' });
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+
+
+        function imageToBase64(imgPath, callback) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                callback(e.target.result);
+            };
+            fetch("https://jeancarlozelaya.github.io/PIBRISA/Im%C3%A1genes/Icono.png") // Usar una URL absoluta para el logo
+                .then((response) => response.blob())
+                .then((blob) => reader.readAsDataURL(blob))
+                .catch((error) => console.error("Error al convertir a base64:", error));
+        }
+
+        function getLogoBase64(imgPath) {
+            return new Promise((resolve, reject) => {
+                imageToBase64(imgPath, function (base64) {
+                    resolve(base64);
+                });
+            });
+        }
+
+        const logoBase64 = await getLogoBase64("https://jeancarlozelaya.github.io/PIBRISA/Im%C3%A1genes/Icono.png"); 
+
+        // Obtener datos del formulario
+        const fecha = document.getElementById('fecha').value;
+        const edificio = document.getElementById('edificio').value; 
+        const nivel = document.getElementById('nivel').value;       
+        const actividad = document.getElementById('actividad').value; 
+        const subActividad = document.getElementById('subActividad').value; 
+        const oficinaInput = document.getElementById('oficina');
+        const oficina = oficinaInput.closest('.question-container').style.display === 'block' ? oficinaInput.value : '';
+
+        // Portada - Condensada con letras más pequeñas
+        pdf.setFont("times", "bold");
+
+        const logoWidth = 30; 
+        const logoHeight = 30;
+        const logoX = 10; 
+        const logoY = 8; 
+        pdf.addImage(logoBase64, "PNG", logoX, logoY, logoWidth, logoHeight);
+
+        let currentY = logoY; 
+        const textX = logoX + logoWidth + 5; 
+
+        // Título del reporte (16pt)
+        pdf.setFontSize(16); 
+        pdf.text("Reporte de Actividades de Limpieza", textX, currentY, { align: "left" });
+
+        const lineHeight = 10; 
+
+        currentY += lineHeight; 
+        // Fecha (14pt)
+        pdf.setFontSize(14); 
+        pdf.text(`Fecha: ${fecha}`, textX, currentY, { align: "left" });
+
+        currentY += lineHeight; 
+
+        // Actividad (14pt) - Combinar actividad principal y sub-actividad
+        const actividadFinal = `${actividad} (${subActividad})`;
+        pdf.setFontSize(14); 
+        pdf.text(`Actividad: ${actividadFinal}`, textX, currentY, { align: "left" });
+        currentY += lineHeight; 
+
+        // Edificio, Nivel, Oficina en la misma línea (14pt)
+        let locationInfo = `Edificio: ${edificio}, Nivel: ${nivel}`;
+        if (actividad === 'Limpieza de Oficina' && oficina) {
+            locationInfo += `, Oficina: ${oficina}`;
+        }
+        pdf.text(locationInfo, textX, currentY, { align: "left" });
+        currentY += lineHeight; 
+
+        // Función para añadir una sección de fotos al PDF (corregida)
+        async function addPhotoSection(title, files, startY) {
+            if (files.length === 0) return startY;
+
+            let currentY = startY;
+
+            // Calcular el espacio necesario para el título y la primera imagen
+            const spaceNeeded = 10 + 10 + 40; // Título (10) + espacio (10) + imagen (40)
+            if (currentY + spaceNeeded > pageHeight - 10) {
+                pdf.addPage();
+                currentY = 15;
+            }
+
+            // Título de la sección
+            pdf.setFontSize(14);
+            pdf.setFont("times", "bold");
+            pdf.text(title, 10, currentY);
+
+            currentY += 10; // Espacio después del título
+
+            const imgWidth = 60;
+            const imgHeight = 40;
+            const marginX = 15;
+            const spacingX = 65;
+            const spacingY = 45;
+
+            let currentX = marginX;
+            let imagesInRow = 0;
+
+            for (const file of files) {
+                const imgData = await compressImage(file, 0.5);
+                
+                // Check if a new row is needed
+                if (imagesInRow === 3) {
+                    imagesInRow = 0;
+                    currentX = marginX;
+                    currentY += spacingY;
+                }
+
+                // Check if a new page is needed
+                if (currentY + imgHeight > pageHeight - 10) {
+                    pdf.addPage();
+                    currentY = 15; // Reset Y position for the new page
+                    currentX = marginX;
+                    imagesInRow = 0;
+                }
+
+                pdf.addImage(imgData, 'JPEG', currentX, currentY, imgWidth, imgHeight);
+                currentX += spacingX;
+                imagesInRow++;
+            }
+
+            // Calculate final Y position after all images
+            return currentY + spacingY;
+        }
+
+        // Procesar las fotos del "Antes"
+        let photosSectionY = currentY + 15;
+        photosSectionY = await addPhotoSection("Fotos de la Limpieza (Antes):", selectedFiles.preview3, photosSectionY);
+
+        // Procesar las fotos del "Después"
+        photosSectionY += 15; // Espacio entre las secciones de fotos
+        await addPhotoSection("Fotos de la Limpieza (Después):", selectedFiles.preview4, photosSectionY);
+
+
+        // Restablecer el tamaño de fuente y estilo para cualquier texto posterior (ej. pie de página) si es necesario
+        pdf.setFontSize(12);
+        pdf.setFont("Arial", "normal"); 
+
+        // Crear un nombre para el archivo basado en la fecha, edificio, nivel y actividad
+        let nombreArchivo = `${fecha} - ${edificio} Nivel ${nivel} - ${actividadFinal}`;
+        if (actividad === 'Limpieza de Oficina' && oficina) {
+            nombreArchivo += ` Oficina ${oficina}`;
+        }
+        nombreArchivo += ".pdf";
+
+        // Generar el PDF como un Blob
+        const pdfBlob = pdf.output('blob');
+
+        Swal.close(); // Cerrar el SweetAlert de "Procesando..."
+
+        // Nueva función para intentar compartir o descargar el PDF (corregida)
+        function tryShareOrDownload() {
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([pdfBlob], nombreArchivo, { type: 'application/pdf' })] })) {
+                navigator.share({
+                    files: [new File([pdfBlob], nombreArchivo, { type: 'application/pdf' })],
+                    title: `Reporte de Actividades de Limpieza - ${nombreArchivo.replace('.pdf', '')}`,
+                    text: `Adjunto el reporte de actividades de limpieza para ${fecha}.`
+                })
+                .then(() => {
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Reporte Compartido!',
+                        text: 'El PDF ha sido enviado a la aplicación seleccionada.',
+                        confirmButtonColor: '#007bff'
+                    });
+                })
+                .catch((error) => {
+                    console.error('Error al compartir:', error);
+                    if (error.name === 'AbortError') {
+                        // El usuario canceló la operación de compartir
+                    } else {
+                        // Otros errores al compartir, proceder con la descarga y mostrar mensaje de error
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error al Compartir',
+                            text: 'No se pudo compartir el PDF directamente. Se procederá con la descarga.',
+                            confirmButtonColor: '#007bff'
+                        });
+                        pdf.save(nombreArchivo);
+                    }
+                });
+            } else {
+                // Fallback para navegadores que no soportan navigator.share o el intercambio de archivos
+                pdf.save(nombreArchivo);
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Reporte Descargado',
+                    html: 'Su navegador no soporta la función de compartir directamente o la página no se ejecuta sobre HTTPS.<br>El PDF se ha descargado.',
+                    confirmButtonColor: '#007bff'
+                });
+            }
+        }
+        
+        tryShareOrDownload();
+    }
+
+    function compressImage(file, quality) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+
+                    const maxWidth = 600;
+                    const scale = maxWidth / img.width;
+                    canvas.width = maxWidth;
+                    canvas.height = img.height * scale;
+
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    const dataUrl = canvas.toDataURL('image/jpeg', quality);
+                    resolve(dataUrl);
+                };
+                img.src = event.target.result;
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+</script>
+
+</body>
+</html>

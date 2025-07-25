@@ -1,0 +1,1412 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control de PEPS de Insumos</title>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+      color: #333;
+    }
+    .header {
+      background-color: #007BFF;
+      color: white;
+      text-align: center;
+      padding: 15px 0;
+      font-size: 1.5em;
+      box-shadow: 0px 4px 6px rgba
+      (0, 0, 0, 0.1);
+    }
+    .form-container {
+      width: 90%;
+      max-width: 900px;
+      margin: 20px auto;
+      padding: 25px;
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+      text-align: center;
+      color: black; /* Changed to black */
+      margin-top: 0;
+      margin-bottom: 30px;
+      font-size: 2em;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+    .form-group input[type="date"],
+    .form-group select {
+      width: calc(100% - 22px);
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 1em;
+      /* Ajuste para la altura del input de fecha */
+      height: 40px; /* Asegura que el input de fecha tenga la misma altura que los select y los number inputs */
+      box-sizing: border-box; /* Incluye padding y border en el ancho/alto */
+    }
+    .form-group input[type="number"] {
+        -moz-appearance: textfield; /* Firefox */
+    }
+    .form-group input[type="number"]::-webkit-outer-spin-button,
+    .form-group input[type="number"]::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    /* Styles for fixed quantity inputs (Papel Higienico / Papel Toalla) */
+    .product-quantity-wrapper {
+        border: 1px solid #eee;
+        padding: 15px;
+        border-radius: 8px;
+        background-color: #f9f9f9;
+        margin-bottom: 15px; /* Added spacing */
+    }
+    .product-quantities-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: flex-start;
+    }
+
+    .product-quantity-row {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        margin-bottom: 5px;
+        flex-shrink: 0;
+        flex-grow: 0;
+        justify-content: flex-start;
+        width: auto;
+    }
+    .product-quantity-row .label-wrapper {
+        min-width: 80px; /* Ajusta este valor según sea necesario para el texto más largo */
+        text-align: right; /* Alinea el texto de la etiqueta a la derecha dentro de su espacio */
+        padding-right: 10px; /* Espacio entre el texto de la etiqueta y el input */
+        flex-shrink: 0; /* Evita que el wrapper de la etiqueta se encoja */
+    }
+    .product-quantity-row label {
+        margin-bottom: 0;
+        white-space: nowrap;
+    }
+    .product-quantity-row input {
+        width: 60px; /* Adjusted width for two digits */
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 1em;
+        text-align: center;
+        box-sizing: border-box;
+        height: 40px; /* Match button height for visual consistency */
+    }
+
+    /* Paginación de productos */
+    .pagination-tabs {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #ddd;
+    }
+    .pagination-tab {
+        padding: 10px 20px;
+        cursor: pointer;
+        border: 1px solid transparent;
+        border-bottom: none;
+        border-radius: 5px 5px 0 0;
+        background-color: #e9ecef;
+        color: #495057;
+        font-weight: bold;
+    }
+    .pagination-tab.active {
+        background-color: #007BFF;
+        color: white;
+        border-color: #007BFF;
+        border-bottom: 2px solid #007BFF;
+    }
+    .pagination-tab:hover:not(.active) {
+        background-color: #cfe2ff;
+    }
+    .product-page {
+        display: none;
+    }
+    .product-page.active {
+        display: block;
+    }
+
+    /* Dynamic quantity sections for levels */
+    .level-quantities-section {
+      border: 1px solid #eee;
+      padding: 15px;
+      border-radius: 8px;
+      background-color: #f9f9f9;
+      margin-top: 20px;
+      margin-bottom: 20px;
+    }
+    .level-quantities-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        margin-top: 15px;
+    }
+    .level-quantity-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background-color: #fff;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    .level-quantity-item label {
+      font-weight: bold;
+      margin-bottom: 8px;
+      text-align: center;
+      width: 100%;
+    }
+    .level-quantity-controls {
+      display: flex;
+      align-items: center;
+      gap: 5px; /* Reduced gap for better fit */
+      width: 100%;
+      justify-content: center;
+    }
+    .level-quantity-button {
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      padding: 0;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1.2em;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .level-quantity-button:hover {
+      background-color: #0056b3;
+    }
+    .level-quantity-button:active {
+      background-color: #004085;
+    }
+    .level-quantity-button.minus {
+        background-color: #dc3545;
+    }
+    .level-quantity-button.minus:hover {
+        background-color: #c82333;
+    }
+    .level-quantity-input {
+      width: 60px; /* Adjusted width for two digits */
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      text-align: center;
+      font-size: 1em;
+      -moz-appearance: textfield;
+      box-sizing: border-box;
+      height: 40px; /* Match button height */
+    }
+    .level-quantity-input::-webkit-outer-spin-button,
+    .level-quantity-input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    /* Producto Sobrante Section */
+    .sobrante-section {
+        border: 1px solid #eee;
+        padding: 15px;
+        border-radius: 8px;
+        background-color: #f9f9f9;
+        margin-top: 20px;
+        margin-bottom: 20px;
+    }
+    .sobrante-section .form-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+    .sobrante-section .form-group label {
+        margin-bottom: 0;
+        flex-basis: 150px; /* Align labels */
+    }
+    /* Updated sobrante input style to match level-quantity-input */
+    .sobrante-section .form-group input {
+        flex-grow: 1;
+        width: 60px; /* Consistent width */
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        text-align: center;
+        font-size: 1em;
+        -moz-appearance: textfield;
+        box-sizing: border-box;
+        height: 40px; /* Consistent height */
+    }
+
+    /* BUTTON STYLES - Enhanced */
+    .button-group {
+        display: flex;
+        justify-content: space-between;
+        gap: 15px; /* Increased gap between buttons */
+        margin-top: 30px;
+        flex-wrap: wrap; /* Allow buttons to wrap on smaller screens */
+    }
+    .button-group button {
+        flex-grow: 1;
+        padding: 15px 25px; /* Adjusted padding for better button size */
+        border: none;
+        border-radius: 8px; /* Slightly more rounded corners */
+        font-size: 1.1em; /* Slightly smaller font for better fit */
+        cursor: pointer;
+        text-align: center;
+        font-weight: bold; /* Make text bolder */
+        transition: all 0.3s ease; /* Smooth transitions for hover effects */
+        min-width: 150px; /* Ensure buttons don't get too small */
+    }
+    .button-group button:disabled,
+    .advance-button-style:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        box-shadow: none; /* Remove shadow when disabled */
+        transform: none; /* Remove transform when disabled */
+    }
+
+    .button-generate {
+      background-color: #28a745; /* Green */
+      color: white;
+      box-shadow: 0 4px 6px rgba(40, 167, 69, 0.2); /* Green shadow */
+    }
+    .button-generate:hover:not(:disabled) {
+      background-color: #218838; /* Darker green on hover */
+      transform: translateY(-2px); /* Slight lift effect */
+      box-shadow: 0 6px 10px rgba(40, 167, 69, 0.3);
+    }
+    .button-generate:active:not(:disabled) {
+        transform: translateY(0); /* Press down effect */
+        box-shadow: 0 2px 4px rgba(40, 167, 69, 0.2);
+    }
+
+    .button-clear {
+      background-color: #ffc107; /* Amber/Yellow */
+      color: #333; /* Dark text for contrast */
+      box-shadow: 0 4px 6px rgba(255, 193, 7, 0.2); /* Yellow shadow */
+    }
+    .button-clear:hover:not(:disabled) {
+      background-color: #e0a800; /* Darker amber on hover */
+      transform: translateY(-2px);
+      box-shadow: 0 6px 10px rgba(255, 193, 7, 0.3);
+    }
+    .button-clear:active:not(:disabled) {
+        transform: translateY(0);
+        box-shadow: 0 2px 4px rgba(255, 193, 7, 0.2);
+    }
+
+    #initialFieldsGroup.locked input, #initialFieldsGroup.locked select {
+        background-color: #e9ecef;
+        cursor: not-allowed;
+    }
+
+    .advance-button-style {
+        width: 100%;
+        padding: 15px 25px; /* Consistent padding */
+        border: none;
+        border-radius: 8px; /* Consistent border-radius */
+        font-size: 1.2em;
+        cursor: pointer;
+        text-align: center;
+        background-color: #17a2b8; /* Info Blue */
+        color: white;
+        margin-top: 25px; /* Slightly more margin-top */
+        margin-bottom: 25px; /* Slightly more margin-bottom */
+        box-shadow: 0 4px 6px rgba(23, 162, 184, 0.2); /* Blue shadow */
+        font-weight: bold; /* Bolder text */
+        transition: all 0.3s ease; /* Smooth transitions */
+    }
+    .advance-button-style:hover:not(:disabled) {
+        background-color: #138496; /* Darker info blue on hover */
+        transform: translateY(-2px);
+        box-shadow: 0 6px 10px rgba(23, 162, 184, 0.3);
+    }
+    .advance-button-style:active:not(:disabled) {
+        transform: translateY(0);
+        box-shadow: 0 2px 4px rgba(23, 162, 184, 0.2);
+    }
+  </style>
+</head>
+<body>
+  <div class="header">Pisos Brillantes</div>
+
+  <div class="form-container">
+    <h1>Control de PEPS de Insumos</h1>
+
+    <div id="initialFieldsGroup">
+        <div class="form-group">
+            <label for="fecha">Fecha:</label>
+            <input type="date" id="fecha">
+        </div>
+
+        <div class="form-group">
+            <label for="turno">Turno:</label>
+            <select id="turno">
+                <option value="">Seleccione</option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="personaEncargada">Persona Encargada:</label>
+            <select id="personaEncargada">
+                <option value="">Seleccione</option>
+                <option value="Adelfa Esperanza Romero">Adelfa Esperanza Romero</option>
+                <option value="Delmi Mercedes Gaitán Reyes">Delmi Mercedes Gaitán Reyes</option>
+                <option value="Iris Undina Izaguirre Medina">Iris Undina Izaguirre Medina</option>
+                <option value="Jensy Mariela Argueta Escobar">Jensy Mariela Argueta Escobar</option>
+                <option value="Mirian Yolanda Hernández Contreras">Mirian Yolanda Hernández Contreras</option>
+                <option value="Vilma Vasquez Avila">Vilma Vasquez Avila</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="edificio">Edificio:</label>
+            <select id="edificio">
+                <option value="">Seleccione</option>
+                <option value="Torre #1">Torre #1</option>
+                <option value="Torre #2">Torre #2</option>
+                <option value="Cuerpos Bajos">Cuerpos Bajos</option>
+            </select>
+        </div>
+
+        <button type="button" id="advanceBtn" class="advance-button-style" disabled>Avanzar</button>
+    </div>
+
+    <div id="fixedQuantitiesSection" style="display: none;">
+        <div class="form-group">
+            <label>Cantidad de Productos Requisados:</label>
+            <div class="product-quantity-wrapper">
+                <div class="product-quantities-container" id="papelHigienicoQuantitiesContainer">
+                    <div class="product-quantity-row">
+                        <div class="label-wrapper">
+                            <label>Higiénico:</label>
+                        </div>
+                        <input type="number" id="papelHigienico-0" min="0" value="0"
+                               oninput="saveFixedProductQuantity('papelHigienico', 0)"
+                               onfocus="clearZero(this)" onblur="restoreZero(this)">
+                    </div>
+                    <div class="product-quantity-row">
+                        <input type="number" id="papelHigienico-1" min="0" value="0"
+                               oninput="saveFixedProductQuantity('papelHigienico', 1)"
+                               onfocus="clearZero(this)" onblur="restoreZero(this)">
+                    </div>
+                    <div class="product-quantity-row">
+                        <input type="number" id="papelHigienico-2" min="0" value="0"
+                               oninput="saveFixedProductQuantity('papelHigienico', 2)"
+                               onfocus="clearZero(this)" onblur="restoreZero(this)">
+                    </div>
+                    <div class="product-quantity-row">
+                        <input type="number" id="papelHigienico-3" min="0" value="0"
+                               oninput="saveFixedProductQuantity('papelHigienico', 3)"
+                               onfocus="clearZero(this)" onblur="restoreZero(this)">
+                    </div>
+                    <div class="product-quantity-row">
+                        <input type="number" id="papelHigienico-4" min="0" value="0"
+                               oninput="saveFixedProductQuantity('papelHigienico', 4)"
+                               onfocus="clearZero(this)" onblur="restoreZero(this)">
+                    </div>
+                </div>
+            </div>
+            <div class="product-quantity-wrapper" style="margin-top: 15px;">
+                <div class="product-quantities-container" id="papelToallaQuantitiesContainer">
+                    <div class="product-quantity-row">
+                        <div class="label-wrapper">
+                            <label>Toalla:</label>
+                        </div>
+                        <input type="number" id="papelToalla-0" min="0" value="0"
+                               oninput="saveFixedProductQuantity('papelToalla', 0)"
+                               onfocus="clearZero(this)" onblur="restoreZero(this)">
+                    </div>
+                    <div class="product-quantity-row">
+                        <input type="number" id="papelToalla-1" min="0" value="0"
+                               oninput="saveFixedProductQuantity('papelToalla', 1)"
+                               onfocus="clearZero(this)" onblur="restoreZero(this)">
+                    </div>
+                    <div class="product-quantity-row">
+                        <input type="number" id="papelToalla-2" min="0" value="0"
+                               oninput="saveFixedProductQuantity('papelToalla', 2)"
+                               onfocus="clearZero(this)" onblur="restoreZero(this)">
+                    </div>
+                    <div class="product-quantity-row">
+                        <input type="number" id="papelToalla-3" min="0" value="0"
+                               oninput="saveFixedProductQuantity('papelToalla', 3)"
+                               onfocus="clearZero(this)" onblur="restoreZero(this)">
+                    </div>
+                    <div class="product-quantity-row">
+                        <input type="number" id="papelToalla-4" min="0" value="0"
+                               oninput="saveFixedProductQuantity('papelToalla', 4)"
+                               onfocus="clearZero(this)" onblur="restoreZero(this)">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="dynamicLevelSectionsContainer">
+    </div>
+
+    <div id="sobranteSection" class="sobrante-section" style="display: none;">
+        <h3>Producto Sobrante</h3>
+        <div class="form-group">
+            <label for="papelHigienicoSobrante">Papel Higiénico:</label>
+            <input type="number" id="papelHigienicoSobrante" min="0" value="0"
+                   class="level-quantity-input"
+                   oninput="saveSobranteQuantity('papelHigienicoSobrante')"
+                   onfocus="clearZero(this)" onblur="restoreZero(this)">
+        </div>
+        <div class="form-group">
+            <label for="papelToallaSobrante">Papel Toalla:</label>
+            <input type="number" id="papelToallaSobrante" min="0" value="0"
+                   class="level-quantity-input"
+                   oninput="saveSobranteQuantity('papelToallaSobrante')"
+                   onfocus="clearZero(this)" onblur="restoreZero(this)">
+        </div>
+    </div>
+    <div class="button-group">
+        <button type="button" class="button-clear" id="clearBtn" onclick="clearAllData()" disabled>Limpiar Datos</button>
+        <button type="button" class="button-generate" id="generateBtn" onclick="generarReporte()" disabled>Generar Reporte PDF</button>
+    </div>
+  </div>
+
+<script>
+    const STORAGE_KEY = 'requisitionFormData';
+    let formData = {}; // Global object to store all form data
+
+    document.addEventListener('DOMContentLoaded', function() {
+      setDefaultDate();
+      loadFormData();
+      setupEventListeners();
+      // Determine initial UI state based on loaded formData
+      if (formData.formUnlocked) {
+          unlockAndLoadForm();
+      } else {
+          resetFormUI(false); // Do not clear formData, just UI
+      }
+      checkInitialFieldsForAdvanceButton(); // Check initial state for advance button
+    });
+
+    function setDefaultDate() {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+        const dd = String(today.getDate()).padStart(2, '0');
+        document.getElementById('fecha').value = `${yyyy}-${mm}-${dd}`;
+    }
+
+    function setupEventListeners() {
+      // General form fields for initial section
+      document.getElementById('fecha').addEventListener('change', function() { saveFormData(); checkInitialFieldsForAdvanceButton(); });
+      document.getElementById('turno').addEventListener('change', function() { saveFormData(); checkInitialFieldsForAdvanceButton(); });
+      document.getElementById('personaEncargada').addEventListener('change', function() { saveFormData(); checkInitialFieldsForAdvanceButton(); });
+      document.getElementById('edificio').addEventListener('change', function() {
+        if (formData.formUnlocked) { // Only save/update if form is unlocked (advanced)
+            saveFormData(); // Save current building's level data BEFORE changing building UI
+            updateDynamicFields(); // Load data for the new building's UI
+        } else {
+            saveFormData(); // Save initial selection even if not advanced
+        }
+        checkInitialFieldsForAdvanceButton(); // Check advance button state
+      });
+
+      document.getElementById('advanceBtn').addEventListener('click', handleAdvance);
+
+      // Sobrante inputs event listeners
+      document.getElementById('papelHigienicoSobrante').addEventListener('input', () => saveSobranteQuantity('papelHigienicoSobrante'));
+      document.getElementById('papelHigienicoSobrante').addEventListener('blur', () => restoreZero(document.getElementById('papelHigienicoSobrante')));
+      document.getElementById('papelToallaSobrante').addEventListener('input', () => saveSobranteQuantity('papelToallaSobrante'));
+      document.getElementById('papelToallaSobrante').addEventListener('blur', () => restoreZero(document.getElementById('papelToallaSobrante')));
+    }
+
+    function checkInitialFieldsForAdvanceButton() {
+        const fecha = document.getElementById('fecha').value;
+        const turno = document.getElementById('turno').value;
+        const personaEncargada = document.getElementById('personaEncargada').value;
+        const edificio = document.getElementById('edificio').value;
+        const advanceBtn = document.getElementById('advanceBtn');
+
+        if (fecha && turno && personaEncargada && edificio) {
+            advanceBtn.disabled = false;
+        } else {
+            advanceBtn.disabled = true;
+        }
+    }
+
+
+    function saveFormData() {
+      formData.fecha = document.getElementById('fecha').value;
+      formData.turno = document.getElementById('turno').value;
+      formData.personaEncargada = document.getElementById('personaEncargada').value;
+      formData.edificio = document.getElementById('edificio').value;
+
+      // Save the 5 fixed product quantities
+      formData.papelHigienicoQuantities = [];
+      for(let i = 0; i < 5; i++) {
+          const input = document.getElementById(`papelHigienico-${i}`);
+          formData.papelHigienicoQuantities.push(parseInt(input?.value) || 0);
+      }
+
+      formData.papelToallaQuantities = [];
+      for(let i = 0; i < 5; i++) {
+          const input = document.getElementById(`papelToalla-${i}`);
+          formData.papelToallaQuantities.push(parseInt(input?.value) || 0);
+      }
+
+      // Save sobrante quantities
+      formData.papelHigienicoSobrante = parseInt(document.getElementById('papelHigienicoSobrante').value) || 0;
+      formData.papelToallaSobrante = parseInt(document.getElementById('papelToallaSobrante').value) || 0;
+
+
+      // Save dynamic level quantities for the *currently active* building(s)
+      // This is complex due to 'Cuerpos Bajos' having sub-buildings.
+      const currentEdificio = formData.edificio;
+      if (currentEdificio) {
+          formData.dynamicLevelQuantities = formData.dynamicLevelQuantities || {};
+
+          if (currentEdificio === 'Cuerpos Bajos') {
+              const subBuildings = ['CBA', 'CBB', 'CBC'];
+              formData.dynamicLevelQuantities[currentEdificio] = formData.dynamicLevelQuantities[currentEdificio] || {};
+
+              subBuildings.forEach(sub => {
+                  formData.dynamicLevelQuantities[currentEdificio][sub] = formData.dynamicLevelQuantities[currentEdificio][sub] || { higienico: {}, toalla: {} };
+
+                  const higienicoInputs = document.querySelectorAll(`#dynamicHigienicoQuantitiesContainer-${sub} input[type="number"]`);
+                  const toallaInputs = document.querySelectorAll(`#dynamicToallaQuantitiesContainer-${sub} input[type="number"]`);
+
+                  formData.dynamicLevelQuantities[currentEdificio][sub].higienico = {};
+                  higienicoInputs.forEach(input => {
+                      formData.dynamicLevelQuantities[currentEdificio][sub].higienico[input.id] = parseInt(input.value) || 0;
+                  });
+
+                  formData.dynamicLevelQuantities[currentEdificio][sub].toalla = {};
+                  toallaInputs.forEach(input => {
+                      formData.dynamicLevelQuantities[currentEdificio][sub].toalla[input.id] = parseInt(input.value) || 0;
+                  });
+              });
+          } else {
+              formData.dynamicLevelQuantities[currentEdificio] = formData.dynamicLevelQuantities[currentEdificio] || { higienico: {}, toalla: {} };
+
+              // Important: Ensure we select inputs from the correct container based on safeBuildingId
+              const safeEdificioId = currentEdificio.replace(/[ #]/g, '');
+              const higienicoInputs = document.querySelectorAll(`#dynamicHigienicoQuantitiesContainer-${safeEdificioId} input[type="number"]`);
+              const toallaInputs = document.querySelectorAll(`#dynamicToallaQuantitiesContainer-${safeEdificioId} input[type="number"]`);
+
+              formData.dynamicLevelQuantities[currentEdificio].higienico = {};
+              higienicoInputs.forEach(input => {
+                  formData.dynamicLevelQuantities[currentEdificio].higienico[input.id] = parseInt(input.value) || 0;
+              });
+
+              formData.dynamicLevelQuantities[currentEdificio].toalla = {};
+              toallaInputs.forEach(input => {
+                  formData.dynamicLevelQuantities[currentEdificio].toalla[input.id] = parseInt(input.value) || 0;
+              });
+          }
+      }
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
+      console.log('Form data saved:', formData);
+    }
+
+    function loadFormData() {
+      const storedData = localStorage.getItem(STORAGE_KEY);
+      if (storedData) {
+        formData = JSON.parse(storedData);
+        document.getElementById('fecha').value = formData.fecha || document.getElementById('fecha').value;
+        document.getElementById('turno').value = formData.turno || '';
+        document.getElementById('personaEncargada').value = formData.personaEncargada || '';
+        document.getElementById('edificio').value = formData.edificio || '';
+
+        // Load the 5 fixed product quantities for Papel Higiénico
+        for(let i = 0; i < 5; i++) {
+            const input = document.getElementById(`papelHigienico-${i}`);
+            if (input && formData.papelHigienicoQuantities && formData.papelHigienicoQuantities[i] !== undefined) {
+                input.value = formData.papelHigienicoQuantities[i];
+                restoreZero(input);
+            } else if (input) {
+                input.value = 0; // Default if no saved data
+                restoreZero(input);
+            }
+        }
+
+        // Load the 5 fixed product quantities for Papel Toalla
+        for(let i = 0; i < 5; i++) {
+            const input = document.getElementById(`papelToalla-${i}`);
+            if (input && formData.papelToallaQuantities && formData.papelToallaQuantities[i] !== undefined) {
+                input.value = formData.papelToallaQuantities[i];
+                restoreZero(input);
+            } else if (input) {
+                input.value = 0; // Default if no saved data
+                restoreZero(input);
+            }
+        }
+
+        // Load sobrante quantities
+        document.getElementById('papelHigienicoSobrante').value = formData.papelHigienicoSobrante !== undefined ? formData.papelHigienicoSobrante : 0;
+        restoreZero(document.getElementById('papelHigienicoSobrante'));
+        document.getElementById('papelToallaSobrante').value = formData.papelToallaSobrante !== undefined ? formData.papelToallaSobrante : 0;
+        restoreZero(document.getElementById('papelToallaSobrante'));
+
+        // Initialize dynamicLevelQuantities if not present to avoid errors
+        formData.dynamicLevelQuantities = formData.dynamicLevelQuantities || {};
+        console.log('Form data loaded:', formData);
+      } else {
+        // Initialize formData if nothing is in localStorage
+        formData = {
+            dynamicLevelQuantities: {},
+            papelHigienicoQuantities: [0,0,0,0,0], // Initialize with 5 fields
+            papelToallaQuantities: [0,0,0,0,0],    // Initialize with 5 fields
+            papelHigienicoSobrante: 0,
+            papelToallaSobrante: 0,
+            formUnlocked: false
+        };
+        // Ensure initial fixed fields are set to 0
+        for(let i=0; i<5; i++) {
+            const phInput = document.getElementById(`papelHigienico-${i}`);
+            if(phInput) { phInput.value = 0; restoreZero(phInput); }
+            const ptInput = document.getElementById(`papelToalla-${i}`);
+            if(ptInput) { ptInput.value = 0; restoreZero(ptInput); }
+        }
+        document.getElementById('papelHigienicoSobrante').value = 0;
+        document.getElementById('papelToallaSobrante').value = 0;
+        restoreZero(document.getElementById('papelHigienicoSobrante'));
+        restoreZero(document.getElementById('papelToallaSobrante'));
+      }
+    }
+
+    function clearZero(inputElement) {
+        if (inputElement.value === '0') {
+            inputElement.value = '';
+        }
+    }
+
+    function restoreZero(inputElement) {
+        if (inputElement.value === '' || isNaN(parseInt(inputElement.value))) {
+            inputElement.value = '0';
+        }
+    }
+
+    function saveFixedProductQuantity(productType, index) {
+        const input = document.getElementById(`${productType}-${index}`);
+        let value = parseInt(input.value) || 0;
+
+        if (productType === 'papelHigienico') {
+            formData.papelHigienicoQuantities[index] = value;
+        } else if (productType === 'papelToalla') {
+            formData.papelToallaQuantities[index] = value;
+        }
+        saveFormData(); // Save entire form data
+    }
+
+    function saveSobranteQuantity(id) {
+        const input = document.getElementById(id);
+        const value = parseInt(input.value) || 0;
+        formData[id] = value; // Directly set property in formData
+        saveFormData();
+    }
+
+    function handleAdvance() {
+        const fecha = document.getElementById('fecha').value;
+        const turno = document.getElementById('turno').value;
+        const personaEncargada = document.getElementById('personaEncargada').value;
+        const edificio = document.getElementById('edificio').value;
+
+        if (!fecha || !turno || !personaEncargada || !edificio) {
+            Swal.fire('Advertencia', 'Por favor complete todos los campos iniciales (Fecha, Turno, Persona Encargada, Edificio) antes de avanzar.', 'warning');
+            return;
+        }
+
+        formData.formUnlocked = true;
+        saveFormData();
+        unlockAndLoadForm();
+    }
+
+    function unlockAndLoadForm() {
+        // Lock initial fields
+        document.getElementById('initialFieldsGroup').classList.add('locked');
+        document.getElementById('fecha').disabled = true;
+        document.getElementById('turno').disabled = true;
+        document.getElementById('personaEncargada').disabled = true;
+        document.getElementById('edificio').disabled = true;
+        document.getElementById('advanceBtn').style.display = 'none';
+
+        // Show fixed quantities section
+        document.getElementById('fixedQuantitiesSection').style.display = 'block';
+
+        // Show sobrante section
+        document.getElementById('sobranteSection').style.display = 'block';
+
+        // Enable action buttons
+        document.getElementById('clearBtn').disabled = false;
+        document.getElementById('generateBtn').disabled = false;
+
+
+        // Update and show dynamic level sections
+        updateDynamicFields();
+    }
+
+    function resetFormUI(clearData = true) {
+        // Clear and enable initial fields
+        document.getElementById('initialFieldsGroup').classList.remove('locked');
+        document.getElementById('fecha').disabled = false;
+        document.getElementById('turno').disabled = false;
+        document.getElementById('personaEncargada').disabled = false;
+        document.getElementById('edificio').disabled = false;
+        document.getElementById('advanceBtn').style.display = 'block';
+        document.getElementById('advanceBtn').disabled = true; // Ensure it's disabled initially after reset
+
+        // Disable action buttons
+        document.getElementById('clearBtn').disabled = true;
+        document.getElementById('generateBtn').disabled = true;
+
+        if (clearData) {
+            setDefaultDate(); // Reset to default date
+            document.getElementById('turno').value = '';
+            document.getElementById('personaEncargada').value = '';
+            document.getElementById('edificio').value = '';
+
+            // Reset fixed product quantities to 0
+            for(let i = 0; i < 5; i++) {
+                const phInput = document.getElementById(`papelHigienico-${i}`);
+                if(phInput) { phInput.value = 0; restoreZero(phInput); }
+                const ptInput = document.getElementById(`papelToalla-${i}`);
+                if(ptInput) { ptInput.value = 0; restoreZero(ptInput); }
+            }
+            // Reset sobrante quantities to 0
+            document.getElementById('papelHigienicoSobrante').value = 0; restoreZero(document.getElementById('papelHigienicoSobrante'));
+            document.getElementById('papelToallaSobrante').value = 0; restoreZero(document.getElementById('papelToallaSobrante'));
+        }
+
+        // Hide fixed quantities section
+        document.getElementById('fixedQuantitiesSection').style.display = 'none';
+
+        // Hide sobrante section
+        document.getElementById('sobranteSection').style.display = 'none';
+
+        // Clear and hide dynamic level sections
+        document.getElementById('dynamicLevelSectionsContainer').innerHTML = '';
+        
+        // Reset formUnlocked flag and save
+        formData.formUnlocked = false;
+        if (clearData) {
+            formData.papelHigienicoQuantities = [0,0,0,0,0];
+            formData.papelToallaQuantities = [0,0,0,0,0];
+            formData.papelHigienicoSobrante = 0;
+            formData.papelToallaSobrante = 0;
+            formData.dynamicLevelQuantities = {}; // Clear all saved dynamic level data
+            saveFormData();
+        }
+    }
+
+
+    function updateDynamicFields() {
+        const selectedEdificio = document.getElementById('edificio').value;
+        const dynamicContainer = document.getElementById('dynamicLevelSectionsContainer');
+        dynamicContainer.innerHTML = '';
+        
+        if (!selectedEdificio) return;
+
+        // Crear ID seguro (sin espacios ni #)
+        const safeBuildingId = selectedEdificio.replace(/[ #]/g, '');
+
+        if (selectedEdificio === 'Cuerpos Bajos') {
+
+            console.log('Handling Cuerpos Bajos...');
+            const subBuildings = ['CBA', 'CBB', 'CBC'];
+            subBuildings.forEach(sub => {
+                const numFields = (sub === 'CBA') ? 6 : 8; // CBA has 6 levels, CBB/CBC have 8
+                console.log(`Creating section for Cuerpos Bajos - ${sub} with ${numFields} fields.`);
+
+                const sectionDiv = document.createElement('div');
+                sectionDiv.className = 'level-quantities-section';
+                sectionDiv.id = `subBuildingSection-${sub}`; // Added unique ID for sub-building sections
+                sectionDiv.innerHTML = `<h3>Cuerpos Bajos - ${sub}</h3>`;
+
+                const paginationTabsDiv = document.createElement('div');
+                paginationTabsDiv.className = 'pagination-tabs';
+                paginationTabsDiv.innerHTML = `
+                    <div class="pagination-tab active" data-product="${sub}-higienico">Papel Higiénico</div>
+                    <div class="pagination-tab" data-product="${sub}-toalla">Papel Toalla</div>
+                `;
+                sectionDiv.appendChild(paginationTabsDiv);
+
+                const higienicoPageDiv = document.createElement('div');
+                higienicoPageDiv.id = `${sub}HigienicoPage`;
+                higienicoPageDiv.className = 'product-page active';
+                higienicoPageDiv.innerHTML = `
+                                                <div id="dynamicHigienicoQuantitiesContainer-${sub}" class="level-quantities-grid"></div>`;
+                sectionDiv.appendChild(higienicoPageDiv);
+
+                const toallaPageDiv = document.createElement('div');
+                toallaPageDiv.id = `${sub}ToallaPage`;
+                toallaPageDiv.className = 'product-page';
+                toallaPageDiv.innerHTML = `
+                                            <div id="dynamicToallaQuantitiesContainer-${sub}" class="level-quantities-grid"></div>`;
+                sectionDiv.appendChild(toallaPageDiv);
+
+                dynamicContainer.appendChild(sectionDiv);
+
+                // Attach event listeners for the newly created tabs
+                paginationTabsDiv.querySelectorAll('.pagination-tab').forEach(tab => {
+                    tab.addEventListener('click', function() {
+                        const productType = this.getAttribute('data-product');
+                        activateProductPage(productType, sub); // Pass sub-building identifier
+                    });
+                });
+
+                // Populate fields for this sub-building
+                console.log(`Calling populateLevelQuantities for Cuerpos Bajos - ${sub}`);
+                populateLevelQuantities(sub, numFields, 'Cuerpos Bajos');
+                activateProductPage(`${sub}-higienico`, sub); // Activate default tab for this section
+            });
+        } else { // Single building like Torre #1, Torre #2
+            let numFields = 0;
+            switch (selectedEdificio) {
+                case 'Torre #1': numFields = 24; break;
+                case 'Torre #2': numFields = 25; break;
+            }
+
+            const sectionDiv = document.createElement('div');
+            sectionDiv.className = 'level-quantities-section';
+            
+            // Usar safeBuildingId en los IDs
+            sectionDiv.innerHTML = `
+                <div class="pagination-tabs">
+                    <div class="pagination-tab active" data-product="higienico">Papel Higiénico</div>
+                    <div class="pagination-tab" data-product="toalla">Papel Toalla</div>
+                </div>
+                <div id="higienicoPage-${safeBuildingId}" class="product-page active">
+                    <div id="dynamicHigienicoQuantitiesContainer-${safeBuildingId}" class="level-quantities-grid"></div>
+                </div>
+                <div id="toallaPage-${safeBuildingId}" class="product-page">
+                    <div id="dynamicToallaQuantitiesContainer-${safeBuildingId}" class="level-quantities-grid"></div>
+                </div>
+            `;
+
+            dynamicContainer.appendChild(sectionDiv);
+
+            // Attach event listeners for the newly created tabs for single buildings
+            sectionDiv.querySelectorAll('.pagination-tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const productType = this.getAttribute('data-product');
+                    activateProductPage(productType); // No subBuilding for single buildings
+                });
+            });
+
+            populateLevelQuantities(safeBuildingId, numFields);
+            activateProductPage('higienico'); // Activate default tab for single section
+        }
+    }
+
+
+    function populateLevelQuantities(buildingOrSub, numFields, parentBuilding = null) {
+        console.log(`--- populateLevelQuantities called for ${buildingOrSub}, numFields: ${numFields}, parentBuilding: ${parentBuilding} ---`);
+        const currentEdificioKey = parentBuilding || formData.edificio; // Use formData.edificio as the main key
+        
+        // Crear un ID seguro para el edificio/sub-edificio (remover caracteres especiales)
+        const safeBuildingIdForContainer = buildingOrSub.replace(/[ #]/g, '');
+
+        // Ensure the data structure exists for current building/sub-building
+        formData.dynamicLevelQuantities = formData.dynamicLevelQuantities || {};
+        if (parentBuilding) { // Cuerpos Bajos scenario
+            formData.dynamicLevelQuantities[currentEdificioKey] = formData.dynamicLevelQuantities[currentEdificioKey] || {};
+            formData.dynamicLevelQuantities[currentEdificioKey][buildingOrSub] = formData.dynamicLevelQuantities[currentEdificioKey][buildingOrSub] || { higienico: {}, toalla: {} };
+        } else { // Single building scenario
+            formData.dynamicLevelQuantities[currentEdificioKey] = formData.dynamicLevelQuantities[currentEdificioKey] || { higienico: {}, toalla: {} };
+        }
+
+        const higienicoContainerId = `dynamicHigienicoQuantitiesContainer-${safeBuildingIdForContainer}`;
+        const toallaContainerId = `dynamicToallaQuantitiesContainer-${safeBuildingIdForContainer}`;
+
+
+        const higienicoContainer = document.getElementById(higienicoContainerId);
+        const toallaContainer = document.getElementById(toallaContainerId);
+
+        console.log(`Attempting to find containers: Higienico ID: ${higienicoContainerId}, Toalla ID: ${toallaContainerId}`);
+        console.log(`Higienico Container found:`, !!higienicoContainer, `Toalla Container found:`, !!toallaContainer);
+
+
+        if (!higienicoContainer || !toallaContainer) {
+            console.error('Containers not found:', higienicoContainerId, toallaContainerId, '. Cannot populate levels.');
+            return;
+        }
+
+        higienicoContainer.innerHTML = '';
+        toallaContainer.innerHTML = '';
+        console.log(`Containers cleared. Populating ${numFields} levels.`);
+
+        for (let i = 0; i < numFields; i++) {
+            // Use safeBuildingIdForContainer in the input IDs for consistency with how containers are named
+            const higienicoItemId = `higienico-${safeBuildingIdForContainer}-${i}`;
+            const toallaItemId = `toalla-${safeBuildingIdForContainer}-${i}`;
+
+            let higienicoValue, toallaValue;
+
+            if (parentBuilding) { // Cuerpos Bajos scenario
+                higienicoValue = formData.dynamicLevelQuantities[currentEdificioKey][buildingOrSub].higienico[higienicoItemId] !== undefined
+                               ? formData.dynamicLevelQuantities[currentEdificioKey][buildingOrSub].higienico[higienicoItemId]
+                               : 0;
+                toallaValue = formData.dynamicLevelQuantities[currentEdificioKey][buildingOrSub].toalla[toallaItemId] !== undefined
+                            ? formData.dynamicLevelQuantities[currentEdificioKey][buildingOrSub].toalla[toallaItemId]
+                            : 0;
+            } else { // Single building scenario
+                higienicoValue = formData.dynamicLevelQuantities[currentEdificioKey].higienico[higienicoItemId] !== undefined
+                               ? formData.dynamicLevelQuantities[currentEdificioKey].higienico[higienicoItemId]
+                               : 0;
+                toallaValue = formData.dynamicLevelQuantities[currentEdificioKey].toalla[toallaItemId] !== undefined
+                            ? formData.dynamicLevelQuantities[currentEdificioKey].toalla[toallaItemId]
+                            : 0;
+            }
+            console.log(`Creating item for Nivel ${i}, Higienico ID: ${higienicoItemId}, Value: ${higienicoValue}`);
+            higienicoContainer.appendChild(createLevelQuantityItem(higienicoItemId, `Nivel ${i}`, higienicoValue, 'higienico'));
+            console.log(`Creating item for Nivel ${i}, Toalla ID: ${toallaItemId}, Value: ${toallaValue}`);
+            toallaContainer.appendChild(createLevelQuantityItem(toallaItemId, `Nivel ${i}`, toallaValue, 'toalla'));
+        }
+        console.log(`--- populateLevelQuantities finished for ${buildingOrSub} ---`);
+    }
+
+
+    function createLevelQuantityItem(id, labelText, value, productType) {
+        console.log(`createLevelQuantityItem called for ID: ${id}, Label: ${labelText}`);
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'level-quantity-item';
+        itemDiv.innerHTML = `
+          <label for="${id}">${labelText}:</label>
+          <div class="level-quantity-controls">
+            <button type="button" class="level-quantity-button minus" onclick="changeLevelQuantity('${id}', -1, '${productType}')">-</button>
+            <input type="number" id="${id}" class="level-quantity-input" value="${value}" min="0"
+                   oninput="saveLevelQuantity('${id}', '${productType}')"
+                   onfocus="clearZero(this)" onblur="restoreZero(this)">
+            <button type="button" class="level-quantity-button" onclick="changeLevelQuantity('${id}', 1, '${productType}')">+</button>
+          </div>
+        `;
+        return itemDiv;
+    }
+
+    function changeLevelQuantity(id, delta, productType) {
+      const input = document.getElementById(id);
+      let value = parseInt(input.value) || 0;
+      value += delta;
+      if (value < 0) value = 0; // Ensure non-negative
+      input.value = value;
+      saveLevelQuantity(id, productType); // Call the unified save function
+    }
+
+    // saveLevelQuantity now updates formData and calls saveFormData
+    function saveLevelQuantity(id, productType) {
+        // Example IDs: "higienico-CBA-0" or "higienico-Torre1-0" (note: using safe name now)
+        const parts = id.split('-'); 
+        // For "higienico-CBA-0", parts[1] is "CBA"
+        // For "higienico-Torre1-0", parts[1] is "Torre1"
+        const buildingOrSubId = parts[1]; // This will be "CBA", "Torre1", etc.
+
+        const currentEdificio = formData.edificio; // This is "Cuerpos Bajos" or "Torre #1"
+        const input = document.getElementById(id);
+        const value = parseInt(input.value) || 0;
+
+        if (currentEdificio === 'Cuerpos Bajos') {
+            // Check if dynamicLevelQuantities[currentEdificio] (Cuerpos Bajos) exists
+            // and then if dynamicLevelQuantities[currentEdificio][buildingOrSubId] (CBA, CBB, CBC) exists
+            if (formData.dynamicLevelQuantities[currentEdificio] && formData.dynamicLevelQuantities[currentEdificio][buildingOrSubId]) {
+                formData.dynamicLevelQuantities[currentEdificio][buildingOrSubId][productType][id] = value;
+            }
+        } else { // Single buildings like Torre #1, Torre #2
+            // The key in dynamicLevelQuantities should be the original building name, e.g., "Torre #1"
+            if (formData.dynamicLevelQuantities[currentEdificio]) {
+                formData.dynamicLevelQuantities[currentEdificio][productType][id] = value;
+            }
+        }
+        saveFormData(); // Unified call to save all data
+    }
+
+    function activateProductPage(productTypeFromTab, subBuilding = null) {
+      console.log(`activateProductPage called with productTypeFromTab: ${productTypeFromTab}, subBuilding: ${subBuilding}`);
+      let sectionElement;
+      let pageIdSuffix = ''; // Will be like 'Torre1', 'CBA', 'CBB', etc.
+      let actualProductType; // 'higienico' or 'toalla'
+
+      if (subBuilding) { // For Cuerpos Bajos sub-sections (e.g., productTypeFromTab = "CBA-higienico")
+        sectionElement = document.getElementById(`subBuildingSection-${subBuilding}`);
+        pageIdSuffix = subBuilding;
+        actualProductType = productTypeFromTab.split('-')[1]; // Extracts 'higienico' or 'toalla'
+      } else { // For single buildings (e.g., productTypeFromTab = "higienico")
+        sectionElement = document.querySelector(`#dynamicLevelSectionsContainer .level-quantities-section`);
+        pageIdSuffix = formData.edificio ? formData.edificio.replace(/[ #]/g, '') : ''; // Get safe ID for single building
+        actualProductType = productTypeFromTab; // Directly 'higienico' or 'toalla'
+      }
+      
+      if (!sectionElement) {
+          console.warn('No sectionElement found for activation. Exiting activateProductPage.');
+          return;
+      }
+
+      // Hide all product pages within the current section and deactivate all tabs within the current section
+      sectionElement.querySelectorAll('.product-page').forEach(page => page.classList.remove('active'));
+      sectionElement.querySelectorAll('.pagination-tab').forEach(tab => tab.classList.remove('active'));
+
+      // Construct the target page ID
+      let finalTargetPageId;
+      if (subBuilding) {
+          finalTargetPageId = `${subBuilding}${actualProductType.charAt(0).toUpperCase() + actualProductType.slice(1)}Page`; // e.g., CBAHigienicoPage
+      } else {
+          finalTargetPageId = `${actualProductType}Page-${pageIdSuffix}`; // e.g., higienicoPage-Torre1
+      }
+
+      const targetTabSelector = `.pagination-tab[data-product="${productTypeFromTab}"]`;
+
+      const targetPage = document.getElementById(finalTargetPageId);
+      const targetTab = sectionElement.querySelector(targetTabSelector);
+
+      if (targetPage) {
+          targetPage.classList.add('active');
+      } else {
+          console.warn(`Target page not found: ${finalTargetPageId}`);
+      }
+      if (targetTab) {
+          targetTab.classList.add('active');
+      } else {
+          console.warn(`Target tab not found: ${targetTabSelector}`);
+      }
+      console.log('--- activateProductPage finished ---');
+    }
+
+
+    async function clearAllData() {
+        const result1 = await Swal.fire({
+            title: '¿Está seguro?',
+            text: "Esta acción borrará TODOS los datos ingresados en el formulario de forma permanente.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Sí, borrar todo',
+            cancelButtonText: 'Cancelar'
+        });
+
+        if (result1.isConfirmed) {
+            const result2 = await Swal.fire({
+                title: '¿Realmente seguro?',
+                text: "Esta es la última advertencia. Los datos no se podrán recuperar.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Sí, estoy absolutamente seguro',
+                cancelButtonText: 'No, cancelar'
+            });
+
+            if (result2.isConfirmed) {
+                localStorage.removeItem(STORAGE_KEY);
+                // Reset formData to initial state with 5 default fields for each product
+                formData = {
+                    dynamicLevelQuantities: {},
+                    papelHigienicoQuantities: [0,0,0,0,0],
+                    papelToallaQuantities: [0,0,0,0,0],
+                    papelHigienicoSobrante: 0, // Reset sobrante
+                    papelToallaSobrante: 0,     // Reset sobrante
+                    formUnlocked: false
+                };
+                resetFormUI(true); // Clear UI and data
+                Swal.fire('¡Borrado!', 'Todos los datos han sido eliminados.', 'success');
+            } else {
+                Swal.fire('Cancelado', 'La operación de borrado ha sido cancelada.', 'info');
+            }
+        } else {
+            Swal.fire('Cancelado', 'La operación de borrado ha sido cancelada.', 'info');
+        }
+    }
+
+
+    async function generarReporte() { // Made async
+        // Re-fetch form data to ensure it's up-to-date
+        saveFormData();
+
+        const { fecha, turno, papelHigienicoQuantities, papelToallaQuantities, personaEncargada, edificio, dynamicLevelQuantities, papelHigienicoSobrante, papelToallaSobrante } = formData;
+
+        if (!fecha || !turno || !personaEncargada || !edificio || !formData.formUnlocked) {
+            Swal.fire('Advertencia', 'Por favor complete todos los campos iniciales y haga clic en "Avanzar" antes de generar el reporte.', 'warning');
+            return;
+        }
+
+        Swal.fire({
+            title: 'Procesando...',
+            html: 'Generando su reporte PDF. Por favor, espere.',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        // 3. Fecha en formato "dd/mm/aaaa" y con día de la semana
+        const dateObj = new Date(fecha + 'T00:00:00'); // Use 'T00:00:00' to ensure local date interpretation
+        const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+        const dayName = days[dateObj.getDay()];
+        const formattedDate = `${String(dateObj.getDate()).padStart(2, '0')}/${String(dateObj.getMonth() + 1).padStart(2, '0')}/${dateObj.getFullYear()}`;
+        const displayDate = `${dayName}, ${formattedDate}`;
+
+        doc.setFontSize(16);
+        doc.text("Control de PEPS de Insumos", 105, 20, null, null, "center");
+        doc.setFontSize(10);
+
+        const tableData = [
+            ["Fecha:", displayDate], // Usar la fecha formateada
+            ["Turno:", turno],
+            ["Persona Encargada:", personaEncargada],
+            ["Edificio:", edificio],
+        ];
+
+        doc.autoTable({
+            startY: 30,
+            head: [['Detalle', 'Valor']],
+            body: tableData,
+            theme: 'striped',
+            styles: { font: 'helvetica', fontSize: 10, cellPadding: 2, overflow: 'linebreak' },
+            headStyles: { fillColor: [0, 123, 255], textColor: 255, fontStyle: 'bold', halign: 'center' },
+            bodyStyles: { halign: 'center' },
+            columnStyles: {
+                0: { halign: 'left', cellWidth: 70 },
+                1: { halign: 'center', cellWidth: 'auto' }
+            }
+        });
+
+        let currentY = doc.autoTable.previous.finalY;
+
+        // 1. Solo el total de las 5 casillas fijas, y cambio de nombre de tabla y productos
+        let totalPapelHigienicoFixed = papelHigienicoQuantities.reduce((sum, qty) => sum + qty, 0);
+        let totalPapelToallaFixed = papelToallaQuantities.reduce((sum, qty) => sum + qty, 0);
+
+        doc.autoTable({
+            startY: currentY + 10,
+            head: [['Producto Requisado', 'Cant. Higiénico Total', 'Cant. Toalla Total']], // Title changed
+            body: [
+                ['Papel Higiénico', totalPapelHigienicoFixed, ''], // "Fijo" removed
+                ['Papel Toalla', '', totalPapelToallaFixed]         // "Fijo" removed
+            ],
+            theme: 'striped',
+            styles: { font: 'helvetica', fontSize: 10, cellPadding: 2, overflow: 'linebreak' },
+            headStyles: { fillColor: [40, 167, 69], textColor: 255, fontStyle: 'bold', halign: 'center' },
+            bodyStyles: { halign: 'center' },
+            columnStyles: {
+                0: { halign: 'left', cellWidth: 70 },
+                1: { halign: 'center', cellWidth: 'auto' },
+                2: { halign: 'center', cellWidth: 'auto' }
+            }
+        });
+        currentY = doc.autoTable.previous.finalY;
+
+        // Add dynamic level quantities with totals inside the table
+        let grandTotalHigienicoNiveles = 0;
+        let grandTotalToallaNiveles = 0;
+
+        if (edificio && dynamicLevelQuantities[edificio]) {
+            if (edificio === 'Cuerpos Bajos') {
+                const subBuildings = ['CBA', 'CBB', 'CBC'];
+                subBuildings.forEach(sub => {
+                    const subBuildingData = dynamicLevelQuantities[edificio][sub] || {higienico: {}, toalla: {}};
+                    const combinedLevelData = [];
+                    let subTotalHigienico = 0;
+                    let subTotalToalla = 0;
+
+                    const allLevels = new Set([
+                        ...Object.keys(subBuildingData.higienico).filter(key => subBuildingData.higienico[key] > 0).map(key => parseInt(key.split('-')[key.split('-').length - 1])),
+                        ...Object.keys(subBuildingData.toalla).filter(key => subBuildingData.toalla[key] > 0).map(key => parseInt(key.split('-')[key.split('-').length - 1]))
+                    ]);
+                    const sortedLevels = Array.from(allLevels).sort((a, b) => a - b);
+
+                    sortedLevels.forEach(levelIndex => {
+                        const safeSubId = sub.replace(/[ #]/g, ''); // Ensure safe ID for item lookup
+                        const higienicoItemId = `higienico-${safeSubId}-${levelIndex}`;
+                        const toallaItemId = `toalla-${safeSubId}-${levelIndex}`;
+                        const phQty = subBuildingData.higienico[higienicoItemId] || 0;
+                        const ptQty = subBuildingData.toalla[toallaItemId] || 0;
+                        
+                        if (phQty > 0 || ptQty > 0) {
+                            combinedLevelData.push([`Nivel ${levelIndex}`, phQty, ptQty]);
+                            subTotalHigienico += phQty;
+                            subTotalToalla += ptQty;
+                        }
+                    });
+
+                    if (combinedLevelData.length > 0) {
+                        doc.autoTable({
+                            startY: currentY + 10,
+                            head: [[`Nivel/Sección (${sub})`, 'Cant. Higiénico', 'Cant. Toalla']],
+                            body: combinedLevelData,
+                            foot: [['Subtotal', subTotalHigienico, subTotalToalla]], // Subtotal for this sub-building
+                            theme: 'striped',
+                            styles: { font: 'helvetica', fontSize: 10, cellPadding: 2, overflow: 'linebreak' },
+                            headStyles: { fillColor: [0, 123, 255], textColor: 255, fontStyle: 'bold', halign: 'center' },
+                            bodyStyles: { halign: 'center' },
+                            footStyles: { fillColor: [200, 220, 255], textColor: [0,0,0], fontStyle: 'bold', halign: 'center' }, // Style for footer
+                            columnStyles: {
+                                0: { halign: 'left', cellWidth: 70 },
+                                1: { halign: 'center', cellWidth: 'auto' },
+                                2: { halign: 'center', cellWidth: 'auto' }
+                            }
+                        });
+                        currentY = doc.autoTable.previous.finalY;
+                    }
+                    grandTotalHigienicoNiveles += subTotalHigienico;
+                    grandTotalToallaNiveles += subTotalToalla;
+                });
+            } else { // Single building (Torre #1, Torre #2)
+                const higienicoLevels = dynamicLevelQuantities[edificio].higienico || {};
+                const toallaLevels = dynamicLevelQuantities[edificio].toalla || {};
+                const combinedLevelData = [];
+                let subTotalHigienico = 0;
+                let subTotalToalla = 0;
+
+                const allLevels = new Set([
+                    ...Object.keys(higienicoLevels).filter(key => higienicoLevels[key] > 0).map(key => parseInt(key.split('-')[key.split('-').length - 1])),
+                    ...Object.keys(toallaLevels).filter(key => toallaLevels[key] > 0).map(key => parseInt(key.split('-')[key.split('-').length - 1]))
+                ]);
+                const sortedLevels = Array.from(allLevels).sort((a, b) => a - b);
+
+                sortedLevels.forEach(levelIndex => {
+                    const safeEdificioId = edificio.replace(/[ #]/g, '');
+                    const higienicoItemId = `higienico-${safeEdificioId}-${levelIndex}`;
+                    const toallaItemId = `toalla-${safeEdificioId}-${levelIndex}`;
+                    const phQty = higienicoLevels[higienicoItemId] || 0;
+                    const ptQty = toallaLevels[toallaItemId] || 0;
+
+                    if (phQty > 0 || ptQty > 0) {
+                        combinedLevelData.push([`Nivel ${levelIndex}`, phQty, ptQty]);
+                        subTotalHigienico += phQty;
+                        subTotalToalla += ptQty;
+                    }
+                });
+
+                if (combinedLevelData.length > 0) {
+                    doc.autoTable({
+                        startY: currentY + 10,
+                        head: [['Nivel', 'Cant. Higiénico', 'Cant. Toalla']],
+                        body: combinedLevelData,
+                        foot: [['Subtotal', subTotalHigienico, subTotalToalla]], // Subtotal for this building
+                        theme: 'striped',
+                        styles: { font: 'helvetica', fontSize: 10, cellPadding: 2, overflow: 'linebreak' },
+                        headStyles: { fillColor: [0, 123, 255], textColor: 255, fontStyle: 'bold', halign: 'center' },
+                        bodyStyles: { halign: 'center' },
+                        footStyles: { fillColor: [200, 220, 255], textColor: [0,0,0], fontStyle: 'bold', halign: 'center' }, // Style for footer
+                        columnStyles: {
+                            0: { halign: 'left', cellWidth: 70 },
+                            1: { halign: 'center', cellWidth: 'auto' },
+                            2: { halign: 'center', cellWidth: 'auto' }
+                        }
+                    });
+                    currentY = doc.autoTable.previous.finalY;
+                }
+                grandTotalHigienicoNiveles += subTotalHigienico;
+                grandTotalToallaNiveles += subTotalToalla;
+            }
+        }
+
+        // NEW: Producto Sobrante table
+        doc.autoTable({
+            startY: currentY + 10,
+            head: [['Producto Sobrante', 'Cantidad']],
+            body: [
+                ['Papel Higiénico', papelHigienicoSobrante],
+                ['Papel Toalla', papelToallaSobrante]
+            ],
+            theme: 'striped',
+            styles: { font: 'helvetica', fontSize: 10, cellPadding: 2, overflow: 'linebreak' },
+            headStyles: { fillColor: [255, 193, 7], textColor: 0, fontStyle: 'bold', halign: 'center' },
+            bodyStyles: { halign: 'center' },
+            columnStyles: {
+                0: { halign: 'left', cellWidth: 70 },
+                1: { halign: 'center', cellWidth: 'auto' }
+            }
+        });
+
+        // 2. Dynamic PDF filename
+        const pdfDate = fecha; // YYYY-MM-DD
+        const pdfEdificio = edificio;
+        const pdfTurno = turno;
+        const filename = `${pdfDate} - ${pdfEdificio} - Turno ${pdfTurno}.pdf`;
+
+        const pdfBlob = doc.output('blob'); // Get PDF as Blob
+        Swal.close(); // Close processing SweetAlert
+
+        // Function to try sharing or fallback to download
+        function tryShareOrDownload() {
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([pdfBlob], filename, { type: 'application/pdf' })] })) {
+                navigator.share({
+                    files: [new File([pdfBlob], filename, { type: 'application/pdf' })],
+                    title: `Reporte de PEPS de Insumos - ${filename.replace('.pdf', '')}`,
+                    text: `Adjunto el reporte de PEPS de insumos para ${fecha}.`
+                })
+                .then(() => {
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Reporte Compartido!',
+                        text: 'El PDF ha sido enviado a la aplicación seleccionada.',
+                        confirmButtonColor: '#007bff'
+                    });
+                })
+                .catch((error) => {
+                    console.error('Error al Compartir:', error);
+                    if (error.name === 'AbortError') {
+                        // User cancelled the share operation
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'Compartir Cancelado',
+                            text: 'Ha cancelado la operación de compartir. Puede descargar el PDF si lo desea.',
+                            confirmButtonColor: '#007bff'
+                        });
+                    } else {
+                        // Other sharing errors, proceed with download and show error message
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error al Compartir',
+                            text: 'No se pudo compartir el PDF directamente. Se procederá con la descarga.',
+                            confirmButtonColor: '#007bff'
+                        });
+                        doc.save(filename); // Fallback to download
+                    }
+                });
+            } else {
+                // Fallback for browsers that do not support navigator.share or file sharing
+                doc.save(filename); // Fallback to download
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Reporte Descargado',
+                    html: 'Su navegador no soporta la función de compartir directamente o la página no se ejecuta sobre HTTPS.<br>El PDF se ha descargado.',
+                    confirmButtonColor: '#007bff'
+                });
+            }
+        }
+        
+        tryShareOrDownload();
+    }
+  </script>
+</body>
+</html>

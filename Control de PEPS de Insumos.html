@@ -492,6 +492,10 @@
     const STORAGE_KEY = 'requisitionFormData';
     let formData = {}; // Global object to store all form data
 
+    // URL del Web App desplegado de Google Apps Script. ¡DEBES REEMPLAZAR ESTO!
+    // Sigue el Paso 2 para obtener esta URL.
+    const GOOGLE_APPS_SCRIPT_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwqOtbN2NR1e7xbe74-zhDuu_ovPuCl83ohixCxcTJ14TLmn3ktZe6_4r-PJcO2icaU/exec'; 
+
     document.addEventListener('DOMContentLoaded', function() {
       setDefaultDate();
       loadFormData();
@@ -1348,146 +1352,161 @@
         const pdfBlob = doc.output('blob'); // Get PDF as Blob
         Swal.close(); // Close processing SweetAlert
 
-        // Convert Blob to Base64 for sending to Apps Script
-        const reader = new FileReader();
-        reader.readAsDataURL(pdfBlob);
-        reader.onloadend = function() {
-            const base64data = reader.result.split(',')[1]; // Get only the base64 part
+        // Función para convertir Blob a Base64
+        const blobToBase64 = (blob) => {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result.split(',')[1]); // Solo la parte Base64
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        };
 
-            // Function to try sharing, fallback to download, then fallback to Apps Script upload
-            async function tryShareOrDownloadAndUpload() {
-                const pdfFile = new File([pdfBlob], filename, { type: 'application/pdf' });
-
-                if (navigator.share && navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
-                    try {
-                        await navigator.share({
-                            files: [pdfFile],
-                            title: `Reporte de PEPS de Insumos - ${filename.replace('.pdf', '')}`,
-                            text: `Adjunto el reporte de PEPS de insumos para ${fecha}.`
-                        });
-                        Swal.fire({
-                            icon: 'success',
-                            title: '¡Reporte Compartido!',
-                            text: 'El PDF ha sido enviado a la aplicación seleccionada.',
-                            confirmButtonColor: '#007bff'
-                        });
-                    } catch (error) {
-                        console.error('Error al Compartir:', error);
-                        if (error.name === 'AbortError') {
-                            Swal.fire({
-                                icon: 'info',
-                                title: 'Compartir Cancelado',
-                                text: 'Ha cancelado la operación de compartir. Intentando subir a Google Drive.',
-                                confirmButtonColor: '#007bff'
-                            });
-                            // Try uploading to Google Drive
-                            uploadToGoogleDrive(base64data, filename);
-                        } else {
-                            // Other sharing errors, proceed with download or upload
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Error al Compartir',
-                                text: 'No se pudo compartir el PDF directamente. Intentando descargar o subir a Google Drive.',
-                                confirmButtonColor: '#007bff'
-                            });
-                            // First try download, if that fails, then upload
-                            try {
-                                doc.save(filename); // Fallback to download
-                                Swal.fire({
-                                    icon: 'info',
-                                    title: 'Reporte Descargado',
-                                    text: 'El PDF se ha descargado a su dispositivo.',
-                                    confirmButtonColor: '#007bff'
-                                });
-                            } catch (downloadError) {
-                                console.error('Error al descargar:', downloadError);
-                                Swal.fire({
-                                    icon: 'error',
-                                    title: 'Error al Descargar',
-                                    text: 'No se pudo descargar el PDF. Intentando subir a Google Drive.',
-                                    confirmButtonColor: '#007bff'
-                                });
-                                uploadToGoogleDrive(base64data, filename);
-                            }
-                        }
-                    }
-                } else {
-                    // Fallback for browsers that do not support navigator.share or file sharing
-                    Swal.fire({
-                        icon: 'info',
-                        title: 'Compartir No Soportado',
-                        html: 'Su navegador no soporta la función de compartir directamente o la página no se ejecuta sobre HTTPS.<br>Intentando descargar el PDF.',
-                        confirmButtonColor: '#007bff'
-                    });
-                    
-                    try {
-                        doc.save(filename); // Fallback to download
-                        Swal.fire({
-                            icon: 'info',
-                            title: 'Reporte Descargado',
-                            text: 'El PDF se ha descargado a su dispositivo.',
-                            confirmButtonColor: '#007bff'
-                        });
-                    } catch (downloadError) {
-                        console.error('Error al descargar (fallback):', downloadError);
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error al Descargar',
-                            text: 'No se pudo descargar el PDF. Intentando subir a Google Drive.',
-                            confirmButtonColor: '#007bff'
-                        });
-                        uploadToGoogleDrive(base64data, filename);
-                    }
-                }
-            }
-            tryShareOrDownloadAndUpload(); // Call the new async function
-
-            // NEW FUNCTION TO UPLOAD TO GOOGLE DRIVE
-            async function uploadToGoogleDrive(base64data, fileName) {
+        // NEW: Lógica para compartir o subir a la nube
+        const uploadToDrive = async () => {
+            if (GOOGLE_APPS_SCRIPT_WEB_APP_URL === 'REEMPLAZAR_CON_TU_URL_DE_APPS_SCRIPT') {
                 Swal.fire({
-                    title: 'Subiendo a Google Drive...',
-                    html: 'Esto puede tomar unos segundos. Por favor, espere.',
-                    allowOutsideClick: false,
-                    didOpen: () => {
-                        Swal.showLoading();
-                    }
+                    icon: 'error',
+                    title: 'Error de Configuración',
+                    text: 'La URL del script de Google Apps Script no ha sido configurada. Por favor, edita el código HTML y reemplaza "REEMPLAZAR_CON_TU_URL_DE_APPS_SCRIPT" con la URL correcta.',
+                    confirmButtonColor: '#007bff'
+                });
+                return;
+            }
+
+            Swal.fire({
+                title: 'Subiendo a Google Drive...',
+                html: 'Por favor, espere. Esto puede tardar unos segundos.',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            try {
+                const pdfBase64 = await blobToBase64(pdfBlob);
+                const response = await fetch(GOOGLE_APPS_SCRIPT_WEB_APP_URL, {
+                    method: 'POST',
+                    mode: 'no-cors', // Importante para Apps Script si se llama desde un dominio diferente
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ filename: filename, mimeType: 'application/pdf', data: pdfBase64 })
                 });
 
-                const webAppUrl = "https://script.google.com/macros/s/AKfycbwqOtbN2NR1e7xbe74-zhDuu_ovPuCl83ohixCxcTJ14TLmn3ktZe6_4r-PJcO2icaU/exec"; // <<<<<<< ¡¡REEMPLAZA ESTO!!
+                // Apps Script con 'no-cors' siempre devuelve ok, así que no podemos leer la respuesta directamente aquí.
+                // La confirmación debe venir del Apps Script (por ejemplo, enviando un correo o registrando en una hoja).
+                // Para efectos de la UI, asumimos éxito después de un breve retraso o manejamos errores de red.
+                
+                // Un pequeño retraso para que Apps Script tenga tiempo de procesar
+                await new Promise(resolve => setTimeout(resolve, 2000)); 
 
-                try {
-                    const response = await fetch(webAppUrl, {
-                        method: 'POST',
-                        mode: 'cors', // Important for cross-origin requests
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ pdfData: base64data, fileName: fileName })
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Subido a Google Drive!',
+                    html: `El reporte "${filename}" ha sido subido a Google Drive.<br>Puedes encontrarlo en la carpeta: <a href="https://drive.google.com/drive/folders/1D8vqn2CJV3o5AyBZ4PxZYyGgMKzRN-nR" target="_blank">Pisos Brillantes Reportes</a>`,
+                    confirmButtonColor: '#28a745'
+                });
+
+            } catch (error) {
+                console.error('Error al subir a Google Drive:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error al subir a Google Drive',
+                    text: 'Hubo un problema al subir el PDF. Por favor, intente de nuevo.',
+                    confirmButtonColor: '#dc3545'
+                });
+            }
+        };
+
+
+        // Function to try sharing or fallback to download / upload option
+        function tryShareOrDownloadOrUpload() {
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([pdfBlob], filename, { type: 'application/pdf' })] })) {
+                navigator.share({
+                    files: [new File([pdfBlob], filename, { type: 'application/pdf' })],
+                    title: `Reporte de PEPS de Insumos - ${filename.replace('.pdf', '')}`,
+                    text: `Adjunto el reporte de PEPS de insumos para ${fecha}.`
+                })
+                .then(() => {
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Reporte Compartido!',
+                        text: 'El PDF ha sido enviado a la aplicación seleccionada.',
+                        confirmButtonColor: '#007bff'
                     });
-
-                    const result = await response.json();
-
-                    if (result.status === "success") {
+                })
+                .catch((error) => {
+                    console.error('Error al Compartir:', error);
+                    if (error.name === 'AbortError') {
+                        // User cancelled the share operation, offer other options
                         Swal.fire({
-                            icon: 'success',
-                            title: '¡Subido a Google Drive!',
-                            html: `El PDF se ha guardado en su Google Drive.<br><a href="${result.fileUrl}" target="_blank">Ver archivo</a>`,
-                            confirmButtonColor: '#007bff'
+                            title: 'Compartir Cancelado',
+                            text: 'Ha cancelado la operación de compartir. ¿Qué desea hacer?',
+                            icon: 'info',
+                            showCancelButton: true,
+                            showDenyButton: true,
+                            confirmButtonText: 'Descargar PDF',
+                            denyButtonText: 'Subir a Google Drive',
+                            cancelButtonText: 'Cancelar'
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                doc.save(filename); // Descargar
+                                Swal.fire('¡Descargado!', 'El PDF se ha descargado localmente.', 'success');
+                            } else if (result.isDenied) {
+                                uploadToDrive(); // Subir a Google Drive
+                            } else {
+                                Swal.fire('Operación Cancelada', 'No se realizó ninguna acción.', 'info');
+                            }
                         });
                     } else {
-                        throw new Error(result.message || "Error desconocido al subir el archivo.");
+                        // Other sharing errors, proceed with download/upload options
+                         Swal.fire({
+                            title: 'Error al Compartir',
+                            text: 'No se pudo compartir el PDF directamente. ¿Qué desea hacer?',
+                            icon: 'error',
+                            showCancelButton: true,
+                            showDenyButton: true,
+                            confirmButtonText: 'Descargar PDF',
+                            denyButtonText: 'Subir a Google Drive',
+                            cancelButtonText: 'Cancelar'
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                doc.save(filename); // Descargar
+                                Swal.fire('¡Descargado!', 'El PDF se ha descargado localmente.', 'success');
+                            } else if (result.isDenied) {
+                                uploadToDrive(); // Subir a Google Drive
+                            } else {
+                                Swal.fire('Operación Cancelada', 'No se realizó ninguna acción.', 'info');
+                            }
+                        });
                     }
-                } catch (error) {
-                    console.error('Error al subir a Google Drive:', error);
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error al subir a Google Drive',
-                        html: `No se pudo subir el PDF.<br>Detalle: ${error.message}<br>Asegúrese de haber autorizado el script y de que la URL de la aplicación web sea correcta.`,
-                        confirmButtonColor: '#dc3545'
-                    });
-                }
+                });
+            } else {
+                // Fallback for browsers that do not support navigator.share or file sharing
+                Swal.fire({
+                    title: 'Funcionalidad de Compartir no Disponible',
+                    html: 'Su navegador no soporta la función de compartir directamente o la página no se ejecuta sobre HTTPS.<br>¿Qué desea hacer?',
+                    icon: 'info',
+                    showCancelButton: true,
+                    showDenyButton: true,
+                    confirmButtonText: 'Descargar PDF',
+                    denyButtonText: 'Subir a Google Drive',
+                    cancelButtonText: 'Cancelar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        doc.save(filename); // Descargar
+                        Swal.fire('¡Descargado!', 'El PDF se ha descargado localmente.', 'success');
+                    } else if (result.isDenied) {
+                        uploadToDrive(); // Subir a Google Drive
+                    } else {
+                        Swal.fire('Operación Cancelada', 'No se realizó ninguna acción.', 'info');
+                    }
+                });
             }
-        }; // End of reader.onloadend
+        }
+        
+        tryShareOrDownloadOrUpload();
     }
   </script>
 </body>

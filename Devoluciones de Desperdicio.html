@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -768,6 +769,30 @@
     flex: 1 1 400px; /* Tamaño mínimo de 400px pero flexible */
     margin: 10px;
     max-width: 45%; /* Máximo 45% del contenedor */
+}
+
+
+
+
+.btn-generar-pdf {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s;
+    margin-bottom: 15px;
+}
+
+.btn-generar-pdf:hover {
+    background-color: #c82333;
+}
+
+.btn-generar-pdf:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
 }
 
 
@@ -1550,85 +1575,96 @@
       document.getElementById('resumenModal').style.display = 'none';
   }
 
-  function cargarResumenDevoluciones() {
-      const fechaInicio = $('#fecha-inicio-resumen').val();
-      const fechaFin = $('#fecha-fin-resumen').val();
+function cargarResumenDevoluciones() {
+    const fechaInicio = $('#fecha-inicio-resumen').val();
+    const fechaFin = $('#fecha-fin-resumen').val();
 
-      if (!fechaInicio || !fechaFin) {
-          Swal.fire('Advertencia', 'Por favor, seleccione una fecha de inicio y una fecha de fin.', 'warning');
-          return;
-      }
+    if (!fechaInicio || !fechaFin) {
+        Swal.fire('Advertencia', 'Por favor, seleccione una fecha de inicio y una fecha de fin.', 'warning');
+        return;
+    }
 
-      if (new Date(fechaInicio) > new Date(fechaFin)) {
-          Swal.fire('Advertencia', 'La fecha de inicio no puede ser posterior a la fecha de fin.', 'warning');
-          return;
-      }
+    if (new Date(fechaInicio) > new Date(fechaFin)) {
+        Swal.fire('Advertencia', 'La fecha de inicio no puede ser posterior a la fecha de fin.', 'warning');
+        return;
+    }
 
-      const resumenTbody = $('#resumen-tbody');
-      resumenTbody.empty().append('<tr><td colspan="4" style="text-align: center;">Cargando resumen...</td></tr>');
-      
-      // Reiniciar el input de búsqueda del resumen
-      $('#resumen-search-input').val('');
-
-      // AQUI ES DONDE SE USA LA NUEVA URL DEL SCRIPT DE RESUMEN
-      const scriptResumenUrl = `https://script.google.com/macros/s/AKfycbwJKU4mJvqMjenGjobggSFmaSPSZgYF8cXzhr82h0Gbq-y3SsSqKqoHj2GU9IhAMw6C/exec?action=obtenerResumen&fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`; 
-      
-      $.ajax({
-          url: scriptResumenUrl,
-          type: "GET",
-          dataType: "json",
-          success: function(data) {
-              resumenTbody.empty();
-              if (data.error) {
-                  resumenTbody.append(`<tr><td colspan="4" style="text-align: center; color: red;">Error: ${data.mensaje}</td></tr>`);
-                  Swal.fire('Error', data.mensaje, 'error');
-                  return;
-              }
-              if (!data.resumen || data.resumen.length === 0) {
-                  resumenTbody.append('<tr><td colspan="4" style="text-align: center;">No hay datos en el historial para el rango de fechas seleccionado.</td></tr>');
-                  // Reset product sums
-                  $('#resumen-product-sums').empty();
-                  filteredResumenData = []; // NUEVO: Limpiar datos filtrados
-                  allSummaryDates = []; // NUEVO: Limpiar todas las fechas
-                  return;
-              }
-
-              resumenData = data.resumen; // Store data for filtering and sorting
-              filteredResumenData = [...resumenData]; // Inicializar con todos los datos
-              allSummaryDates = data.allTransactionDates || []; // NUEVO: Guardar todas las fechas transaccionales
-              mostrarResumenEnTabla(filteredResumenData); // Initial display
-          },
-          error: function(xhr, status, error) {
-              resumenTbody.empty().append(`<tr><td colspan="4" style="text-align: center; color: red;">Error al cargar resumen: ${error}</td></tr>`);
-              Swal.fire('Error', 'Error al cargar el resumen: ' + error, 'error');
-              // Reset product sums
-              $('#resumen-product-sums').empty();
-              filteredResumenData = []; // NUEVO: Limpiar datos filtrados
-              allSummaryDates = []; // NUEVO: Limpiar todas las fechas
-          }
-      });
-  }
-
-  function mostrarResumenEnTabla(dataToShow) {
     const resumenTbody = $('#resumen-tbody');
-    resumenTbody.empty();
+    // Mostrar spinner de carga debajo de la tabla
+    resumenTbody.empty().append(`
+        <tr id="loading-row">
+            <td colspan="4" style="text-align: center; padding: 20px;">
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <div class="spinner" style="margin: 0;"></div>
+                    <div style="margin-top: 10px;">Cargando resumen, por favor espere...</div>
+                </div>
+            </td>
+        </tr>
+    `);
+    
+    // Reiniciar el input de búsqueda del resumen
+    $('#resumen-search-input').val('');
+
+    const scriptResumenUrl = `https://script.google.com/macros/s/AKfycbwJKU4mJvqMjenGjobggSFmaSPSZgYF8cXzhr82h0Gbq-y3SsSqKqoHj2GU9IhAMw6C/exec?action=obtenerResumen&fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`; 
+    
+    $.ajax({
+        url: scriptResumenUrl,
+        type: "GET",
+        dataType: "json",
+        success: function(data) {
+            // Eliminar el spinner de carga
+            $('#loading-row').remove();
+            
+            if (data.error) {
+                resumenTbody.append(`<tr><td colspan="4" style="text-align: center; color: red;">Error: ${data.mensaje}</td></tr>`);
+                Swal.fire('Error', data.mensaje, 'error');
+                return;
+            }
+            if (!data.resumen || data.resumen.length === 0) {
+                resumenTbody.append('<tr><td colspan="4" style="text-align: center;">No hay datos en el historial para el rango de fechas seleccionado.</td></tr>');
+                $('#resumen-product-sums').empty();
+                filteredResumenData = [];
+                allSummaryDates = [];
+                return;
+            }
+
+            resumenData = data.resumen;
+            filteredResumenData = [...resumenData];
+            allSummaryDates = data.allTransactionDates || [];
+            mostrarResumenEnTabla(filteredResumenData);
+        },
+        error: function(xhr, status, error) {
+            // Eliminar el spinner de carga
+            $('#loading-row').remove();
+            
+            resumenTbody.empty().append(`<tr><td colspan="4" style="text-align: center; color: red;">Error al cargar resumen: ${error}</td></tr>`);
+            Swal.fire('Error', 'Error al cargar el resumen: ' + error, 'error');
+            $('#resumen-product-sums').empty();
+            filteredResumenData = [];
+            allSummaryDates = [];
+        }
+    });
+}
+
+
+function mostrarResumenEnTabla(dataToShow) {
+    const resumenTbody = $('#resumen-tbody');
+    resumenTbody.empty(); // Esto eliminará cualquier spinner existente
+    
     let totalGeneral = 0; 
     const productSums = {}; 
 
     // Sort data first
     dataToShow.sort((a, b) => {
-        // Sort by area (alphabetical) - AHORA ES EDIFICIO
         const areaCompare = a.area.localeCompare(b.area);
         if (areaCompare !== 0) return areaCompare;
 
-        // Then by nivel (numerical) - Considera 'X'
-        // CORREGIDO: Convertir a String antes de toUpperCase()
         const nivelA = String(a.nivel).toUpperCase();
         const nivelB = String(b.nivel).toUpperCase();
 
-        if (nivelA === 'X' && nivelB !== 'X') return 1; // 'X' va al final
-        if (nivelA !== 'X' && nivelB === 'X') return -1; // 'X' va al final
-        if (nivelA === 'X' && nivelB === 'X') return 0; // Si ambos son 'X', son iguales
+        if (nivelA === 'X' && nivelB !== 'X') return 1;
+        if (nivelA !== 'X' && nivelB === 'X') return -1;
+        if (nivelA === 'X' && nivelB === 'X') return 0;
 
         const numNivelA = parseInt(nivelA);
         const numNivelB = parseInt(nivelB);
@@ -1640,7 +1676,6 @@
         } else if (!isNaN(numNivelA) && isNaN(numNivelB)) {
             return -1; 
         }
-        // If both are not numbers or equal, sort by product
         return a.producto.localeCompare(b.producto);
     });
 
@@ -1651,14 +1686,13 @@
             resumenTbody.append(`
                 <tr>
                     <td>${item.area}</td>
-                    <td>${item.nivel === '0' ? 'Sin Nivel' : item.nivel}</td> <!-- Mostrar "Sin Nivel" para nivel 0 -->
+                    <td>${item.nivel === '0' ? 'Sin Nivel' : item.nivel}</td>
                     <td>${item.producto}</td>
                     <td>${item.cantidadTotal}</td>
                 </tr>
             `);
             totalGeneral += item.cantidadTotal; 
 
-            // Accumulate sum per product
             if (productSums[item.producto]) {
                 productSums[item.producto] += item.cantidadTotal;
             } else {
@@ -1669,37 +1703,46 @@
 
     // Update Product Sums display
     const resumenProductSumsDiv = $('#resumen-product-sums');
-    resumenProductSumsDiv.empty(); // Clear previous sums
+    resumenProductSumsDiv.empty();
     if (Object.keys(productSums).length > 0) {
-        resumenProductSumsDiv.append('<h4>Resumen de Consumo:</h4>'); // Nuevo título
-        // Añado " unidades" después de cada cantidad en el resumen de consumo
+        resumenProductSumsDiv.append('<h4>Resumen de Consumo:</h4>');
         for (const product in productSums) {
             resumenProductSumsDiv.append(`<p>${product}: ${productSums[product].toLocaleString('es-HN')} unidades</p>`);
         }
     }
-  }
+}
 
-  function filtrarResumen() {
-      const searchText = $('#resumen-search-input').val().toLowerCase().trim();
-      const keywords = searchText.split(' ').filter(keyword => keyword.length > 0);
 
-      filteredResumenData = resumenData.filter(item => { // Asignar a filteredResumenData
-          const area = item.area.toLowerCase(); // Corresponde a Edificio
-          const nivel = String(item.nivel).toLowerCase(); // CORREGIDO: Convertir a String
-          const producto = item.producto.toLowerCase();
 
-          if (keywords.length === 0) {
-              return true;
-          }
+function filtrarResumen() {
+    const searchText = $('#resumen-search-input').val().toLowerCase().trim();
+    const keywords = searchText.split(' ').filter(keyword => keyword.length > 0);
 
-          return keywords.every(keyword =>
-              area.includes(keyword) ||
-              nivel.includes(keyword) ||
-              producto.includes(keyword)
-          );
-      });
-      mostrarResumenEnTabla(filteredResumenData); // Mostrar los datos filtrados
-  }
+    // No mostrar spinner si estamos filtrando (los datos ya están cargados)
+    filteredResumenData = resumenData.filter(item => {
+        const area = item.area.toLowerCase();
+        const nivel = String(item.nivel).toLowerCase();
+        const producto = item.producto.toLowerCase();
+
+        if (keywords.length === 0) return true;
+
+        return keywords.every(keyword =>
+            area.includes(keyword) ||
+            nivel.includes(keyword) ||
+            producto.includes(keyword)
+        );
+    });
+    
+    mostrarResumenEnTabla(filteredResumenData);
+    
+    // Actualizar gráficos si el modal está abierto
+    if (document.getElementById('graficosModal').style.display === 'flex') {
+        generarGraficos();
+    }
+}
+
+
+
 
   // NUEVA FUNCIÓN: Generar PDF del Resumen
   function generarPDFResumen() {
@@ -1838,106 +1881,115 @@
   }
 
   // Funciones para el modal de gráficos
-  function abrirModalGraficos() {
-      if (filteredResumenData.length === 0) {
-          Swal.fire('Advertencia', 'No hay datos en el resumen para generar gráficos. Cargue un resumen primero.', 'warning');
-          return;
-      }
+function abrirModalGraficos() {
+    if (filteredResumenData.length === 0) {
+        Swal.fire('Advertencia', 'No hay datos en el resumen para generar gráficos. Cargue un resumen primero.', 'warning');
+        return;
+    }
 
-      document.getElementById('graficosModal').style.display = 'flex';
-      generarGraficos();
-  }
+    // Mostrar modal con estado de carga
+    const modal = document.getElementById('graficosModal');
+    modal.style.display = 'flex';
+    
+    // Limpiar contenido anterior y mostrar loader
+    const content = document.querySelector('.graficos-modal-content');
+    content.innerHTML = `
+        <span class="close-modal-btn" onclick="cerrarModalGraficos()">&times;</span>
+        <h2 class="modal-title">Gráficos de Consumo</h2>
+        <div style="text-align: center; margin-bottom: 20px;">
+            <button type="button" id="btn-generar-pdf-graficos" class="btn-generar-pdf" onclick="generarPDFGraficos()">
+                Generar PDF de Gráficos
+            </button>
+        </div>
+        <div id="graficos-loading" style="text-align: center; padding: 40px;">
+            <div class="spinner" style="margin: 0 auto;"></div>
+            <h3 style="margin-top: 20px;">Cargando gráficos, por favor espere...</h3>
+        </div>
+        <div id="graficos-content" style="display: none;">
+            <div class="chart-type-selector">
+                <label for="chart-type">Tipo de Gráfico: </label>
+                <select id="chart-type" onchange="actualizarGraficos()">
+                    <option value="bar">Barras</option>
+                    <option value="line">Líneas</option>
+                </select>
+            </div>
+            <div class="graficos-container" style="display: flex; flex-wrap: wrap; justify-content: center;"></div>
+        </div>
+    `;
 
-  function cerrarModalGraficos() {
-      document.getElementById('graficosModal').style.display = 'none';
-      // Destruir los gráficos existentes
-      Object.values(charts).forEach(chart => {
-          if (chart) chart.destroy();
-      });
-      charts = {};
-  }
+    // Generar gráficos (esto mostrará el contenido cuando termine)
+    generarGraficos();
+}
 
-function generarGraficos() {
-    // Destruir gráficos existentes
+
+
+function cerrarModalGraficos() {
+    // Destruir los gráficos existentes
     Object.values(charts).forEach(chart => {
         if (chart) chart.destroy();
     });
     charts = {};
+    
+    // Ocultar el modal
+    document.getElementById('graficosModal').style.display = 'none';
+}
 
-    const datosGraficos = prepararDatosParaGraficos();
-    const chartType = document.getElementById('chart-type').value;
+async function generarGraficos() {
+    // Obtener elementos del DOM
+    const loadingElement = document.getElementById('graficos-loading');
+    const contentElement = document.getElementById('graficos-content');
     const graficosContainer = document.querySelector('.graficos-container');
+    const pdfButton = document.getElementById('btn-generar-pdf-graficos');
+    
+    // Mostrar loader y ocultar contenido
+    if (loadingElement) loadingElement.style.display = 'block';
+    if (contentElement) contentElement.style.display = 'none';
+    if (pdfButton) pdfButton.disabled = true;
+    
+    // Limpiar gráficos existentes
+    Object.values(charts).forEach(chart => {
+        if (chart) chart.destroy();
+    });
+    charts = {};
     graficosContainer.innerHTML = '';
 
-    // Configuración común para tooltips
-    const commonTooltipOptions = {
-        callbacks: {
-            label: function(context) {
-                return `${context.label || context.dataset.label}: ${context.raw} unidades`;
-            }
-        },
-        intersect: false,
-        mode: 'index',
-        position: 'nearest',
-        filter: () => true
-    };
+    try {
+        // Obtener datos del resumen y datos diarios en paralelo
+        const [datosResumen, datosDiarios] = await Promise.all([
+            Promise.resolve(prepararDatosParaGraficos()),
+            cargarDatosDiarios()
+        ]);
 
-    // 1. Gráfico de productos
-    const productoDiv = document.createElement('div');
-    productoDiv.className = 'grafico-item';
-    productoDiv.innerHTML = '<h3>Consumo por Producto</h3><canvas id="productoChart" class="grafico-canvas"></canvas>';
-    graficosContainer.appendChild(productoDiv);
+        const chartType = document.getElementById('chart-type').value;
 
-    const productoCtx = document.getElementById('productoChart').getContext('2d');
-    charts.productoChart = new Chart(productoCtx, {
-        type: chartType,
-        data: {
-            labels: datosGraficos.productos.labels,
-            datasets: [{
-                label: 'Consumo por Producto',
-                data: datosGraficos.productos.data,
-                backgroundColor: generarColores(datosGraficos.productos.labels.length),
-                borderColor: '#333',
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: chartType === 'pie' ? 'right' : 'top',
-                },
-                tooltip: commonTooltipOptions
-            },
-            scales: chartType !== 'pie' ? {
-                y: {
-                    beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Cantidad (unidades)'
-                    }
+        // Configuración común para tooltips
+        const commonTooltipOptions = {
+            callbacks: {
+                label: function(context) {
+                    return `${context.label || context.dataset.label}: ${context.raw} unidades`;
                 }
-            } : undefined
-        }
-    });
+            },
+            intersect: false,
+            mode: 'index',
+            position: 'nearest',
+            filter: () => true
+        };
 
-    // 2. Gráficos por edificio y producto
-    for (const producto in datosGraficos.edificios) {
-        const edificioDiv = document.createElement('div');
-        edificioDiv.className = 'grafico-item';
-        edificioDiv.innerHTML = `<h3>Consumo en Edificios (${producto})</h3><canvas id="edificioChart-${producto}" class="grafico-canvas"></canvas>`;
-        graficosContainer.appendChild(edificioDiv);
+        // 1. Gráfico de productos
+        const productoDiv = document.createElement('div');
+        productoDiv.className = 'grafico-item';
+        productoDiv.innerHTML = '<h3>Consumo por Producto</h3><canvas id="productoChart" class="grafico-canvas"></canvas>';
+        graficosContainer.appendChild(productoDiv);
 
-        const edificioCtx = document.getElementById(`edificioChart-${producto}`).getContext('2d');
-        charts[`edificioChart-${producto}`] = new Chart(edificioCtx, {
+        const productoCtx = document.getElementById('productoChart').getContext('2d');
+        charts.productoChart = new Chart(productoCtx, {
             type: chartType,
             data: {
-                labels: datosGraficos.edificios[producto].labels,
+                labels: datosResumen.productos.labels,
                 datasets: [{
-                    label: `Consumo de ${producto}`,
-                    data: datosGraficos.edificios[producto].data,
-                    backgroundColor: generarColores(datosGraficos.edificios[producto].labels.length),
+                    label: 'Consumo por Producto',
+                    data: datosResumen.productos.data,
+                    backgroundColor: generarColores(datosResumen.productos.labels.length),
                     borderColor: '#333',
                     borderWidth: 1
                 }]
@@ -1962,25 +2014,23 @@ function generarGraficos() {
                 } : undefined
             }
         });
-    }
 
-    // 3. Gráficos por nivel, edificio y producto
-    for (const edificio in datosGraficos.niveles) {
-        for (const producto in datosGraficos.niveles[edificio]) {
-            const nivelDiv = document.createElement('div');
-            nivelDiv.className = 'grafico-item';
-            nivelDiv.innerHTML = `<h3>Consumo en ${edificio} - ${producto} por Nivel</h3><canvas id="nivelChart-${edificio}-${producto}" class="grafico-canvas"></canvas>`;
-            graficosContainer.appendChild(nivelDiv);
+        // 2. Gráficos por edificio y producto
+        for (const producto in datosResumen.edificios) {
+            const edificioDiv = document.createElement('div');
+            edificioDiv.className = 'grafico-item';
+            edificioDiv.innerHTML = `<h3>Consumo en Edificios (${producto})</h3><canvas id="edificioChart-${producto}" class="grafico-canvas"></canvas>`;
+            graficosContainer.appendChild(edificioDiv);
 
-            const nivelCtx = document.getElementById(`nivelChart-${edificio}-${producto}`).getContext('2d');
-            charts[`nivelChart-${edificio}-${producto}`] = new Chart(nivelCtx, {
+            const edificioCtx = document.getElementById(`edificioChart-${producto}`).getContext('2d');
+            charts[`edificioChart-${producto}`] = new Chart(edificioCtx, {
                 type: chartType,
                 data: {
-                    labels: datosGraficos.niveles[edificio][producto].labels,
+                    labels: datosResumen.edificios[producto].labels,
                     datasets: [{
-                        label: `Consumo en ${edificio}`,
-                        data: datosGraficos.niveles[edificio][producto].data,
-                        backgroundColor: generarColores(datosGraficos.niveles[edificio][producto].labels.length),
+                        label: `Consumo de ${producto}`,
+                        data: datosResumen.edificios[producto].data,
+                        backgroundColor: generarColores(datosResumen.edificios[producto].labels.length),
                         borderColor: '#333',
                         borderWidth: 1
                     }]
@@ -2006,81 +2056,147 @@ function generarGraficos() {
                 }
             });
         }
-    }
 
-    // 4. Gráficos diarios por producto
-    for (const producto in datosGraficos.diario) {
-        if (datosGraficos.diario[producto].labels.length > 0) {
-            const diarioDiv = document.createElement('div');
-            diarioDiv.className = 'grafico-item';
-            diarioDiv.innerHTML = `<h3>Consumo Diario (${producto})</h3><canvas id="diarioChart-${producto}" class="grafico-canvas"></canvas>`;
-            graficosContainer.appendChild(diarioDiv);
+        // 3. Gráficos por nivel, edificio y producto
+        for (const edificio in datosResumen.niveles) {
+            for (const producto in datosResumen.niveles[edificio]) {
+                const nivelDiv = document.createElement('div');
+                nivelDiv.className = 'grafico-item';
+                nivelDiv.innerHTML = `<h3>Consumo en ${edificio} - ${producto} por Nivel</h3><canvas id="nivelChart-${edificio}-${producto}" class="grafico-canvas"></canvas>`;
+                graficosContainer.appendChild(nivelDiv);
 
-            const diarioCtx = document.getElementById(`diarioChart-${producto}`).getContext('2d');
-            charts[`diarioChart-${producto}`] = new Chart(diarioCtx, {
-                type: 'line',
-                data: {
-                    labels: datosGraficos.diario[producto].labels,
-                    datasets: [{
-                        label: `Consumo Diario ${producto}`,
-                        data: datosGraficos.diario[producto].data,
-                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        borderWidth: 2,
-                        tension: 0.1,
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                        },
-                        tooltip: commonTooltipOptions
+                const nivelCtx = document.getElementById(`nivelChart-${edificio}-${producto}`).getContext('2d');
+                charts[`nivelChart-${edificio}-${producto}`] = new Chart(nivelCtx, {
+                    type: chartType,
+                    data: {
+                        labels: datosResumen.niveles[edificio][producto].labels,
+                        datasets: [{
+                            label: `Consumo en ${edificio}`,
+                            data: datosResumen.niveles[edificio][producto].data,
+                            backgroundColor: generarColores(datosResumen.niveles[edificio][producto].labels.length),
+                            borderColor: '#333',
+                            borderWidth: 1
+                        }]
                     },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: 'Cantidad (unidades)'
-                            }
-                        },
-                        x: {
-                            title: {
-                                display: true,
-                                text: 'Fecha'
-                            }
-                        }
-                    },
-                    elements: {
-                        point: {
-                            radius: function(context) {
-                                return context.raw > 0 ? 5 : 3;
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: chartType === 'pie' ? 'right' : 'top',
                             },
-                            hoverRadius: 7
-                        }
+                            tooltip: commonTooltipOptions
+                        },
+                        scales: chartType !== 'pie' ? {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Cantidad (unidades)'
+                                }
+                            }
+                        } : undefined
                     }
+                });
+            }
+        }
+
+        // 4. Gráficos diarios por producto
+        if (datosDiarios && datosDiarios.length > 0) {
+            datosDiarios.forEach(datosProducto => {
+                if (datosProducto.datos && datosProducto.datos.length > 0) {
+                    const diarioDiv = document.createElement('div');
+                    diarioDiv.className = 'grafico-item';
+                    diarioDiv.innerHTML = `<h3>Consumo Diario (${datosProducto.producto})</h3><canvas id="diarioChart-${datosProducto.producto}" class="grafico-canvas"></canvas>`;
+                    graficosContainer.appendChild(diarioDiv);
+
+                    const diarioCtx = document.getElementById(`diarioChart-${datosProducto.producto}`).getContext('2d');
+                    charts[`diarioChart-${datosProducto.producto}`] = new Chart(diarioCtx, {
+                        type: 'line',
+                        data: {
+                            labels: datosProducto.datos.map(d => d.fecha),
+                            datasets: [{
+                                label: `Consumo Diario ${datosProducto.producto}`,
+                                data: datosProducto.datos.map(d => d.cantidad),
+                                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                                borderColor: 'rgba(54, 162, 235, 1)',
+                                borderWidth: 2,
+                                tension: 0.1,
+                                fill: true
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'top',
+                                },
+                                tooltip: commonTooltipOptions
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Cantidad (unidades)'
+                                    }
+                                },
+                                x: {
+                                    title: {
+                                        display: true,
+                                        text: 'Fecha'
+                                    }
+                                }
+                            },
+                            elements: {
+                                point: {
+                                    radius: function(context) {
+                                        return context.raw > 0 ? 5 : 3;
+                                    },
+                                    hoverRadius: 7
+                                }
+                            }
+                        }
+                    });
                 }
             });
         }
+
+        // Ocultar loader y mostrar contenido
+        if (loadingElement) loadingElement.style.display = 'none';
+        if (contentElement) contentElement.style.display = 'block';
+        if (pdfButton) pdfButton.disabled = false;
+
+    } catch (error) {
+        console.error('Error al generar gráficos:', error);
+        if (loadingElement) {
+            loadingElement.innerHTML = '<div style="color: red;">Error al cargar los gráficos. Intente nuevamente.</div>';
+        }
+        if (pdfButton) pdfButton.disabled = true;
     }
 }
 
 
+function actualizarGraficos() {
+    // Mostrar loader y ocultar contenido
+    const loadingElement = document.getElementById('graficos-loading');
+    const contentElement = document.getElementById('graficos-content');
+    
+    if (loadingElement) loadingElement.style.display = 'block';
+    if (contentElement) contentElement.style.display = 'none';
+    
+    // Llamar a generarGraficos después de un pequeño retraso para que se vea el loader
+    setTimeout(generarGraficos, 100);
+}
 
-  function actualizarGraficos() {
-      generarGraficos();
-  }
+
 
 function prepararDatosParaGraficos() {
     const datos = {
         productos: { labels: [], data: [] },
         edificios: {},    // { producto: { labels: [edificios], data: [] } }
-        niveles: {},      // { edificio: { producto: { labels: [niveles], data: [] } } }
-        diario: {}        // { producto: { labels: [fechas], data: [] } }
+        niveles: {}       // { edificio: { producto: { labels: [niveles], data: [] } }
     };
 
     // 1. Agrupar datos por producto (total general)
@@ -2111,7 +2227,7 @@ function prepararDatosParaGraficos() {
     });
 
     // 3. Agrupar datos por nivel (por edificio Y por producto)
-    filteredResumenData.forEach((item, i) => {
+    filteredResumenData.forEach(item => {
         // Inicializar estructura para el edificio si no existe
         if (!datos.niveles[item.area]) {
             datos.niveles[item.area] = {};
@@ -2132,41 +2248,7 @@ function prepararDatosParaGraficos() {
         } else {
             datos.niveles[item.area][item.producto].data[nivelIndex] += item.cantidadTotal;
         }
-
-        // 4. Agrupar datos diarios por producto
-        if (allSummaryDates[i]) {
-            if (!datos.diario[item.producto]) {
-                datos.diario[item.producto] = { labels: [], data: [] };
-            }
-            
-            const fechaFormateada = formatearFechaParaGrafico(allSummaryDates[i]);
-            const fechaIndex = datos.diario[item.producto].labels.indexOf(fechaFormateada);
-            
-            if (fechaIndex === -1) {
-                datos.diario[item.producto].labels.push(fechaFormateada);
-                datos.diario[item.producto].data.push(item.cantidadTotal);
-            } else {
-                datos.diario[item.producto].data[fechaIndex] += item.cantidadTotal;
-            }
-        }
     });
-
-    // Ordenar fechas en cada producto
-    for (const producto in datos.diario) {
-        const fechas = datos.diario[producto].labels.map((label, i) => ({
-            label,
-            data: datos.diario[producto].data[i]
-        }));
-        
-        fechas.sort((a, b) => {
-            const [diaA, mesA] = a.label.split('/').map(Number);
-            const [diaB, mesB] = b.label.split('/').map(Number);
-            return mesA - mesB || diaA - diaB;
-        });
-        
-        datos.diario[producto].labels = fechas.map(f => f.label);
-        datos.diario[producto].data = fechas.map(f => f.data);
-    }
 
     return datos;
 }
@@ -2218,6 +2300,243 @@ function generarColores(cantidad) {
     
     return `${horas}:${minutos}:${segundos}`;
   }
+
+
+
+function cargarDatosDiarios() {
+    const fechaInicio = $('#fecha-inicio-resumen').val();
+    const fechaFin = $('#fecha-fin-resumen').val();
+    const filtro = $('#resumen-search-input').val() || '';
+
+    if (!fechaInicio || !fechaFin) {
+        return Promise.resolve(null);
+    }
+
+    return new Promise((resolve, reject) => {
+        const scriptDiarioUrl = `https://script.google.com/macros/s/AKfycbwJbg1Fm8kJycqc0LCyNcVkMQxsyDspmKI6Yo99ktVogwDPTMBeGCpCtPFna7CjsGqGGg/exec?action=obtenerDatosDiarios&fechaInicio=${fechaInicio}&fechaFin=${fechaFin}&filtro=${encodeURIComponent(filtro)}`;
+        
+        $.ajax({
+            url: scriptDiarioUrl,
+            type: "GET",
+            dataType: "json",
+            success: function(data) {
+                if (data.error) {
+                    console.error("Error al cargar datos diarios:", data.mensaje);
+                    reject(data.mensaje);
+                } else {
+                    resolve(data.datosDiarios);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error("Error en la solicitud de datos diarios:", error);
+                reject(error);
+            }
+        });
+    });
+}
+
+
+function generarPDFGraficos() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm'
+    });
+
+    // 1. Configuración inicial
+    const margin = 10;
+    const spacing = 10;
+    const chartWidth = (doc.internal.pageSize.getWidth() - (2 * margin) - spacing) / 2;
+    const chartHeight = 60;
+    const maxTitleLines = 2; // Máximo de líneas para títulos
+
+    // 2. Función para preparar imagen del gráfico con valores
+    const prepareChartImage = (canvas, chart) => {
+        const originalWidth = canvas.width;
+        const originalHeight = canvas.height;
+        
+        // Canvas temporal con mayor resolución
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCanvas.width = originalWidth * 2;
+        tempCanvas.height = originalHeight * 2;
+        
+        // Aplicar suavizado
+        tempCtx.imageSmoothingEnabled = true;
+        tempCtx.imageSmoothingQuality = 'high';
+        tempCtx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height);
+
+        // Agregar valores a las barras
+        if (chart.config.type === 'bar') {
+            tempCtx.font = 'bold 14px Arial';
+            tempCtx.fillStyle = '#333';
+            tempCtx.textAlign = 'center';
+            
+            chart.data.datasets.forEach(dataset => {
+                dataset.data.forEach((value, index) => {
+                    if (value > 0) {
+                        const meta = chart.getDatasetMeta(0);
+                        const bar = meta.data[index];
+                        
+                        // Fondo para el texto
+                        tempCtx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                        const textWidth = tempCtx.measureText(value).width + 8;
+                        tempCtx.fillRect(
+                            bar.x * 2 - textWidth/2, 
+                            bar.y * 2 - 16, 
+                            textWidth, 
+                            18
+                        );
+                        
+                        // Texto del valor
+                        tempCtx.fillStyle = '#333';
+                        tempCtx.fillText(value, bar.x * 2, bar.y * 2 - 5);
+                    }
+                });
+            });
+        }
+        
+        return tempCanvas.toDataURL('image/png');
+    };
+
+    // 3. Función para dividir títulos en múltiples líneas
+    const wrapText = (text, maxWidth) => {
+        const words = text.split(' ');
+        const lines = [];
+        let currentLine = words[0];
+        
+        for (let i = 1; i < words.length; i++) {
+            const word = words[i];
+            const width = doc.getStringUnitWidth(currentLine + ' ' + word) * doc.internal.getFontSize() / doc.internal.scaleFactor;
+            
+            if (width < maxWidth) {
+                currentLine += ' ' + word;
+            } else {
+                lines.push(currentLine);
+                currentLine = word;
+            }
+            
+            // Limitar a máximo de líneas
+            if (lines.length >= maxTitleLines - 1) {
+                break;
+            }
+        }
+        
+        lines.push(currentLine);
+        return lines;
+    };
+
+    // 4. Función para formatear fechas
+    const formatDateForFilename = (dateStr) => {
+        if (!dateStr) return '';
+        const [year, month, day] = dateStr.split('-');
+        return `${day}-${month}-${year}`;
+    };
+
+    // 5. Función principal para agregar gráficos al PDF
+    const addChartToPDF = (canvas, title, chart, x, y) => {
+        // Procesar el título
+        const maxTitleWidth = chartWidth - 4;
+        let titleLines = wrapText(title, maxTitleWidth);
+        
+        // Acortar título si es muy largo
+        if (titleLines.length > maxTitleLines) {
+            titleLines = titleLines.slice(0, maxTitleLines);
+            titleLines[maxTitleLines - 1] = titleLines[maxTitleLines - 1].substring(0, 30) + '...';
+        }
+
+        // Agregar título
+        doc.setFontSize(9);
+        titleLines.forEach((line, i) => {
+            doc.text(line, x + chartWidth / 2, y + 3 + (i * 4), { align: 'center' });
+        });
+
+        // Agregar imagen del gráfico
+        const imgData = prepareChartImage(canvas, chart);
+        const chartY = y + (titleLines.length * 4) + 2;
+        
+        doc.roundedRect(
+            x, 
+            chartY, 
+            chartWidth, 
+            chartHeight, 
+            2, 2, 'S'
+        );
+        
+        doc.addImage(imgData, 'PNG', 
+            x + 2, 
+            chartY + 2, 
+            chartWidth - 4, 
+            chartHeight - 4
+        );
+
+        return titleLines.length * 4 + chartHeight + 5;
+    };
+
+    // 6. Configuración del documento
+    doc.setFontSize(16);
+    doc.text("Resumen de Gasto de Insumos", doc.internal.pageSize.getWidth() / 2, 15, { align: "center" });
+
+    // Obtener fechas del filtro
+    const fechaInicio = $('#fecha-inicio-resumen').val();
+    const fechaFin = $('#fecha-fin-resumen').val();
+
+    if (fechaInicio || fechaFin) {
+        doc.setFontSize(10);
+        const dateRangeText = `Período: ${formatDateForFilename(fechaInicio) || 'Inicio'} al ${formatDateForFilename(fechaFin) || 'Fin'}`;
+        doc.text(dateRangeText, doc.internal.pageSize.getWidth() / 2, 22, { align: "center" });
+    }
+
+    // 7. Procesamiento de los gráficos
+    let yPosition = 30;
+    const chartIds = Object.keys(charts);
+
+    for (let i = 0; i < chartIds.length; i += 2) {
+        const chartId1 = chartIds[i];
+        const chart1 = charts[chartId1];
+        const canvas1 = document.getElementById(chartId1);
+        
+        const chartId2 = chartIds[i + 1];
+        const chart2 = charts[chartId2];
+        const canvas2 = chartId2 ? document.getElementById(chartId2) : null;
+
+        // Calcular espacio necesario
+        const title1 = canvas1?.parentElement.querySelector('h3')?.textContent || `Gráfico ${i + 1}`;
+        const title2 = canvas2?.parentElement.querySelector('h3')?.textContent || `Gráfico ${i + 2}`;
+        
+        const titleLines1 = wrapText(title1, chartWidth);
+        const titleLines2 = canvas2 ? wrapText(title2, chartWidth) : [];
+        
+        const neededHeight = Math.max(
+            titleLines1.length * 4 + chartHeight + 5,
+            titleLines2.length * 4 + chartHeight + 5
+        );
+
+        // Verificar espacio en página
+        if (yPosition + neededHeight > doc.internal.pageSize.getHeight() - margin) {
+            doc.addPage();
+            yPosition = margin;
+        }
+
+        // Agregar primer gráfico
+        if (canvas1 && chart1) {
+            const heightUsed = addChartToPDF(canvas1, title1, chart1, margin, yPosition);
+            
+            // Agregar segundo gráfico si existe
+            if (canvas2 && chart2) {
+                addChartToPDF(canvas2, title2, chart2, margin + chartWidth + spacing, yPosition);
+            }
+            
+            yPosition += neededHeight + 5;
+        }
+    }
+
+    // 8. Guardar el PDF
+    const filename = `Resumen de Gasto de Insumos (${formatDateForFilename(fechaInicio)} - ${formatDateForFilename(fechaFin)}).pdf`;
+    doc.save(filename);
+}
+
+
 </script>
 </body>
 </html>

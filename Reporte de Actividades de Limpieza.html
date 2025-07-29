@@ -396,6 +396,9 @@
         const oficinaIndex = formFields.findIndex(f => f.id === 'oficina');
         if (oficinaIndex > -1) {
             formFields.splice(oficinaIndex, 1);
+            // Remover event listeners para oficinaInput si se remueve de formFields
+            oficinaInput.removeEventListener('input', updateButtonState);
+            oficinaInput.removeEventListener('change', updateButtonState);
         }
 
         if (currentActivity === 'Repaso de Baño' || currentActivity === 'Profunda de Baño') {
@@ -412,26 +415,25 @@
             subActividadContainer.style.display = 'block';
             subActividadSelect.setAttribute('required', 'required');
             oficinaContainer.style.display = 'block';
-            oficinaInput.setAttribute('required', 'required');
-            const options = ['Aspirado', 'Rutinaria'];
+            // Eliminar la línea que hacía obligatorio el campo de oficina: oficinaInput.setAttribute('required', 'required');
+            const options = ['Aspirado', 'Rutinaria', 'Shampuseado de Alfombras'];
             options.forEach(option => {
                 const opt = document.createElement('option');
                 opt.value = option;
                 opt.textContent = option;
                 subActividadSelect.appendChild(opt);
             });
-            // Añadir el campo de oficina a la lista de validación
-            if (!formFields.find(f => f.id === 'oficina')) {
-                formFields.push({ id: 'oficina', type: 'input' });
-                // Añadir event listeners para oficinaInput
-                oficinaInput.addEventListener('input', updateButtonState);
-                oficinaInput.addEventListener('change', updateButtonState);
-            }
+            // Ya no es necesario añadir el campo de oficina a la lista de validación `formFields`
+            // if (!formFields.find(f => f.id === 'oficina')) {
+            //     formFields.push({ id: 'oficina', type: 'input' });
+            //     oficinaInput.addEventListener('input', updateButtonState);
+            //     oficinaInput.addEventListener('change', updateButtonState);
+            // }
         }
 
         validateField('actividad');
         validateField('subActividad');
-        validateField('oficina');
+        // No es necesario llamar a validateField('oficina') aquí, ya que no es obligatorio
         updateButtonState();
     });
 
@@ -531,8 +533,20 @@
             isValid = selectedFiles.preview4.length > 0;
         } else if (element.tagName === 'SELECT' || element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
             // Verificar si el contenedor del campo está oculto
-            if ((fieldId === 'oficina' || fieldId === 'nivel' || fieldId === 'subActividad') && container.style.display === 'none') {
+            if ((fieldId === 'nivel' || fieldId === 'subActividad') && container.style.display === 'none') {
                 isValid = true; // Si está oculto, se considera válido para la validación del formulario
+            } else if (fieldId === 'oficina') {
+                // Si la actividad es "Limpieza de Oficina", el campo de oficina es opcional.
+                // De lo contrario, si oficina está visible y no es "Limpieza de Oficina", debería ser validado si fuera necesario.
+                // Actualmente, solo está visible con "Limpieza de Oficina".
+                const actividadSelect = document.getElementById('actividad');
+                if (actividadSelect.value === 'Limpieza de Oficina') {
+                    isValid = true; // Siempre válido si es "Limpieza de Oficina"
+                } else {
+                    // Si no es Limpieza de Oficina y está visible (lo cual no debería ocurrir con la lógica actual),
+                    // se validaría si tiene contenido o no.
+                    isValid = element.value.trim() !== '';
+                }
             } else if (fieldId === 'nivel') {
                 const nivelValue = parseInt(element.value);
                 const maxLevel = parseInt(element.getAttribute('max'));

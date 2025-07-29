@@ -220,7 +220,8 @@
     .question-container input[type="date"],
     .question-container textarea,
     .question-container select,
-    .question-container input[type="number"] { 
+    .question-container input[type="number"],
+    .question-container input[type="time"] { /* Added input[type="time"] */
         padding: 10px;
         border: 2px solid #ccc; /* Borde predeterminado */
         border-radius: 5px;
@@ -236,7 +237,8 @@
     .question-container input[type="date"]:focus,
     .question-container textarea:focus,
     .question-container select:focus,
-    .question-container input[type="number"]:focus { 
+    .question-container input[type="number"]:focus,
+    .question-container input[type="time"]:focus { /* Added input[type="time"] */
         border-color: #007BFF;
         outline: none;
     }
@@ -273,6 +275,20 @@
         <div class="question-container" id="fechaContainer">
             <label for="fecha">Fecha:</label>
             <input type="date" id="fecha" name="fecha" required>
+        </div>
+
+        <div class="question-container" id="horariosContainer">
+            <label>Horario de Actividad:</label>
+            <div style="display: flex; gap: 10px; margin-top: 5px;">
+                <div style="flex: 1;">
+                    <label for="horaInicio" style="font-weight: normal; font-size: 0.9em;">Hora de Inicio:</label>
+                    <input type="time" id="horaInicio" name="horaInicio" required>
+                </div>
+                <div style="flex: 1;">
+                    <label for="horaFin" style="font-weight: normal; font-size: 0.9em;">Hora de Fin:</label>
+                    <input type="time" id="horaFin" name="horaFin" required>
+                </div>
+            </div>
         </div>
 
         <div class="question-container" id="edificioContainer">
@@ -349,32 +365,69 @@
         { id: 'nivel', type: 'input' },
         { id: 'actividad', type: 'select' }, 
         { id: 'subActividad', type: 'select' }, 
+        { id: 'horaInicio', type: 'input' }, // Añadido
+        { id: 'horaFin', type: 'input' },   // Añadido
         { id: 'preview3', type: 'image' },
         { id: 'preview4', type: 'image' }
     ];
 
-    // Establecer la fecha actual por defecto
+    // Establecer la fecha y hora actual por defecto
     window.onload = function() {
         const fechaInput = document.getElementById("fecha");
+        const horaInicioInput = document.getElementById("horaInicio");
+
         const today = new Date();
         const year = today.getFullYear();
         let mm = today.getMonth() + 1; 
         let dd = today.getDate();
+        let hours = today.getHours();
+        let minutes = today.getMinutes();
 
         if (mm < 10) mm = '0' + mm;
         if (dd < 10) dd = '0' + dd;
+        hours = hours < 10 ? '0' + hours : hours;
+        minutes = minutes < 10 ? '0' + minutes : minutes;
 
         const formattedDate = year + '-' + mm + '-' + dd;
         fechaInput.value = formattedDate;
+        horaInicioInput.value = `${hours}:${minutes}`; // Establecer hora de inicio por defecto
 
         formFields.forEach(field => validateField(field.id));
         updateButtonState();
+        updateTimeFieldVisibility(); // Asegurar que la visibilidad inicial de las horas sea correcta
     };
 
     const selectedFiles = {
         preview3: [],
         preview4: [] 
     };
+
+    // Función para actualizar la visibilidad de los campos de hora
+    function updateTimeFieldVisibility() {
+        const actividad = document.getElementById('actividad').value;
+        const subActividad = document.getElementById('subActividad').value;
+        const horariosContainer = document.getElementById('horariosContainer'); // Nuevo contenedor
+        const horaInicioInput = document.getElementById('horaInicio');
+        const horaFinInput = document.getElementById('horaFin');
+
+        if (actividad === 'Limpieza de Oficina' && (subActividad === 'Aspirado' || subActividad === 'Shampuseado de Alfombras')) {
+            horariosContainer.style.display = 'none'; // Ocultar el contenedor completo
+            horaInicioInput.value = ''; // Borrar valores cuando se ocultan
+            horaFinInput.value = '';     // Borrar valores cuando se ocultan
+        } else {
+            horariosContainer.style.display = 'block'; // Mostrar el contenedor completo
+            // Restablecer hora de inicio si se vuelve visible y está vacía
+            if (horaInicioInput.value === '') {
+                const now = new Date();
+                let hours = now.getHours();
+                let minutes = now.getMinutes();
+                hours = hours < 10 ? '0' + hours : hours;
+                minutes = minutes < 10 ? '0' + minutes : minutes;
+                horaInicioInput.value = `${hours}:${minutes}`;
+            }
+        }
+        updateButtonState(); // Recalcular el estado del botón después de cambiar la visibilidad
+    }
 
     // Lógica para el menú anidado y la visibilidad del campo de oficina
     document.getElementById('actividad').addEventListener('change', function() {
@@ -415,7 +468,6 @@
             subActividadContainer.style.display = 'block';
             subActividadSelect.setAttribute('required', 'required');
             oficinaContainer.style.display = 'block';
-            // Eliminar la línea que hacía obligatorio el campo de oficina: oficinaInput.setAttribute('required', 'required');
             const options = ['Aspirado', 'Rutinaria', 'Shampuseado de Alfombras'];
             options.forEach(option => {
                 const opt = document.createElement('option');
@@ -423,23 +475,19 @@
                 opt.textContent = option;
                 subActividadSelect.appendChild(opt);
             });
-            // Ya no es necesario añadir el campo de oficina a la lista de validación `formFields`
-            // if (!formFields.find(f => f.id === 'oficina')) {
-            //     formFields.push({ id: 'oficina', type: 'input' });
-            //     oficinaInput.addEventListener('input', updateButtonState);
-            //     oficinaInput.addEventListener('change', updateButtonState);
-            // }
         }
 
         validateField('actividad');
         validateField('subActividad');
-        // No es necesario llamar a validateField('oficina') aquí, ya que no es obligatorio
+        updateTimeFieldVisibility(); // Actualizar visibilidad de horas
         updateButtonState();
     });
 
+    // Añadido listener para subActividad para manejar la condicionalidad de las horas
     document.getElementById('subActividad').addEventListener('change', function() {
         validateField('subActividad');
-        updateButtonState();
+        updateTimeFieldVisibility(); // Actualizar visibilidad de horas
+        updateButtonState(); 
     });
 
 
@@ -526,35 +574,50 @@
 
         const container = element.closest('.question-container') || element;
 
+        // Si el contenedor del campo está oculto, se considera válido
+        if (container.style.display === 'none') {
+            return true;
+        }
+
         let isValid = false;
         if (fieldId === 'preview3') {
             isValid = selectedFiles.preview3.length > 0;
         } else if (fieldId === 'preview4') {
             isValid = selectedFiles.preview4.length > 0;
+        } else if (fieldId === 'horaInicio') {
+            isValid = element.value.trim() !== ''; // Es obligatorio si está visible
+        } else if (fieldId === 'horaFin') {
+            if (element.value.trim() === '') {
+                isValid = false; // Es obligatorio si está visible y vacío
+            } else {
+                const horaInicio = document.getElementById('horaInicio').value;
+                if (horaInicio.trim() === '') {
+                    isValid = false; // Hora de Fin no puede estar llena si Hora de Inicio está vacía
+                } else {
+                    const [hI, mI] = horaInicio.split(':').map(Number);
+                    const [hF, mF] = element.value.split(':').map(Number); 
+                    
+                    const totalMinutesInicio = hI * 60 + mI;
+                    const totalMinutesFin = hF * 60 + mF;
+
+                    isValid = totalMinutesFin > totalMinutesInicio; // Hora de Fin debe ser estrictamente mayor
+                }
+            }
         } else if (element.tagName === 'SELECT' || element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
-            // Verificar si el contenedor del campo está oculto
-            if ((fieldId === 'nivel' || fieldId === 'subActividad') && container.style.display === 'none') {
-                isValid = true; // Si está oculto, se considera válido para la validación del formulario
-            } else if (fieldId === 'oficina') {
-                // Si la actividad es "Limpieza de Oficina", el campo de oficina es opcional.
-                // De lo contrario, si oficina está visible y no es "Limpieza de Oficina", debería ser validado si fuera necesario.
-                // Actualmente, solo está visible con "Limpieza de Oficina".
+            if (fieldId === 'oficina') {
                 const actividadSelect = document.getElementById('actividad');
                 if (actividadSelect.value === 'Limpieza de Oficina') {
-                    isValid = true; // Siempre válido si es "Limpieza de Oficina"
+                    isValid = true; // Es opcional para "Limpieza de Oficina"
                 } else {
-                    // Si no es Limpieza de Oficina y está visible (lo cual no debería ocurrir con la lógica actual),
-                    // se validaría si tiene contenido o no.
-                    isValid = element.value.trim() !== '';
+                    isValid = element.value.trim() !== ''; 
                 }
             } else if (fieldId === 'nivel') {
                 const nivelValue = parseInt(element.value);
                 const maxLevel = parseInt(element.getAttribute('max'));
-                // La validación del nivel incluye ser un número, no negativo y dentro del rango [0, maxLevel]
                 isValid = element.value.trim() !== '' && !isNaN(nivelValue) && nivelValue >= 0 && (isNaN(maxLevel) || nivelValue <= maxLevel);
             }
             else {
-                isValid = element.value.trim() !== ''; // De lo contrario, verificar su valor
+                isValid = element.value.trim() !== ''; 
             }
         }
 
@@ -587,9 +650,7 @@
         if (field.type === 'input' || field.type === 'select' || field.type === 'textarea') {
             const element = document.getElementById(field.id);
             if (element) { 
-                // Ya se agregó el oninput específico para 'nivel' en su propia lógica de cambio de edificio.
-                // Aquí solo agregamos los event listeners generales si no es el campo de nivel.
-                if (field.id !== 'nivel') {
+                if (field.id !== 'nivel') { // Nivel tiene su propio oninput
                     element.addEventListener('input', updateButtonState);
                 }
                 element.addEventListener('change', updateButtonState);
@@ -721,6 +782,8 @@
         const subActividad = document.getElementById('subActividad').value; 
         const oficinaInput = document.getElementById('oficina');
         const oficina = oficinaInput.closest('.question-container').style.display === 'block' ? oficinaInput.value : '';
+        const horaInicio = document.getElementById('horaInicio').value; 
+        const horaFin = document.getElementById('horaFin').value;     
 
         // Portada - Condensada con letras más pequeñas
         pdf.setFont("times", "bold");
@@ -745,16 +808,13 @@
         pdf.text("Reporte de Actividades de Limpieza", textX, startYText, { align: "left" });
 
         currentY = startYText + lineHeight; 
-        // Fecha (14pt)
+        // Fecha y Horas (14pt) - Combinadas
         pdf.setFontSize(14); 
-        pdf.text(`Fecha: ${fecha}`, textX, currentY, { align: "left" });
-
-        currentY += lineHeight; 
-
-        // Actividad (14pt) - Combinar actividad principal y sub-actividad
-        const actividadFinal = `${actividad} (${subActividad})`;
-        pdf.setFontSize(14); 
-        pdf.text(`Actividad: ${actividadFinal}`, textX, currentY, { align: "left" });
+        let dateAndHourText = `Fecha: ${fecha}`;
+        if (horaInicio && horaFin) { // Solo añadir horas si están presentes
+            dateAndHourText += `, Hora Inicio: ${horaInicio}, Hora Fin: ${horaFin}`;
+        }
+        pdf.text(dateAndHourText, textX, currentY, { align: "left" });
         currentY += lineHeight; 
 
         // Edificio, Nivel, Oficina en la misma línea (14pt)
@@ -764,6 +824,13 @@
         }
         pdf.text(locationInfo, textX, currentY, { align: "left" });
         currentY += lineHeight; 
+
+        // Actividad (14pt) - Combinar actividad principal y sub-actividad
+        const actividadFinal = `${actividad} (${subActividad})`;
+        pdf.setFontSize(14); 
+        pdf.text(`Actividad: ${actividadFinal}`, textX, currentY, { align: "left" });
+        currentY += lineHeight; 
+
 
         // Función para añadir una sección de fotos al PDF (corregida)
         async function addPhotoSection(title, files, startY) {

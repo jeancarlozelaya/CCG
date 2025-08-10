@@ -902,14 +902,14 @@
       <span class="close-modal-btn" onclick="cerrarModalGraficos()">&times;</span>
       <h2 class="modal-title">Gráficos de Consumo</h2>
       
-      <div class="chart-type-selector">
-        <label for="chart-type">Tipo de Gráfico: </label>
-        <select id="chart-type" onchange="actualizarGraficos()">
-          <option value="bar">Barras</option>
+      <!--  <div class="chart-type-selector">-->
+       <!--   <label for="chart-type">Tipo de Gráfico: </label>-->
+    <!--      <select id="chart-type" onchange="actualizarGraficos()">-->
+      <!--      <option value="bar">Barras</option>-->
          <!--  <option value="pie">Torta</option> -->
-          <option value="line">Líneas</option>
-        </select>
-      </div>
+         <!--  <option value="line">Líneas</option> -->
+    <!--      </select>-->
+     <!--   </div>-->
       
 <div class="graficos-container" style="display: flex; flex-wrap: wrap; justify-content: center;">
         <div class="grafico-item">
@@ -1910,7 +1910,6 @@ function abrirModalGraficos() {
                 <label for="chart-type">Tipo de Gráfico: </label>
                 <select id="chart-type" onchange="actualizarGraficos()">
                     <option value="bar">Barras</option>
-                    <option value="line">Líneas</option>
                 </select>
             </div>
             <div class="graficos-container" style="display: flex; flex-wrap: wrap; justify-content: center;"></div>
@@ -2365,63 +2364,19 @@ function generarPDFGraficos() {
         unit: 'mm'
     });
 
-    // 1. Configuración inicial
+    // 1. Configuración básica
     const margin = 10;
     const spacing = 10;
     const chartWidth = (doc.internal.pageSize.getWidth() - (2 * margin) - spacing) / 2;
     const chartHeight = 60;
-    const maxTitleLines = 2; // Máximo de líneas para títulos
+    const maxTitleLines = 2;
 
-    // 2. Función para preparar imagen del gráfico con valores
-    const prepareChartImage = (canvas, chart) => {
-        const originalWidth = canvas.width;
-        const originalHeight = canvas.height;
-        
-        // Canvas temporal con mayor resolución
-        const tempCanvas = document.createElement('canvas');
-        const tempCtx = tempCanvas.getContext('2d');
-        tempCanvas.width = originalWidth * 2;
-        tempCanvas.height = originalHeight * 2;
-        
-        // Aplicar suavizado
-        tempCtx.imageSmoothingEnabled = true;
-        tempCtx.imageSmoothingQuality = 'high';
-        tempCtx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height);
-
-        // Agregar valores a las barras
-        if (chart.config.type === 'bar') {
-            tempCtx.font = 'bold 14px Arial';
-            tempCtx.fillStyle = '#333';
-            tempCtx.textAlign = 'center';
-            
-            chart.data.datasets.forEach(dataset => {
-                dataset.data.forEach((value, index) => {
-                    if (value > 0) {
-                        const meta = chart.getDatasetMeta(0);
-                        const bar = meta.data[index];
-                        
-                        // Fondo para el texto
-                        tempCtx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-                        const textWidth = tempCtx.measureText(value).width + 8;
-                        tempCtx.fillRect(
-                            bar.x * 2 - textWidth/2, 
-                            bar.y * 2 - 16, 
-                            textWidth, 
-                            18
-                        );
-                        
-                        // Texto del valor
-                        tempCtx.fillStyle = '#333';
-                        tempCtx.fillText(value, bar.x * 2, bar.y * 2 - 5);
-                    }
-                });
-            });
-        }
-        
-        return tempCanvas.toDataURL('image/png');
+    // 2. Función simplificada para preparar imagen del gráfico (sin valores)
+    const prepareChartImage = (canvas) => {
+        return canvas.toDataURL('image/png');
     };
 
-    // 3. Función para dividir títulos en múltiples líneas
+    // 3. Función para dividir títulos (se mantiene igual)
     const wrapText = (text, maxWidth) => {
         const words = text.split(' ');
         const lines = [];
@@ -2438,7 +2393,6 @@ function generarPDFGraficos() {
                 currentLine = word;
             }
             
-            // Limitar a máximo de líneas
             if (lines.length >= maxTitleLines - 1) {
                 break;
             }
@@ -2448,20 +2402,19 @@ function generarPDFGraficos() {
         return lines;
     };
 
-    // 4. Función para formatear fechas
+    // 4. Función para formatear fechas (se mantiene igual)
     const formatDateForFilename = (dateStr) => {
         if (!dateStr) return '';
         const [year, month, day] = dateStr.split('-');
         return `${day}-${month}-${year}`;
     };
 
-    // 5. Función principal para agregar gráficos al PDF
-    const addChartToPDF = (canvas, title, chart, x, y) => {
+    // 5. Función principal para agregar gráficos (simplificada)
+    const addChartToPDF = (canvas, title, x, y) => {
         // Procesar el título
         const maxTitleWidth = chartWidth - 4;
         let titleLines = wrapText(title, maxTitleWidth);
         
-        // Acortar título si es muy largo
         if (titleLines.length > maxTitleLines) {
             titleLines = titleLines.slice(0, maxTitleLines);
             titleLines[maxTitleLines - 1] = titleLines[maxTitleLines - 1].substring(0, 30) + '...';
@@ -2473,8 +2426,8 @@ function generarPDFGraficos() {
             doc.text(line, x + chartWidth / 2, y + 3 + (i * 4), { align: 'center' });
         });
 
-        // Agregar imagen del gráfico
-        const imgData = prepareChartImage(canvas, chart);
+        // Agregar imagen del gráfico (sin valores)
+        const imgData = prepareChartImage(canvas);
         const chartY = y + (titleLines.length * 4) + 2;
         
         doc.roundedRect(
@@ -2499,7 +2452,7 @@ function generarPDFGraficos() {
     doc.setFontSize(16);
     doc.text("Resumen de Gasto de Insumos", doc.internal.pageSize.getWidth() / 2, 15, { align: "center" });
 
-    // Obtener fechas del filtro
+    // Fechas del filtro
     const fechaInicio = $('#fecha-inicio-resumen').val();
     const fechaFin = $('#fecha-fin-resumen').val();
 
@@ -2509,20 +2462,17 @@ function generarPDFGraficos() {
         doc.text(dateRangeText, doc.internal.pageSize.getWidth() / 2, 22, { align: "center" });
     }
 
-    // 7. Procesamiento de los gráficos
+    // 7. Procesar los gráficos
     let yPosition = 30;
     const chartIds = Object.keys(charts);
 
     for (let i = 0; i < chartIds.length; i += 2) {
         const chartId1 = chartIds[i];
-        const chart1 = charts[chartId1];
         const canvas1 = document.getElementById(chartId1);
         
         const chartId2 = chartIds[i + 1];
-        const chart2 = charts[chartId2];
         const canvas2 = chartId2 ? document.getElementById(chartId2) : null;
 
-        // Calcular espacio necesario
         const title1 = canvas1?.parentElement.querySelector('h3')?.textContent || `Gráfico ${i + 1}`;
         const title2 = canvas2?.parentElement.querySelector('h3')?.textContent || `Gráfico ${i + 2}`;
         
@@ -2534,19 +2484,16 @@ function generarPDFGraficos() {
             titleLines2.length * 4 + chartHeight + 5
         );
 
-        // Verificar espacio en página
         if (yPosition + neededHeight > doc.internal.pageSize.getHeight() - margin) {
             doc.addPage();
             yPosition = margin;
         }
 
-        // Agregar primer gráfico
-        if (canvas1 && chart1) {
-            const heightUsed = addChartToPDF(canvas1, title1, chart1, margin, yPosition);
+        if (canvas1) {
+            const heightUsed = addChartToPDF(canvas1, title1, margin, yPosition);
             
-            // Agregar segundo gráfico si existe
-            if (canvas2 && chart2) {
-                addChartToPDF(canvas2, title2, chart2, margin + chartWidth + spacing, yPosition);
+            if (canvas2) {
+                addChartToPDF(canvas2, title2, margin + chartWidth + spacing, yPosition);
             }
             
             yPosition += neededHeight + 5;

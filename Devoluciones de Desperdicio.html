@@ -2324,7 +2324,29 @@ function cargarDatosDiarios() {
                     console.error("Error al cargar datos diarios:", data.mensaje);
                     reject(data.mensaje);
                 } else {
-                    resolve(data.datosDiarios);
+                    // Verificar y normalizar los datos recibidos
+                    if (data.datosDiarios && data.datosDiarios.length > 0) {
+                        data.datosDiarios.forEach(producto => {
+                            if (!producto.datos) producto.datos = [];
+                            
+                            // Asegurar que todas las cantidades sean números
+                            producto.datos.forEach(item => {
+                                if (!item.fecha) item.fecha = '';
+                                item.cantidad = parseFloat(item.cantidad) || 0;
+                            });
+                            
+                            // Ordenar por fecha
+                            producto.datos.sort((a, b) => {
+                                const [diaA, mesA] = a.fecha.split('/').map(Number);
+                                const [diaB, mesB] = b.fecha.split('/').map(Number);
+                                return mesA - mesB || diaA - diaB;
+                            });
+                        });
+                        resolve(data.datosDiarios);
+                    } else {
+                        // Si no hay datos, devolver array vacío
+                        resolve([]);
+                    }
                 }
             },
             error: function(xhr, status, error) {

@@ -372,6 +372,20 @@
     #colaborador-group {
         display: none;
     }
+
+/* Estilo para el total mensual */
+.summary {
+  margin-top: 15px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 18px;
+  color: #007bff;
+  font-weight: bold;
+  border-top: 2px solid #007bff;
+}
+
   </style>
 </head>
 <body>
@@ -398,6 +412,13 @@
 
       <input type="radio" id="radio-colaborador" name="searchType" value="colaborador">
       <label for="radio-colaborador">Buscar por colaborador</label>
+
+      <input type="radio" id="radio-general" name="searchType" value="general">
+      <label for="radio-general">Detalle Mensual</label>
+
+      <input type="radio" id="radio-gasto" name="searchType" value="gasto">
+      <label for="radio-gasto">Gasto General</label>
+
     </div>
 
     <div class="search-fields">
@@ -477,38 +498,43 @@
       }
       
       // --- Lógica para mostrar/ocultar los campos y habilitar el botón ---
-      function toggleSearchFields() {
-        if ($('input[name="searchType"]:checked').val() === 'edificio') {
-          $('#edificio-group').show();
-          $('#edificio').prop('disabled', false);
-          $('#colaborador-group').hide();
-          $('#colaborador').prop('disabled', true);
-        } else {
-          $('#edificio-group').hide();
-          $('#edificio').prop('disabled', true);
-          $('#colaborador-group').show();
-          $('#colaborador').prop('disabled', false);
-        }
-        checkAndToggle();
-      }
+function toggleSearchFields() {
+  const searchType = $('input[name="searchType"]:checked').val();
+  
+  if (searchType === 'edificio') {
+    $('#edificio-group').show();
+    $('#edificio').prop('disabled', false);
+    $('#colaborador-group').hide();
+    $('#colaborador').prop('disabled', true);
+  } else if (searchType === 'colaborador') {
+    $('#edificio-group').hide();
+    $('#edificio').prop('disabled', true);
+    $('#colaborador-group').show();
+    $('#colaborador').prop('disabled', false);
+  } else { // Opción general
+    $('#edificio-group').hide();
+    $('#edificio').prop('disabled', true);
+    $('#colaborador-group').hide();
+    $('#colaborador').prop('disabled', true);
+  }
+  checkAndToggle();
+}
 
-      function checkAndToggle() {
-        const mesSeleccionado = $('#mes').val();
-        const searchType = $('input[name="searchType"]:checked').val();
-        let searchCriterion;
-
-        if (searchType === 'edificio') {
-            searchCriterion = $('#edificio').val();
-        } else {
-            searchCriterion = $('#colaborador').val();
-        }
-
-        if (mesSeleccionado && searchCriterion) {
-          $('#btnConsultar').prop('disabled', false);
-        } else {
-          $('#btnConsultar').prop('disabled', true);
-        }
-      }
+function checkAndToggle() {
+  const mesSeleccionado = $('#mes').val();
+  const searchType = $('input[name="searchType"]:checked').val();
+  
+  if (searchType === 'general' || searchType === 'gasto') {
+    // Para opciones General y Gasto Mensual, solo necesita mes
+    $('#btnConsultar').prop('disabled', !mesSeleccionado);
+  } else {
+    // Para Edificio o Colaborador necesita ambos
+    const searchCriterion = searchType === 'edificio' 
+      ? $('#edificio').val() 
+      : $('#colaborador').val();
+    $('#btnConsultar').prop('disabled', !(mesSeleccionado && searchCriterion));
+  }
+}
 
       $('input[name="searchType"]').change(toggleSearchFields);
       $('#mes, #edificio, #colaborador').change(checkAndToggle);
@@ -530,48 +556,111 @@
       return meses[numeroMes - 1];
     }
     
-    function consultarRequisiciones() {
-      var mes = $('#mes').val();
-      var año = $('#año').val();
-      
-      var searchType = $('input[name="searchType"]:checked').val();
-      var edificio = '';
-      var colaborador = '';
+function consultarRequisiciones() {
+  var mes = $('#mes').val();
+  var año = $('#año').val();
+  var searchType = $('input[name="searchType"]:checked').val();
+  
+  var dataParams = {
+    mes: mes,
+    año: año,
+    modoGasto: (searchType === 'gasto').toString() // Nuevo parámetro
+  };
 
-      if (searchType === 'edificio') {
-          edificio = $('#edificio').val();
-      } else {
-          colaborador = $('#colaborador').val();
-      }
-
-      $('#overlay').show();
-      $('#resultContainer').hide();
+  if (searchType === 'edificio') {
+    dataParams.edificio = $('#edificio').val();
+  } else if (searchType === 'colaborador') {
+    dataParams.colaborador = $('#colaborador').val();
+  }
+  
+  $('#overlay').show();
+  $('#resultContainer').hide();
+  
+  $.ajax({
+    url: "https://script.google.com/macros/s/AKfycbyStfx0W26agpcyDAYS6agyDrPojZOwM4GasFWOltW8QTberVrBz-rCb8NQ1aZPOEQq/exec",
+    method: "GET",
+    dataType: "json",
+    data: dataParams,
+    success: function(response) {
+      $('#overlay').hide();
       
-      $.ajax({
-        url: "https://script.google.com/macros/s/AKfycbyStfx0W26agpcyDAYS6agyDrPojZOwM4GasFWOltW8QTberVrBz-rCb8NQ1aZPOEQq/exec",
-        method: "GET",
-        dataType: "json",
-        data: {
-          mes: mes,
-          año: año,
-          edificio: edificio,
-          colaborador: colaborador
-        },
-        success: function(response) {
-          $('#overlay').hide();
-          
-          if (response.success) {
-            mostrarResultados(response.data);
-          } else {
-            Swal.fire('Error', response.error || 'Ocurrió un error al consultar los datos', 'error');
-          }
-        },
-        error: function(xhr, status, error) {
-          $('#overlay').hide();
-          Swal.fire('Error', 'No se pudo conectar al servidor: ' + error, 'error');
+      if (response.success) {
+        if (response.modoGasto) {
+          mostrarGastoMensual(response);
+        } else {
+          mostrarResultados(response.data);
         }
-      });
+      } else {
+        Swal.fire('Error', response.error || 'Ocurrió un error al consultar los datos', 'error');
+      }
+    },
+    error: function(xhr, status, error) {
+      $('#overlay').hide();
+      Swal.fire('Error', 'No se pudo conectar al servidor: ' + error, 'error');
     }
+  });
+}
+
+function mostrarGastoMensual(data) {
+  var resultadosDiv = $('#resultados');
+  resultadosDiv.empty();
+  
+  if (data.productos.length === 0) {
+    resultadosDiv.html(`
+      <div class="empty-state">
+        <img src="https://cdn-icons-png.flaticon.com/512/4076/4076478.png" alt="Sin resultados">
+        <h3>No se encontraron requisiciones</h3>
+        <p>No hay registros para el período seleccionado</p>
+      </div>
+    `);
+    $('#resultContainer').show();
+    return;
+  }
+  
+  
+  var card = $(`
+    <div class="card">
+      <div class="card-header">
+        <div class="area-name">Resumen Mensual</div>
+        <div class="date-badge">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
+          ${$('#mes option:selected').text()} ${$('#año').val()}
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="product-list"></div>
+      </div>
+    </div>
+  `);
+  
+  var productList = card.find('.product-list');
+  
+  data.productos.forEach(function(producto) {
+    var imagenHTML = producto.imagen 
+      ? `<div class="product-image-container"><img src="${producto.imagen}" alt="${producto.nombre}" class="product-image" onerror="this.parentElement.innerHTML='<div class=\\'no-image\\'>Sin imagen</div>'"></div>`
+      : '<div class="no-image">Sin imagen</div>';
+      
+    productList.append(`
+      <div class="product-item">
+        ${imagenHTML}
+        <span class="product-name">${producto.nombre}</span>
+        <span class="product-qty">${producto.cantidad} ${producto.cantidad === 1 ? 'unidad' : 'unidades'}</span>
+      </div>
+    `);
+  });
+
+  resultadosDiv.append(card);
+  $('#resultContainer').show();
+}
+
+
+
+
 
     function mostrarResultados(data) {
       var resultadosDiv = $('#resultados');

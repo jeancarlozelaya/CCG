@@ -451,32 +451,34 @@
             </div>
         </div>
 
-        <div class="question-container" id="edificioContainer">
-            <label for="edificio">Edificio:</label>
-            <select id="edificio" name="edificio" required>
-                <option value="">Selecciona un edificio</option>
-                <option value="Torre #1">Torre #1</option>
-                <option value="Torre #2">Torre #2</option>
-                <option value="CBA">CBA</option>
-                <option value="CBB">CBB</option>
-                <option value="CBC">CBC</option>
-                <option value="Sótano">Sótano</option>
-            </select>
-        </div>
+<div class="question-container" id="edificioContainer">
+    <label for="edificio">Edificio / Áreas:</label>
+    <select id="edificio" name="edificio" required>
+        <option value="">Selecciona un edificio/área</option>
+        <option value="Torre #1">Torre #1</option>
+        <option value="Torre #2">Torre #2</option>
+        <option value="CBA">CBA</option>
+        <option value="CBB">CBB</option>
+        <option value="CBC">CBC</option>
+        <option value="Sótano">Sótano</option>
+        <option value="Elevadores Públicos">Elevadores Públicos</option>
+        <option value="Mezanine">Mezanine</option>
+        <option value="Plazas">Plazas</option>
+        <option value="Exteriores">Exteriores</option>
+    </select>
+</div>
 
-        <div class="question-container" id="nivelContainer" style="display: none;">
-            <label for="nivel">Nivel:</label>
-            <input type="number" id="nivel" name="nivel" placeholder="Ingrese el número de nivel" required>
-        </div>
+<div class="question-container" id="nivelContainer" style="display: none;">
+    <label for="nivel">Nivel:</label>
+    <input type="number" id="nivel" name="nivel" placeholder="Ingrese el número de nivel" required>
+</div>
 
-        <div class="question-container" id="actividadContainer">
-            <label for="actividad">Actividad:</label>
-            <select id="actividad" name="actividad" required>
-                <option value="">Selecciona una actividad</option>
-                <option value="Limpieza de Baños">Limpieza de Baños</option>
-                <option value="Limpieza de Oficina">Limpieza de Oficina</option>
-            </select>
-        </div>
+<div class="question-container" id="actividadContainer" style="display: none;">
+    <label for="actividad">Actividad:</label>
+    <select id="actividad" name="actividad" required>
+        <option value="">Selecciona una actividad</option>
+    </select>
+</div>
 
         <div class="question-container" id="subActividadContainer" style="display: none;">
             <label for="subActividad">Sub-actividad:</label>
@@ -526,7 +528,7 @@
         { id: 'subActividad', type: 'select' }, 
         { id: 'horaInicio', type: 'input' }, 
         { id: 'horaFin', type: 'input' },   
-        { id: 'preview3', type: 'image' },
+    // Quitamos preview3 para que no sea obligatorio
         { id: 'preview4', type: 'image' }
     ];
 
@@ -649,156 +651,233 @@
 
 
     // Lógica para establecer el nivel máximo según el edificio
-    document.getElementById('edificio').addEventListener('change', function() {
-        const nivelInput = document.getElementById('nivel');
-        const nivelContainer = document.getElementById('nivelContainer'); 
-        const selectedEdificio = this.value;
-        let maxLevel = -1; 
+// Modificar el event listener del campo Edificio/Áreas
+document.getElementById('edificio').addEventListener('change', function() {
+    const nivelInput = document.getElementById('nivel');
+    const nivelContainer = document.getElementById('nivelContainer');
+    const actividadContainer = document.getElementById('actividadContainer');
+    const actividadSelect = document.getElementById('actividad');
+    const selectedEdificio = this.value;
 
-        nivelInput.value = '';
+    // Resetear campos dependientes
+    nivelInput.value = '';
+    actividadSelect.innerHTML = '<option value="">Selecciona una actividad</option>';
+    
+    // Ocultar campos inicialmente
+    nivelContainer.style.display = 'none';
+    actividadContainer.style.display = 'none';
+    nivelInput.removeAttribute('required');
 
-        if (selectedEdificio === '') { 
-            nivelContainer.style.display = 'none'; 
-            nivelInput.removeAttribute('required'); 
-            nivelInput.oninput = null; 
-        }
-        else {
-            nivelContainer.style.display = 'block'; 
-            nivelInput.setAttribute('required', 'required'); 
-
-            switch (selectedEdificio) {
-                case 'Torre #1':
-                    maxLevel = 23;
-                    break;
-                case 'Torre #2':
-                    maxLevel = 24;
-                    break;
-                case 'CBA':
-                    maxLevel = 5;
-                    break;
-                case 'CBB':
-                    maxLevel = 7;
-                    break;
-                case 'CBC':
-                    maxLevel = 7;
-                    break;
-                case 'Sótano':
-                    maxLevel = 4;
-                    break;
-                default:
-                    maxLevel = -1; 
-                    break;
-            }
-
-            if (maxLevel !== -1) {
-                nivelInput.setAttribute('max', maxLevel);
-                nivelInput.setAttribute('min', 0); 
-                nivelInput.placeholder = `Ingrese el número de nivel (0-${maxLevel})`;
-
-                nivelInput.oninput = function() {
-                    let currentVal = parseInt(this.value);
-                    const maxVal = parseInt(this.max);
-                    const minVal = parseInt(this.min);
-
-                    if (!isNaN(currentVal)) {
-                        if (!isNaN(maxVal) && currentVal > maxVal) {
-                            this.value = maxVal; 
-                        } else if (!isNaN(minVal) && currentVal < minVal) {
-                            this.value = minVal; 
-                        }
-                    }
-                    updateButtonState(); 
-                };
-
-            } else {
-                nivelInput.removeAttribute('max');
-                nivelInput.removeAttribute('min');
-                nivelInput.placeholder = `Ingrese el número de nivel`;
-                nivelInput.oninput = null; 
-            }
+    // Mostrar nivel solo para edificios con niveles
+    const edificiosConNiveles = ['Torre #1', 'Torre #2', 'CBA', 'CBB', 'CBC', 'Sótano'];
+    if (edificiosConNiveles.includes(selectedEdificio)) {
+        nivelContainer.style.display = 'block';
+        nivelInput.setAttribute('required', 'required');
+        
+        // Configurar niveles máximos según edificio
+        let maxLevel = -1;
+        switch (selectedEdificio) {
+            case 'Torre #1': maxLevel = 23; break;
+            case 'Torre #2': maxLevel = 24; break;
+            case 'CBA': maxLevel = 5; break;
+            case 'CBB': maxLevel = 7; break;
+            case 'CBC': maxLevel = 7; break;
+            case 'Sótano': maxLevel = 4; break;
         }
         
-        validateField('nivel'); 
-        updateButtonState(); 
+        if (maxLevel !== -1) {
+            nivelInput.setAttribute('max', maxLevel);
+            nivelInput.setAttribute('min', 0);
+            nivelInput.placeholder = `Ingrese el número de nivel (0-${maxLevel})`;
+        }
+    }
+
+    // Configurar actividades según edificio/área seleccionado
+    if (selectedEdificio) {
+        actividadContainer.style.display = 'block';
+        
+        // Limpiar opciones anteriores
+        actividadSelect.innerHTML = '<option value="">Selecciona una actividad</option>';
+        
+        // Agregar nuevas opciones según la selección
+        switch (selectedEdificio) {
+            case 'Torre #1':
+            case 'Torre #2':
+            case 'CBA':
+            case 'CBB':
+            case 'CBC':
+                agregarOpcionesActividad([
+                    'Baños Comunes & Núcleos',
+                    'Baños Privados',
+                    'Elevadores',
+                    'Oficina & Espacios Abiertos',
+                    'Atención al Público',
+                    'Sala de Juntas',
+                    'Aspirado de Alfombras'
+                ]);
+                break;
+                
+            case 'Sótano':
+                agregarOpcionesActividad([
+                    'Repaso de Sótano',
+                    'Repaso de Baños'
+                ]);
+                break;
+                
+            case 'Elevadores Públicos':
+                agregarOpcionesActividad([
+                    'L40, L41, L42, L47',
+                    'L43, L44, L45, L46'
+                ]);
+                break;
+                
+            case 'Mezanine':
+                agregarOpcionesActividad([
+                    'Repaso de Baños',
+                    'Atención al Público'
+                ]);
+                break;
+                
+            case 'Plazas':
+            case 'Exteriores':
+                // No mostrar actividades para estas áreas
+                actividadContainer.style.display = 'none';
+                break;
+        }
+    }
+
+    // Validar campos después de los cambios
+    validateField('edificio');
+    validateField('nivel');
+    validateField('actividad');
+    updateButtonState();
+});
+
+// Función auxiliar para agregar opciones al select de actividades
+function agregarOpcionesActividad(opciones) {
+    const actividadSelect = document.getElementById('actividad');
+    opciones.forEach(opcion => {
+        const opt = document.createElement('option');
+        opt.value = opcion;
+        opt.textContent = opcion;
+        actividadSelect.appendChild(opt);
     });
+}
+
 
 
     // Función para validar un campo específico y aplicar el estilo de borde
-    function validateField(fieldId) {
-        const element = document.getElementById(fieldId);
-        if (!element) return true; 
+function validateField(fieldId) {
+    const element = document.getElementById(fieldId);
+    if (!element) return true;
 
-        const container = element.closest('.question-container') || element;
+    const container = element.closest('.question-container') || element;
 
-        if (container.style.display === 'none') {
-            return true;
-        }
+    if (container.style.display === 'none') {
+        return true;
+    }
 
-        let isValid = false;
-        if (fieldId === 'preview3') {
-            isValid = selectedFiles.preview3.length > 0;
-        } else if (fieldId === 'preview4') {
-            isValid = selectedFiles.preview4.length > 0;
-        } else if (fieldId === 'horaInicio') {
-            isValid = element.value.trim() !== ''; 
-        } else if (fieldId === 'horaFin') {
-            if (element.value.trim() === '') {
-                isValid = false; 
+    let isValid = false;
+    
+    if (fieldId === 'fecha') {
+        isValid = element.value.trim() !== '';
+    }
+    else if (fieldId === 'edificio') {
+        isValid = element.value.trim() !== '';
+    } 
+    else if (fieldId === 'nivel') {
+        const edificio = document.getElementById('edificio').value;
+        const edificiosConNiveles = ['Torre #1', 'Torre #2', 'CBA', 'CBB', 'CBC', 'Sótano'];
+        
+        if (edificiosConNiveles.includes(edificio)) {
+            const nivelValue = parseInt(element.value);
+            const maxLevel = parseInt(element.getAttribute('max'));
+            
+            if (element.value.trim() === '' || isNaN(nivelValue)) {
+                isValid = false;
             } else {
-                const horaInicio = document.getElementById('horaInicio').value;
-                if (horaInicio.trim() === '') {
-                    isValid = false; 
+                if (nivelValue < 0 || (!isNaN(maxLevel) && nivelValue > maxLevel)) {
+                    element.value = '';
+                    isValid = false;
                 } else {
-                    const [hI, mI] = horaInicio.split(':').map(Number);
-                    const [hF, mF] = element.value.split(':').map(Number); 
-                    
-                    const totalMinutesInicio = hI * 60 + mI;
-                    const totalMinutesFin = hF * 60 + mF;
-
-                    isValid = totalMinutesFin > totalMinutesInicio; 
+                    isValid = true;
                 }
             }
-        } else if (element.tagName === 'SELECT' || element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
-            if (fieldId === 'oficina') {
-                const actividadSelect = document.getElementById('actividad');
-                if (actividadSelect.value === 'Limpieza de Oficina') {
-                    isValid = element.value.trim() !== ''; 
-                } else {
-                    isValid = true; // Should not happen with current logic, but as fallback.
-                }
-            } else if (fieldId === 'nivel') {
-                const nivelValue = parseInt(element.value);
-                const maxLevel = parseInt(element.getAttribute('max'));
-                isValid = element.value.trim() !== '' && !isNaN(nivelValue) && nivelValue >= 0 && (isNaN(maxLevel) || nivelValue <= maxLevel);
-            }
-            else {
-                isValid = element.value.trim() !== ''; 
-            }
-        }
-
-        if (isValid) {
-            container.classList.remove('field-error');
-            container.classList.add('field-success');
         } else {
-            container.classList.remove('field-success');
-            container.classList.add('field-error');
+            isValid = true;
         }
-        return isValid;
     }
+    else if (fieldId === 'actividad') {
+        const edificio = document.getElementById('edificio').value;
+        if (['Plazas', 'Exteriores'].includes(edificio)) {
+            isValid = true;
+        } else {
+            isValid = element.value.trim() !== '';
+        }
+    }
+    else if (fieldId === 'horaInicio') {
+        isValid = element.value.trim() !== '';
+    }
+    else if (fieldId === 'horaFin') {
+        if (element.value.trim() === '') {
+            isValid = false;
+        } else {
+            const horaInicio = document.getElementById('horaInicio').value;
+            if (horaInicio.trim() === '') {
+                isValid = false;
+            } else {
+                const [hI, mI] = horaInicio.split(':').map(Number);
+                const [hF, mF] = element.value.split(':').map(Number);
+                
+                const totalMinutesInicio = hI * 60 + mI;
+                const totalMinutesFin = hF * 60 + mF;
 
-    // Función para actualizar el estado del botón "Generar Reporte"
-    function updateButtonState() {
-        const generarReporteBtn = document.getElementById('generarReporteBtn');
-        let allFieldsValid = true;
-
-        formFields.forEach(field => {
-            if (!validateField(field.id)) { 
-                allFieldsValid = false;
+                isValid = totalMinutesFin > totalMinutesInicio;
             }
-        });
-
-        generarReporteBtn.disabled = !allFieldsValid;
+        }
     }
+    else if (fieldId === 'preview3') {
+        isValid = true;
+    }
+    else if (fieldId === 'preview4') {
+        isValid = selectedFiles.preview4.length > 0;
+    }
+    else if (fieldId === 'oficina') {
+        const actividad = document.getElementById('actividad').value;
+        if (actividad === 'Oficina & Espacios Abiertos' || actividad === 'Sala de Juntas') {
+            isValid = element.value.trim() !== '';
+        } else {
+            isValid = true;
+        }
+    }
+    else {
+        isValid = element.value.trim() !== '';
+    }
+
+    if (isValid) {
+        container.classList.remove('field-error');
+        container.classList.add('field-success');
+    } else {
+        container.classList.remove('field-success');
+        container.classList.add('field-error');
+    }
+    
+    return isValid;
+}
+
+
+function updateButtonState() {
+    const generarReporteBtn = document.getElementById('generarReporteBtn');
+    let allFieldsValid = true;
+
+    formFields.forEach(field => {
+        if (!validateField(field.id)) {
+            allFieldsValid = false;
+        }
+    });
+
+    generarReporteBtn.disabled = !allFieldsValid;
+}
 
     // Añadir EventListeners a los campos para la validación en tiempo real
     formFields.forEach(field => {
@@ -881,250 +960,306 @@
         });
     });
 
-    async function generarPDF() {
-        if (document.getElementById('generarReporteBtn').disabled) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Campos Incompletos',
-                html: '<div style="text-align: center;">Por favor, complete todos los campos obligatorios antes de generar el reporte.</div>',
-                confirmButtonColor: '#007bff'
-            });
-            return; 
-        }
 
+
+
+async function generarPDF() {
+    if (document.getElementById('generarReporteBtn').disabled) {
         Swal.fire({
-            title: 'Procesando...',
-            html: '<div style="text-align: center;">Generando su reporte PDF. Por favor, espere. <br> <span style="font-size: 0.8em;">Esto puede tardar un momento si hay muchas imágenes.</span></div>',
-            allowOutsideClick: false,
-            didOpen: () => {
-                Swal.showLoading();
-            }
+            icon: 'warning',
+            title: 'Campos Incompletos',
+            html: '<div style="text-align: center;">Por favor, complete todos los campos obligatorios antes de generar el reporte.</div>',
+            confirmButtonColor: '#007bff'
         });
+        return;
+    }
 
-        const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF({ format: 'letter' });
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
+    Swal.fire({
+        title: 'Procesando...',
+        html: '<div style="text-align: center;">Generando su reporte PDF. Por favor, espere. <br> <span style="font-size: 0.8em;">Esto puede tardar un momento si hay muchas imágenes.</span></div>',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
 
-        async function getLogoBase64() {
-            if (navigator.onLine) {
-                try {
-                    const response = await fetch("https://jeancarlozelaya.github.io/PIBRISA/Im%C3%A1genes/Icono.png");
-                    const blob = await response.blob();
-                    return new Promise((resolve, reject) => {
-                        const reader = new FileReader();
-                        reader.onloadend = () => resolve(reader.result);
-                        reader.onerror = reject;
-                        reader.readAsDataURL(blob);
-                    });
-                } catch (error) {
-                    console.error("Error al cargar el logo, se omitirá:", error);
-                    return null; 
-                }
-            } else {
-                console.warn("Sin conexión a Internet, se omitirá la carga del logo.");
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ format: 'letter' });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+
+    async function getLogoBase64() {
+        if (navigator.onLine) {
+            try {
+                const response = await fetch("https://jeancarlozelaya.github.io/PIBRISA/Im%C3%A1genes/Icono.png");
+                const blob = await response.blob();
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                });
+            } catch (error) {
+                console.error("Error al cargar el logo, se omitirá:", error);
                 return null;
             }
+        } else {
+            console.warn("Sin conexión a Internet, se omitirá la carga del logo.");
+            return null;
+        }
+    }
+
+    const logoBase64 = await getLogoBase64();
+    
+    // Obtener datos del formulario
+    const fecha = document.getElementById('fecha').value;
+    const edificio = document.getElementById('edificio').value;
+    const nivel = document.getElementById('nivel').value;
+    const actividad = document.getElementById('actividad').value;
+    const oficinaInput = document.getElementById('oficina');
+    const oficina = oficinaInput.closest('.question-container').style.display === 'block' ? oficinaInput.value : '';
+    const horaInicio = document.getElementById('horaInicio').value;
+    const horaFin = document.getElementById('horaFin').value;
+
+    pdf.setFont("times", "bold");
+
+    let currentY = 15;
+    let textX = 10;
+    const logoWidth = 30;
+    const logoHeight = 30;
+    const logoX = 10;
+
+    if (logoBase64) {
+        pdf.addImage(logoBase64, "PNG", logoX, currentY, logoWidth, logoHeight);
+        textX = logoX + logoWidth + 5;
+    }
+
+    const startYText = logoBase64 ? (currentY + 5) : currentY;
+    const lineHeight = 10;
+
+    // Título del reporte
+    pdf.setFontSize(16);
+    pdf.text("Reporte de Actividades de Limpieza", textX, startYText, { align: "left" });
+
+    currentY = startYText + lineHeight;
+    
+    // Fecha
+    pdf.setFontSize(14);
+    pdf.text(`Fecha: ${fecha}`, textX, currentY, { align: "left" });
+    currentY += lineHeight;
+
+    // Horario solo si tiene valores
+    if (horaInicio && horaFin) {
+        pdf.text(`Horario: ${horaInicio} - ${horaFin}`, textX, currentY, { align: "left" });
+        currentY += lineHeight;
+    }
+
+    // Edificio/Área y Nivel (solo si aplica)
+    let locationInfo = `Edificio/Área: ${edificio}`;
+    const edificiosConNiveles = ['Torre #1', 'Torre #2', 'CBA', 'CBB', 'CBC', 'Sótano'];
+    if (edificiosConNiveles.includes(edificio) && nivel) {
+        locationInfo += `, Nivel: ${nivel}`;
+    }
+    pdf.text(locationInfo, textX, currentY, { align: "left" });
+    currentY += lineHeight;
+
+    // Actividad solo si existe
+    if (actividad && !['Plazas', 'Exteriores'].includes(edificio)) {
+        pdf.text(`Actividad: ${actividad}`, textX, currentY, { align: "left" });
+        currentY += lineHeight;
+    }
+
+    // Oficina solo si aplica
+    if (oficina && (actividad === 'Oficina & Espacios Abiertos' || actividad === 'Sala de Juntas')) {
+        pdf.text(`Oficina: ${oficina}`, textX, currentY, { align: "left" });
+        currentY += lineHeight;
+    }
+
+    // Función para añadir sección de fotos
+    async function addPhotoSection(title, files, startY) {
+        if (files.length === 0) return startY;
+
+        let currentY = startY;
+
+        const spaceNeeded = 10 + 10 + 40;
+        if (currentY + spaceNeeded > pageHeight - 10) {
+            pdf.addPage();
+            currentY = 15;
         }
 
-        const logoBase64 = await getLogoBase64(); 
-        
-        // Obtener datos del formulario
-        const fecha = document.getElementById('fecha').value;
-        const edificio = document.getElementById('edificio').value; 
-        const nivel = document.getElementById('nivel').value;       
-        const actividad = document.getElementById('actividad').value; 
-        const subActividad = document.getElementById('subActividad').value; 
-        const oficinaInput = document.getElementById('oficina');
-        const oficina = oficinaInput.closest('.question-container').style.display === 'block' ? oficinaInput.value : '';
-        const horaInicio = document.getElementById('horaInicio').value; 
-        const horaFin = document.getElementById('horaFin').value;     
-
+        pdf.setFontSize(14);
         pdf.setFont("times", "bold");
+        pdf.text(title, 10, currentY);
+        currentY += 10;
 
-        let currentY = 15; 
-        let textX = 10;
-        const logoWidth = 30; 
-        const logoHeight = 30;
-        const logoX = 10; 
+        const imgWidth = 60;
+        const imgHeight = 40;
+        const marginX = 15;
+        const spacingX = 65;
+        const spacingY = 45;
 
-        if (logoBase64) {
-            pdf.addImage(logoBase64, "PNG", logoX, currentY, logoWidth, logoHeight);
-            textX = logoX + logoWidth + 5;
-        }
+        let currentX = marginX;
+        let imagesInRow = 0;
 
-        const startYText = logoBase64 ? (currentY + 5) : currentY;
-        const lineHeight = 10;
+        for (const file of files) {
+            const imgData = await compressImage(file, 0.5);
+            
+            if (imagesInRow === 3) {
+                imagesInRow = 0;
+                currentX = marginX;
+                currentY += spacingY;
+            }
 
-        // Título del reporte (16pt)
-        pdf.setFontSize(16); 
-        pdf.text("Reporte de Actividades de Limpieza", textX, startYText, { align: "left" });
-
-        currentY = startYText + lineHeight; 
-        // Fecha y Horas (14pt) - Combinadas
-        pdf.setFontSize(14); 
-        let dateAndHourText = `Fecha: ${fecha}`;
-        if (horaInicio && horaFin) { 
-            dateAndHourText += `, Hora Inicio: ${horaInicio}, Hora Fin: ${horaFin}`;
-        }
-        pdf.text(dateAndHourText, textX, currentY, { align: "left" });
-        currentY += lineHeight; 
-
-        // Edificio, Nivel, Oficina en la misma línea (14pt)
-        let locationInfo = `Edificio: ${edificio}, Nivel: ${nivel}`;
-        if (actividad === 'Limpieza de Oficina' && oficina) {
-            locationInfo += ` Oficina: ${oficina}`;
-        }
-        pdf.text(locationInfo, textX, currentY, { align: "left" });
-        currentY += lineHeight; 
-
-        // Actividad (14pt) - Combinar actividad principal y sub-actividad
-        const actividadFinal = `${actividad} (${subActividad})`;
-        pdf.setFontSize(14); 
-        pdf.text(`Actividad: ${actividadFinal}`, textX, currentY, { align: "left" });
-        currentY += lineHeight; 
-
-
-        // Función para añadir una sección de fotos al PDF 
-        async function addPhotoSection(title, files, startY) {
-            if (files.length === 0) return startY;
-
-            let currentY = startY;
-
-            const spaceNeeded = 10 + 10 + 40; 
-            if (currentY + spaceNeeded > pageHeight - 10) {
+            if (currentY + imgHeight > pageHeight - 10) {
                 pdf.addPage();
                 currentY = 15;
+                currentX = marginX;
+                imagesInRow = 0;
             }
 
-            // Título de la sección
-            pdf.setFontSize(14);
-            pdf.setFont("times", "bold");
-            pdf.text(title, 10, currentY);
-
-            currentY += 10; 
-
-            const imgWidth = 60;
-            const imgHeight = 40;
-            const marginX = 15;
-            const spacingX = 65;
-            const spacingY = 45;
-
-            let currentX = marginX;
-            let imagesInRow = 0;
-
-            for (const file of files) {
-                const imgData = await compressImage(file, 0.5);
-                
-                if (imagesInRow === 3) {
-                    imagesInRow = 0;
-                    currentX = marginX;
-                    currentY += spacingY;
-                }
-
-                if (currentY + imgHeight > pageHeight - 10) {
-                    pdf.addPage();
-                    currentY = 15; 
-                    currentX = marginX;
-                    imagesInRow = 0;
-                }
-
-                pdf.addImage(imgData, 'JPEG', currentX, currentY, imgWidth, imgHeight);
-                currentX += spacingX;
-                imagesInRow++;
-            }
-
-            return currentY + spacingY;
+            pdf.addImage(imgData, 'JPEG', currentX, currentY, imgWidth, imgHeight);
+            currentX += spacingX;
+            imagesInRow++;
         }
 
-        // Procesar las fotos del "Antes"
-        let photosSectionY = currentY + 15;
+        return currentY + spacingY;
+    }
+
+    // Procesar fotos solo si existen
+    let photosSectionY = currentY + 15;
+    if (selectedFiles.preview3.length > 0) {
         photosSectionY = await addPhotoSection("Fotos de la Limpieza (Antes):", selectedFiles.preview3, photosSectionY);
+        photosSectionY += 15;
+    }
 
-        // Procesar las fotos del "Después"
-        photosSectionY += 15; 
-        await addPhotoSection("Fotos de la Limpieza (Después):", selectedFiles.preview4, photosSectionY);
+    await addPhotoSection("Fotos de la Limpieza (Después):", selectedFiles.preview4, photosSectionY);
 
+    // Generar nombre del archivo según el nuevo formato requerido
+    let nombreArchivo = formatDateForFilename(fecha);
+    
+    // Agregar horario si existe (con nuevo formato)
+    if (horaInicio && horaFin) {
+        const [horaI, minutoI] = horaInicio.split(':');
+        const [horaF, minutoF] = horaFin.split(':');
+        nombreArchivo += ` - ${horaI}h${minutoI}m-${horaF}h${minutoF}m`;
+    }
+    
+    nombreArchivo += ` - ${edificio}`;
+    
+    // Agregar nivel si aplica
+    if (edificiosConNiveles.includes(edificio) && nivel) {
+        nombreArchivo += ' - Nivel ' + nivel;
+    }
+    
+    // Agregar actividad si aplica
+    if (actividad && !['Plazas', 'Exteriores'].includes(edificio)) {
+        nombreArchivo += ' - ' + actividad;
+    }
+    
+    nombreArchivo += '.pdf';
 
-        pdf.setFontSize(12);
-        pdf.setFont("Arial", "normal"); 
+    const pdfBlob = pdf.output('blob');
+    Swal.close();
 
-        let nombreArchivo = `${fecha} - ${edificio} Nivel ${nivel} - ${actividadFinal}`;
-        if (actividad === 'Limpieza de Oficina' && oficina) {
-            nombreArchivo += ` Oficina ${oficina}`;
-        }
-        nombreArchivo += ".pdf";
-
-        const pdfBlob = pdf.output('blob');
-
-        Swal.close(); 
-
-        function tryShareOrDownload() {
-            if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([pdfBlob], nombreArchivo, { type: 'application/pdf' })] })) {
-                navigator.share({
-                    files: [new File([pdfBlob], nombreArchivo, { type: 'application/pdf' })],
-                    title: `Reporte de Actividades de Limpieza - ${nombreArchivo.replace('.pdf', '')}`,
-                    text: `Adjunto el reporte de actividades de limpieza para ${fecha}.`
-                })
-                .then(() => {
-                    Swal.fire({
-                        icon: 'success',
-                        title: '¡Reporte Compartido!',
-                        html: '<div style="text-align: center;">El PDF ha sido enviado a la aplicación seleccionada.</div>',
-                        confirmButtonColor: '#007bff'
-                    });
-                })
-                .catch((error) => {
-                    console.error('Error al compartir:', error);
-                    if (error.name === 'AbortError') {
-                    } else {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error al Compartir',
-                            html: '<div style="text-align: center;">No se pudo compartir el PDF directamente. Se procederá con la descarga.</div>',
-                            confirmButtonColor: '#007bff'
-                        });
-                        pdf.save(nombreArchivo);
-                    }
-                });
-            } else {
-                pdf.save(nombreArchivo);
+    function tryShareOrDownload() {
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([pdfBlob], nombreArchivo, { type: 'application/pdf' })] })) {
+            navigator.share({
+                files: [new File([pdfBlob], nombreArchivo, { type: 'application/pdf' })],
+                title: `Reporte de Actividades de Limpieza - ${nombreArchivo.replace('.pdf', '')}`,
+                text: `Adjunto el reporte de actividades de limpieza para ${fecha}.`
+            })
+            .then(() => {
                 Swal.fire({
-                    icon: 'info',
-                    title: 'Reporte Descargado',
-                    html: '<div style="text-align: center;">Su navegador no soporta la función de compartir directamente o la página no se ejecuta sobre HTTPS.<br>El PDF se ha descargado.</div>',
+                    icon: 'success',
+                    title: '¡Reporte Compartido!',
+                    html: '<div style="text-align: center;">El PDF ha sido enviado a la aplicación seleccionada.</div>',
                     confirmButtonColor: '#007bff'
                 });
+            })
+            .catch((error) => {
+                console.error('Error al compartir:', error);
+                if (error.name !== 'AbortError') {
+                    pdf.save(nombreArchivo);
+                }
+            });
+        } else {
+            pdf.save(nombreArchivo);
+        }
+    }
+    
+    tryShareOrDownload();
+}
+
+// Función auxiliar para formatear la fecha como aaaa-mm-dd
+function formatDateForFilename(dateString) {
+    const [year, month, day] = dateString.split('-');
+    return `${year}-${month}-${day}`;
+}
+
+// Función para comprimir imágenes
+function compressImage(file, quality) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+
+                const maxWidth = 600;
+                const scale = maxWidth / img.width;
+                canvas.width = maxWidth;
+                canvas.height = img.height * scale;
+
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                const dataUrl = canvas.toDataURL('image/jpeg', quality);
+                resolve(dataUrl);
+            };
+            img.src = event.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+
+
+// Agregar en el window.onload o donde configuras los event listeners
+document.getElementById('nivel').addEventListener('input', function() {
+    const edificio = document.getElementById('edificio').value;
+    const edificiosConNiveles = ['Torre #1', 'Torre #2', 'CBA', 'CBB', 'CBC', 'Sótano'];
+    
+    if (edificiosConNiveles.includes(edificio)) {
+        const nivelValue = parseInt(this.value);
+        const maxLevel = parseInt(this.getAttribute('max'));
+        
+        if (!isNaN(nivelValue)) {
+            if (nivelValue < 0 || (!isNaN(maxLevel) && nivelValue > maxLevel)) {
+                this.value = ''; // Vaciar el campo inmediatamente si está fuera de rango
             }
         }
-        
-        tryShareOrDownload();
     }
+    validateField('nivel');
+    updateButtonState();
+});
 
-    function compressImage(file, quality) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const img = new Image();
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
+document.getElementById('nivel').addEventListener('blur', function() {
+    validateField('nivel');
+    updateButtonState();
+});
 
-                    const maxWidth = 600;
-                    const scale = maxWidth / img.width;
-                    canvas.width = maxWidth;
-                    canvas.height = img.height * scale;
 
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    const dataUrl = canvas.toDataURL('image/jpeg', quality);
-                    resolve(dataUrl);
-                };
-                img.src = event.target.result;
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-        });
-    }
+
+
+
+
+
+
+
+
+
+
+
 
     // --- Lógica del menú de ayuda ---
     const helpContent = {
@@ -1306,6 +1441,13 @@
         });
     }
 
+
+
+
+
+
+
+
     // Event listener inicial para el icono de ayuda
     document.getElementById('helpIconContainer').addEventListener('click', () => {
         Swal.fire({
@@ -1324,6 +1466,7 @@
             }
         });
     });
+
 </script>
 
 </body>

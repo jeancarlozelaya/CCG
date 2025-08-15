@@ -738,7 +738,14 @@ document.getElementById('edificio').addEventListener('change', function() {
                 ]);
                 break;
                 
+
             case 'Plazas':
+                agregarOpcionesActividad([
+                    'Democracia',
+                    'Etnias'
+                ]);
+                break;
+
             case 'Exteriores':
                 // No mostrar actividades para estas áreas
                 actividadContainer.style.display = 'none';
@@ -809,8 +816,9 @@ function validateField(fieldId) {
     }
     else if (fieldId === 'actividad') {
         const edificio = document.getElementById('edificio').value;
-        if (['Plazas', 'Exteriores'].includes(edificio)) {
-            isValid = true;
+        // Cambio importante aquí: ahora Plazas requiere actividad
+        if (edificio === 'Exteriores') {
+            isValid = true; // Exteriores no necesita actividad
         } else {
             isValid = element.value.trim() !== '';
         }
@@ -837,10 +845,10 @@ function validateField(fieldId) {
         }
     }
     else if (fieldId === 'preview3') {
-        isValid = true;
+        isValid = true; // Fotos "antes" son opcionales
     }
     else if (fieldId === 'preview4') {
-        isValid = selectedFiles.preview4.length > 0;
+        isValid = selectedFiles.preview4.length > 0; // Fotos "después" son obligatorias
     }
     else if (fieldId === 'oficina') {
         const actividad = document.getElementById('actividad').value;
@@ -864,6 +872,7 @@ function validateField(fieldId) {
     
     return isValid;
 }
+
 
 
 function updateButtonState() {
@@ -1064,9 +1073,16 @@ async function generarPDF() {
     currentY += lineHeight;
 
     // Actividad solo si existe
-    if (actividad && !['Plazas', 'Exteriores'].includes(edificio)) {
-        pdf.text(`Actividad: ${actividad}`, textX, currentY, { align: "left" });
-        currentY += lineHeight;
+    if (actividad) {
+        if (edificio === 'Plazas') {
+            // Mostrar actividad para plazas (Democracia/Etnias)
+            pdf.text(`Plaza: ${actividad}`, textX, currentY, { align: "left" });
+            currentY += lineHeight;
+        } else if (!['Plazas', 'Exteriores'].includes(edificio)) {
+            // Mostrar actividad normal para otros edificios
+            pdf.text(`Actividad: ${actividad}`, textX, currentY, { align: "left" });
+            currentY += lineHeight;
+        }
     }
 
     // Oficina solo si aplica
@@ -1152,8 +1168,13 @@ async function generarPDF() {
     }
     
     // Agregar actividad si aplica
-    if (actividad && !['Plazas', 'Exteriores'].includes(edificio)) {
-        nombreArchivo += ' - ' + actividad;
+    if (actividad) {
+        if (edificio === 'Plazas') {
+            // Solo agregar la actividad si es Plazas (Democracia/Etnias)
+            nombreArchivo += ' - ' + actividad;
+        } else if (!['Plazas', 'Exteriores'].includes(edificio)) {
+            nombreArchivo += ' - ' + actividad;
+        }
     }
     
     nombreArchivo += '.pdf';
@@ -1189,6 +1210,7 @@ async function generarPDF() {
     
     tryShareOrDownload();
 }
+
 
 // Función auxiliar para formatear la fecha como aaaa-mm-dd
 function formatDateForFilename(dateString) {

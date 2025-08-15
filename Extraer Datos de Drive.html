@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extraer archivos de Google Drive</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #4285F4;
+            text-align: center;
+        }
+        .container {
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, button {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4285F4;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #3367D6;
+        }
+        #status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #4285F4;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Extraer Datos de Drive</h1>
+        
+        <div class="form-group">
+            <label for="folderId">ID de la carpeta de Google Drive:</label>
+            <input type="text" id="folderId" value="1IO86ocZx3UYmpMpA_rRnvN_UokbJFljD">
+        </div>
+        
+        <div class="form-group">
+            <label for="sheetId">ID de la hoja de Google Sheets:</label>
+            <input type="text" id="sheetId" value="1Q82KAL6TsTr7J1kpuI-vRqUd9lZ16d5cYKQ8V9TdiaY">
+        </div>
+        
+        <button id="processBtn">Extraer archivos y enviar a Google Sheets</button>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Procesando, por favor espere...</p>
+        </div>
+        
+        <div id="status"></div>
+    </div>
+
+<script>
+    document.getElementById('processBtn').addEventListener('click', function() {
+        const folderId = document.getElementById('folderId').value.trim();
+        const sheetId = document.getElementById('sheetId').value.trim();
+        
+        if (!folderId || !sheetId) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Por favor ingrese tanto el ID de la carpeta como el ID de la hoja de cálculo'
+            });
+            return;
+        }
+        
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('status').innerHTML = '';
+        
+        const scriptUrl = 'https://script.google.com/macros/s/AKfycbxu6kFZLJug7v2Y4ieWXYYFWCNZzGHpwMdheizBf5h42er9m9mzmPi_Y0ZUqZZ-BfOS/exec';
+        
+        fetch(`${scriptUrl}?folderId=${encodeURIComponent(folderId)}&sheetId=${encodeURIComponent(sheetId)}`)
+        .then(response => {
+            document.getElementById('loading').style.display = 'none';
+            Swal.fire({
+                icon: 'success',
+                title: 'Éxito',
+                text: 'Los nuevos archivos se han agregado al final de la hoja sin borrar los existentes'
+            });
+        })
+        .catch(error => {
+            document.getElementById('loading').style.display = 'none';
+            console.error('Error:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Ocurrió un error al procesar los archivos. Por favor intente nuevamente.'
+            });
+        });
+    });
+</script>
+</body>
+</html>

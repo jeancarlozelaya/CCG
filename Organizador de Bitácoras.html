@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <title>Organizador de Reportes</title>
+  <style>
+    :root {
+      --primary: #4285F4;
+      --success: #2ecc71;
+      --error: #e74c3c;
+      --warning: #f39c12;
+      --info: #3498db;
+      --gray: #95a5a6;
+      --dark-gray: #7f8c8d;
+      --dark: #2c3e50;
+      --darker: #34495e;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f9f9f9;
+      color: #333;
+    }
+    h1, h3 {
+      color: var(--dark);
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    #progress-bar {
+      height: 20px;
+      background: #e0e0e0;
+      border-radius: 10px;
+      margin: 10px 0;
+      overflow: hidden;
+    }
+    #progress {
+      height: 100%;
+      background: var(--primary);
+      width: 0%;
+      transition: width 0.3s;
+    }
+    #status-text {
+      font-size: 14px;
+      color: #666;
+      text-align: center;
+      margin-top: 5px;
+    }
+    #log-container {
+      max-height: 400px;
+      overflow-y: auto;
+      background: var(--dark);
+      color: white;
+      padding: 15px;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      margin-bottom: 20px;
+    }
+    .log-entry {
+      margin-bottom: 5px;
+      padding: 3px 0;
+      border-bottom: 1px solid var(--darker);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    .success { color: var(--success); }
+    .error { color: var(--error); }
+    .warning { color: var(--warning); }
+    .info { color: var(--info); }
+    .btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      display: block;
+      margin: 20px auto;
+      transition: background 0.3s;
+      width: 100%;
+      max-width: 300px;
+    }
+    .btn:hover {
+      filter: brightness(0.9);
+    }
+    .btn:disabled {
+      background: var(--gray);
+      cursor: not-allowed;
+    }
+    .btn-secondary {
+      background: var(--gray);
+    }
+    .btn-secondary:hover {
+      background: var(--dark-gray);
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>Organizador de Bitácoras de Limpieza</h1>
+  
+  <div class="card">
+    <h3>Progreso del Proceso</h3>
+    <div id="progress-bar">
+      <div id="progress"></div>
+    </div>
+    <div id="status-text">Preparado para iniciar...</div>
+  </div>
+  
+  <button id="start-btn" class="btn">Iniciar Proceso de Organización</button>
+  <button id="test-btn" class="btn btn-secondary">Probar Conexión</button>
+  
+  <div id="summary" class="hidden">
+    <h3>Resumen de Ejecución</h3>
+    <div id="summary-text"></div>
+  </div>
+  
+  <h3>Registro Detallado:</h3>
+  <div id="log-container"></div>
+
+  <script>
+    // Configuración
+    const CONFIG = {
+      SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzNVBXvnT6_q48kLsjL1P9JrwP4kAwICg4iNtAHJW_AMHyEgZvQU5fUtHiSa48A0K8A3Q/exec',
+      SWEETALERT_URL: 'https://cdn.jsdelivr.net/npm/sweetalert2@11'
+    };
+
+    // Elementos del DOM
+    const DOM = {
+      startBtn: document.getElementById('start-btn'),
+      testBtn: document.getElementById('test-btn'),
+      logContainer: document.getElementById('log-container'),
+      progressBar: document.getElementById('progress'),
+      statusText: document.getElementById('status-text'),
+      summaryDiv: document.getElementById('summary'),
+      summaryText: document.getElementById('summary-text')
+    };
+
+    // Estado de la aplicación
+    const APP_STATE = {
+      isProcessing: false,
+      swalLoaded: false
+    };
+
+    // Función para cargar SweetAlert2 dinámicamente
+    async function loadSweetAlert() {
+      if (APP_STATE.swalLoaded) return true;
+      
+      try {
+        await new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = CONFIG.SWEETALERT_URL;
+          script.onload = resolve;
+          script.onerror = reject;
+          document.head.appendChild(script);
+        });
+        APP_STATE.swalLoaded = true;
+        return true;
+      } catch (error) {
+        addLog(`Error cargando SweetAlert: ${error}`, 'error');
+        return false;
+      }
+    }
+
+    // Función para agregar entradas al log
+    function addLog(message, type = 'info') {
+      const logEntry = document.createElement('div');
+      logEntry.className = `log-entry ${type}`;
+      logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      DOM.logContainer.appendChild(logEntry);
+      DOM.logContainer.scrollTop = DOM.logContainer.scrollHeight;
+    }
+    
+    // Función para actualizar la barra de progreso
+    function updateProgress(percent, message) {
+      DOM.progressBar.style.width = `${percent}%`;
+      DOM.statusText.textContent = message;
+    }
+
+    // Función para formatear errores
+    function formatError(error) {
+      if (error instanceof Error) {
+        return error.message;
+      }
+      return typeof error === 'object' ? JSON.stringify(error) : String(error);
+    }
+
+    // Función para mostrar notificación
+    async function showAlert(options) {
+      const isLoaded = await loadSweetAlert();
+      if (!isLoaded) {
+        alert(options.title + '\n' + (options.html || options.text));
+        return;
+      }
+      Swal.fire(options);
+    }
+
+    // Función principal del proceso
+    async function startProcess() {
+      if (APP_STATE.isProcessing) return;
+      APP_STATE.isProcessing = true;
+      
+      DOM.startBtn.disabled = true;
+      DOM.testBtn.disabled = true;
+      DOM.logContainer.innerHTML = '';
+      updateProgress(5, "Iniciando proceso...");
+      addLog("Iniciando proceso de organización", 'info');
+      
+      try {
+        updateProgress(10, "Conectando con Google Apps Script...");
+        addLog("Estableciendo conexión con el servidor...", 'info');
+        
+        const response = await fetch(CONFIG.SCRIPT_URL);
+        
+        if (!response.ok) {
+          throw new Error(`Error HTTP: ${response.status}`);
+        }
+        
+        updateProgress(30, "Procesando datos...");
+        addLog("Procesando registros...", 'info');
+        
+        const result = await response.json();
+        
+        // Mostrar logs en tiempo real
+        if (result.logs?.length) {
+          result.logs.forEach(log => {
+            let type = 'info';
+            if (log.includes('✅') || log.includes('✔️') || log.includes('📅')) type = 'success';
+            else if (log.includes('❌') || log.includes('💥')) type = 'error';
+            else if (log.includes('⏩') || log.includes('🏗️') || log.includes('⚠️')) type = 'warning';
+            addLog(log, type);
+          });
+        }
+        
+        updateProgress(90, "Finalizando...");
+        addLog("Proceso en etapa final", 'info');
+        
+        // Mostrar resumen detallado
+        DOM.summaryDiv.classList.remove('hidden');
+        DOM.summaryText.innerHTML = `
+          <p><strong>Estado:</strong> <span class="${result.status === 'success' ? 'success' : 'error'}">${
+            result.status === 'success' ? '✅ Éxito' : '❌ Error'
+          }</span></p>
+          <p><strong>Mensaje:</strong> ${result.message}</p>
+          <p><strong>Archivos creados:</strong> ${result.createdFiles?.length || 0}</p>
+          <p><strong>Carpetas creadas:</strong> ${result.createdFolders?.length || 0}</p>
+          <p><strong>Registros procesados:</strong> ${result.processedCount || 0}</p>
+          <p><strong>Errores:</strong> ${result.errorCount || 0}</p>
+        `;
+        
+        updateProgress(100, "Proceso completado");
+        addLog("Proceso finalizado", 'success');
+        
+        // Mostrar notificación flotante
+        const alertOptions = {
+          title: result.status === 'success' ? '¡Proceso completado!' : 'Proceso con errores',
+          icon: result.status === 'success' ? 'success' : 'error',
+          confirmButtonText: result.status === 'success' ? 'Aceptar' : 'Entendido',
+          html: `
+            <div style="text-align: left;">
+              <p><strong>Resultado:</strong> <span style="color: ${result.status === 'success' ? '#28a745' : '#dc3545'}">
+                ${result.status === 'success' ? 'Éxito' : 'Error'}
+              </span></p>
+              ${result.status === 'success' ? `
+                <p><strong>Archivos creados:</strong> ${result.createdFiles?.length || 0}</p>
+                <p><strong>Carpetas creadas:</strong> ${result.createdFolders?.length || 0}</p>
+                <p><strong>Registros procesados:</strong> ${result.processedCount || 0}</p>
+              ` : `
+                <p><strong>Mensaje:</strong> ${result.message}</p>
+                <p><strong>Errores:</strong> ${result.errorCount || 0}</p>
+              `}
+            </div>
+          `
+        };
+        
+        await showAlert(alertOptions);
+        
+      } catch (error) {
+        const errorMsg = formatError(error);
+        addLog(`Error grave: ${errorMsg}`, 'error');
+        updateProgress(0, "Error en el proceso");
+        
+        await showAlert({
+          title: 'Error crítico',
+          html: `
+            <div style="text-align: left;">
+              <p>Ocurrió un error durante la ejecución:</p>
+              <code style="color: #dc3545; word-break: break-word;">${errorMsg}</code>
+            </div>
+          `,
+          icon: 'error',
+          confirmButtonText: 'Cerrar'
+        });
+        
+        console.error("Error detallado:", error);
+      } finally {
+        DOM.startBtn.disabled = false;
+        DOM.testBtn.disabled = false;
+        APP_STATE.isProcessing = false;
+      }
+    }
+    
+    // Evento click del botón de prueba
+    DOM.testBtn.addEventListener('click', async () => {
+      if (APP_STATE.isProcessing) return;
+      
+      DOM.testBtn.disabled = true;
+      addLog("Probando conexión con el servidor...", 'info');
+      
+      try {
+        const response = await fetch(CONFIG.SCRIPT_URL);
+        if (response.ok) {
+          addLog("✅ Conexión con el servidor establecida correctamente", 'success');
+          await showAlert({
+            title: 'Conexión exitosa', 
+            text: 'El servidor respondió correctamente',
+            icon: 'success'
+          });
+        } else {
+          addLog(`⚠️ El servidor respondió con estado: ${response.status}`, 'warning');
+          await showAlert({
+            title: 'Respuesta inesperada',
+            text: `El servidor respondió con estado: ${response.status}`,
+            icon: 'warning'
+          });
+        }
+      } catch (error) {
+        const errorMsg = formatError(error);
+        addLog(`❌ Error de conexión: ${errorMsg}`, 'error');
+        await showAlert({
+          title: 'Error de conexión',
+          text: `No se pudo conectar al servidor: ${errorMsg}`,
+          icon: 'error'
+        });
+      } finally {
+        DOM.testBtn.disabled = false;
+      }
+    });
+    
+    // Evento click del botón principal
+    DOM.startBtn.addEventListener('click', startProcess);
+    
+    // Inicialización
+    window.addEventListener('DOMContentLoaded', () => {
+      addLog("Sistema listo. Haga clic en 'Iniciar Proceso' para comenzar.", 'success');
+    });
+  </script>
+</body>
+</html>

@@ -3,26 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Extraer archivos de Google Drive</title>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <title>Extraer Datos de Bitácoras</title>
+    <base target="_top">
     <style>
+        :root {
+            --primary: #4285F4;
+            --success: #2ecc71;
+            --error: #e74c3c;
+            --warning: #f39c12;
+            --info: #3498db;
+            --gray: #95a5a6;
+            --dark-gray: #7f8c8d;
+            --dark: #2c3e50;
+            --darker: #34495e;
+        }
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             max-width: 800px;
             margin: 0 auto;
             padding: 20px;
-            line-height: 1.6;
+            background-color: #f9f9f9;
+            color: #333;
+        }
+        h1, h3 {
+            color: var(--dark);
         }
         h1 {
-            color: #4285F4;
             text-align: center;
+            margin-bottom: 30px;
         }
-        .container {
-            background-color: #f9f9f9;
+        .card {
+            background: white;
             border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             padding: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
         }
+        #progress-bar {
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        #progress {
+            height: 100%;
+            background: var(--primary);
+            width: 0%;
+            transition: width 0.3s;
+        }
+        #status-text {
+            font-size: 14px;
+            color: #666;
+            text-align: center;
+            margin-top: 5px;
+        }
+        #log-container {
+            max-height: 400px;
+            overflow-y: auto;
+            background: var(--dark);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            margin-bottom: 20px;
+        }
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 3px 0;
+            border-bottom: 1px solid var(--darker);
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        .success { color: var(--success); }
+        .error { color: var(--error); }
+        .warning { color: var(--warning); }
+        .info { color: var(--info); }
         .form-group {
             margin-bottom: 15px;
         }
@@ -30,38 +86,54 @@
             display: block;
             margin-bottom: 5px;
             font-weight: bold;
+            color: var(--darker);
         }
-        input, button {
+        input {
             width: 100%;
             padding: 10px;
             border: 1px solid #ddd;
             border-radius: 4px;
             box-sizing: border-box;
+            font-family: inherit;
+            font-size: 14px;
         }
-        button {
-            background-color: #4285F4;
+        .btn {
+            background: var(--primary);
             color: white;
             border: none;
+            padding: 12px 20px;
+            border-radius: 4px;
             cursor: pointer;
             font-size: 16px;
-            margin-top: 10px;
+            display: block;
+            margin: 20px auto;
+            transition: background 0.3s;
+            width: 100%;
+            max-width: 300px;
         }
-        button:hover {
-            background-color: #3367D6;
+        .btn:hover {
+            filter: brightness(0.9);
         }
-        #status {
-            margin-top: 20px;
-            padding: 10px;
-            border-radius: 4px;
+        .btn:disabled {
+            background: var(--gray);
+            cursor: not-allowed;
+        }
+        .btn-secondary {
+            background: var(--gray);
+        }
+        .btn-secondary:hover {
+            background: var(--dark-gray);
+        }
+        .hidden {
+            display: none;
         }
         .loading {
-            display: none;
             text-align: center;
             margin: 20px 0;
         }
         .spinner {
             border: 5px solid #f3f3f3;
-            border-top: 5px solid #4285F4;
+            border-top: 5px solid var(--primary);
             border-radius: 50%;
             width: 50px;
             height: 50px;
@@ -75,9 +147,10 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Extraer Datos de Drive</h1>
-        
+    <h1>Extraer Datos de Bitácoras</h1>
+    
+    <div class="card">
+        <h3>Configuración</h3>
         <div class="form-group">
             <label for="folderId">ID de la carpeta de Google Drive:</label>
             <input type="text" id="folderId" value="1IO86ocZx3UYmpMpA_rRnvN_UokbJFljD">
@@ -87,55 +160,252 @@
             <label for="sheetId">ID de la hoja de Google Sheets:</label>
             <input type="text" id="sheetId" value="1Q82KAL6TsTr7J1kpuI-vRqUd9lZ16d5cYKQ8V9TdiaY">
         </div>
-        
-        <button id="processBtn">Extraer archivos y enviar a Google Sheets</button>
-        
-        <div class="loading" id="loading">
-            <div class="spinner"></div>
-            <p>Procesando, por favor espere...</p>
+    </div>
+    
+    <div class="card">
+        <h3>Progreso del Proceso</h3>
+        <div id="progress-bar">
+            <div id="progress"></div>
         </div>
-        
-        <div id="status"></div>
+        <div id="status-text">Preparado para iniciar...</div>
+    </div>
+    
+    <button id="processBtn" class="btn">Extraer Datos</button>
+    <button id="testBtn" class="btn btn-secondary">Probar Conexión</button>
+    
+    <div class="loading hidden" id="loading">
+        <div class="spinner"></div>
+        <p>Procesando, por favor espere...</p>
+    </div>
+    
+    <h3>Registro Detallado:</h3>
+    <div id="log-container">
+        <div class="log-entry info">Sistema listo. Ingrese los IDs y haga clic en el botón para comenzar.</div>
     </div>
 
-<script>
-    document.getElementById('processBtn').addEventListener('click', function() {
-        const folderId = document.getElementById('folderId').value.trim();
-        const sheetId = document.getElementById('sheetId').value.trim();
-        
-        if (!folderId || !sheetId) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'Por favor ingrese tanto el ID de la carpeta como el ID de la hoja de cálculo'
-            });
-            return;
+    <script>
+        // Configuración
+        const CONFIG = {
+            SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxu6kFZLJug7v2Y4ieWXYYFWCNZzGHpwMdheizBf5h42er9m9mzmPi_Y0ZUqZZ-BfOS/exec',
+            SWEETALERT_URL: 'https://cdn.jsdelivr.net/npm/sweetalert2@11'
+        };
+
+        // Elementos del DOM
+        const DOM = {
+            processBtn: document.getElementById('processBtn'),
+            testBtn: document.getElementById('testBtn'),
+            logContainer: document.getElementById('log-container'),
+            progressBar: document.getElementById('progress'),
+            statusText: document.getElementById('status-text'),
+            loading: document.getElementById('loading'),
+            folderId: document.getElementById('folderId'),
+            sheetId: document.getElementById('sheetId')
+        };
+
+        // Estado de la aplicación
+        const APP_STATE = {
+            isProcessing: false,
+            swalLoaded: false
+        };
+
+        // Función para cargar SweetAlert2 dinámicamente
+        async function loadSweetAlert() {
+            if (APP_STATE.swalLoaded) return true;
+            
+            try {
+                await new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = CONFIG.SWEETALERT_URL;
+                    script.onload = resolve;
+                    script.onerror = reject;
+                    document.head.appendChild(script);
+                });
+                APP_STATE.swalLoaded = true;
+                return true;
+            } catch (error) {
+                addLog(`Error cargando SweetAlert: ${error}`, 'error');
+                return false;
+            }
+        }
+
+        // Función para agregar entradas al log
+        function addLog(message, type = 'info') {
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}`;
+            logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            DOM.logContainer.appendChild(logEntry);
+            DOM.logContainer.scrollTop = DOM.logContainer.scrollHeight;
         }
         
-        document.getElementById('loading').style.display = 'block';
-        document.getElementById('status').innerHTML = '';
+        // Función para actualizar la barra de progreso
+        function updateProgress(percent, message) {
+            DOM.progressBar.style.width = `${percent}%`;
+            DOM.statusText.textContent = message;
+        }
+
+        // Función para formatear errores
+        function formatError(error) {
+            if (error instanceof Error) {
+                return error.message;
+            }
+            return typeof error === 'object' ? JSON.stringify(error) : String(error);
+        }
+
+        // Función para mostrar notificación
+        async function showAlert(options) {
+            const isLoaded = await loadSweetAlert();
+            if (!isLoaded) {
+                alert(options.title + '\n' + (options.html || options.text));
+                return;
+            }
+            Swal.fire(options);
+        }
+
+        // Función principal del proceso
+        async function startProcess() {
+            if (APP_STATE.isProcessing) return;
+            
+            const folderId = DOM.folderId.value.trim();
+            const sheetId = DOM.sheetId.value.trim();
+            
+            if (!folderId || !sheetId) {
+                addLog('Error: Faltan el ID de carpeta o el ID de hoja de cálculo', 'error');
+                await showAlert({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Por favor ingrese tanto el ID de la carpeta como el ID de la hoja de cálculo'
+                });
+                return;
+            }
+            
+            APP_STATE.isProcessing = true;
+            DOM.processBtn.disabled = true;
+            DOM.testBtn.disabled = true;
+            DOM.loading.classList.remove('hidden');
+            updateProgress(10, "Preparando extracción de datos...");
+            addLog("Iniciando proceso de extracción de archivos", 'info');
+            
+            try {
+                updateProgress(30, "Conectando con Google Drive...");
+                addLog(`Extrayendo archivos de la carpeta: ${folderId}`, 'info');
+                
+                const url = `${CONFIG.SCRIPT_URL}?folderId=${encodeURIComponent(folderId)}&sheetId=${encodeURIComponent(sheetId)}`;
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error(`Error HTTP: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                updateProgress(80, "Procesando resultados...");
+                
+                // Manejo mejorado de la respuesta
+                if (result.status === "success") {
+                    if (result.totalFiles === 0) {
+                        // Caso cuando la carpeta está vacía
+                        addLog("⚠️ La carpeta está vacía - no hay archivos para procesar", 'warning');
+                        updateProgress(100, "Carpeta vacía");
+                        
+                        await showAlert({
+                            icon: 'info',
+                            title: 'Carpeta vacía',
+                            html: `
+                                <div style="text-align: center;">
+                                    <p>No se encontraron archivos en la carpeta:</p>
+                                    <p><strong>${folderId}</strong></p>
+                                    <p>El proceso se completó pero no se agregaron datos.</p>
+                                </div>
+                            `,
+                            confirmButtonText: 'Entendido'
+                        });
+                    } else {
+                        // Caso exitoso con archivos procesados
+                        addLog(`✅ Proceso completado - ${result.totalFiles} archivos procesados`, 'success');
+                        updateProgress(100, "Proceso completado");
+                        
+                        await showAlert({
+                            icon: 'success',
+                            title: 'Éxito',
+                            html: `
+                                <div style="text-align: center;">
+                                    <p>Se procesaron <strong>${result.totalFiles}</strong> archivos correctamente.</p>
+                                    <p>Los datos se han agregado a la hoja de cálculo.</p>
+                                </div>
+                            `,
+                            confirmButtonText: 'Aceptar'
+                        });
+                    }
+                } else {
+                    // Error en el procesamiento
+                    throw new Error(result.message || "Error desconocido al procesar los archivos");
+                }
+                
+            } catch (error) {
+                const errorMsg = formatError(error);
+                addLog(`❌ Error en el proceso: ${errorMsg}`, 'error');
+                updateProgress(0, "Error en el proceso");
+                
+                await showAlert({
+                    title: 'Error en el proceso',
+                    html: `
+                        <div style="text-align: left;">
+                            <p>Ocurrió un error al procesar los archivos:</p>
+                            <code style="color: #dc3545; word-break: break-word;">${errorMsg}</code>
+                            <p style="margin-top: 10px;">Por favor verifique los IDs e intente nuevamente.</p>
+                        </div>
+                    `,
+                    icon: 'error',
+                    confirmButtonText: 'Cerrar'
+                });
+                
+                console.error("Error detallado:", error);
+            } finally {
+                DOM.processBtn.disabled = false;
+                DOM.testBtn.disabled = false;
+                DOM.loading.classList.add('hidden');
+                APP_STATE.isProcessing = false;
+            }
+        }
         
-        const scriptUrl = 'https://script.google.com/macros/s/AKfycbxu6kFZLJug7v2Y4ieWXYYFWCNZzGHpwMdheizBf5h42er9m9mzmPi_Y0ZUqZZ-BfOS/exec';
-        
-        fetch(`${scriptUrl}?folderId=${encodeURIComponent(folderId)}&sheetId=${encodeURIComponent(sheetId)}`)
-        .then(response => {
-            document.getElementById('loading').style.display = 'none';
-            Swal.fire({
-                icon: 'success',
-                title: 'Éxito',
-                text: 'Los nuevos archivos se han agregado al final de la hoja sin borrar los existentes'
-            });
-        })
-        .catch(error => {
-            document.getElementById('loading').style.display = 'none';
-            console.error('Error:', error);
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'Ocurrió un error al procesar los archivos. Por favor intente nuevamente.'
-            });
+        // Evento click del botón de prueba
+        DOM.testBtn.addEventListener('click', async () => {
+            if (APP_STATE.isProcessing) return;
+            
+            DOM.testBtn.disabled = true;
+            addLog("Probando conexión con el servidor...", 'info');
+            
+            try {
+                const response = await fetch(CONFIG.SCRIPT_URL);
+                if (response.ok) {
+                    addLog("✅ Conexión con el servidor establecida correctamente", 'success');
+                    await showAlert({
+                        title: 'Conexión exitosa', 
+                        text: 'El servidor respondió correctamente',
+                        icon: 'success'
+                    });
+                } else {
+                    addLog(`⚠️ El servidor respondió con estado: ${response.status}`, 'warning');
+                    await showAlert({
+                        title: 'Respuesta inesperada',
+                        text: `El servidor respondió con estado: ${response.status}`,
+                        icon: 'warning'
+                    });
+                }
+            } catch (error) {
+                const errorMsg = formatError(error);
+                addLog(`❌ Error de conexión: ${errorMsg}`, 'error');
+                await showAlert({
+                    title: 'Error de conexión',
+                    text: `No se pudo conectar al servidor: ${errorMsg}`,
+                    icon: 'error'
+                });
+            } finally {
+                DOM.testBtn.disabled = false;
+            }
         });
-    });
-</script>
+        
+        // Evento click del botón principal
+        DOM.processBtn.addEventListener('click', startProcess);
+    </script>
 </body>
 </html>

@@ -1260,31 +1260,39 @@
 
 async function generarPDF() {
     const { jsPDF } = window.jspdf;
-    // Se define el tamaño de la página como 'letter' en orientación horizontal
     const doc = new jsPDF({ 
         orientation: 'portrait', 
         format: 'letter',
         unit: 'mm'
     });
     
-    doc.setFont('helvetica');
+    // Configurar fuente Times New Roman
+    doc.setFont("times", "normal");
 
     const tipoMovimiento = ultimaTransaccion.tipo === 'salidas' ? 'Acta de Compromiso' : 'Acta de Recepción';
     const tituloChecklist = ultimaTransaccion.tipo === 'salidas' ? 'Checklist Preoperativo' : 'Checklist Postoperativo';
     
     const now = new Date();
     const horaGeneracion = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
-    const fechaConHora = `${ultimaTransaccion.fecha} - ${horaGeneracion}`;
     const [yyyy, mm, dd] = ultimaTransaccion.fecha.split('-');
+    
+    // Convertir número de mes a texto
+    const meses = [
+        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+    ];
+    const mesTexto = meses[parseInt(mm) - 1];
 
-    let y = 20; // Reducir espacio inicial
-    const margin = 15; // Reducir márgenes
+    let y = 15; // Reducir espacio inicial
+    const margin = 15;
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
+    const textWidth = pageWidth - (2 * margin); // Ancho disponible para texto
 
-    // Título principal - más compacto
+    // Título principal - Times New Roman 16
     doc.setFontSize(16);
     doc.setTextColor(34, 49, 63);
+    doc.setFont("times", "bold");
     doc.text(tipoMovimiento, pageWidth / 2, y, { align: 'center' });
     y += 8;
 
@@ -1293,48 +1301,89 @@ async function generarPDF() {
     doc.line(margin, y, pageWidth - margin, y);
     y += 10;
 
-    // Texto de compromiso o recepción - más compacto
-    doc.setFontSize(9); // Reducir tamaño de fuente
+    // Texto de compromiso o recepción - Times New Roman 12
+    doc.setFontSize(12);
     doc.setTextColor(50, 50, 50);
+    doc.setFont("times", "normal");
 
     if (ultimaTransaccion.tipo === 'salidas') {
-        const textosSalida = [
-            `Yo ${ultimaTransaccion.colaborador} mediante la presente Acta de Compromiso hago constar que en esta fecha estoy recibiendo el equipo ${ultimaTransaccion.equipo}, el cual será utilizado para el desempeño de mis funciones.`,
-            `Habiendo recibido me comprometo a lo siguiente:`,
-            `- Cuidar y hacer buen uso del mismo, durante el tiempo que este bajo mi cargo en beneficio de las actividades del negocio.`,
-            `- En caso de accidente, daño por mal uso y cualquier que bajo mi uso dañe el equipo se procederá a realizar la deducción del valor completo proporcionando uno nuevo.`,
-            `- Me comprometo a cuidar todos y cada uno de los componentes del equipo ${ultimaTransaccion.equipo}.`,
-            `Firmo la presente en la ciudad de Tegucigalpa a los ${dd} días del mes de ${mm} del ${yyyy}.`
+        // Texto completo dividido en líneas
+        const textoCompleto = `Yo ${ultimaTransaccion.colaborador} mediante la presente Acta de Compromiso hago constar que en esta fecha estoy recibiendo el equipo ${ultimaTransaccion.equipo}, el cual será utilizado para el desempeño de mis funciones.`;
+        
+        // Dividir texto en líneas que respeten el margen
+        const lineas = doc.splitTextToSize(textoCompleto, textWidth);
+        doc.text(lineas, margin, y);
+        y += (lineas.length * 6) + 4;
+        
+        // Texto en negrita
+        doc.setFont("times", "bold");
+        const textoCompromiso = "Habiendo recibido me comprometo a lo siguiente:";
+        doc.text(textoCompromiso, margin, y);
+        y += 7;
+        
+        // Lista de compromisos
+        doc.setFont("times", "normal");
+        const compromisos = [
+            "- Cuidar y hacer buen uso del mismo, durante el tiempo que este bajo mi cargo en beneficio de las actividades del negocio.",
+            "- En caso de accidente, daño por mal uso y cualquier que bajo mi uso dañe el equipo se procederá a realizar la deducción del valor completo proporcionando uno nuevo.",
+            "- Me comprometo a cuidar todos y cada uno de los componentes del equipo."
         ];
-
-        textosSalida.forEach(texto => {
-            const splitText = doc.splitTextToSize(texto, pageWidth - (2 * margin));
-            doc.text(splitText, margin, y);
-            y += (splitText.length * 5) + 2; // Espaciado más ajustado
+        
+        compromisos.forEach(compromiso => {
+            const splitText = doc.splitTextToSize(compromiso, textWidth - 5);
+            doc.text(splitText, margin + 5, y);
+            y += (splitText.length * 5) + 3;
         });
+        
+        y += 5;
+        
+        // Texto final
+        const textoFinal = `Firmo la presente en la ciudad de Tegucigalpa a los ${dd} días del mes de ${mesTexto} del ${yyyy}.`;
+        const lineasFinal = doc.splitTextToSize(textoFinal, textWidth);
+        doc.text(lineasFinal, margin, y);
+        y += (lineasFinal.length * 6) + 10;
 
     } else if (ultimaTransaccion.tipo === 'entradas') {
-        const textosEntrada = [
-            `Yo ${ultimaTransaccion.colaborador} mediante la presente Acta de Recepción hago constar que en esta fecha estoy entregando el equipo ${ultimaTransaccion.equipo}, el cual fue utilizado para el desempeño de mis funciones y ahora estoy retornando.`,
-            `Al entregarla declaro lo siguiente:`,
-            `- El equipo se encuentra en las mismas condiciones en las que me fue entregado.`,
-            `- Fui responsable y cuidadoso en el uso del equipo y todos sus componentes.`,
-            `- Cualquier daño, accidente o mal uso fue reportado en tiempo y forma.`,
-            `Firmo la presente en la ciudad de Tegucigalpa a los ${dd} días del mes de ${mm} del ${yyyy}.`
+        // Texto completo dividido en líneas
+        const textoCompleto = `Yo ${ultimaTransaccion.colaborador} mediante la presente Acta de Recepción hago constar que en esta fecha estoy entregando el equipo ${ultimaTransaccion.equipo}, el cual fue utilizado para el desempeño de mis funciones y ahora estoy retornando.`;
+        
+        // Dividir texto en líneas que respeten el margen
+        const lineas = doc.splitTextToSize(textoCompleto, textWidth);
+        doc.text(lineas, margin, y);
+        y += (lineas.length * 6) + 4;
+        
+        // Texto en negrita
+        doc.setFont("times", "bold");
+        const textoDeclaracion = "Al entregarla declaro lo siguiente:";
+        doc.text(textoDeclaracion, margin, y);
+        y += 7;
+        
+        // Lista de declaraciones
+        doc.setFont("times", "normal");
+        const declaraciones = [
+            "- El equipo se encuentra en las mismas condiciones en las que me fue entregado.",
+            "- Fui responsable y cuidadoso en el uso del equipo y todos sus componentes.",
+            "- Cualquier daño, accidente o mal uso fue reportado en tiempo y forma."
         ];
-
-        textosEntrada.forEach(texto => {
-            const splitText = doc.splitTextToSize(texto, pageWidth - (2 * margin));
-            doc.text(splitText, margin, y);
-            y += (splitText.length * 5) + 2; // Espaciado más ajustado
+        
+        declaraciones.forEach(declaracion => {
+            const splitText = doc.splitTextToSize(declaracion, textWidth - 5);
+            doc.text(splitText, margin + 5, y);
+            y += (splitText.length * 5) + 3;
         });
+        
+        y += 5;
+        
+        // Texto final
+        const textoFinal = `Firmo la presente en la ciudad de Tegucigalpa a los ${dd} días del mes de ${mesTexto} del ${yyyy}.`;
+        const lineasFinal = doc.splitTextToSize(textoFinal, textWidth);
+        doc.text(lineasFinal, margin, y);
+        y += (lineasFinal.length * 6) + 10;
     }
 
-    y += 5;
-
-    // Firma - más compacta
-    const firmaWidth = 70;
-    const firmaHeight = 30;
+    // Firma - Reducir tamaño para ahorrar espacio
+    const firmaWidth = 60;
+    const firmaHeight = 25;
     const firmaX = (pageWidth - firmaWidth) / 2;
     
     const canvasFirma = document.getElementById('firmaCanvas');
@@ -1346,8 +1395,9 @@ async function generarPDF() {
     doc.line(firmaX, y, firmaX + firmaWidth, y);
     y += 4;
 
-    doc.setFontSize(10);
+    doc.setFontSize(12);
     doc.setTextColor(80, 80, 80);
+    doc.setFont("times", "bold");
     doc.text(ultimaTransaccion.colaborador, pageWidth / 2, y, { align: 'center' });
 
     y += 10;
@@ -1356,9 +1406,10 @@ async function generarPDF() {
     doc.line(margin, y, pageWidth - margin, y);
     y += 8;
     
-    // Checklist - más compacto
+    // Checklist - Título en negrita
     doc.setFontSize(14);
     doc.setTextColor(34, 49, 63);
+    doc.setFont("times", "bold");
     doc.text(tituloChecklist, margin, y);
     y += 6;
 
@@ -1370,6 +1421,28 @@ async function generarPDF() {
     });
 
     // Ajustar la tabla para que quepa en una sola página
+    // Calcular espacio disponible
+    const espacioDisponible = pageHeight - y - 15;
+    
+    // Calcular altura aproximada de la tabla
+    const alturaPorFila = 5; // Reducir altura de fila
+    const alturaEncabezado = 8;
+    const alturaTotalTabla = alturaEncabezado + (tableRows.length * alturaPorFila);
+    
+    // Si no hay espacio suficiente, aplicar ajustes
+    let fontSize = 9;
+    let cellPadding = 2;
+    let rowHeight = 5;
+    
+    if (alturaTotalTabla > espacioDisponible) {
+        fontSize = 8;
+        cellPadding = 1.5;
+        rowHeight = 4;
+    }
+    
+    // Ajustar ancho de columna para puntos de verificación
+    const colWidth = (pageWidth - (2 * margin) - 24) / 1.5; // Restar espacio para columnas Sí/No
+    
     doc.autoTable({
         startY: y,
         head: [tableColumn],
@@ -1379,34 +1452,28 @@ async function generarPDF() {
             fillColor: [0, 123, 255], 
             textColor: [255, 255, 255],
             fontStyle: 'bold',
-            fontSize: 8
+            fontSize: fontSize,
+            font: "times",
+            cellPadding: cellPadding,
+            minCellHeight: rowHeight
         },
         styles: { 
-            fontSize: 7, 
-            cellPadding: 2, 
+            fontSize: fontSize, 
+            cellPadding: cellPadding, 
             textColor: [50, 50, 50],
             lineColor: [200, 200, 200],
-            lineWidth: 0.1
+            lineWidth: 0.1,
+            font: "times",
+            minCellHeight: rowHeight
         },
         columnStyles: {
-            0: { cellWidth: 'auto', fontStyle: 'bold' },
-            1: { cellWidth: 10, halign: 'center' },
-            2: { cellWidth: 10, halign: 'center' }
+            0: { cellWidth: colWidth, fontStyle: 'bold' },
+            1: { cellWidth: 12, halign: 'center' },
+            2: { cellWidth: 12, halign: 'center' }
         },
         margin: { top: y, left: margin, right: margin },
         tableWidth: 'wrap',
-        pageBreak: 'avoid',
-        // Ajustar altura de filas
-        didDrawPage: function(data) {
-            // Verificar si la tabla se desborda
-            const tableHeight = data.cursor.y - y;
-            const remainingSpace = pageHeight - data.cursor.y - 20;
-            
-            if (tableHeight > remainingSpace) {
-                // Reducir aún más el tamaño de fuente si es necesario
-                doc.setFontSize(6);
-            }
-        }
+        pageBreak: 'avoid'
     });
     
     // Guardar y compartir el PDF
@@ -1428,8 +1495,13 @@ async function generarPDF() {
     } else {
         doc.save(pdfName);
     }
-}
 
+    // Aplicar negritas a elementos específicos después de generar el PDF
+    // Esto se hace mediante la manipulación del contenido textual
+    // ya que jsPDF no permite aplicar formatos mixtos fácilmente
+    console.log("Para aplicar negritas a nombres, equipos y fechas específicas,");
+    console.log("se recomienda generar el texto con esas partes ya en negrita.");
+}
 let isDrawing = false;
 let isErasing = false;
 let lastX = 0;

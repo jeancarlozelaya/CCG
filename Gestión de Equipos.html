@@ -6,6 +6,9 @@
     <title>Pisos Brillantes</title>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
     <style>
         body {
@@ -591,7 +594,6 @@
 }
 
 
-
     </style>
 </head>
 <body>
@@ -692,6 +694,7 @@
     let equipoSeleccionado = null;
     let categoriaSeleccionada = "";
     let modoActual = "salidas";
+    let ultimaTransaccion = null;
 
     const checklistsPreOperativos = {
         "aspiradoras": [
@@ -1035,9 +1038,8 @@
         let fecha = $('#fecha').val();
         let colaborador = $('#colaborador').val();
         let area = $('#area').val();
-
         const checklist = checklistsPreOperativos[categoriaSeleccionada] || checklistsPreOperativos["aspiradoras"];
-
+        
         Swal.fire({
             title: 'Checklist Preoperativo',
             html: generarChecklistHTML(checklist, 'pre'),
@@ -1058,6 +1060,19 @@
                     checklistRespuestas.push(selectedButton.data('value'));
                 });
 
+                ultimaTransaccion = {
+                    fecha: fecha,
+                    colaborador: colaborador,
+                    area: area,
+                    equipo: equipoSeleccionado.nombre,
+                    categoria: categoriaSeleccionada,
+                    tipo: 'salidas',
+                    checklist: checklist.map((item, i) => ({
+                        item: item,
+                        respuesta: checklistRespuestas[i]
+                    }))
+                };
+                
                 Swal.fire({
                     title: 'Confirmar Préstamo',
                     html: `
@@ -1102,10 +1117,16 @@
                                             <div style="color: #28a745; font-size: 2em;">
                                                 <i class="fas fa-check-circle"></i>
                                             </div>
+                                            <button id="generarPdfBtn" class="swal2-confirm swal2-styled" style="background-color: #007bff; margin-top: 15px;">Generar y Compartir PDF</button>
                                         </div>
                                     `,
                                     icon: 'success',
-                                    confirmButtonText: 'Aceptar'
+                                    showConfirmButton: false,
+                                    didOpen: () => {
+                                        $('#generarPdfBtn').on('click', () => {
+                                            generarPDF();
+                                        });
+                                    }
                                 }).then(() => {
                                     location.reload();
                                 });
@@ -1125,7 +1146,6 @@
         let fecha = $('#fecha').val();
         let colaborador = $('#colaborador').val();
         let area = $('#area').val();
-
         const checklist = checklistsPostOperativos[categoriaSeleccionada] || checklistsPostOperativos["aspiradoras"];
 
         Swal.fire({
@@ -1147,6 +1167,19 @@
                     const selectedButton = $(this).find('.selected');
                     checklistRespuestas.push(selectedButton.data('value'));
                 });
+
+                ultimaTransaccion = {
+                    fecha: fecha,
+                    colaborador: colaborador,
+                    area: area,
+                    equipo: equipoSeleccionado.nombre,
+                    categoria: categoriaSeleccionada,
+                    tipo: 'entradas',
+                    checklist: checklist.map((item, i) => ({
+                        item: item,
+                        respuesta: checklistRespuestas[i]
+                    }))
+                };
 
                 Swal.fire({
                     title: 'Confirmar Devolución',
@@ -1192,10 +1225,16 @@
                                             <div style="color: #28a745; font-size: 2em;">
                                                 <i class="fas fa-check-circle"></i>
                                             </div>
+                                            <button id="generarPdfBtn" class="swal2-confirm swal2-styled" style="background-color: #007bff; margin-top: 15px;">Generar y Compartir PDF</button>
                                         </div>
                                     `,
                                     icon: 'success',
-                                    confirmButtonText: 'Aceptar'
+                                    showConfirmButton: false,
+                                    didOpen: () => {
+                                        $('#generarPdfBtn').on('click', () => {
+                                            generarPDF();
+                                        });
+                                    }
                                 }).then(() => {
                                     location.reload();
                                 });
@@ -1219,9 +1258,177 @@
         window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
     }
 
+async function generarPDF() {
+    const { jsPDF } = window.jspdf;
+    // Se define el tamaño de la página como 'letter' en orientación horizontal
+    const doc = new jsPDF({ 
+        orientation: 'portrait', 
+        format: 'letter',
+        unit: 'mm'
+    });
+    
+    doc.setFont('helvetica');
 
+    const tipoMovimiento = ultimaTransaccion.tipo === 'salidas' ? 'Acta de Compromiso' : 'Acta de Recepción';
+    const tituloChecklist = ultimaTransaccion.tipo === 'salidas' ? 'Checklist Preoperativo' : 'Checklist Postoperativo';
+    
+    const now = new Date();
+    const horaGeneracion = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const fechaConHora = `${ultimaTransaccion.fecha} - ${horaGeneracion}`;
+    const [yyyy, mm, dd] = ultimaTransaccion.fecha.split('-');
 
-<!-- Contenedor para la Firma -->
+    let y = 20; // Reducir espacio inicial
+    const margin = 15; // Reducir márgenes
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    // Título principal - más compacto
+    doc.setFontSize(16);
+    doc.setTextColor(34, 49, 63);
+    doc.text(tipoMovimiento, pageWidth / 2, y, { align: 'center' });
+    y += 8;
+
+    // Separador
+    doc.setDrawColor(200, 200, 200);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 10;
+
+    // Texto de compromiso o recepción - más compacto
+    doc.setFontSize(9); // Reducir tamaño de fuente
+    doc.setTextColor(50, 50, 50);
+
+    if (ultimaTransaccion.tipo === 'salidas') {
+        const textosSalida = [
+            `Yo ${ultimaTransaccion.colaborador} mediante la presente Acta de Compromiso hago constar que en esta fecha estoy recibiendo el equipo ${ultimaTransaccion.equipo}, el cual será utilizado para el desempeño de mis funciones.`,
+            `Habiendo recibido me comprometo a lo siguiente:`,
+            `- Cuidar y hacer buen uso del mismo, durante el tiempo que este bajo mi cargo en beneficio de las actividades del negocio.`,
+            `- En caso de accidente, daño por mal uso y cualquier que bajo mi uso dañe el equipo se procederá a realizar la deducción del valor completo proporcionando uno nuevo.`,
+            `- Me comprometo a cuidar todos y cada uno de los componentes del equipo ${ultimaTransaccion.equipo}.`,
+            `Firmo la presente en la ciudad de Tegucigalpa a los ${dd} días del mes de ${mm} del ${yyyy}.`
+        ];
+
+        textosSalida.forEach(texto => {
+            const splitText = doc.splitTextToSize(texto, pageWidth - (2 * margin));
+            doc.text(splitText, margin, y);
+            y += (splitText.length * 5) + 2; // Espaciado más ajustado
+        });
+
+    } else if (ultimaTransaccion.tipo === 'entradas') {
+        const textosEntrada = [
+            `Yo ${ultimaTransaccion.colaborador} mediante la presente Acta de Recepción hago constar que en esta fecha estoy entregando el equipo ${ultimaTransaccion.equipo}, el cual fue utilizado para el desempeño de mis funciones y ahora estoy retornando.`,
+            `Al entregarla declaro lo siguiente:`,
+            `- El equipo se encuentra en las mismas condiciones en las que me fue entregado.`,
+            `- Fui responsable y cuidadoso en el uso del equipo y todos sus componentes.`,
+            `- Cualquier daño, accidente o mal uso fue reportado en tiempo y forma.`,
+            `Firmo la presente en la ciudad de Tegucigalpa a los ${dd} días del mes de ${mm} del ${yyyy}.`
+        ];
+
+        textosEntrada.forEach(texto => {
+            const splitText = doc.splitTextToSize(texto, pageWidth - (2 * margin));
+            doc.text(splitText, margin, y);
+            y += (splitText.length * 5) + 2; // Espaciado más ajustado
+        });
+    }
+
+    y += 5;
+
+    // Firma - más compacta
+    const firmaWidth = 70;
+    const firmaHeight = 30;
+    const firmaX = (pageWidth - firmaWidth) / 2;
+    
+    const canvasFirma = document.getElementById('firmaCanvas');
+    const firmaDataUrl = canvasFirma.toDataURL('image/png');
+
+    doc.addImage(firmaDataUrl, 'PNG', firmaX, y, firmaWidth, firmaHeight);
+
+    y += firmaHeight + 2;
+    doc.line(firmaX, y, firmaX + firmaWidth, y);
+    y += 4;
+
+    doc.setFontSize(10);
+    doc.setTextColor(80, 80, 80);
+    doc.text(ultimaTransaccion.colaborador, pageWidth / 2, y, { align: 'center' });
+
+    y += 10;
+
+    // Separador
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 8;
+    
+    // Checklist - más compacto
+    doc.setFontSize(14);
+    doc.setTextColor(34, 49, 63);
+    doc.text(tituloChecklist, margin, y);
+    y += 6;
+
+    const tableColumn = ["Punto de Verificación", "Sí", "No"];
+    const tableRows = ultimaTransaccion.checklist.map(item => {
+        const si = item.respuesta === "✔" ? "X" : "";
+        const no = item.respuesta === "X" ? "X" : "";
+        return [item.item, si, no];
+    });
+
+    // Ajustar la tabla para que quepa en una sola página
+    doc.autoTable({
+        startY: y,
+        head: [tableColumn],
+        body: tableRows,
+        theme: 'grid',
+        headStyles: { 
+            fillColor: [0, 123, 255], 
+            textColor: [255, 255, 255],
+            fontStyle: 'bold',
+            fontSize: 8
+        },
+        styles: { 
+            fontSize: 7, 
+            cellPadding: 2, 
+            textColor: [50, 50, 50],
+            lineColor: [200, 200, 200],
+            lineWidth: 0.1
+        },
+        columnStyles: {
+            0: { cellWidth: 'auto', fontStyle: 'bold' },
+            1: { cellWidth: 10, halign: 'center' },
+            2: { cellWidth: 10, halign: 'center' }
+        },
+        margin: { top: y, left: margin, right: margin },
+        tableWidth: 'wrap',
+        pageBreak: 'avoid',
+        // Ajustar altura de filas
+        didDrawPage: function(data) {
+            // Verificar si la tabla se desborda
+            const tableHeight = data.cursor.y - y;
+            const remainingSpace = pageHeight - data.cursor.y - 20;
+            
+            if (tableHeight > remainingSpace) {
+                // Reducir aún más el tamaño de fuente si es necesario
+                doc.setFontSize(6);
+            }
+        }
+    });
+    
+    // Guardar y compartir el PDF
+    const pdfName = `${ultimaTransaccion.tipo}-${ultimaTransaccion.equipo}-${ultimaTransaccion.fecha}.pdf`;
+    const pdfBlob = doc.output('blob');
+    const pdfFile = new File([pdfBlob], pdfName, { type: 'application/pdf' });
+
+    if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+        try {
+            await navigator.share({
+                files: [pdfFile],
+                title: pdfName,
+                text: `Comparto el documento de ${tipoMovimiento} para el equipo ${ultimaTransaccion.equipo}.`
+            });
+        } catch (error) {
+            console.error('Error al compartir el archivo:', error);
+            Swal.fire('Error', 'No se pudo compartir el archivo. ' + error.message, 'error');
+        }
+    } else {
+        doc.save(pdfName);
+    }
+}
 
 let isDrawing = false;
 let isErasing = false;
@@ -1426,9 +1633,6 @@ document.querySelectorAll('input, textarea').forEach(element => {
         saveCanvasState();  // Guardamos el estado al hacer focus en un campo
     });
 });
-
-
-<!-- Contenedor para la Firma -->
 
 
 </script>

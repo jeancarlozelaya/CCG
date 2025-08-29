@@ -564,6 +564,7 @@ function checkAndToggle() {
       return meses[numeroMes - 1];
     }
     
+// En el código HTML, reemplazar la función consultarRequisiciones
 function consultarRequisiciones() {
   var mes = $('#mes').val();
   var año = $('#año').val();
@@ -572,7 +573,9 @@ function consultarRequisiciones() {
   var dataParams = {
     mes: mes,
     año: año,
-    modoGasto: (searchType === 'gasto').toString() // Nuevo parámetro
+    modoGasto: (searchType === 'gasto').toString(),
+    // Nuevo parámetro para indicar que necesitamos totales
+    conTotales: (searchType === 'edificio' || searchType === 'colaborador').toString()
   };
 
   if (searchType === 'edificio') {
@@ -595,6 +598,8 @@ function consultarRequisiciones() {
       if (response.success) {
         if (response.modoGasto) {
           mostrarGastoMensual(response);
+        } else if (response.conTotales) {
+          mostrarResultadosConTotales(response.data, response.totales);
         } else {
           mostrarResultados(response.data);
         }
@@ -608,6 +613,129 @@ function consultarRequisiciones() {
     }
   });
 }
+
+// Nueva función para mostrar resultados con totales
+function mostrarResultadosConTotales(data, totales) {
+  var resultadosDiv = $('#resultados');
+  resultadosDiv.empty();
+  
+  if (data.length === 0) {
+    resultadosDiv.html(`
+      <div class="empty-state">
+        <img src="https://cdn-icons-png.flaticon.com/512/4076/4076478.png" alt="Sin resultados">
+        <h3>No se encontraron requisiciones</h3>
+        <p>No hay registros para el período seleccionado</p>
+      </div>
+    `);
+    $('#resultContainer').show();
+    return;
+  }
+  
+  // Mostrar las requisiciones por fecha (código existente)
+  const requisicionesAgrupadas = data.reduce((acc, requisicion) => {
+    const fecha = requisicion.fecha;
+    if (!acc[fecha]) {
+      acc[fecha] = {
+        fecha: fecha,
+        requisiciones: []
+      };
+    }
+    acc[fecha].requisiciones.push(requisicion);
+    return acc;
+  }, {});
+
+  const fechasOrdenadas = Object.values(requisicionesAgrupadas).sort(function(a, b) {
+    return new Date(b.fecha.split('/').reverse().join('-')) - new Date(a.fecha.split('/').reverse().join('-'));
+  });
+  
+  fechasOrdenadas.forEach(function(grupoFecha) {
+    const productosSumados = grupoFecha.requisiciones.reduce((accProductos, requisicion) => {
+      requisicion.productos.forEach(producto => {
+        if (!accProductos[producto.nombre]) {
+          accProductos[producto.nombre] = { ...producto };
+        } else {
+          accProductos[producto.nombre].cantidad += parseInt(producto.cantidad);
+        }
+      });
+      return accProductos;
+    }, {});
+    
+    const productosArray = Object.values(productosSumados);
+
+    var card = $(`
+      <div class="card">
+        <div class="card-header">
+          <div class="date-badge">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            ${formatearFecha(grupoFecha.fecha)}
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="product-list"></div>
+        </div>
+      </div>
+    `);
+    
+    var productList = card.find('.product-list');
+    
+    productosArray.forEach(function(producto) {
+      var imagenHTML = producto.imagen 
+        ? `<div class="product-image-container"><img src="${producto.imagen}" alt="${producto.nombre}" class="product-image" onerror="this.parentElement.innerHTML='<div class=\\'no-image\\'>Sin imagen</div>'"></div>`
+        : '<div class="no-image">Sin imagen</div>';
+        
+      productList.append(`
+        <div class="product-item">
+          ${imagenHTML}
+          <span class="product-name">${producto.nombre}</span>
+          <span class="product-qty">${producto.cantidad} ${producto.cantidad === 1 ? 'unidad' : 'unidades'}</span>
+        </div>
+      `);
+    });
+
+    resultadosDiv.append(card);
+  });
+  
+  // Añadir sección de totales al final
+  if (totales && totales.length > 0) {
+    var cardTotales = $(`
+      <div class="card">
+        <div class="card-header">
+          <div class="area-name">Totales Consolidados</div>
+        </div>
+        <div class="card-body">
+          <div class="product-list"></div>
+        </div>
+      </div>
+    `);
+    
+    var productListTotales = cardTotales.find('.product-list');
+    
+    totales.forEach(function(producto) {
+      var imagenHTML = producto.imagen 
+        ? `<div class="product-image-container"><img src="${producto.imagen}" alt="${producto.nombre}" class="product-image" onerror="this.parentElement.innerHTML='<div class=\\'no-image\\'>Sin imagen</div>'"></div>`
+        : '<div class="no-image">Sin imagen</div>';
+        
+      productListTotales.append(`
+        <div class="product-item">
+          ${imagenHTML}
+          <span class="product-name">${producto.nombre}</span>
+          <span class="product-qty">${producto.cantidad} ${producto.cantidad === 1 ? 'unidad' : 'unidades'}</span>
+        </div>
+      `);
+    });
+    
+    resultadosDiv.append(cardTotales);
+  }
+  
+  $('#resultContainer').show();
+}
+
+
 
 function mostrarGastoMensual(data) {
   var resultadosDiv = $('#resultados');

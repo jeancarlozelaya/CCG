@@ -1521,211 +1521,215 @@ Swal.fire({
     }
 
 
-    async function generarPDF() {
-        const {
-            jsPDF
-        } = window.jspdf;
-        const doc = new jsPDF({
-            orientation: 'portrait',
-            format: 'letter',
-            unit: 'mm'
-        });
+async function generarPDF() {
+    const {
+        jsPDF
+    } = window.jspdf;
+    const doc = new jsPDF({
+        orientation: 'portrait',
+        format: 'letter',
+        unit: 'mm'
+    });
+    doc.setFont("times", "normal");
+    const tipoMovimiento = ultimaTransaccion.tipo === 'salidas' ? 'Acta de Compromiso' : 'Acta de Recepción';
+    const tituloChecklist = ultimaTransaccion.tipo === 'salidas' ? 'Checklist Preoperativo' : 'Checklist Postoperativo';
+    const now = new Date();
+    const horaGeneracion = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const [yyyy, mm, dd] = ultimaTransaccion.fecha.split('-');
+    const meses = [
+        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+    ];
+    const mesTexto = meses[parseInt(mm) - 1];
+    let y = 15;
+    const margin = 15;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const textWidth = pageWidth - (2 * margin);
+    doc.setFontSize(16);
+    doc.setTextColor(34, 49, 63);
+    doc.setFont("times", "bold");
+    doc.text(tipoMovimiento, pageWidth / 2, y, {
+        align: 'center'
+    });
+    y += 8;
+    doc.setDrawColor(200, 200, 200);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 10;
+    doc.setFontSize(12);
+    doc.setTextColor(50, 50, 50);
+    doc.setFont("times", "normal");
+
+    if (ultimaTransaccion.tipo === 'salidas') {
+        const textoCompleto = `Yo ${ultimaTransaccion.colaborador} mediante la presente Acta de Compromiso hago constar que en esta fecha estoy recibiendo el equipo ${ultimaTransaccion.equipo}, el cual será utilizado para el desempeño de mis funciones.`;
+        const lineas = doc.splitTextToSize(textoCompleto, textWidth);
+        doc.text(lineas, margin, y);
+        y += (lineas.length * 6) + 4;
+        doc.setFont("times", "bold");
+        const textoCompromiso = "Habiendo recibido me comprometo a lo siguiente:";
+        doc.text(textoCompromiso, margin, y);
+        y += 7;
         doc.setFont("times", "normal");
-        const tipoMovimiento = ultimaTransaccion.tipo === 'salidas' ? 'Acta de Compromiso' : 'Acta de Recepción';
-        const tituloChecklist = ultimaTransaccion.tipo === 'salidas' ? 'Checklist Preoperativo' : 'Checklist Postoperativo';
-        const now = new Date();
-        const horaGeneracion = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
-        const [yyyy, mm, dd] = ultimaTransaccion.fecha.split('-');
-        const meses = [
-            "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-            "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+        const compromisos = [
+            "- Cuidar y hacer buen uso del mismo, durante el tiempo que este bajo mi cargo en beneficio de las actividades del negocio.",
+            "- En caso de accidente, daño por mal uso y cualquier que bajo mi uso dañe el equipo se procederá a realizar la deducción del valor completo proporcionando uno nuevo.",
+            "- Me comprometo a cuidar todos y cada uno de los componentes del equipo."
         ];
-        const mesTexto = meses[parseInt(mm) - 1];
-        let y = 15;
-        const margin = 15;
-        const pageWidth = doc.internal.pageSize.getWidth();
-        const pageHeight = doc.internal.pageSize.getHeight();
-        const textWidth = pageWidth - (2 * margin);
-        doc.setFontSize(16);
-        doc.setTextColor(34, 49, 63);
-        doc.setFont("times", "bold");
-        doc.text(tipoMovimiento, pageWidth / 2, y, {
-            align: 'center'
+        compromisos.forEach(compromiso => {
+            const splitText = doc.splitTextToSize(compromiso, textWidth - 5);
+            doc.text(splitText, margin + 5, y);
+            y += (splitText.length * 5) + 3;
         });
-        y += 8;
-        doc.setDrawColor(200, 200, 200);
-        doc.line(margin, y, pageWidth - margin, y);
-        y += 10;
-        doc.setFontSize(12);
-        doc.setTextColor(50, 50, 50);
+        y += 5;
+        const textoFinal = `Firmo la presente en la ciudad de Tegucigalpa a los ${dd} días del mes de ${mesTexto} del ${yyyy}.`;
+        const lineasFinal = doc.splitTextToSize(textoFinal, textWidth);
+        doc.text(lineasFinal, margin, y);
+        y += (lineasFinal.length * 6) + 10;
+    } else if (ultimaTransaccion.tipo === 'entradas') {
+        const textoCompleto = `Yo ${ultimaTransaccion.colaborador} mediante la presente Acta de Recepción hago constar que en esta fecha estoy entregando el equipo ${ultimaTransaccion.equipo}, el cual fue utilizado para el desempeño de mis funciones y ahora estoy retornando.`;
+        const lineas = doc.splitTextToSize(textoCompleto, textWidth);
+        doc.text(lineas, margin, y);
+        y += (lineas.length * 6) + 4;
+        doc.setFont("times", "bold");
+        const textoDeclaracion = "Al entregarla declaro lo siguiente:";
+        doc.text(textoDeclaracion, margin, y);
+        y += 7;
         doc.setFont("times", "normal");
+        const declaraciones = [
+            "- El equipo se encuentra en las mismas condiciones en las que me fue entregado.",
+            "- Fui responsable y cuidadoso en el uso del equipo y todos sus componentes.",
+            "- Cualquier daño, accidente o mal uso fue reportado en tiempo y forma."
+        ];
+        declaraciones.forEach(declaracion => {
+            const splitText = doc.splitTextToSize(declaracion, textWidth - 5);
+            doc.text(splitText, margin + 5, y);
+            y += (splitText.length * 5) + 3;
+        });
+        y += 5;
+        const textoFinal = `Firmo la presente en la ciudad de Tegucigalpa a los ${dd} días del mes de ${mesTexto} del ${yyyy}.`;
+        const lineasFinal = doc.splitTextToSize(textoFinal, textWidth);
+        doc.text(lineasFinal, margin, y);
+        y += (lineasFinal.length * 6) + 10;
+    }
 
-        if (ultimaTransaccion.tipo === 'salidas') {
-            const textoCompleto = `Yo ${ultimaTransaccion.colaborador} mediante la presente Acta de Compromiso hago constar que en esta fecha estoy recibiendo el equipo ${ultimaTransaccion.equipo}, el cual será utilizado para el desempeño de mis funciones.`;
-            const lineas = doc.splitTextToSize(textoCompleto, textWidth);
-            doc.text(lineas, margin, y);
-            y += (lineas.length * 6) + 4;
-            doc.setFont("times", "bold");
-            const textoCompromiso = "Habiendo recibido me comprometo a lo siguiente:";
-            doc.text(textoCompromiso, margin, y);
-            y += 7;
-            doc.setFont("times", "normal");
-            const compromisos = [
-                "- Cuidar y hacer buen uso del mismo, durante el tiempo que este bajo mi cargo en beneficio de las actividades del negocio.",
-                "- En caso de accidente, daño por mal uso y cualquier que bajo mi uso dañe el equipo se procederá a realizar la deducción del valor completo proporcionando uno nuevo.",
-                "- Me comprometo a cuidar todos y cada uno de los componentes del equipo."
-            ];
-            compromisos.forEach(compromiso => {
-                const splitText = doc.splitTextToSize(compromiso, textWidth - 5);
-                doc.text(splitText, margin + 5, y);
-                y += (splitText.length * 5) + 3;
+    const canvasFirma = document.getElementById('firmaCanvas');
+    const firmaDataUrl = canvasFirma.toDataURL('image/png');
+    const firmaWidth = 60;
+    const firmaHeight = 25;
+    const firmaX = (pageWidth - firmaWidth) / 2;
+    doc.addImage(firmaDataUrl, 'PNG', firmaX, y, firmaWidth, firmaHeight);
+    y += firmaHeight + 2;
+    doc.line(firmaX, y, firmaX + firmaWidth, y);
+    y += 4;
+    doc.setFontSize(12);
+    doc.setTextColor(80, 80, 80);
+    doc.setFont("times", "bold");
+    doc.text(ultimaTransaccion.colaborador, pageWidth / 2, y, {
+        align: 'center'
+    });
+    y += 10;
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 8;
+    doc.setFontSize(14);
+    doc.setTextColor(34, 49, 63);
+    doc.setFont("times", "bold");
+    doc.text(tituloChecklist, margin, y);
+    y += 6;
+    const tableColumn = ["Punto de Verificación", "Sí", "No"];
+    const tableRows = ultimaTransaccion.checklist.map(item => {
+        const si = item.respuesta === "✔" ? "X" : "";
+        const no = item.respuesta === "X" ? "X" : "";
+        return [item.item, si, no];
+    });
+    const espacioDisponible = pageHeight - y - 15;
+    const alturaPorFila = 5;
+    const alturaEncabezado = 8;
+    const alturaTotalTabla = alturaEncabezado + (tableRows.length * alturaPorFila);
+    let fontSize = 9;
+    let cellPadding = 2;
+    let rowHeight = 5;
+    if (alturaTotalTabla > espacioDisponible) {
+        fontSize = 8;
+        cellPadding = 1.5;
+        rowHeight = 4;
+    }
+    const colWidth = (pageWidth - (2 * margin) - 24) / 1.5;
+    doc.autoTable({
+        startY: y,
+        head: [tableColumn],
+        body: tableRows,
+        theme: 'grid',
+        headStyles: {
+            fillColor: [0, 123, 255],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold',
+            fontSize: fontSize,
+            font: "times",
+            cellPadding: cellPadding,
+            minCellHeight: rowHeight
+        },
+        styles: {
+            fontSize: fontSize,
+            cellPadding: cellPadding,
+            textColor: [50, 50, 50],
+            lineColor: [200, 200, 200],
+            lineWidth: 0.1,
+            font: "times",
+            minCellHeight: rowHeight
+        },
+        columnStyles: {
+            0: {
+                cellWidth: colWidth,
+                fontStyle: 'bold'
+            },
+            1: {
+                cellWidth: 12,
+                halign: 'center'
+            },
+            2: {
+                cellWidth: 12,
+                halign: 'center'
+            }
+        },
+        margin: {
+            top: y,
+            left: margin,
+            right: margin
+        },
+        tableWidth: 'wrap',
+        pageBreak: 'avoid'
+    });
+
+    // Llamada a la nueva función para añadir las fotos
+    let photosSectionY = doc.autoTable.previous.finalY + 15;
+    photosSectionY = await addPhotoSection(doc, "Fotos de la Limpieza (Después):", selectedFiles.preview4, photosSectionY);
+
+    const pdfName = `${ultimaTransaccion.tipo}-${ultimaTransaccion.equipo}-${ultimaTransaccion.fecha}.pdf`;
+    const pdfBlob = doc.output('blob');
+    const pdfFile = new File([pdfBlob], pdfName, {
+        type: 'application/pdf'
+    });
+    if (navigator.canShare && navigator.canShare({
+            files: [pdfFile]
+        })) {
+        try {
+            await navigator.share({
+                files: [pdfFile],
+                title: pdfName,
+                text: `Comparto el documento de ${tipoMovimiento} para el equipo ${ultimaTransaccion.equipo}.`
             });
-            y += 5;
-            const textoFinal = `Firmo la presente en la ciudad de Tegucigalpa a los ${dd} días del mes de ${mesTexto} del ${yyyy}.`;
-            const lineasFinal = doc.splitTextToSize(textoFinal, textWidth);
-            doc.text(lineasFinal, margin, y);
-            y += (lineasFinal.length * 6) + 10;
-        } else if (ultimaTransaccion.tipo === 'entradas') {
-            const textoCompleto = `Yo ${ultimaTransaccion.colaborador} mediante la presente Acta de Recepción hago constar que en esta fecha estoy entregando el equipo ${ultimaTransaccion.equipo}, el cual fue utilizado para el desempeño de mis funciones y ahora estoy retornando.`;
-            const lineas = doc.splitTextToSize(textoCompleto, textWidth);
-            doc.text(lineas, margin, y);
-            y += (lineas.length * 6) + 4;
-            doc.setFont("times", "bold");
-            const textoDeclaracion = "Al entregarla declaro lo siguiente:";
-            doc.text(textoDeclaracion, margin, y);
-            y += 7;
-            doc.setFont("times", "normal");
-            const declaraciones = [
-                "- El equipo se encuentra en las mismas condiciones en las que me fue entregado.",
-                "- Fui responsable y cuidadoso en el uso del equipo y todos sus componentes.",
-                "- Cualquier daño, accidente o mal uso fue reportado en tiempo y forma."
-            ];
-            declaraciones.forEach(declaracion => {
-                const splitText = doc.splitTextToSize(declaracion, textWidth - 5);
-                doc.text(splitText, margin + 5, y);
-                y += (splitText.length * 5) + 3;
-            });
-            y += 5;
-            const textoFinal = `Firmo la presente en la ciudad de Tegucigalpa a los ${dd} días del mes de ${mesTexto} del ${yyyy}.`;
-            const lineasFinal = doc.splitTextToSize(textoFinal, textWidth);
-            doc.text(lineasFinal, margin, y);
-            y += (lineasFinal.length * 6) + 10;
-        }
-
-        const canvasFirma = document.getElementById('firmaCanvas');
-        const firmaDataUrl = canvasFirma.toDataURL('image/png');
-        const firmaWidth = 60;
-        const firmaHeight = 25;
-        const firmaX = (pageWidth - firmaWidth) / 2;
-        doc.addImage(firmaDataUrl, 'PNG', firmaX, y, firmaWidth, firmaHeight);
-        y += firmaHeight + 2;
-        doc.line(firmaX, y, firmaX + firmaWidth, y);
-        y += 4;
-        doc.setFontSize(12);
-        doc.setTextColor(80, 80, 80);
-        doc.setFont("times", "bold");
-        doc.text(ultimaTransaccion.colaborador, pageWidth / 2, y, {
-            align: 'center'
-        });
-        y += 10;
-        doc.line(margin, y, pageWidth - margin, y);
-        y += 8;
-        doc.setFontSize(14);
-        doc.setTextColor(34, 49, 63);
-        doc.setFont("times", "bold");
-        doc.text(tituloChecklist, margin, y);
-        y += 6;
-        const tableColumn = ["Punto de Verificación", "Sí", "No"];
-        const tableRows = ultimaTransaccion.checklist.map(item => {
-            const si = item.respuesta === "✔" ? "X" : "";
-            const no = item.respuesta === "X" ? "X" : "";
-            return [item.item, si, no];
-        });
-        const espacioDisponible = pageHeight - y - 15;
-        const alturaPorFila = 5;
-        const alturaEncabezado = 8;
-        const alturaTotalTabla = alturaEncabezado + (tableRows.length * alturaPorFila);
-        let fontSize = 9;
-        let cellPadding = 2;
-        let rowHeight = 5;
-        if (alturaTotalTabla > espacioDisponible) {
-            fontSize = 8;
-            cellPadding = 1.5;
-            rowHeight = 4;
-        }
-        const colWidth = (pageWidth - (2 * margin) - 24) / 1.5;
-        doc.autoTable({
-            startY: y,
-            head: [tableColumn],
-            body: tableRows,
-            theme: 'grid',
-            headStyles: {
-                fillColor: [0, 123, 255],
-                textColor: [255, 255, 255],
-                fontStyle: 'bold',
-                fontSize: fontSize,
-                font: "times",
-                cellPadding: cellPadding,
-                minCellHeight: rowHeight
-            },
-            styles: {
-                fontSize: fontSize,
-                cellPadding: cellPadding,
-                textColor: [50, 50, 50],
-                lineColor: [200, 200, 200],
-                lineWidth: 0.1,
-                font: "times",
-                minCellHeight: rowHeight
-            },
-            columnStyles: {
-                0: {
-                    cellWidth: colWidth,
-                    fontStyle: 'bold'
-                },
-                1: {
-                    cellWidth: 12,
-                    halign: 'center'
-                },
-                2: {
-                    cellWidth: 12,
-                    halign: 'center'
-                }
-            },
-            margin: {
-                top: y,
-                left: margin,
-                right: margin
-            },
-            tableWidth: 'wrap',
-            pageBreak: 'avoid'
-        });
-
-        // Llamada a la nueva función para añadir las fotos
-        let photosSectionY = doc.autoTable.previous.finalY + 15;
-        photosSectionY = await addPhotoSection(doc, "Evidencia:", selectedFiles.preview4, photosSectionY);
-
-        const pdfName = `${ultimaTransaccion.tipo}-${ultimaTransaccion.equipo}-${ultimaTransaccion.fecha}.pdf`;
-        const pdfBlob = doc.output('blob');
-        const pdfFile = new File([pdfBlob], pdfName, {
-            type: 'application/pdf'
-        });
-        if (navigator.canShare && navigator.canShare({
-                files: [pdfFile]
-            })) {
-            try {
-                await navigator.share({
-                    files: [pdfFile],
-                    title: pdfName,
-                    text: `Comparto el documento de ${tipoMovimiento} para el equipo ${ultimaTransaccion.equipo}.`
-                });
-            } catch (error) {
-                console.error('Error al compartir el archivo:', error);
+        } catch (error) {
+            console.error('Error al compartir el archivo:', error);
+            // Agregado: Ignora el error de 'AbortError' que ocurre al cancelar
+            if (error.name !== 'AbortError') {
                 Swal.fire('Error', 'No se pudo compartir el archivo. ' + error.message, 'error');
             }
-        } else {
-            doc.save(pdfName);
         }
+    } else {
+        doc.save(pdfName);
     }
+}
+
 
 
     let isDrawing = false;

@@ -152,12 +152,19 @@
             margin-bottom: 20px;
         }
 
+        #solicitar {
+            background-color: #28a745;
+        }
+
+        #devolver {
+            background-color: #dc3545;
+        }
+
         #solicitar, #devolver {
             margin-top: 0;
             margin-right: 10px;
             padding: 10px 20px;
             width: 100%;
-            background-color: #28a745;
             color: white;
             border: none;
             border-radius: 4px;
@@ -181,8 +188,6 @@
         .button-container button {
             font-size: 16px;
             padding: 10px 20px;
-            background-color: #007bff;
-            color: white;
             border: none;
             border-radius: 4px;
             cursor: pointer;
@@ -594,6 +599,111 @@
 }
 
 
+
+
+
+/* Estilo para los contenedores de vista previa */
+    .image-preview {
+        width: 100%;
+        max-height: 200px;
+        overflow-y: auto;
+        border: 0px solid #ccc;
+        padding: 10px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        box-sizing: border-box;
+    }
+
+    .image-preview-item {
+        position: relative;
+        width: 85px;
+        height: 85px;
+        overflow: hidden;
+        border-radius: 5px;
+        border: 1px solid #ddd;
+    }
+
+    .image-preview-item img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .delete-icon {
+        position: absolute;
+        top: 5px;
+        left: 5px;
+        width: 20px;
+        height: 20px;
+        background: rgba(255, 0, 0, 0.8);
+        color: #fff;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+
+    .image-preview-item:hover .delete-icon {
+        opacity: 1;
+    }
+
+    /* Estilos para el área de carga de imágenes */
+    .file-upload {
+        display: block;
+        position: relative;
+        width: 100%;
+        padding: 20px;
+        background: #f0f8ff;
+        border: 2px dashed #007BFF; /* Borde inicial azul */
+        text-align: center;
+        border-radius: 10px;
+        font-size: 16px;
+        cursor: pointer;
+        margin-top: 10px;
+        box-sizing: border-box;
+        padding: 40px 20px;
+        color: #007BFF;
+        transition: background-color 0.3s ease, border-color 0.3s ease;
+        margin: 10px 0;
+    }
+
+    .file-upload:hover {
+        border-color: #0056b3;
+    }
+
+    .file-upload input[type="file"] {
+        display: none;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
+    }
+
+    /* Estilo para los contenedores de preguntas */
+    .question-container {
+        margin-bottom: 20px;
+        text-align: left;
+        padding: 10px;
+        border: 2px solid #ccc; /* Borde predeterminado */
+        border-radius: 5px;
+        background-color: #f9f9f9;
+        transition: border-color 0.3s;
+        box-sizing: border-box;
+    }
+
+    .question-container:hover {
+        border-color: #007BFF;
+    }
+
+
     </style>
 </head>
 <body>
@@ -634,6 +744,17 @@
             <div class="equipos-container" id="equipos"></div>
             <br>
 
+<div class="question-container" id="adjunto4Container">
+    <label for="adjunto4">Fotos de la Limpieza (Después):</label>
+    <div class="file-upload" id="drag-area4" onclick="document.getElementById('adjunto4').click()">
+        <input type="file" id="adjunto4" name="adjunto4" accept="image/*" multiple capture="environment">
+        <span class="file-upload-text">Haz clic o arrastra imágenes para adjuntarlas</span>
+    </div>
+    <div id="preview4" class="image-preview"></div>
+</div>
+
+
+
 <div class="question-container">
     <label for="firma">Firma del Responsable:</label>
     <div id="firmaContainer" class="firma-container">
@@ -659,7 +780,7 @@
 
             <div class="button-container">
                 <button type="button" id="solicitar" disabled onclick="solicitarEquipo()">Solicitar Equipo</button>
-                <button type="button" id="devolver" disabled onclick="devolverEquipo()" style="display: none; background-color: #dc3545;">Devolver Equipo</button>
+                <button type="button" id="devolver" disabled onclick="devolverEquipo()" style="display: none;">Devolver Equipo</button>
             </div>
         </form>
     </div>
@@ -967,11 +1088,23 @@
         verificarFormulario();
     }
 
+    function isCanvasBlank(canvas) {
+        const context = canvas.getContext('2d', {
+            willReadFrequently: true
+        });
+        const pixelBuffer = new Uint32Array(
+            context.getImageData(0, 0, canvas.width, canvas.height).data.buffer
+        );
+        return !pixelBuffer.some(color => color !== 0);
+    }
+
     function verificarFormulario() {
         let fecha = $("#fecha").val();
         let colaborador = $("#colaborador").val();
         let area = $("#area").val();
-        if (fecha && colaborador && area && equipoSeleccionado) {
+        const hayFotos = selectedFiles.preview4.length > 0;
+        const hayFirma = !isCanvasBlank(document.getElementById('firmaCanvas'));
+        if (fecha && colaborador && area && equipoSeleccionado && hayFotos && hayFirma) {
             if (modoActual === "salidas") {
                 $("#solicitar").prop("disabled", false);
             } else {
@@ -1258,455 +1391,536 @@
         window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
     }
 
-async function generarPDF() {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ 
-        orientation: 'portrait', 
-        format: 'letter',
-        unit: 'mm'
-    });
-    
-    // Configurar fuente Times New Roman
-    doc.setFont("times", "normal");
+    // Funciones agregadas para el manejo de imágenes y PDF
+    const selectedFiles = {
+        preview3: [],
+        preview4: []
+    };
 
-    const tipoMovimiento = ultimaTransaccion.tipo === 'salidas' ? 'Acta de Compromiso' : 'Acta de Recepción';
-    const tituloChecklist = ultimaTransaccion.tipo === 'salidas' ? 'Checklist Preoperativo' : 'Checklist Postoperativo';
-    
-    const now = new Date();
-    const horaGeneracion = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
-    const [yyyy, mm, dd] = ultimaTransaccion.fecha.split('-');
-    
-    // Convertir número de mes a texto
-    const meses = [
-        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
-    ];
-    const mesTexto = meses[parseInt(mm) - 1];
+    function handleFileInput(event, previewId) {
+        const files = event.target.files;
+        const previewContainer = document.getElementById(previewId);
 
-    let y = 15; // Reducir espacio inicial
-    const margin = 15;
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const textWidth = pageWidth - (2 * margin); // Ancho disponible para texto
+        Array.from(files).forEach((file) => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const div = document.createElement('div');
+                div.classList.add('image-preview-item');
+                div.innerHTML = `
+                    <img src="${e.target.result}" alt="Preview">
+                    <div class="delete-icon" onclick="deleteImage('${previewId}', ${selectedFiles[previewId].length})">×</div>
+                `;
+                previewContainer.appendChild(div);
 
-    // Título principal - Times New Roman 16
-    doc.setFontSize(16);
-    doc.setTextColor(34, 49, 63);
-    doc.setFont("times", "bold");
-    doc.text(tipoMovimiento, pageWidth / 2, y, { align: 'center' });
-    y += 8;
-
-    // Separador
-    doc.setDrawColor(200, 200, 200);
-    doc.line(margin, y, pageWidth - margin, y);
-    y += 10;
-
-    // Texto de compromiso o recepción - Times New Roman 12
-    doc.setFontSize(12);
-    doc.setTextColor(50, 50, 50);
-    doc.setFont("times", "normal");
-
-    if (ultimaTransaccion.tipo === 'salidas') {
-        // Texto completo dividido en líneas
-        const textoCompleto = `Yo ${ultimaTransaccion.colaborador} mediante la presente Acta de Compromiso hago constar que en esta fecha estoy recibiendo el equipo ${ultimaTransaccion.equipo}, el cual será utilizado para el desempeño de mis funciones.`;
-        
-        // Dividir texto en líneas que respeten el margen
-        const lineas = doc.splitTextToSize(textoCompleto, textWidth);
-        doc.text(lineas, margin, y);
-        y += (lineas.length * 6) + 4;
-        
-        // Texto en negrita
-        doc.setFont("times", "bold");
-        const textoCompromiso = "Habiendo recibido me comprometo a lo siguiente:";
-        doc.text(textoCompromiso, margin, y);
-        y += 7;
-        
-        // Lista de compromisos
-        doc.setFont("times", "normal");
-        const compromisos = [
-            "- Cuidar y hacer buen uso del mismo, durante el tiempo que este bajo mi cargo en beneficio de las actividades del negocio.",
-            "- En caso de accidente, daño por mal uso y cualquier que bajo mi uso dañe el equipo se procederá a realizar la deducción del valor completo proporcionando uno nuevo.",
-            "- Me comprometo a cuidar todos y cada uno de los componentes del equipo."
-        ];
-        
-        compromisos.forEach(compromiso => {
-            const splitText = doc.splitTextToSize(compromiso, textWidth - 5);
-            doc.text(splitText, margin + 5, y);
-            y += (splitText.length * 5) + 3;
+                selectedFiles[previewId].push(file);
+                verificarFormulario();
+            };
+            reader.readAsDataURL(file);
         });
-        
-        y += 5;
-        
-        // Texto final
-        const textoFinal = `Firmo la presente en la ciudad de Tegucigalpa a los ${dd} días del mes de ${mesTexto} del ${yyyy}.`;
-        const lineasFinal = doc.splitTextToSize(textoFinal, textWidth);
-        doc.text(lineasFinal, margin, y);
-        y += (lineasFinal.length * 6) + 10;
-
-    } else if (ultimaTransaccion.tipo === 'entradas') {
-        // Texto completo dividido en líneas
-        const textoCompleto = `Yo ${ultimaTransaccion.colaborador} mediante la presente Acta de Recepción hago constar que en esta fecha estoy entregando el equipo ${ultimaTransaccion.equipo}, el cual fue utilizado para el desempeño de mis funciones y ahora estoy retornando.`;
-        
-        // Dividir texto en líneas que respeten el margen
-        const lineas = doc.splitTextToSize(textoCompleto, textWidth);
-        doc.text(lineas, margin, y);
-        y += (lineas.length * 6) + 4;
-        
-        // Texto en negrita
-        doc.setFont("times", "bold");
-        const textoDeclaracion = "Al entregarla declaro lo siguiente:";
-        doc.text(textoDeclaracion, margin, y);
-        y += 7;
-        
-        // Lista de declaraciones
-        doc.setFont("times", "normal");
-        const declaraciones = [
-            "- El equipo se encuentra en las mismas condiciones en las que me fue entregado.",
-            "- Fui responsable y cuidadoso en el uso del equipo y todos sus componentes.",
-            "- Cualquier daño, accidente o mal uso fue reportado en tiempo y forma."
-        ];
-        
-        declaraciones.forEach(declaracion => {
-            const splitText = doc.splitTextToSize(declaracion, textWidth - 5);
-            doc.text(splitText, margin + 5, y);
-            y += (splitText.length * 5) + 3;
-        });
-        
-        y += 5;
-        
-        // Texto final
-        const textoFinal = `Firmo la presente en la ciudad de Tegucigalpa a los ${dd} días del mes de ${mesTexto} del ${yyyy}.`;
-        const lineasFinal = doc.splitTextToSize(textoFinal, textWidth);
-        doc.text(lineasFinal, margin, y);
-        y += (lineasFinal.length * 6) + 10;
+        event.target.value = "";
     }
 
-    // Firma - Reducir tamaño para ahorrar espacio
-    const firmaWidth = 60;
-    const firmaHeight = 25;
-    const firmaX = (pageWidth - firmaWidth) / 2;
-    
-    const canvasFirma = document.getElementById('firmaCanvas');
-    const firmaDataUrl = canvasFirma.toDataURL('image/png');
+    function deleteImage(previewId, index) {
+        const previewContainer = document.getElementById(previewId);
 
-    doc.addImage(firmaDataUrl, 'PNG', firmaX, y, firmaWidth, firmaHeight);
+        if (previewContainer.children[index]) {
+            previewContainer.removeChild(previewContainer.children[index]);
+            selectedFiles[previewId].splice(index, 1);
 
-    y += firmaHeight + 2;
-    doc.line(firmaX, y, firmaX + firmaWidth, y);
-    y += 4;
-
-    doc.setFontSize(12);
-    doc.setTextColor(80, 80, 80);
-    doc.setFont("times", "bold");
-    doc.text(ultimaTransaccion.colaborador, pageWidth / 2, y, { align: 'center' });
-
-    y += 10;
-
-    // Separador
-    doc.line(margin, y, pageWidth - margin, y);
-    y += 8;
-    
-    // Checklist - Título en negrita
-    doc.setFontSize(14);
-    doc.setTextColor(34, 49, 63);
-    doc.setFont("times", "bold");
-    doc.text(tituloChecklist, margin, y);
-    y += 6;
-
-    const tableColumn = ["Punto de Verificación", "Sí", "No"];
-    const tableRows = ultimaTransaccion.checklist.map(item => {
-        const si = item.respuesta === "✔" ? "X" : "";
-        const no = item.respuesta === "X" ? "X" : "";
-        return [item.item, si, no];
-    });
-
-    // Ajustar la tabla para que quepa en una sola página
-    // Calcular espacio disponible
-    const espacioDisponible = pageHeight - y - 15;
-    
-    // Calcular altura aproximada de la tabla
-    const alturaPorFila = 5; // Reducir altura de fila
-    const alturaEncabezado = 8;
-    const alturaTotalTabla = alturaEncabezado + (tableRows.length * alturaPorFila);
-    
-    // Si no hay espacio suficiente, aplicar ajustes
-    let fontSize = 9;
-    let cellPadding = 2;
-    let rowHeight = 5;
-    
-    if (alturaTotalTabla > espacioDisponible) {
-        fontSize = 8;
-        cellPadding = 1.5;
-        rowHeight = 4;
-    }
-    
-    // Ajustar ancho de columna para puntos de verificación
-    const colWidth = (pageWidth - (2 * margin) - 24) / 1.5; // Restar espacio para columnas Sí/No
-    
-    doc.autoTable({
-        startY: y,
-        head: [tableColumn],
-        body: tableRows,
-        theme: 'grid',
-        headStyles: { 
-            fillColor: [0, 123, 255], 
-            textColor: [255, 255, 255],
-            fontStyle: 'bold',
-            fontSize: fontSize,
-            font: "times",
-            cellPadding: cellPadding,
-            minCellHeight: rowHeight
-        },
-        styles: { 
-            fontSize: fontSize, 
-            cellPadding: cellPadding, 
-            textColor: [50, 50, 50],
-            lineColor: [200, 200, 200],
-            lineWidth: 0.1,
-            font: "times",
-            minCellHeight: rowHeight
-        },
-        columnStyles: {
-            0: { cellWidth: colWidth, fontStyle: 'bold' },
-            1: { cellWidth: 12, halign: 'center' },
-            2: { cellWidth: 12, halign: 'center' }
-        },
-        margin: { top: y, left: margin, right: margin },
-        tableWidth: 'wrap',
-        pageBreak: 'avoid'
-    });
-    
-    // Guardar y compartir el PDF
-    const pdfName = `${ultimaTransaccion.tipo}-${ultimaTransaccion.equipo}-${ultimaTransaccion.fecha}.pdf`;
-    const pdfBlob = doc.output('blob');
-    const pdfFile = new File([pdfBlob], pdfName, { type: 'application/pdf' });
-
-    if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
-        try {
-            await navigator.share({
-                files: [pdfFile],
-                title: pdfName,
-                text: `Comparto el documento de ${tipoMovimiento} para el equipo ${ultimaTransaccion.equipo}.`
+            Array.from(previewContainer.children).forEach((child, newIndex) => {
+                const deleteIcon = child.querySelector('.delete-icon');
+                if (deleteIcon) {
+                    deleteIcon.setAttribute('onclick', `deleteImage('${previewId}', ${newIndex})`);
+                }
             });
-        } catch (error) {
-            console.error('Error al compartir el archivo:', error);
-            Swal.fire('Error', 'No se pudo compartir el archivo. ' + error.message, 'error');
+            verificarFormulario();
         }
-    } else {
-        doc.save(pdfName);
     }
 
-    // Aplicar negritas a elementos específicos después de generar el PDF
-    // Esto se hace mediante la manipulación del contenido textual
-    // ya que jsPDF no permite aplicar formatos mixtos fácilmente
-    console.log("Para aplicar negritas a nombres, equipos y fechas específicas,");
-    console.log("se recomienda generar el texto con esas partes ya en negrita.");
-}
-let isDrawing = false;
-let isErasing = false;
-let lastX = 0;
-let lastY = 0;
-const canvas = document.getElementById("firmaCanvas");
-const ctx = canvas.getContext("2d");
-
-const undoStack = [];
-const redoStack = [];
-
-// Guardar el estado actual del canvas en la pila de deshacer
-function saveToUndoStack() {
-    undoStack.push(canvas.toDataURL());
-    redoStack.length = 0; // Limpiar la pila de rehacer
-}
-
-// Deshacer acción
-function undo() {
-    if (undoStack.length > 0) {
-        saveToRedoStack();
-        const lastState = undoStack.pop();
-        const img = new Image();
-        img.src = lastState;
-        img.onload = () => {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0);
-        };
-    }
-}
-
-// Rehacer acción
-function redo() {
-    if (redoStack.length > 0) {
-        const lastState = redoStack.pop();
-        undoStack.push(canvas.toDataURL()); // Guardar el estado actual en la pila de deshacer
-        const img = new Image();
-        img.src = lastState;
-        img.onload = () => {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0);
-        };
-    }
-}
-
-// Guardar el estado en la pila de rehacer
-function saveToRedoStack() {
-    redoStack.push(canvas.toDataURL());
-}
-
-// Obtener coordenadas del evento
-function getCoordinates(e) {
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width; // Escala en X
-    const scaleY = canvas.height / rect.height; // Escala en Y
-    if (e.touches) {
-        return {
-            x: (e.touches[0].clientX - rect.left) * scaleX,
-            y: (e.touches[0].clientY - rect.top) * scaleY
-        };
-    }
-    return { x: (e.offsetX) * scaleX, y: (e.offsetY) * scaleY };
-}
-
-// Modo borrador
-document.getElementById("toggleEraser").addEventListener("click", () => {
-    isErasing = !isErasing;
-    document.getElementById("toggleEraser").classList.toggle("active");
-});
-
-canvas.addEventListener("mousemove", (e) => {
-    if (!isDrawing) return;
-    const { x, y } = getCoordinates(e);
-    ctx.beginPath();
-    ctx.moveTo(lastX, lastY);
-    ctx.lineTo(x, y);
-    ctx.strokeStyle = isErasing ? "#FFF" : "#000";
-    ctx.lineWidth = isErasing ? 10 : 4;
-    ctx.stroke();
-    lastX = x;
-    lastY = y;
-});
-
-// Dibujar o borrar en el canvas
-canvas.addEventListener("mousedown", (e) => {
-    saveToUndoStack();
-    isDrawing = true;
-    const { x, y } = getCoordinates(e);
-    lastX = x;
-    lastY = y;
-});
-
-canvas.addEventListener("mouseup", () => (isDrawing = false));
-canvas.addEventListener("mouseout", () => (isDrawing = false));
-
-// Botones
-document.getElementById("undo").addEventListener("click", undo);
-document.getElementById("redo").addEventListener("click", redo);
-document.getElementById("clearSignature").addEventListener("click", () => {
-    localStorage.removeItem('canvasState'); // Elimina el estado guardado
-    saveToUndoStack();
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-});
-
-// Evitar el desplazamiento de la pantalla en dispositivos móviles
-canvas.addEventListener("touchstart", (e) => {
-    e.preventDefault(); // Evita el desplazamiento de la pantalla
-    saveToUndoStack();
-    isDrawing = true;
-    const { x, y } = getCoordinates(e);
-    lastX = x;
-    lastY = y;
-});
-
-canvas.addEventListener("touchmove", (e) => {
-    e.preventDefault(); // Evita el desplazamiento de la pantalla
-    if (!isDrawing) return;
-    const { x, y } = getCoordinates(e);
-    ctx.beginPath();
-    ctx.moveTo(lastX, lastY);
-    ctx.lineTo(x, y);
-    ctx.strokeStyle = isErasing ? "#FFF" : "#000";
-    ctx.lineWidth = isErasing ? 10 : 2;
-    ctx.stroke();
-    lastX = x;
-    lastY = y;
-});
-
-canvas.addEventListener("touchend", (e) => {
-    e.preventDefault(); // Evita el desplazamiento de la pantalla
-    isDrawing = false;
-});
-
-canvas.addEventListener("touchcancel", (e) => {
-    e.preventDefault(); // Evita el desplazamiento de la pantalla
-    isDrawing = false;
-});
-
-// Ajustar el tamaño del canvas sin perder el dibujo
-function resizeCanvas() {
-    // Guardar el contenido actual del canvas
-    const currentDrawing = canvas.toDataURL();
-
-    // Obtener el contenedor del canvas
-    const container = canvas.parentElement;
-
-    // Ajustar el tamaño visual del canvas al contenedor
-    canvas.style.width = "100%";
-    canvas.style.height = "100%";
-
-    // Ajustar el tamaño interno del canvas para mantener la resolución
-    const rect = container.getBoundingClientRect();
-    const newWidth = rect.width;
-    const newHeight = rect.height;
-
-    // Solo redimensionar si las dimensiones del canvas han cambiado
-    if (canvas.width !== newWidth || canvas.height !== newHeight) {
-        // Ajustar el tamaño interno del canvas para la nueva resolución
-        canvas.width = newWidth;
-        canvas.height = newHeight;
-
-        // Restaurar el contenido del canvas después de redimensionar
-        const img = new Image();
-        img.src = currentDrawing;
-        img.onload = () => {
-            // Asegurarse de que el contenido se ajuste correctamente al nuevo tamaño
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        };
-    }
-}
-
-// Llamar a la función al cargar la página y al cambiar el tamaño de la ventana
-window.addEventListener("load", resizeCanvas);
-window.addEventListener("resize", resizeCanvas);
-
-// Función para guardar el estado del canvas en el localStorage
-function saveCanvasState() {
-    const canvasData = canvas.toDataURL();
-    localStorage.setItem('canvasState', canvasData);
-}
-
-// Función para restaurar el estado del canvas desde el localStorage
-function restoreCanvasState() {
-    const canvasData = localStorage.getItem('canvasState');
-    if (canvasData) {
-        const img = new Image();
-        img.src = canvasData;
-        img.onload = () => {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);  // Limpiar el canvas
-            ctx.drawImage(img, 0, 0);
-        };
-    }
-}
-
-// Restaurar el estado solo cuando el usuario haga clic en el canvas
-canvas.addEventListener('click', restoreCanvasState);
-
-// Guardar el estado del canvas cuando el usuario cambia de campo
-document.querySelectorAll('input, textarea').forEach(element => {
-    element.addEventListener('focus', () => {
-        saveCanvasState();  // Guardamos el estado al hacer focus en un campo
+    document.getElementById('adjunto4').addEventListener('change', (e) => handleFileInput(e, 'preview4'));
+    document.getElementById('drag-area4').addEventListener('dragover', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        document.getElementById('drag-area4').style.backgroundColor = "#e0f7ff";
     });
-});
+    document.getElementById('drag-area4').addEventListener('dragleave', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        document.getElementById('drag-area4').style.backgroundColor = "#f0f8ff";
+    });
+    document.getElementById('drag-area4').addEventListener('drop', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const files = event.dataTransfer.files;
+        handleFileInput({
+            target: {
+                files
+            }
+        }, 'preview4');
+    });
+
+    async function compressImage(file, quality) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const maxWidth = 600;
+                    const scale = maxWidth / img.width;
+                    canvas.width = maxWidth;
+                    canvas.height = img.height * scale;
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    const dataUrl = canvas.toDataURL('image/jpeg', quality);
+                    resolve(dataUrl);
+                };
+                img.src = event.target.result;
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async function addPhotoSection(doc, title, files, startY) {
+        if (files.length === 0) return startY;
+        let currentY = startY;
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const spaceNeeded = 10 + 10 + 40;
+        if (currentY + spaceNeeded > pageHeight - 10) {
+            doc.addPage();
+            currentY = 15;
+        }
+        doc.setFontSize(14);
+        doc.setFont("times", "bold");
+        doc.text(title, 10, currentY);
+        currentY += 10;
+        const imgWidth = 60;
+        const imgHeight = 40;
+        const marginX = 15;
+        const spacingX = 65;
+        const spacingY = 45;
+        let currentX = marginX;
+        let imagesInRow = 0;
+        for (const file of files) {
+            const imgData = await compressImage(file, 0.5);
+            if (imagesInRow === 3) {
+                imagesInRow = 0;
+                currentX = marginX;
+                currentY += spacingY;
+            }
+            if (currentY + imgHeight > pageHeight - 10) {
+                doc.addPage();
+                currentY = 15;
+                currentX = marginX;
+                imagesInRow = 0;
+            }
+            doc.addImage(imgData, 'JPEG', currentX, currentY, imgWidth, imgHeight);
+            currentX += spacingX;
+            imagesInRow++;
+        }
+        return currentY + spacingY;
+    }
 
 
+    async function generarPDF() {
+        const {
+            jsPDF
+        } = window.jspdf;
+        const doc = new jsPDF({
+            orientation: 'portrait',
+            format: 'letter',
+            unit: 'mm'
+        });
+        doc.setFont("times", "normal");
+        const tipoMovimiento = ultimaTransaccion.tipo === 'salidas' ? 'Acta de Compromiso' : 'Acta de Recepción';
+        const tituloChecklist = ultimaTransaccion.tipo === 'salidas' ? 'Checklist Preoperativo' : 'Checklist Postoperativo';
+        const now = new Date();
+        const horaGeneracion = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+        const [yyyy, mm, dd] = ultimaTransaccion.fecha.split('-');
+        const meses = [
+            "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+            "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+        ];
+        const mesTexto = meses[parseInt(mm) - 1];
+        let y = 15;
+        const margin = 15;
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const textWidth = pageWidth - (2 * margin);
+        doc.setFontSize(16);
+        doc.setTextColor(34, 49, 63);
+        doc.setFont("times", "bold");
+        doc.text(tipoMovimiento, pageWidth / 2, y, {
+            align: 'center'
+        });
+        y += 8;
+        doc.setDrawColor(200, 200, 200);
+        doc.line(margin, y, pageWidth - margin, y);
+        y += 10;
+        doc.setFontSize(12);
+        doc.setTextColor(50, 50, 50);
+        doc.setFont("times", "normal");
+
+        if (ultimaTransaccion.tipo === 'salidas') {
+            const textoCompleto = `Yo ${ultimaTransaccion.colaborador} mediante la presente Acta de Compromiso hago constar que en esta fecha estoy recibiendo el equipo ${ultimaTransaccion.equipo}, el cual será utilizado para el desempeño de mis funciones.`;
+            const lineas = doc.splitTextToSize(textoCompleto, textWidth);
+            doc.text(lineas, margin, y);
+            y += (lineas.length * 6) + 4;
+            doc.setFont("times", "bold");
+            const textoCompromiso = "Habiendo recibido me comprometo a lo siguiente:";
+            doc.text(textoCompromiso, margin, y);
+            y += 7;
+            doc.setFont("times", "normal");
+            const compromisos = [
+                "- Cuidar y hacer buen uso del mismo, durante el tiempo que este bajo mi cargo en beneficio de las actividades del negocio.",
+                "- En caso de accidente, daño por mal uso y cualquier que bajo mi uso dañe el equipo se procederá a realizar la deducción del valor completo proporcionando uno nuevo.",
+                "- Me comprometo a cuidar todos y cada uno de los componentes del equipo."
+            ];
+            compromisos.forEach(compromiso => {
+                const splitText = doc.splitTextToSize(compromiso, textWidth - 5);
+                doc.text(splitText, margin + 5, y);
+                y += (splitText.length * 5) + 3;
+            });
+            y += 5;
+            const textoFinal = `Firmo la presente en la ciudad de Tegucigalpa a los ${dd} días del mes de ${mesTexto} del ${yyyy}.`;
+            const lineasFinal = doc.splitTextToSize(textoFinal, textWidth);
+            doc.text(lineasFinal, margin, y);
+            y += (lineasFinal.length * 6) + 10;
+        } else if (ultimaTransaccion.tipo === 'entradas') {
+            const textoCompleto = `Yo ${ultimaTransaccion.colaborador} mediante la presente Acta de Recepción hago constar que en esta fecha estoy entregando el equipo ${ultimaTransaccion.equipo}, el cual fue utilizado para el desempeño de mis funciones y ahora estoy retornando.`;
+            const lineas = doc.splitTextToSize(textoCompleto, textWidth);
+            doc.text(lineas, margin, y);
+            y += (lineas.length * 6) + 4;
+            doc.setFont("times", "bold");
+            const textoDeclaracion = "Al entregarla declaro lo siguiente:";
+            doc.text(textoDeclaracion, margin, y);
+            y += 7;
+            doc.setFont("times", "normal");
+            const declaraciones = [
+                "- El equipo se encuentra en las mismas condiciones en las que me fue entregado.",
+                "- Fui responsable y cuidadoso en el uso del equipo y todos sus componentes.",
+                "- Cualquier daño, accidente o mal uso fue reportado en tiempo y forma."
+            ];
+            declaraciones.forEach(declaracion => {
+                const splitText = doc.splitTextToSize(declaracion, textWidth - 5);
+                doc.text(splitText, margin + 5, y);
+                y += (splitText.length * 5) + 3;
+            });
+            y += 5;
+            const textoFinal = `Firmo la presente en la ciudad de Tegucigalpa a los ${dd} días del mes de ${mesTexto} del ${yyyy}.`;
+            const lineasFinal = doc.splitTextToSize(textoFinal, textWidth);
+            doc.text(lineasFinal, margin, y);
+            y += (lineasFinal.length * 6) + 10;
+        }
+
+        const canvasFirma = document.getElementById('firmaCanvas');
+        const firmaDataUrl = canvasFirma.toDataURL('image/png');
+        const firmaWidth = 60;
+        const firmaHeight = 25;
+        const firmaX = (pageWidth - firmaWidth) / 2;
+        doc.addImage(firmaDataUrl, 'PNG', firmaX, y, firmaWidth, firmaHeight);
+        y += firmaHeight + 2;
+        doc.line(firmaX, y, firmaX + firmaWidth, y);
+        y += 4;
+        doc.setFontSize(12);
+        doc.setTextColor(80, 80, 80);
+        doc.setFont("times", "bold");
+        doc.text(ultimaTransaccion.colaborador, pageWidth / 2, y, {
+            align: 'center'
+        });
+        y += 10;
+        doc.line(margin, y, pageWidth - margin, y);
+        y += 8;
+        doc.setFontSize(14);
+        doc.setTextColor(34, 49, 63);
+        doc.setFont("times", "bold");
+        doc.text(tituloChecklist, margin, y);
+        y += 6;
+        const tableColumn = ["Punto de Verificación", "Sí", "No"];
+        const tableRows = ultimaTransaccion.checklist.map(item => {
+            const si = item.respuesta === "✔" ? "X" : "";
+            const no = item.respuesta === "X" ? "X" : "";
+            return [item.item, si, no];
+        });
+        const espacioDisponible = pageHeight - y - 15;
+        const alturaPorFila = 5;
+        const alturaEncabezado = 8;
+        const alturaTotalTabla = alturaEncabezado + (tableRows.length * alturaPorFila);
+        let fontSize = 9;
+        let cellPadding = 2;
+        let rowHeight = 5;
+        if (alturaTotalTabla > espacioDisponible) {
+            fontSize = 8;
+            cellPadding = 1.5;
+            rowHeight = 4;
+        }
+        const colWidth = (pageWidth - (2 * margin) - 24) / 1.5;
+        doc.autoTable({
+            startY: y,
+            head: [tableColumn],
+            body: tableRows,
+            theme: 'grid',
+            headStyles: {
+                fillColor: [0, 123, 255],
+                textColor: [255, 255, 255],
+                fontStyle: 'bold',
+                fontSize: fontSize,
+                font: "times",
+                cellPadding: cellPadding,
+                minCellHeight: rowHeight
+            },
+            styles: {
+                fontSize: fontSize,
+                cellPadding: cellPadding,
+                textColor: [50, 50, 50],
+                lineColor: [200, 200, 200],
+                lineWidth: 0.1,
+                font: "times",
+                minCellHeight: rowHeight
+            },
+            columnStyles: {
+                0: {
+                    cellWidth: colWidth,
+                    fontStyle: 'bold'
+                },
+                1: {
+                    cellWidth: 12,
+                    halign: 'center'
+                },
+                2: {
+                    cellWidth: 12,
+                    halign: 'center'
+                }
+            },
+            margin: {
+                top: y,
+                left: margin,
+                right: margin
+            },
+            tableWidth: 'wrap',
+            pageBreak: 'avoid'
+        });
+
+        // Llamada a la nueva función para añadir las fotos
+        let photosSectionY = doc.autoTable.previous.finalY + 15;
+        photosSectionY = await addPhotoSection(doc, "Fotos de la Limpieza (Después):", selectedFiles.preview4, photosSectionY);
+
+        const pdfName = `${ultimaTransaccion.tipo}-${ultimaTransaccion.equipo}-${ultimaTransaccion.fecha}.pdf`;
+        const pdfBlob = doc.output('blob');
+        const pdfFile = new File([pdfBlob], pdfName, {
+            type: 'application/pdf'
+        });
+        if (navigator.canShare && navigator.canShare({
+                files: [pdfFile]
+            })) {
+            try {
+                await navigator.share({
+                    files: [pdfFile],
+                    title: pdfName,
+                    text: `Comparto el documento de ${tipoMovimiento} para el equipo ${ultimaTransaccion.equipo}.`
+                });
+            } catch (error) {
+                console.error('Error al compartir el archivo:', error);
+                Swal.fire('Error', 'No se pudo compartir el archivo. ' + error.message, 'error');
+            }
+        } else {
+            doc.save(pdfName);
+        }
+    }
+
+
+    let isDrawing = false;
+    let isErasing = false;
+    let lastX = 0;
+    let lastY = 0;
+    const canvas = document.getElementById("firmaCanvas");
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    const undoStack = [];
+    const redoStack = [];
+
+    function saveToUndoStack() {
+        undoStack.push(canvas.toDataURL());
+        redoStack.length = 0;
+    }
+
+    function undo() {
+        if (undoStack.length > 0) {
+            saveToRedoStack();
+            const lastState = undoStack.pop();
+            const img = new Image();
+            img.src = lastState;
+            img.onload = () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0);
+            };
+        }
+    }
+
+    function redo() {
+        if (redoStack.length > 0) {
+            const lastState = redoStack.pop();
+            undoStack.push(canvas.toDataURL());
+            const img = new Image();
+            img.src = lastState;
+            img.onload = () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0);
+            };
+        }
+    }
+
+    function saveToRedoStack() {
+        redoStack.push(canvas.toDataURL());
+    }
+
+    function getCoordinates(e) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        if (e.touches) {
+            return {
+                x: (e.touches[0].clientX - rect.left) * scaleX,
+                y: (e.touches[0].clientY - rect.top) * scaleY
+            };
+        }
+        return {
+            x: (e.offsetX) * scaleX,
+            y: (e.offsetY) * scaleY
+        };
+    }
+
+    document.getElementById("toggleEraser").addEventListener("click", () => {
+        isErasing = !isErasing;
+        document.getElementById("toggleEraser").classList.toggle("active");
+    });
+
+    canvas.addEventListener("mousemove", (e) => {
+        if (!isDrawing) return;
+        const {
+            x,
+            y
+        } = getCoordinates(e);
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(x, y);
+        ctx.strokeStyle = isErasing ? "#FFF" : "#000";
+        ctx.lineWidth = isErasing ? 10 : 4;
+        ctx.stroke();
+        lastX = x;
+        lastY = y;
+    });
+
+    canvas.addEventListener("mousedown", (e) => {
+        saveToUndoStack();
+        isDrawing = true;
+        const {
+            x,
+            y
+        } = getCoordinates(e);
+        lastX = x;
+        lastY = y;
+    });
+
+    canvas.addEventListener("mouseup", () => {
+        isDrawing = false;
+        verificarFormulario(); // Nuevo: verifica el formulario al terminar de dibujar
+    });
+    canvas.addEventListener("mouseout", () => (isDrawing = false));
+    document.getElementById("undo").addEventListener("click", undo);
+    document.getElementById("redo").addEventListener("click", redo);
+    document.getElementById("clearSignature").addEventListener("click", () => {
+        localStorage.removeItem('canvasState');
+        saveToUndoStack();
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        verificarFormulario(); // Nuevo: verifica el formulario al limpiar
+    });
+
+    canvas.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        saveToUndoStack();
+        isDrawing = true;
+        const {
+            x,
+            y
+        } = getCoordinates(e);
+        lastX = x;
+        lastY = y;
+    });
+
+    canvas.addEventListener("touchmove", (e) => {
+        e.preventDefault();
+        if (!isDrawing) return;
+        const {
+            x,
+            y
+        } = getCoordinates(e);
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(x, y);
+        ctx.strokeStyle = isErasing ? "#FFF" : "#000";
+        ctx.lineWidth = isErasing ? 10 : 2;
+        ctx.stroke();
+        lastX = x;
+        lastY = y;
+    });
+
+    canvas.addEventListener("touchend", (e) => {
+        e.preventDefault();
+        isDrawing = false;
+        verificarFormulario(); // Nuevo: verifica el formulario al terminar de dibujar en móvil
+    });
+
+    canvas.addEventListener("touchcancel", (e) => {
+        e.preventDefault();
+        isDrawing = false;
+    });
+
+    function resizeCanvas() {
+        const currentDrawing = canvas.toDataURL();
+        const container = canvas.parentElement;
+        canvas.style.width = "100%";
+        canvas.style.height = "100%";
+        const rect = container.getBoundingClientRect();
+        const newWidth = rect.width;
+        const newHeight = rect.height;
+        if (canvas.width !== newWidth || canvas.height !== newHeight) {
+            canvas.width = newWidth;
+            canvas.height = newHeight;
+            const img = new Image();
+            img.src = currentDrawing;
+            img.onload = () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            };
+        }
+    }
+
+    window.addEventListener("load", resizeCanvas);
+    window.addEventListener("resize", resizeCanvas);
+
+    function saveCanvasState() {
+        const canvasData = canvas.toDataURL();
+        localStorage.setItem('canvasState', canvasData);
+    }
+
+    function restoreCanvasState() {
+        const canvasData = localStorage.getItem('canvasState');
+        if (canvasData) {
+            const img = new Image();
+            img.src = canvasData;
+            img.onload = () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0);
+            };
+        }
+    }
+    canvas.addEventListener('click', restoreCanvasState);
+    document.querySelectorAll('input, textarea').forEach(element => {
+        element.addEventListener('focus', () => {
+            saveCanvasState();
+        });
+    });
 </script>
 </body>
 </html>

@@ -447,19 +447,22 @@
         text-align: left;
     }
 
-    .checklist-item {
-        margin-bottom: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 5px;
-    }
+.checklist-item {
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px;
+    gap: 10px;
+}
 
-    .checklist-item label {
-        font-size: 14px;
-        color: #333;
-        flex-grow: 1;
-    }
+.checklist-item label {
+    font-size: 13px;
+    color: #333;
+    flex-grow: 1;
+    margin-right: 10px;
+    line-height: 1.3;
+}
 
     .checklist-image-container {
         text-align: center;
@@ -473,43 +476,52 @@
         box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     }
 
-    .checklist-buttons {
-        display: flex;
-        gap: 10px;
-    }
+.checklist-buttons {
+    display: flex;
+    gap: 5px;
+    min-width: 120px;
+}
 
     /* Nuevos estilos para los botones del checklist */
-    .check-button, .x-button {
-        width: 50px; /* Ancho ajustado para el texto */
-        height: 30px;
-        border-radius: 4px; /* Esquinas ligeramente redondeadas */
-        font-weight: bold;
-        cursor: pointer;
-        border: 1px solid #ccc;
-        transition: all 0.2s ease;
-    }
+.check-button, .x-button {
+    width: 55px;
+    height: 28px;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+    border: 1px solid #ccc;
+    transition: all 0.2s ease;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
 
-    .check-button {
-        background-color: #f0f0f0;
-        color: #333;
-    }
+.check-button {
+    background-color: #f0f0f0;
+    color: #333;
+}
     
-    .check-button.selected {
-        background-color: green;
-        color: white;
-        border-color: green;
-    }
+.check-button.selected {
+    background-color: green;
+    color: white;
+    border-color: green;
+}
 
-    .x-button {
-        background-color: #f0f0f0;
-        color: #333;
-    }
-    
-    .x-button.selected {
-        background-color: red;
-        color: black;
-        border-color: red;
-    }
+.x-button {
+    background-color: #f0f0f0;
+    color: #333;
+}
+
+.x-button.selected {
+    background-color: red;
+    color: white;
+    border-color: red;
+}
     
     /* Estilos para los botones de modo Salidas/Entradas */
     .modo-buttons {
@@ -1205,32 +1217,41 @@
         }
     }
 
-    function generarChecklistHTML(checklist, tipo) {
-        let titulo = tipo === 'pre' ? 'Checklist Preoperativo' : 'Checklist Postoperativo';
+function generarChecklistHTML(checklist, tipo) {
+    let titulo = tipo === 'pre' ? 'Checklist Preoperativo' : 'Checklist Postoperativo';
 
-        let checklistHTML = `
-            <div class="checklist-image-container">
-                <img src="${equipoSeleccionado.imagen}" alt="${equipoSeleccionado.nombre}">
-            </div>
-            <div class="checklist-container">
-                <h4 style="margin-bottom: 15px; color: #007BFF;">${titulo}</h4>
-        `;
+    let checklistHTML = `
+        <div class="checklist-image-container">
+            <img src="${equipoSeleccionado.imagen}" alt="${equipoSeleccionado.nombre}">
+        </div>
+        <div class="checklist-container">
+            <h4 style="margin-bottom: 15px; color: #007BFF;">${titulo}</h4>
+    `;
 
-        checklist.forEach((item, i) => {
-            checklistHTML += `
-                <div class="checklist-item" id="item-${i}">
-                    <label>${item}</label>
-                    <div class="checklist-buttons">
-                        <button type="button" class="check-button" data-value="✔" onclick="seleccionarBoton(event)">C</button>
-                        <button type="button" class="x-button" data-value="X" onclick="seleccionarBoton(event)">NC</button>
-                    </div>
+    checklist.forEach((item, i) => {
+        checklistHTML += `
+            <div class="checklist-item" id="item-${i}">
+                <label>${item}</label>
+                <div class="checklist-buttons">
+                    <button type="button" class="check-button" data-value="✔" onclick="seleccionarBoton(event)">Cumple</button>
+                    <button type="button" class="x-button" data-value="X" onclick="seleccionarBoton(event)">No Cumple</button>
                 </div>
-            `;
-        });
+            </div>
+        `;
+    });
 
-        checklistHTML += `</div>`;
-        return checklistHTML;
-    }
+    // Agregar campo de observaciones
+    checklistHTML += `
+        </div>
+        <div style="margin-top: 20px;">
+            <label for="observaciones" style="font-weight: bold; display: block; margin-bottom: 8px;">Observaciones:</label>
+            <textarea id="observaciones" rows="3" placeholder="Escribe aquí cualquier observación adicional..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: Arial, sans-serif; resize: vertical;"></textarea>
+        </div>
+    `;
+
+    return checklistHTML;
+}
+
 
     function verificarChecklistCompleto() {
         const items = $('.checklist-item');
@@ -1245,229 +1266,243 @@
         return todosSeleccionados;
     }
 
-    function solicitarEquipo() {
-        let fecha = $('#fecha').val();
-        let colaborador = $('#colaborador').val();
-        let area = $('#area').val();
-        const checklist = checklistsPreOperativos[categoriaSeleccionada] || checklistsPreOperativos["aspiradoras"];
-        
-        Swal.fire({
-            title: 'Checklist Preoperativo',
-            html: generarChecklistHTML(checklist, 'pre'),
-            icon: 'info',
-            showCancelButton: true,
-            confirmButtonText: 'Confirmar y Solicitar',
-            cancelButtonText: 'Cancelar',
-            width: '600px',
-            didOpen: () => {
-                const todosSeleccionados = verificarChecklistCompleto();
-                Swal.getConfirmButton().disabled = !todosSeleccionados;
-            }
-        }).then((result) => {
-            if (result.isConfirmed) {
-                const checklistRespuestas = [];
-                $('.checklist-item').each(function() {
-                    const selectedButton = $(this).find('.selected');
-                    checklistRespuestas.push(selectedButton.data('value'));
-                });
+function solicitarEquipo() {
+    let fecha = $('#fecha').val();
+    let colaborador = $('#colaborador').val();
+    let area = $('#area').val();
+    const checklist = checklistsPreOperativos[categoriaSeleccionada] || checklistsPreOperativos["aspiradoras"];
+    
+    Swal.fire({
+        title: 'Checklist Preoperativo',
+        html: generarChecklistHTML(checklist, 'pre'),
+        icon: 'info',
+        showCancelButton: true,
+        confirmButtonText: 'Confirmar y Solicitar',
+        cancelButtonText: 'Cancelar',
+        width: '650px', // Aumentado ligeramente para mejor espaciado
+        padding: '20px',
+        didOpen: () => {
+            const todosSeleccionados = verificarChecklistCompleto();
+            Swal.getConfirmButton().disabled = !todosSeleccionados;
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const checklistRespuestas = [];
+            $('.checklist-item').each(function() {
+                const selectedButton = $(this).find('.selected');
+                checklistRespuestas.push(selectedButton.data('value'));
+            });
+            
+            // Obtener observaciones
+            const observaciones = document.getElementById('observaciones').value;
 
-                ultimaTransaccion = {
-                    fecha: fecha,
-                    colaborador: colaborador,
-                    area: area,
-                    equipo: equipoSeleccionado.nombre,
-                    categoria: categoriaSeleccionada,
-                    tipo: 'salidas',
-                    checklist: checklist.map((item, i) => ({
-                        item: item,
-                        respuesta: checklistRespuestas[i]
-                    }))
-                };
-                
-                Swal.fire({
-                    title: 'Confirmar Préstamo',
-                    html: `
-                        <div style="text-align: left;">
-                            <p><strong>Fecha:</strong> ${fecha}</p>
-                            <p><strong>Colaborador:</strong> ${colaborador}</p>
-                            <p><strong>Área:</strong> ${area}</p>
-                            <p><strong>Equipo:</strong> ${equipoSeleccionado.nombre}</p>
-                        </div>
-                    `,
-                    icon: 'question',
-                    showCancelButton: true,
-                    confirmButtonText: 'Sí, enviar',
-                    cancelButtonText: 'No, revisar',
-                    confirmButtonColor: '#28a745',
-                    cancelButtonColor: '#6c757d',
-                    width: '500px'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        $('#overlay').show();
-                        const scriptURL = "https://script.google.com/macros/s/AKfycbweOAqrT8cQuoW9xPbWBwOyLxbORFTT6HaStsNUz7i9ySkTRlElJIirZwcoGC-l8Sb-/exec";
-                        $.ajax({
-                            url: scriptURL,
-                            type: "POST",
-                            data: {
-                                fecha: fecha,
-                                colaborador: colaborador,
-                                area: area,
-                                equipo: equipoSeleccionado.nombre,
-                                categoria: categoriaSeleccionada,
-                                retornable: equipoSeleccionado.devolucion,
-                                checklist: JSON.stringify(checklistRespuestas)
-                            },
-                            success: function(response) {
-                                $('#overlay').hide();
-Swal.fire({
-    title: '¡Éxito!',
-    html: `
-        <div style="text-align: center;">
-            <p style="font-size: 1.1em; margin-bottom: 15px;">Préstamo registrado correctamente</p>
-            <div style="color: #28a745; font-size: 2em;">
-                <i class="fas fa-check-circle"></i>
-            </div>
-            <button id="generarPdfBtn" class="swal2-confirm swal2-styled" style="background-color: #007bff; margin-top: 15px;">Generar y Compartir PDF</button>
-        </div>
-    `,
-    icon: 'success',
-    showConfirmButton: false,
-    showCloseButton: true, // Esto añade el botón 'X' para cerrar
-    allowOutsideClick: false, // ¡Este es el cambio!
-    didOpen: () => {
-        $('#generarPdfBtn').on('click', () => {
-            generarPDF();
-        });
-    }
-}).then((result) => {
-    // Si el usuario hace clic en la 'X' para cerrar
-    if (result.dismiss === Swal.DismissReason.close) {
-        location.reload();
-    }
-});
-                            },
-                            error: function(xhr, status, error) {
-                                $('#overlay').hide();
-                                Swal.fire('Error', 'Hubo un problema al registrar el préstamo. Por favor inténtalo nuevamente.', 'error');
-                            }
-                        });
-                    }
-                });
-            }
-        });
-    }
+            ultimaTransaccion = {
+                fecha: fecha,
+                colaborador: colaborador,
+                area: area,
+                equipo: equipoSeleccionado.nombre,
+                categoria: categoriaSeleccionada,
+                tipo: 'salidas',
+                checklist: checklist.map((item, i) => ({
+                    item: item,
+                    respuesta: checklistRespuestas[i]
+                })),
+                observaciones: observaciones
+            };
+            
+            Swal.fire({
+                title: 'Confirmar Préstamo',
+                html: `
+                    <div style="text-align: left;">
+                        <p><strong>Fecha:</strong> ${fecha}</p>
+                        <p><strong>Colaborador:</strong> ${colaborador}</p>
+                        <p><strong>Área:</strong> ${area}</p>
+                        <p><strong>Equipo:</strong> ${equipoSeleccionado.nombre}</p>
+                        ${observaciones ? `<p><strong>Observaciones:</strong> ${observaciones}</p>` : ''}
+                    </div>
+                `,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, enviar',
+                cancelButtonText: 'No, revisar',
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#6c757d',
+                width: '500px'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $('#overlay').show();
+                    const scriptURL = "https://script.google.com/macros/s/AKfycbweOAqrT8cQuoW9xPbWBwOyLxbORFTT6HaStsNUz7i9ySkTRlElJIirZwcoGC-l8Sb-/exec";
+                    $.ajax({
+                        url: scriptURL,
+                        type: "POST",
+                        data: {
+                            fecha: fecha,
+                            colaborador: colaborador,
+                            area: area,
+                            equipo: equipoSeleccionado.nombre,
+                            categoria: categoriaSeleccionada,
+                            retornable: equipoSeleccionado.devolucion,
+                            checklist: JSON.stringify(checklistRespuestas),
+                            observaciones: observaciones
+                        },
+                        success: function(response) {
+                            $('#overlay').hide();
+                            Swal.fire({
+                                title: '¡Éxito!',
+                                html: `
+                                    <div style="text-align: center;">
+                                        <p style="font-size: 1.1em; margin-bottom: 15px;">Préstamo registrado correctamente</p>
+                                        <div style="color: #28a745; font-size: 2em;">
+                                            <i class="fas fa-check-circle"></i>
+                                        </div>
+                                        <button id="generarPdfBtn" class="swal2-confirm swal2-styled" style="background-color: #007bff; margin-top: 15px;">Generar y Compartir PDF</button>
+                                    </div>
+                                `,
+                                icon: 'success',
+                                showConfirmButton: false,
+                                showCloseButton: true,
+                                allowOutsideClick: false,
+                                didOpen: () => {
+                                    $('#generarPdfBtn').on('click', () => {
+                                        generarPDF();
+                                    });
+                                }
+                            }).then((result) => {
+                                if (result.dismiss === Swal.DismissReason.close) {
+                                    location.reload();
+                                }
+                            });
+                        },
+                        error: function(xhr, status, error) {
+                            $('#overlay').hide();
+                            Swal.fire('Error', 'Hubo un problema al registrar el préstamo. Por favor inténtalo nuevamente.', 'error');
+                        }
+                    });
+                }
+            });
+        }
+    });
+}
 
-    function devolverEquipo() {
-        let fecha = $('#fecha').val();
-        let colaborador = $('#colaborador').val();
-        let area = $('#area').val();
-        const checklist = checklistsPostOperativos[categoriaSeleccionada] || checklistsPostOperativos["aspiradoras"];
 
-        Swal.fire({
-            title: 'Checklist Postoperativo',
-            html: generarChecklistHTML(checklist, 'post'),
-            icon: 'info',
-            showCancelButton: true,
-            confirmButtonText: 'Confirmar Devolución',
-            cancelButtonText: 'Cancelar',
-            width: '600px',
-            didOpen: () => {
-                const todosSeleccionados = verificarChecklistCompleto();
-                Swal.getConfirmButton().disabled = !todosSeleccionados;
-            }
-        }).then((result) => {
-            if (result.isConfirmed) {
-                const checklistRespuestas = [];
-                $('.checklist-item').each(function() {
-                    const selectedButton = $(this).find('.selected');
-                    checklistRespuestas.push(selectedButton.data('value'));
-                });
+function devolverEquipo() {
+    let fecha = $('#fecha').val();
+    let colaborador = $('#colaborador').val();
+    let area = $('#area').val();
+    const checklist = checklistsPostOperativos[categoriaSeleccionada] || checklistsPostOperativos["aspiradoras"];
 
-                ultimaTransaccion = {
-                    fecha: fecha,
-                    colaborador: colaborador,
-                    area: area,
-                    equipo: equipoSeleccionado.nombre,
-                    categoria: categoriaSeleccionada,
-                    tipo: 'entradas',
-                    checklist: checklist.map((item, i) => ({
-                        item: item,
-                        respuesta: checklistRespuestas[i]
-                    }))
-                };
+    Swal.fire({
+        title: 'Checklist Postoperativo',
+        html: generarChecklistHTML(checklist, 'post'),
+        icon: 'info',
+        showCancelButton: true,
+        confirmButtonText: 'Confirmar Devolución',
+        cancelButtonText: 'Cancelar',
+        width: '650px', // Aumentado ligeramente para mejor espaciado
+        padding: '20px',
+        didOpen: () => {
+            const todosSeleccionados = verificarChecklistCompleto();
+            Swal.getConfirmButton().disabled = !todosSeleccionados;
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const checklistRespuestas = [];
+            $('.checklist-item').each(function() {
+                const selectedButton = $(this).find('.selected');
+                checklistRespuestas.push(selectedButton.data('value'));
+            });
+            
+            // Obtener observaciones
+            const observaciones = document.getElementById('observaciones').value;
 
-                Swal.fire({
-                    title: 'Confirmar Devolución',
-                    html: `
-                        <div style="text-align: left;">
-                            <p><strong>Fecha:</strong> ${fecha}</p>
-                            <p><strong>Colaborador:</strong> ${colaborador}</p>
-                            <p><strong>Área:</strong> ${area}</p>
-                            <p><strong>Equipo:</strong> ${equipoSeleccionado.nombre}</p>
-                        </div>
-                    `,
-                    icon: 'question',
-                    showCancelButton: true,
-                    confirmButtonText: 'Sí, devolver',
-                    cancelButtonText: 'No, revisar',
-                    confirmButtonColor: '#28a745',
-                    cancelButtonColor: '#6c757d',
-                    width: '500px'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        $('#overlay').show();
-                        const scriptURL = "https://script.google.com/macros/s/AKfycbw4OfK5DQQqbiro8olfyb8MvjQnOHGZBoELkTBJnOYS2GMpkr8yFrJJASiAiAxxePGfzA/exec";
-                        $.ajax({
-                            url: scriptURL,
-                            type: "POST",
-                            data: {
-                                fecha: fecha,
-                                colaborador: colaborador,
-                                area: area,
-                                equipo: equipoSeleccionado.nombre,
-                                categoria: categoriaSeleccionada,
-                                checklist: JSON.stringify(checklistRespuestas),
-                                tipo: 'devolucion'
-                            },
-                            success: function(response) {
-                                $('#overlay').hide();
-Swal.fire({
-    title: '¡Éxito!',
-    html: `
-        <div style="text-align: center;">
-            <p style="font-size: 1.1em; margin-bottom: 15px;">Devolución registrada correctamente</p>
-            <div style="color: #28a745; font-size: 2em;">
-                <i class="fas fa-check-circle"></i>
-            </div>
-            <button id="generarPdfBtn" class="swal2-confirm swal2-styled" style="background-color: #007bff; margin-top: 15px;">Generar y Compartir PDF</button>
-        </div>
-    `,
-    icon: 'success',
-    showConfirmButton: false,
-    showCloseButton: true,
-    allowOutsideClick: false, // ¡Este es el cambio!
-    didOpen: () => {
-        $('#generarPdfBtn').on('click', () => {
-            generarPDF();
-        });
-    }
-}).then((result) => {
-    // Si el usuario hace clic en la 'X' para cerrar
-    if (result.dismiss === Swal.DismissReason.close) {
-        location.reload();
-    }
-});
-                            },
-                            error: function(xhr, status, error) {
-                                $('#overlay').hide();
-                                Swal.fire('Error', 'Hubo un problema al registrar la devolución. Por favor inténtalo nuevamente.', 'error');
-                            }
-                        });
-                    }
-                });
-            }
-        });
-    }
+            ultimaTransaccion = {
+                fecha: fecha,
+                colaborador: colaborador,
+                area: area,
+                equipo: equipoSeleccionado.nombre,
+                categoria: categoriaSeleccionada,
+                tipo: 'entradas',
+                checklist: checklist.map((item, i) => ({
+                    item: item,
+                    respuesta: checklistRespuestas[i]
+                })),
+                observaciones: observaciones
+            };
+
+            Swal.fire({
+                title: 'Confirmar Devolución',
+                html: `
+                    <div style="text-align: left;">
+                        <p><strong>Fecha:</strong> ${fecha}</p>
+                        <p><strong>Colaborador:</strong> ${colaborador}</p>
+                        <p><strong>Área:</strong> ${area}</p>
+                        <p><strong>Equipo:</strong> ${equipoSeleccionado.nombre}</p>
+                        ${observaciones ? `<p><strong>Observaciones:</strong> ${observaciones}</p>` : ''}
+                    </div>
+                `,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, devolver',
+                cancelButtonText: 'No, revisar',
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#6c757d',
+                width: '500px'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $('#overlay').show();
+                    const scriptURL = "https://script.google.com/macros/s/AKfycbw4OfK5DQQqbiro8olfyb8MvjQnOHGZBoELkTBJnOYS2GMpkr8yFrJJASiAiAxxePGfzA/exec";
+                    $.ajax({
+                        url: scriptURL,
+                        type: "POST",
+                        data: {
+                            fecha: fecha,
+                            colaborador: colaborador,
+                            area: area,
+                            equipo: equipoSeleccionado.nombre,
+                            categoria: categoriaSeleccionada,
+                            checklist: JSON.stringify(checklistRespuestas),
+                            tipo: 'devolucion',
+                            observaciones: observaciones
+                        },
+                        success: function(response) {
+                            $('#overlay').hide();
+                            Swal.fire({
+                                title: '¡Éxito!',
+                                html: `
+                                    <div style="text-align: center;">
+                                        <p style="font-size: 1.1em; margin-bottom: 15px;">Devolución registrada correctamente</p>
+                                        <div style="color: #28a745; font-size: 2em;">
+                                            <i class="fas fa-check-circle"></i>
+                                        </div>
+                                        <button id="generarPdfBtn" class="swal2-confirm swal2-styled" style="background-color: #007bff; margin-top: 15px;">Generar y Compartir PDF</button>
+                                    </div>
+                                `,
+                                icon: 'success',
+                                showConfirmButton: false,
+                                showCloseButton: true,
+                                allowOutsideClick: false,
+                                didOpen: () => {
+                                    $('#generarPdfBtn').on('click', () => {
+                                        generarPDF();
+                                    });
+                                }
+                            }).then((result) => {
+                                if (result.dismiss === Swal.DismissReason.close) {
+                                    location.reload();
+                                }
+                            });
+                        },
+                        error: function(xhr, status, error) {
+                            $('#overlay').hide();
+                            Swal.fire('Error', 'Hubo un problema al registrar la devolución. Por favor inténtalo nuevamente.', 'error');
+                        }
+                    });
+                }
+            });
+        }
+    });
+}
+
 
     function scrollToTop() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1815,8 +1850,32 @@ async function generarPDF() {
         pageBreak: 'avoid'
     });
 
+    // Añadir observaciones si existen
+    let currentY = doc.autoTable.previous.finalY + 10;
+    
+    if (ultimaTransaccion.observaciones && ultimaTransaccion.observaciones.trim() !== '') {
+        if (currentY + 20 > pageHeight) {
+            doc.addPage();
+            currentY = 15;
+        }
+        
+        doc.setFontSize(12);
+        doc.setTextColor(34, 49, 63);
+        doc.setFont("times", "bold");
+        doc.text("Observaciones:", margin, currentY);
+        currentY += 5;
+        
+        doc.setFontSize(10);
+        doc.setTextColor(50, 50, 50);
+        doc.setFont("times", "normal");
+        
+        const observacionesLines = doc.splitTextToSize(ultimaTransaccion.observaciones, textWidth);
+        doc.text(observacionesLines, margin, currentY);
+        currentY += (observacionesLines.length * 4) + 10;
+    }
+
     // Añadir fotos
-    let photosSectionY = doc.autoTable.previous.finalY + 15;
+    let photosSectionY = currentY;
     photosSectionY = await addPhotoSection(doc, "Evidencia:", selectedFiles.preview4, photosSectionY);
 
     const tipoMovimientoNombre = ultimaTransaccion.tipo === 'salidas' ? 'Salida' : 'Entrada';
@@ -1841,6 +1900,8 @@ async function generarPDF() {
         doc.save(pdfName);
     }
 }
+
+
 
 
 

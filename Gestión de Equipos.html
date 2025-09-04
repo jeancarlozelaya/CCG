@@ -440,12 +440,33 @@
         }
     }
 
-    .checklist-container {
-        max-height: 50vh;
-        overflow-y: auto;
-        margin: 15px 0;
-        text-align: left;
-    }
+.checklist-container {
+    max-height: 50vh;
+    overflow-y: auto;
+    margin: 15px 0;
+    text-align: left;
+    padding-right: 8px; /* Espacio para la barra de desplazamiento */
+}
+
+/* Personalizar la barra de desplazamiento */
+.checklist-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.checklist-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.checklist-container::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.checklist-container::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
 
 .checklist-item {
     margin-bottom: 10px;
@@ -476,26 +497,26 @@
         box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     }
 
+/* Estilos mejorados para los botones del checklist */
 .checklist-buttons {
     display: flex;
-    gap: 5px;
-    min-width: 120px;
+    gap: 4px;
+    min-width: 115px;
 }
 
-    /* Nuevos estilos para los botones del checklist */
 .check-button, .x-button {
-    width: 55px;
-    height: 28px;
-    border-radius: 4px;
+    width: 52px;
+    height: 26px;
+    border-radius: 3px;
     font-weight: bold;
     cursor: pointer;
     border: 1px solid #ccc;
     transition: all 0.2s ease;
-    font-size: 11px;
+    font-size: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 0 3px;
+    padding: 0 2px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -505,7 +526,7 @@
     background-color: #f0f0f0;
     color: #333;
 }
-    
+
 .check-button.selected {
     background-color: green;
     color: white;
@@ -987,31 +1008,44 @@
         });
     });
 
-    function cambiarModo(modo) {
-        modoActual = modo;
-        equipoSeleccionado = null;
-        $('.equipo').css('border-color', '#ddd').css('background-color', '#f9f9f9');
-        $('#colaborador').val('').prop('disabled', false);
-        $('#area').val('').prop('disabled', false);
-        $('#buscador').prop('disabled', false).val('');
-
-        if (modo === 'salidas') {
-            $('#btnSalidas').removeClass('inactivo').addClass('activo');
-            $('#btnEntradas').removeClass('activo').addClass('inactivo');
-            $('#solicitar').show();
-            $('#devolver').hide();
-            $('#titulo-equipos').text('Seleccione el equipo a prestar:');
-        } else {
-            $('#btnSalidas').removeClass('activo').addClass('inactivo');
-            $('#btnEntradas').removeClass('inactivo').addClass('activo');
-            $('#solicitar').hide();
-            $('#devolver').show();
-            $('#titulo-equipos').text('Seleccione el equipo a devolver:');
-        }
-
-        mostrarEquiposEnUI();
-        verificarFormulario();
+function cambiarModo(modo) {
+    modoActual = modo;
+    equipoSeleccionado = null;
+    $('.equipo').css('border-color', '#ddd').css('background-color', '#f9f9f9');
+    
+    // Limpiar campos
+    $('#buscador').val('');
+    
+    if (modo === 'salidas') {
+        $('#btnSalidas').removeClass('inactivo').addClass('activo');
+        $('#btnEntradas').removeClass('activo').addClass('inactivo');
+        $('#solicitar').show();
+        $('#devolver').hide();
+        $('#titulo-equipos').text('Seleccione el equipo a prestar:');
+        
+        // Habilitar campos en modo salidas
+        $('#colaborador').prop('disabled', false).val('');
+        $('#area').prop('disabled', false).val('');
+        $('#buscador').prop('disabled', false);
+        
+    } else {
+        $('#btnSalidas').removeClass('activo').addClass('inactivo');
+        $('#btnEntradas').removeClass('inactivo').addClass('activo');
+        $('#solicitar').hide();
+        $('#devolver').show();
+        $('#titulo-equipos').text('Seleccione el equipo a devolver:');
+        
+        // Deshabilitar campos en modo entradas hasta que se seleccione un equipo
+        $('#colaborador').prop('disabled', true).val('');
+        $('#area').prop('disabled', true).val('Bodega');
+        $('#buscador').prop('disabled', false);
     }
+
+    mostrarEquiposEnUI();
+    verificarFormulario();
+}
+
+
 
     function cargarTodosLosDatos() {
         $('#overlay').show();
@@ -1177,34 +1211,44 @@
         return !pixelBuffer.some(color => color !== 0);
     }
 
-    function verificarFormulario() {
-        let fecha = $("#fecha").val();
-        let colaborador = $("#colaborador").val();
-        let area = $("#area").val();
-        const hayFotos = selectedFiles.preview4.length > 0;
-        const hayFirma = !isCanvasBlank(document.getElementById('firmaCanvas'));
-        
-        // Validar que el colaborador ingresado existe en la lista
-        const colaboradorValido = allColaboradores.includes(colaborador);
-        
-        if (fecha && colaborador && area && equipoSeleccionado && hayFotos && hayFirma && colaboradorValido) {
-            if (modoActual === "salidas") {
-                $("#solicitar").prop("disabled", false);
-            } else {
-                $("#devolver").prop("disabled", false);
-            }
+function verificarFormulario() {
+    let fecha = $("#fecha").val();
+    let colaborador = $("#colaborador").val();
+    let area = $("#area").val();
+    const hayFotos = selectedFiles.preview4.length > 0;
+    const hayFirma = !isCanvasBlank(document.getElementById('firmaCanvas'));
+    
+    // Validar que el colaborador ingresado existe en la lista (solo en modo salidas)
+    let colaboradorValido = true;
+    if (modoActual === "salidas") {
+        colaboradorValido = allColaboradores.includes(colaborador);
+    } else {
+        // En modo entradas, el colaborador viene del equipo seleccionado
+        colaboradorValido = colaborador !== '';
+    }
+    
+    if (fecha && colaborador && area && equipoSeleccionado && hayFotos && hayFirma && colaboradorValido) {
+        if (modoActual === "salidas") {
+            $("#solicitar").prop("disabled", false);
         } else {
-            $("#solicitar").prop("disabled", true);
-            $("#devolver").prop("disabled", true);
+            $("#devolver").prop("disabled", false);
         }
-        
-        // Cambiar el color del borde según si es válido o no
+    } else {
+        $("#solicitar").prop("disabled", true);
+        $("#devolver").prop("disabled", true);
+    }
+    
+    // Cambiar el color del borde según si es válido o no (solo en modo salidas)
+    if (modoActual === "salidas") {
         if (colaborador && !colaboradorValido) {
             $("#colaborador").css("border-color", "red");
         } else {
             $("#colaborador").css("border-color", colaborador ? "#28a745" : "#ddd");
         }
     }
+}
+
+
 
     function seleccionarBoton(event) {
         const button = $(event.target);
@@ -1251,7 +1295,6 @@ function generarChecklistHTML(checklist, tipo) {
 
     return checklistHTML;
 }
-
 
     function verificarChecklistCompleto() {
         const items = $('.checklist-item');

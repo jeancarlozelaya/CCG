@@ -704,6 +704,65 @@
     }
 
 
+
+
+
+        /* Nuevos estilos para el autocomplete */
+        .autocomplete-container {
+            position: relative;
+            width: 100%;
+        }
+
+        #colaborador {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            box-sizing: border-box;
+            transition: all 0.3s ease;
+        }
+
+        #colaborador:focus {
+            border-color: #007bff;
+            outline: none;
+        }
+
+        .autocomplete-suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-top: none;
+            border-radius: 0 0 6px 6px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            display: none;
+        }
+
+        .autocomplete-suggestion {
+            padding: 10px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .autocomplete-suggestion:last-child {
+            border-bottom: none;
+        }
+
+        .autocomplete-suggestion:hover {
+            background-color: #f0f8ff;
+        }
+
+        .autocomplete-suggestion.highlighted {
+            background-color: #e6f2ff;
+        }
+
     </style>
 </head>
 <body>
@@ -724,9 +783,10 @@
             </div>
 
             <label for="colaborador"><strong>Colaborador:</strong></label>
-            <select id="colaborador" name="colaborador">
-                <option value="">Seleccionar colaborador</option>
-            </select>
+            <div class="autocomplete-container">
+                <input type="text" id="colaborador" name="colaborador" placeholder="Escribe el nombre del colaborador" autocomplete="off">
+                <div class="autocomplete-suggestions" id="colaborador-suggestions"></div>
+            </div>
 
             <label for="area"><strong>Destino:</strong></label>
             <select id="area" name="area">
@@ -1104,7 +1164,11 @@
         let area = $("#area").val();
         const hayFotos = selectedFiles.preview4.length > 0;
         const hayFirma = !isCanvasBlank(document.getElementById('firmaCanvas'));
-        if (fecha && colaborador && area && equipoSeleccionado && hayFotos && hayFirma) {
+        
+        // Validar que el colaborador ingresado existe en la lista
+        const colaboradorValido = allColaboradores.includes(colaborador);
+        
+        if (fecha && colaborador && area && equipoSeleccionado && hayFotos && hayFirma && colaboradorValido) {
             if (modoActual === "salidas") {
                 $("#solicitar").prop("disabled", false);
             } else {
@@ -1113,6 +1177,13 @@
         } else {
             $("#solicitar").prop("disabled", true);
             $("#devolver").prop("disabled", true);
+        }
+        
+        // Cambiar el color del borde según si es válido o no
+        if (colaborador && !colaboradorValido) {
+            $("#colaborador").css("border-color", "red");
+        } else {
+            $("#colaborador").css("border-color", colaborador ? "#28a745" : "#ddd");
         }
     }
 
@@ -1933,6 +2004,151 @@ async function generarPDF() {
             saveCanvasState();
         });
     });
+
+
+
+    // Nuevas variables para el autocomplete
+    let allColaboradores = [];
+    let selectedColaboradorIndex = -1;
+    let filteredColaboradores = [];
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Código existente...
+        
+        // Inicializar eventos para el autocomplete
+        initAutocomplete();
+    });
+
+    function initAutocomplete() {
+        const input = document.getElementById('colaborador');
+        const suggestionsContainer = document.getElementById('colaborador-suggestions');
+        
+        input.addEventListener('input', function(e) {
+            const value = e.target.value.toLowerCase();
+            filteredColaboradores = allColaboradores.filter(col => 
+                col.toLowerCase().includes(value)
+            );
+            
+            showSuggestions(filteredColaboradores);
+            verificarFormulario();
+        });
+        
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                highlightSuggestion('down');
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                highlightSuggestion('up');
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                selectHighlightedSuggestion();
+            } else if (e.key === 'Escape') {
+                hideSuggestions();
+            }
+        });
+        
+        input.addEventListener('blur', function() {
+            // Ocultar sugerencias después de un pequeño retraso para permitir la selección
+            setTimeout(hideSuggestions, 200);
+        });
+        
+        // Cerrar sugerencias al hacer clic fuera
+        document.addEventListener('click', function(e) {
+            if (!input.contains(e.target) && !suggestionsContainer.contains(e.target)) {
+                hideSuggestions();
+            }
+        });
+    }
+    
+    function showSuggestions(suggestions) {
+        const suggestionsContainer = document.getElementById('colaborador-suggestions');
+        suggestionsContainer.innerHTML = '';
+        
+        if (suggestions.length === 0) {
+            hideSuggestions();
+            return;
+        }
+        
+        suggestions.forEach((suggestion, index) => {
+            const div = document.createElement('div');
+            div.className = 'autocomplete-suggestion';
+            div.textContent = suggestion;
+            div.dataset.index = index;
+            
+            div.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                selectSuggestion(suggestion);
+            });
+            
+            div.addEventListener('mouseover', function() {
+                highlightSuggestionIndex(index);
+            });
+            
+            suggestionsContainer.appendChild(div);
+        });
+        
+        suggestionsContainer.style.display = 'block';
+        selectedColaboradorIndex = -1;
+    }
+    
+    function hideSuggestions() {
+        const suggestionsContainer = document.getElementById('colaborador-suggestions');
+        suggestionsContainer.style.display = 'none';
+        selectedColaboradorIndex = -1;
+    }
+    
+    function highlightSuggestion(direction) {
+        const suggestions = document.querySelectorAll('.autocomplete-suggestion');
+        if (suggestions.length === 0) return;
+        
+        // Remover highlight actual
+        suggestions.forEach(s => s.classList.remove('highlighted'));
+        
+        if (direction === 'down') {
+            selectedColaboradorIndex = (selectedColaboradorIndex + 1) % suggestions.length;
+        } else {
+            selectedColaboradorIndex = (selectedColaboradorIndex - 1 + suggestions.length) % suggestions.length;
+        }
+        
+        suggestions[selectedColaboradorIndex].classList.add('highlighted');
+        suggestions[selectedColaboradorIndex].scrollIntoView({ block: 'nearest' });
+    }
+    
+    function highlightSuggestionIndex(index) {
+        const suggestions = document.querySelectorAll('.autocomplete-suggestion');
+        suggestions.forEach(s => s.classList.remove('highlighted'));
+        selectedColaboradorIndex = index;
+        
+        if (index >= 0 && index < suggestions.length) {
+            suggestions[index].classList.add('highlighted');
+        }
+    }
+    
+    function selectHighlightedSuggestion() {
+        if (selectedColaboradorIndex >= 0 && filteredColaboradores[selectedColaboradorIndex]) {
+            selectSuggestion(filteredColaboradores[selectedColaboradorIndex]);
+        }
+    }
+    
+    function selectSuggestion(suggestion) {
+        document.getElementById('colaborador').value = suggestion;
+        hideSuggestions();
+        verificarFormulario();
+    }
+
+    function llenarSelects() {
+        // Ya no usamos el select de colaborador, pero mantenemos la variable allColaboradores
+        allColaboradores = colaboradores;
+        
+        const areaSelect = $('#area');
+        areaSelect.find('option:not(:first)').remove();
+        areas.forEach(area => {
+            areaSelect.append(`<option value="${area}">${area}</option>`);
+        });
+    }
+
+
 </script>
 </body>
 </html>

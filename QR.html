@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Escanear Código QR - Pisos Brillantes</title>
+    <!-- FontAwesome CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Cropper.js CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.css">
+    <style>
+        /* Variables de colores */
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --secondary: #10b981;
+            --dark: #1e293b;
+            --light: #f8fafc;
+            --gray: #94a3b8;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --warning: #f59e0b;
+        }
+
+        /* Estilos generales */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--dark);
+            color: var(--light);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            text-align: center;
+            padding: 18px 0;
+            font-size: 1.4rem;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Contenedor principal */
+        .screen-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        /* Pantalla de la cámara */
+        #camera-screen {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 20px;
+            position: relative;
+        }
+
+        .screen-title {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            text-align: center;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .camera-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            height: 65vh;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Video de la cámara */
+        #video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 20px;
+        }
+
+        /* Recuadro de enfoque */
+        #overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 250px;
+            height: 250px;
+            border: 3px solid rgba(255, 255, 255, 0.8);
+            border-radius: 20px;
+            box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.4),
+                        0 0 20px rgba(255, 255, 255, 0.6);
+            pointer-events: none;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { border-color: rgba(255, 255, 255, 0.8); }
+            50% { border-color: var(--primary); }
+            100% { border-color: rgba(255, 255, 255, 0.8); }
+        }
+
+        /* Contenedor de los botones */
+        #button-container {
+            display: flex;
+            justify-content: center;
+            gap: 25px;
+            margin-top: 25px;
+            width: 100%;
+        }
+
+        /* Botones circulares */
+        .circle-button {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border: none;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .circle-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .circle-button:active {
+            transform: translateY(0);
+        }
+
+        .circle-button.active {
+            background: linear-gradient(135deg, var(--warning), #f97316);
+            color: #fff;
+        }
+
+        /* Control de zoom */
+        #zoom-control {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            max-width: 300px;
+            background-color: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 12px;
+        }
+
+        #zoom-slider {
+            width: 100%;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        #zoom-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Pantalla de recorte de imagen */
+        #crop-screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 20px;
+            background-color: var(--dark);
+            min-height: 100vh;
+        }
+
+        #crop-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            margin: 15px 0;
+        }
+
+        #crop-image {
+            max-width: 100%;
+            max-height: 60vh;
+            border-radius: 15px;
+            display: block;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        #crop-buttons {
+            margin-top: 20px;
+            display: flex;
+            gap: 15px;
+        }
+
+        /* Botones con iconos */
+        .icon-button {
+            padding: 12px;
+            font-size: 1.4rem;
+            border: none;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 55px;
+            height: 55px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+        }
+
+        .icon-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .icon-button:active {
+            transform: translateY(0);
+        }
+
+        .icon-button.secondary {
+            background: linear-gradient(135deg, var(--gray), #64748b);
+        }
+
+        .icon-button.success {
+            background: linear-gradient(135deg, var(--success), #16a34a);
+        }
+
+        /* Mensaje de error */
+        #crop-error {
+            margin-top: 15px;
+            color: var(--danger);
+            text-align: center;
+            padding: 10px 15px;
+            background-color: rgba(239, 68, 68, 0.1);
+            border-radius: 8px;
+            display: none;
+            max-width: 400px;
+            width: 100%;
+        }
+
+        /* Pantalla de resultados */
+        #result-screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 20px;
+            background-color: var(--light);
+            color: var(--dark);
+            min-height: 100vh;
+        }
+
+        .result-content {
+            background-color: #fff;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            width: 100%;
+            margin: 20px 0;
+            text-align: center;
+            word-wrap: break-word;
+        }
+
+        .content-type {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            background-color: var(--primary);
+            color: white;
+        }
+
+        #result {
+            font-size: 1.1rem;
+            line-height: 1.5;
+            margin: 10px 0;
+        }
+
+        #buttons {
+            margin-top: 25px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 12px;
+            max-width: 500px;
+            width: 100%;
+        }
+
+        /* Pantalla de historial */
+        #history-screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 20px;
+            background-color: var(--light);
+            color: var(--dark);
+            min-height: 100vh;
+        }
+
+        #history-list {
+            width: 100%;
+            max-width: 500px;
+            margin-top: 20px;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .history-item:last-child {
+            border-bottom: none;
+        }
+
+        .history-content {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-right: 15px;
+            font-size: 0.95rem;
+        }
+
+        .history-item-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .history-item-type {
+            font-size: 0.7rem;
+            padding: 3px 8px;
+            border-radius: 12px;
+            background-color: var(--primary);
+            color: white;
+            margin-right: 8px;
+        }
+
+        #history-buttons {
+            margin-top: 25px;
+            display: flex;
+            gap: 15px;
+        }
+
+        /* Mensaje temporal */
+        #temp-message {
+            position: fixed;
+            top: 90px;
+            right: 20px;
+            font-size: 0.9rem;
+            color: white;
+            display: none;
+            padding: 12px 20px;
+            background-color: var(--success);
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            animation: fadeInOut 3s ease-in-out;
+            z-index: 1000;
+        }
+
+        #temp-message.error {
+            background-color: var(--danger);
+        }
+
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0; transform: translateY(-10px); }
+            10%, 90% { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Indicador de escaneo */
+        .scan-line {
+            position: absolute;
+            height: 4px;
+            width: 100%;
+            background: linear-gradient(to right, transparent, var(--primary), transparent);
+            top: 50%;
+            animation: scan 2s linear infinite;
+            border-radius: 2px;
+        }
+
+        @keyframes scan {
+            0% { top: 20%; }
+            50% { top: 80%; }
+            100% { top: 20%; }
+        }
+
+        /* Loader */
+        .loader {
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            display: inline-block;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            .header {
+                font-size: 1.2rem;
+                padding: 15px 0;
+            }
+            
+            .screen-title {
+                font-size: 1.5rem;
+            }
+            
+            .camera-wrapper {
+                height: 55vh;
+            }
+            
+            #overlay {
+                width: 200px;
+                height: 200px;
+            }
+            
+            .circle-button {
+                width: 55px;
+                height: 55px;
+                font-size: 22px;
+            }
+            
+            .icon-button {
+                width: 50px;
+                height: 50px;
+                font-size: 1.2rem;
+            }
+            
+            .result-content {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        Pisos Brillantes - Escáner QR
+    </div>
+
+    <!-- Pantalla de la cámara -->
+    <div id="camera-screen" class="screen-container">
+        <div class="screen-title">Escanea un código QR</div>
+        <div class="camera-wrapper">
+            <video id="video" autoplay playsinline></video>
+            <div id="overlay">
+                <div class="scan-line"></div>
+            </div>
+            <div id="zoom-control">
+                <input type="range" id="zoom-slider" min="1" max="5" step="0.1" value="1">
+            </div>
+        </div>
+        
+        <div id="button-container">
+            <button id="flashlight" class="circle-button" title="Linterna">
+                <i class="fas fa-bolt"></i>
+            </button>
+            <button id="upload-image" class="circle-button" title="Subir imagen">
+                <i class="fas fa-image"></i>
+            </button>
+            <button id="history-btn" class="circle-button" title="Ver historial">
+                <i class="fas fa-history"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Pantalla de recorte de imagen -->
+    <div id="crop-screen" class="screen-container">
+        <div class="screen-title">Selecciona el código QR</div>
+        <div id="crop-container">
+            <img id="crop-image" src="" alt="Imagen para recortar">
+        </div>
+        <div id="crop-buttons">
+            <button class="icon-button secondary" id="back-button" title="Volver">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <button class="icon-button success" id="crop-button" title="Escanear código">
+                <i class="fas fa-check"></i>
+            </button>
+        </div>
+        <div id="crop-error">No se encontró ningún código QR en la imagen</div>
+    </div>
+
+    <!-- Pantalla de resultados -->
+    <div id="result-screen" class="screen-container">
+        <div class="screen-title">Resultado del escaneo</div>
+        <div class="result-content">
+            <span class="content-type" id="content-type">TEXTO</span>
+            <div id="result">Cargando resultado...</div>
+        </div>
+        <div id="buttons">
+            <button class="icon-button secondary" id="rescan-button" title="Escanear de nuevo">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+            <button class="icon-button" id="copy-button" title="Copiar">
+                <i class="fas fa-copy"></i>
+            </button>
+            <button class="icon-button" id="open-button" title="Abrir">
+                <i class="fas fa-external-link-alt"></i>
+            </button>
+            <button class="icon-button" id="share-button" title="Compartir">
+                <i class="fas fa-share-alt"></i>
+            </button>
+            <button class="icon-button" id="save-button" title="Guardar">
+                <i class="fas fa-save"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Pantalla de historial -->
+    <div id="history-screen" class="screen-container">
+        <div class="screen-title">Historial de escaneos</div>
+        <div id="history-list"></div>
+        <div id="history-buttons">
+            <button class="icon-button secondary" id="history-back-button" title="Volver">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <button class="icon-button" id="clear-history-button" title="Borrar historial">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    </div>
+
+    <div id="temp-message"></div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js"></script>
+    <script>
+        // Elementos DOM
+        const video = document.getElementById('video');
+        const cameraScreen = document.getElementById('camera-screen');
+        const buttonContainer = document.getElementById('button-container');
+        const cropScreen = document.getElementById('crop-screen');
+        const resultScreen = document.getElementById('result-screen');
+        const historyScreen = document.getElementById('history-screen');
+        const resultText = document.getElementById('result');
+        const contentType = document.getElementById('content-type');
+        const flashlightButton = document.getElementById('flashlight');
+        const uploadImageButton = document.getElementById('upload-image');
+        const historyBtn = document.getElementById('history-btn');
+        const zoomSlider = document.getElementById('zoom-slider');
+        const copyButton = document.getElementById('copy-button');
+        const openButton = document.getElementById('open-button');
+        const shareButton = document.getElementById('share-button');
+        const saveButton = document.getElementById('save-button');
+        const rescanButton = document.getElementById('rescan-button');
+        const tempMessage = document.getElementById('temp-message');
+        const cropImage = document.getElementById('crop-image');
+        const cropButton = document.getElementById('crop-button');
+        const backButton = document.getElementById('back-button');
+        const cropError = document.getElementById('crop-error');
+        const historyList = document.getElementById('history-list');
+        const clearHistoryButton = document.getElementById('clear-history-button');
+        const historyBackButton = document.getElementById('history-back-button');
+        
+        // Variables de estado
+        let stream = null;
+        let torchEnabled = false;
+        let cropper = null;
+        let scanHistory = JSON.parse(localStorage.getItem('scanHistory')) || [];
+        let currentResult = '';
+
+        // Iniciar la aplicación
+        function initApp() {
+            startCamera();
+            setupEventListeners();
+            updateHistoryButton();
+        }
+
+        // Configurar event listeners
+        function setupEventListeners() {
+            flashlightButton.addEventListener('click', toggleFlashlight);
+            uploadImageButton.addEventListener('click', uploadImage);
+            historyBtn.addEventListener('click', showHistory);
+            zoomSlider.addEventListener('input', adjustZoom);
+            copyButton.addEventListener('click', copyResult);
+            openButton.addEventListener('click', openResult);
+            shareButton.addEventListener('click', shareResult);
+            saveButton.addEventListener('click', saveToHistory);
+            rescanButton.addEventListener('click', rescan);
+            cropButton.addEventListener('click', cropAndScan);
+            backButton.addEventListener('click', backToCamera);
+            clearHistoryButton.addEventListener('click', clearHistory);
+            historyBackButton.addEventListener('click', backToResults);
+        }
+
+        // Solicitar acceso a la cámara
+        function startCamera() {
+            if (stream) {
+                stopCamera();
+            }
+            
+            navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    facingMode: "environment",
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                } 
+            })
+            .then(function(s) {
+                stream = s;
+                video.srcObject = stream;
+                video.play();
+                requestAnimationFrame(tick);
+                
+                // Configurar zoom si está disponible
+                setupZoomControls();
+            })
+            .catch(function(err) {
+                console.error("Error al acceder a la cámara: ", err);
+                showTempMessage('Error al acceder a la cámara. Asegúrate de permitir el acceso.', true);
+                
+                // Ocultar botones de cámara
+                flashlightButton.style.display = 'none';
+            });
+        }
+
+        // Configurar controles de zoom
+        function setupZoomControls() {
+            if (stream) {
+                const track = stream.getVideoTracks()[0];
+                const capabilities = track.getCapabilities();
+                
+                if (capabilities.zoom) {
+                    zoomSlider.min = capabilities.zoom.min;
+                    zoomSlider.max = capabilities.zoom.max;
+                    zoomSlider.step = capabilities.zoom.step;
+                    zoomSlider.value = track.getSettings().zoom || 1;
+                    zoomSlider.style.display = 'block';
+                } else {
+                    zoomSlider.style.display = 'none';
+                }
+            }
+        }
+
+        // Ajustar zoom
+        function adjustZoom() {
+            if (stream) {
+                const track = stream.getVideoTracks()[0];
+                if (track.getCapabilities().zoom) {
+                    track.applyConstraints({ 
+                        advanced: [{ zoom: parseFloat(zoomSlider.value) }] 
+                    });
+                }
+            }
+        }
+
+        // Alternar linterna
+        function toggleFlashlight() {
+            if (stream) {
+                const track = stream.getVideoTracks()[0];
+                if (track.getCapabilities().torch) {
+                    torchEnabled = !torchEnabled;
+                    track.applyConstraints({ 
+                        advanced: [{ torch: torchEnabled }] 
+                    }).then(() => {
+                        flashlightButton.classList.toggle('active', torchEnabled);
+                    }).catch(err => {
+                        console.error("Error al activar la linterna: ", err);
+                        showTempMessage('Error al activar la linterna', true);
+                    });
+                } else {
+                    showTempMessage('Tu dispositivo no soporta la linterna', true);
+                }
+            }
+        }
+
+        // Subir imagen
+        function uploadImage() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        // Apagar la linterna si está encendida
+                        if (torchEnabled) {
+                            toggleFlashlight();
+                        }
+
+                        stopCamera();
+                        cameraScreen.style.display = 'none';
+                        cropScreen.style.display = 'flex';
+                        cropImage.src = event.target.result;
+
+                        // Inicializar Cropper.js
+                        if (cropper) {
+                            cropper.destroy();
+                        }
+                        
+                        setTimeout(() => {
+                            cropper = new Cropper(cropImage, {
+                                aspectRatio: 1,
+                                viewMode: 1,
+                                autoCropArea: 0.8,
+                                dragMode: 'move',
+                                guides: false,
+                                center: false,
+                                highlight: false,
+                                cropBoxMovable: true,
+                                cropBoxResizable: true,
+                                toggleDragModeOnDblclick: false,
+                                background: false
+                            });
+                        }, 100);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+            input.click();
+        }
+
+        // Volver a la cámara
+        function backToCamera() {
+            cropScreen.style.display = 'none';
+            cameraScreen.style.display = 'flex';
+            startCamera();
+        }
+
+        // Recortar y escanear imagen
+        function cropAndScan() {
+            if (cropper) {
+                const canvas = cropper.getCroppedCanvas({
+                    width: 500,
+                    height: 500,
+                });
+                
+                const imageData = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                    inversionAttempts: "attemptBoth",
+                });
+
+                if (code) {
+                    cropScreen.style.display = 'none';
+                    showResult(code.data);
+                } else {
+                    showCropError();
+                }
+            }
+        }
+
+        // Mostrar error de recorte
+        function showCropError() {
+            cropError.style.display = 'block';
+            setTimeout(() => {
+                cropError.style.display = 'none';
+            }, 3000);
+        }
+
+        // Detectar código QR en la cámara
+        function tick() {
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const context = canvas.getContext('2d');
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                // Escanear solo dentro del recuadro
+                const overlay = document.getElementById('overlay');
+                const rect = overlay.getBoundingClientRect();
+                const videoRect = video.getBoundingClientRect();
+                
+                const scaleX = canvas.width / videoRect.width;
+                const scaleY = canvas.height / videoRect.height;
+                
+                const x = (rect.left - videoRect.left) * scaleX;
+                const y = (rect.top - videoRect.top) * scaleY;
+                const width = rect.width * scaleX;
+                const height = rect.height * scaleY;
+
+                const imageData = context.getImageData(x, y, width, height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                    inversionAttempts: "attemptBoth",
+                });
+
+                if (code) {
+                    stopCamera();
+                    showResult(code.data);
+                }
+            }
+            requestAnimationFrame(tick);
+        }
+
+        // Detener la cámara
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+        }
+
+        // Mostrar resultado
+        function showResult(data) {
+            cameraScreen.style.display = 'none';
+            cropScreen.style.display = 'none';
+            resultScreen.style.display = 'flex';
+            
+            currentResult = data;
+            resultText.textContent = data;
+            
+            // Determinar el tipo de contenido
+            const type = detectContentType(data);
+            contentType.textContent = type;
+            
+            // Mostrar u ocultar botones según el tipo de contenido
+            openButton.style.display = type === 'URL' ? 'flex' : 'none';
+            shareButton.style.display = 'flex';
+            saveButton.style.display = 'flex';
+            
+            // Guardar en el historial automáticamente
+            addToHistory(data, type);
+        }
+
+        // Detectar tipo de contenido
+        function detectContentType(data) {
+            try {
+                new URL(data);
+                return 'URL';
+            } catch (e) {
+                // No es una URL válida
+            }
+            
+            if (data.startsWith('BEGIN:VCARD')) {
+                return 'CONTACTO';
+            } else if (data.startsWith('SMSTO:') || data.startsWith('SMS:')) {
+                return 'SMS';
+            } else if (data.startsWith('MATMSG:')) {
+                return 'EMAIL';
+            } else if (data.startsWith('WIFI:')) {
+                return 'WIFI';
+            } else if (data.startsWith('geo:')) {
+                return 'UBICACIÓN';
+            } else if (/^\d+$/.test(data)) {
+                return 'NÚMERO';
+            }
+            
+            return 'TEXTO';
+        }
+
+        // Copiar resultado
+        function copyResult() {
+            navigator.clipboard.writeText(currentResult)
+                .then(() => {
+                    showTempMessage('Texto copiado al portapapeles');
+                })
+                .catch(() => {
+                    showTempMessage('Error al copiar el texto', true);
+                });
+        }
+
+        // Abrir resultado
+        function openResult() {
+            try {
+                new URL(currentResult);
+                window.open(currentResult, '_blank');
+            } catch {
+                showTempMessage('No es un enlace válido', true);
+            }
+        }
+
+        // Compartir resultado
+        function shareResult() {
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Código QR escaneado',
+                    text: 'He escaneado este código QR:',
+                    url: currentResult
+                })
+                .catch(() => {
+                    // Fallback a copiar si share falla
+                    copyResult();
+                });
+            } else {
+                // Fallback a copiar si share no está disponible
+                copyResult();
+            }
+        }
+
+        // Guardar en historial manualmente
+        function saveToHistory() {
+            addToHistory(currentResult, detectContentType(currentResult));
+            showTempMessage('Guardado en historial');
+        }
+
+        // Volver a escanear
+        function rescan() {
+            resultScreen.style.display = 'none';
+            cameraScreen.style.display = 'flex';
+            startCamera();
+        }
+
+        // Mostrar mensaje temporal
+        function showTempMessage(message, isError = false) {
+            tempMessage.textContent = message;
+            tempMessage.className = isError ? 'error' : '';
+            tempMessage.style.display = 'block';
+            setTimeout(() => {
+                tempMessage.style.display = 'none';
+            }, 3000);
+        }
+
+        // Añadir al historial
+        function addToHistory(data, type) {
+            // Evitar duplicados consecutivos
+            if (scanHistory.length > 0 && scanHistory[scanHistory.length - 1].data === data) {
+                return;
+            }
+            
+            const timestamp = new Date().toISOString();
+            scanHistory.push({
+                data,
+                type,
+                timestamp
+            });
+            
+            // Mantener solo los últimos 20 elementos
+            if (scanHistory.length > 20) {
+                scanHistory = scanHistory.slice(-20);
+            }
+            
+            localStorage.setItem('scanHistory', JSON.stringify(scanHistory));
+            updateHistoryButton();
+        }
+
+        // Actualizar el botón de historial
+        function updateHistoryButton() {
+            historyBtn.style.display = scanHistory.length > 0 ? 'flex' : 'none';
+        }
+
+        // Mostrar historial
+        function showHistory() {
+            stopCamera();
+            cameraScreen.style.display = 'none';
+            historyScreen.style.display = 'flex';
+            renderHistory();
+        }
+
+        // Renderizar historial
+        function renderHistory() {
+            historyList.innerHTML = '';
+            
+            if (scanHistory.length === 0) {
+                historyList.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--gray);">No hay escaneos recientes</div>';
+                return;
+            }
+            
+            // Mostrar en orden inverso (más recientes primero)
+            [...scanHistory].reverse().forEach((item, index) => {
+                const historyItem = document.createElement('div');
+                historyItem.className = 'history-item';
+                
+                historyItem.innerHTML = `
+                    <div>
+                        <span class="history-item-type">${item.type}</span>
+                        <span class="history-content">${item.data}</span>
+                    </div>
+                    <div class="history-item-buttons">
+                        <button class="icon-button" onclick="copyHistoryItem(${scanHistory.length - 1 - index})" title="Copiar">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        ${item.type === 'URL' ? `
+                        <button class="icon-button" onclick="openHistoryItem(${scanHistory.length - 1 - index})" title="Abrir">
+                            <i class="fas fa-external-link-alt"></i>
+                        </button>
+                        ` : ''}
+                    </div>
+                `;
+                
+                historyList.appendChild(historyItem);
+            });
+        }
+
+        // Copiar elemento del historial
+        function copyHistoryItem(index) {
+            navigator.clipboard.writeText(scanHistory[index].data)
+                .then(() => {
+                    showTempMessage('Texto copiado al portapapeles');
+                })
+                .catch(() => {
+                    showTempMessage('Error al copiar el texto', true);
+                });
+        }
+
+        // Abrir elemento del historial
+        function openHistoryItem(index) {
+            try {
+                new URL(scanHistory[index].data);
+                window.open(scanHistory[index].data, '_blank');
+            } catch {
+                showTempMessage('No es un enlace válido', true);
+            }
+        }
+
+        // Borrar historial
+        function clearHistory() {
+            scanHistory = [];
+            localStorage.setItem('scanHistory', JSON.stringify(scanHistory));
+            renderHistory();
+            updateHistoryButton();
+            showTempMessage('Historial borrado');
+        }
+
+        // Volver desde el historial
+        function backToResults() {
+            historyScreen.style.display = 'none';
+            resultScreen.style.display = 'flex';
+        }
+
+        // Iniciar la aplicación cuando el DOM esté listo
+        document.addEventListener('DOMContentLoaded', initApp);
+
+        // Hacer funciones globales para los botones del historial
+        window.copyHistoryItem = copyHistoryItem;
+        window.openHistoryItem = openHistoryItem;
+    </script>
+</body>
+</html>

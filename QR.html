@@ -102,14 +102,14 @@
             border-radius: 20px;
         }
 
-        /* Recuadro de enfoque */
+        /* Recuadro de enfoque - MÁS GRANDE */
         #overlay {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 250px;
-            height: 250px;
+            width: 280px;  /* Aumentado de 250px */
+            height: 280px; /* Aumentado de 250px */
             border: 3px solid rgba(255, 255, 255, 0.8);
             border-radius: 20px;
             box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.4),
@@ -469,8 +469,8 @@
             }
             
             #overlay {
-                width: 200px;
-                height: 200px;
+                width: 240px;  /* Aumentado de 200px */
+                height: 240px; /* Aumentado de 200px */
             }
             
             .circle-button {
@@ -487,6 +487,13 @@
             
             .result-content {
                 padding: 20px;
+            }
+        }
+
+        @media (max-width: 350px) {
+            #overlay {
+                width: 220px;
+                height: 220px;
             }
         }
     </style>
@@ -560,9 +567,7 @@
             <button class="icon-button" id="share-button" title="Compartir">
                 <i class="fas fa-share-alt"></i>
             </button>
-            <button class="icon-button" id="save-button" title="Guardar">
-                <i class="fas fa-save"></i>
-            </button>
+            <!-- Eliminado el botón de guardar ya que es redundante -->
         </div>
     </div>
 
@@ -602,7 +607,6 @@
         const copyButton = document.getElementById('copy-button');
         const openButton = document.getElementById('open-button');
         const shareButton = document.getElementById('share-button');
-        const saveButton = document.getElementById('save-button');
         const rescanButton = document.getElementById('rescan-button');
         const tempMessage = document.getElementById('temp-message');
         const cropImage = document.getElementById('crop-image');
@@ -619,6 +623,7 @@
         let cropper = null;
         let scanHistory = JSON.parse(localStorage.getItem('scanHistory')) || [];
         let currentResult = '';
+        let scanAttempts = 0; // Contador para evitar falsos positivos
 
         // Iniciar la aplicación
         function initApp() {
@@ -636,7 +641,6 @@
             copyButton.addEventListener('click', copyResult);
             openButton.addEventListener('click', openResult);
             shareButton.addEventListener('click', shareResult);
-            saveButton.addEventListener('click', saveToHistory);
             rescanButton.addEventListener('click', rescan);
             cropButton.addEventListener('click', cropAndScan);
             backButton.addEventListener('click', backToCamera);
@@ -792,7 +796,7 @@
                     inversionAttempts: "attemptBoth",
                 });
 
-                if (code) {
+                if (code && isValidQRContent(code.data)) {
                     cropScreen.style.display = 'none';
                     showResult(code.data);
                 } else {
@@ -807,6 +811,20 @@
             setTimeout(() => {
                 cropError.style.display = 'none';
             }, 3000);
+        }
+
+        // Validar contenido del código QR para evitar falsos positivos
+        function isValidQRContent(data) {
+            // Si está vacío, no es válido
+            if (!data || data.trim() === '') return false;
+            
+            // Si son solo espacios en blanco, no es válido
+            if (/^\s+$/.test(data)) return false;
+            
+            // Si es demasiado corto y no parece un código válido
+            if (data.length < 3 && !/^[a-zA-Z0-9]{2,3}$/.test(data)) return false;
+            
+            return true;
         }
 
         // Detectar código QR en la cámara
@@ -836,9 +854,17 @@
                     inversionAttempts: "attemptBoth",
                 });
 
-                if (code) {
-                    stopCamera();
-                    showResult(code.data);
+                // Solo procesar si es un código QR válido
+                if (code && isValidQRContent(code.data)) {
+                    scanAttempts++;
+                    
+                    // Requerir múltiples detecciones para evitar falsos positivos
+                    if (scanAttempts >= 2) {
+                        stopCamera();
+                        showResult(code.data);
+                    }
+                } else {
+                    scanAttempts = 0; // Reiniciar contador si no se detecta un código válido
                 }
             }
             requestAnimationFrame(tick);
@@ -868,10 +894,12 @@
             // Mostrar u ocultar botones según el tipo de contenido
             openButton.style.display = type === 'URL' ? 'flex' : 'none';
             shareButton.style.display = 'flex';
-            saveButton.style.display = 'flex';
             
             // Guardar en el historial automáticamente
             addToHistory(data, type);
+            
+            // Reiniciar contador de intentos
+            scanAttempts = 0;
         }
 
         // Detectar tipo de contenido
@@ -937,12 +965,6 @@
                 // Fallback a copiar si share no está disponible
                 copyResult();
             }
-        }
-
-        // Guardar en historial manualmente
-        function saveToHistory() {
-            addToHistory(currentResult, detectContentType(currentResult));
-            showTempMessage('Guardado en historial');
         }
 
         // Volver a escanear

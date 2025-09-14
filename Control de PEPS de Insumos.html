@@ -979,6 +979,80 @@
             font-size: 0.9rem;
         }
     }
+
+
+/* Estilos para el contenedor de sobrante final con validación */
+.sobrante-final-with-validation {
+    position: relative;
+    flex: 1;
+}
+
+.sobrante-final-input {
+    width: 100%;
+    padding: 10px 35px 10px 10px; /* Espacio para el icono */
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 1rem;
+    text-align: center;
+    transition: var(--transition);
+    background-color: white;
+    box-sizing: border-box;
+}
+
+.sobrante-final-input:focus {
+    border-color: var(--secondary-color);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+}
+
+/* Estilos para el icono de validación */
+.validation-icon {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 2;
+}
+
+/* Estilos para campos con error en el sistema */
+.sobrante-sistema-input.error {
+    background: linear-gradient(135deg, #ffebee, #ffcdd2);
+    border: 2px solid #f44336;
+    color: #c62828;
+}
+
+/* Media queries para validación en móviles */
+@media (max-width: 768px) {
+    .sobrante-final-input {
+        padding: 8px 30px 8px 8px;
+        font-size: 0.9rem;
+    }
+    
+    .validation-icon {
+        right: 8px;
+    }
+}
+
+@media (max-width: 480px) {
+    .sobrante-final-input {
+        padding: 6px 28px 6px 6px;
+        font-size: 0.85rem;
+    }
+    
+    .validation-icon {
+        right: 6px;
+    }
+    
+    .validation-icon i {
+        font-size: 1.1em;
+    }
+}
+
+
 </style>
 </head>
 <body>
@@ -1104,9 +1178,12 @@
             <div class="combined-input-wrapper always-row">
                 <input type="number" id="papelHigienicoSistema" value="0" readonly class="sobrante-sistema-input">
                 <span class="input-separator">→</span>
-                <input type="number" id="papelHigienicoSobrante" min="0" value="0"
-                       oninput="saveSobranteQuantity('papelHigienicoSobrante')"
-                       onfocus="clearZero(this)" onblur="restoreZero(this)" class="sobrante-final-input">
+                <div class="sobrante-final-with-validation">
+                    <input type="number" id="papelHigienicoSobrante" min="0" value="0"
+                           oninput="actualizarValidacionSobrante()"
+                           onfocus="clearZero(this)" onblur="restoreZero(this)" class="sobrante-final-input">
+                    <span class="validation-icon" id="validacionHigienico"></span>
+                </div>
             </div>
         </div>
     </div>
@@ -1118,14 +1195,16 @@
             <div class="combined-input-wrapper always-row">
                 <input type="number" id="papelToallaSistema" value="0" readonly class="sobrante-sistema-input">
                 <span class="input-separator">→</span>
-                <input type="number" id="papelToallaSobrante" min="0" value="0"
-                       oninput="saveSobranteQuantity('papelToallaSobrante')"
-                       onfocus="clearZero(this)" onblur="restoreZero(this)" class="sobrante-final-input">
+                <div class="sobrante-final-with-validation">
+                    <input type="number" id="papelToallaSobrante" min="0" value="0"
+                           oninput="actualizarValidacionSobrante()"
+                           onfocus="clearZero(this)" onblur="restoreZero(this)" class="sobrante-final-input">
+                    <span class="validation-icon" id="validacionToalla"></span>
+                </div>
             </div>
         </div>
     </div>
 </div>
-
 
 
 
@@ -1393,12 +1472,13 @@ function saveFixedProductQuantity(productType, index) {
     saveFormData(); // Save entire form data
 }
 
-    function saveSobranteQuantity(id) {
-        const input = document.getElementById(id);
-        const value = parseInt(input.value) || 0;
-        formData[id] = value; // Directly set property in formData
-        saveFormData();
-    }
+function saveSobranteQuantity(id) {
+    const input = document.getElementById(id);
+    const value = parseInt(input.value) || 0;
+    formData[id] = value;
+    saveFormData();
+    verificarCoincidenciaSobrante(); // Agregar esta línea
+}
 
     function handleAdvance() {
         const fecha = document.getElementById('fecha').value;
@@ -1428,7 +1508,7 @@ function unlockAndLoadForm() {
     // Show fixed quantities section
     document.getElementById('fixedQuantitiesSection').style.display = 'block';
 
-    // Show sobrante section combinada
+    // Show sobrante section
     document.getElementById('sobranteSection').style.display = 'block';
 
     // Enable action buttons
@@ -1469,20 +1549,34 @@ function resetFormUI(clearData = true) {
         // Reset restante and sobrante quantities to 0
         document.getElementById('papelHigienicoRestante').value = 0;
         document.getElementById('papelToallaRestante').value = 0;
-        document.getElementById('papelHigienicoSobrante').value = 0;
-        document.getElementById('papelToallaSobrante').value = 0;
+        
+        // Solo resetear estos campos si existen (cuando el formulario está desbloqueado)
+        const papelHigienicoSobrante = document.getElementById('papelHigienicoSobrante');
+        const papelToallaSobrante = document.getElementById('papelToallaSobrante');
+        const papelHigienicoSistema = document.getElementById('papelHigienicoSistema');
+        const papelToallaSistema = document.getElementById('papelToallaSistema');
+        
+        if (papelHigienicoSobrante) papelHigienicoSobrante.value = 0;
+        if (papelToallaSobrante) papelToallaSobrante.value = 0;
+        if (papelHigienicoSistema) papelHigienicoSistema.value = 0;
+        if (papelToallaSistema) papelToallaSistema.value = 0;
+        
         restoreZero(document.getElementById('papelHigienicoRestante'));
         restoreZero(document.getElementById('papelToallaRestante'));
-        restoreZero(document.getElementById('papelHigienicoSobrante'));
-        restoreZero(document.getElementById('papelToallaSobrante'));
+        
+        if (papelHigienicoSobrante) restoreZero(papelHigienicoSobrante);
+        if (papelToallaSobrante) restoreZero(papelToallaSobrante);
         
         // Resetear campos dinámicos
         formData.papelHigienicoQuantities = [0];
         formData.papelToallaQuantities = [0];
         
         // Limpiar contenedores
-        document.getElementById('papelHigienicoQuantitiesContainer').innerHTML = '';
-        document.getElementById('papelToallaQuantitiesContainer').innerHTML = '';
+        const higienicoContainer = document.getElementById('papelHigienicoQuantitiesContainer');
+        const toallaContainer = document.getElementById('papelToallaQuantitiesContainer');
+        
+        if (higienicoContainer) higienicoContainer.innerHTML = '';
+        if (toallaContainer) toallaContainer.innerHTML = '';
         
         // Agregar un campo por defecto para cada producto
         addQuantityField('papelHigienico');
@@ -1492,11 +1586,13 @@ function resetFormUI(clearData = true) {
     // Hide fixed quantities section
     document.getElementById('fixedQuantitiesSection').style.display = 'none';
 
-    // Hide sobrante section
-    document.getElementById('sobranteSection').style.display = 'none';
+    // Hide sobrante section (solo si existe)
+    const sobranteSection = document.getElementById('sobranteSection');
+    if (sobranteSection) sobranteSection.style.display = 'none';
 
     // Clear and hide dynamic level sections
-    document.getElementById('dynamicLevelSectionsContainer').innerHTML = '';
+    const dynamicContainer = document.getElementById('dynamicLevelSectionsContainer');
+    if (dynamicContainer) dynamicContainer.innerHTML = '';
     
     // Reset formUnlocked flag and save
     formData.formUnlocked = false;
@@ -1509,7 +1605,6 @@ function resetFormUI(clearData = true) {
         saveFormData();
     }
 }
-
 
 
 function saveRestanteQuantity(id) {
@@ -2542,6 +2637,14 @@ function loadQuantityFields() {
 // Función para calcular el producto sobrante según el sistema
 // Función para calcular el producto sobrante según el sistema
 function calcularSobranteSistema() {
+    // Solo calcular si los elementos existen (formulario desbloqueado)
+    const sistemaHigienico = document.getElementById('papelHigienicoSistema');
+    const sistemaToalla = document.getElementById('papelToallaSistema');
+    
+    if (!sistemaHigienico || !sistemaToalla) {
+        return { higienico: 0, toalla: 0 }; // Salir si los elementos no existen
+    }
+    
     // Calcular total disponible (sobrante anterior + requisado)
     const totalHigienicoDisponible = (formData.papelHigienicoRestante || 0) + 
                                    (formData.papelHigienicoQuantities ? 
@@ -2561,39 +2664,123 @@ function calcularSobranteSistema() {
             const subBuildings = ['CBA', 'CBB', 'CBC'];
             subBuildings.forEach(sub => {
                 if (formData.dynamicLevelQuantities[formData.edificio][sub]) {
-                    Object.values(formData.dynamicLevelQuantities[formData.edificio][sub].higienico || {}).forEach(value => {
-                        totalHigienicoDistribuido += value;
-                    });
-                    Object.values(formData.dynamicLevelQuantities[formData.edificio][sub].toalla || {}).forEach(value => {
-                        totalToallaDistribuido += value;
-                    });
+                    // Sumar valores de papel higiénico
+                    if (formData.dynamicLevelQuantities[formData.edificio][sub].higienico) {
+                        Object.values(formData.dynamicLevelQuantities[formData.edificio][sub].higienico).forEach(value => {
+                            if (typeof value === 'number') {
+                                totalHigienicoDistribuido += value;
+                            }
+                        });
+                    }
+                    
+                    // Sumar valores de papel toalla
+                    if (formData.dynamicLevelQuantities[formData.edificio][sub].toalla) {
+                        Object.values(formData.dynamicLevelQuantities[formData.edificio][sub].toalla).forEach(value => {
+                            if (typeof value === 'number') {
+                                totalToallaDistribuido += value;
+                            }
+                        });
+                    }
                 }
             });
         } else {
             // Lógica para edificios individuales
-            Object.values(formData.dynamicLevelQuantities[formData.edificio].higienico || {}).forEach(value => {
-                totalHigienicoDistribuido += value;
-            });
-            Object.values(formData.dynamicLevelQuantities[formData.edificio].toalla || {}).forEach(value => {
-                totalToallaDistribuido += value;
-            });
+            // Sumar valores de papel higiénico
+            if (formData.dynamicLevelQuantities[formData.edificio].higienico) {
+                Object.values(formData.dynamicLevelQuantities[formData.edificio].higienico).forEach(value => {
+                    if (typeof value === 'number') {
+                        totalHigienicoDistribuido += value;
+                    }
+                });
+            }
+            
+            // Sumar valores de papel toalla
+            if (formData.dynamicLevelQuantities[formData.edificio].toalla) {
+                Object.values(formData.dynamicLevelQuantities[formData.edificio].toalla).forEach(value => {
+                    if (typeof value === 'number') {
+                        totalToallaDistribuido += value;
+                    }
+                });
+            }
         }
     }
     
-    // Calcular sobrante (disponible - distribuido)
+    // Calcular sobrante (disponible - distribuido) - PERMITIR VALORES NEGATIVOS
     const sobranteHigienico = totalHigienicoDisponible - totalHigienicoDistribuido;
     const sobranteToalla = totalToallaDisponible - totalToallaDistribuido;
     
-    // SOLO actualizar los campos del sistema (no los campos finales)
-    document.getElementById('papelHigienicoSistema').value = sobranteHigienico > 0 ? sobranteHigienico : 0;
-    document.getElementById('papelToallaSistema').value = sobranteToalla > 0 ? sobranteToalla : 0;
+    // SOLO actualizar los campos del sistema (PERMITIR VALORES NEGATIVOS)
+    sistemaHigienico.value = sobranteHigienico;
+    sistemaToalla.value = sobranteToalla;
+    
+    // Aplicar estilo de error si el valor es negativo
+    aplicarEstiloSobranteSistema('papelHigienicoSistema', sobranteHigienico);
+    aplicarEstiloSobranteSistema('papelToallaSistema', sobranteToalla);
+    
+    // Verificar coincidencia con el sobrante final
+    verificarCoincidenciaSobrante();
     
     return {
-        higienico: sobranteHigienico > 0 ? sobranteHigienico : 0,
-        toalla: sobranteToalla > 0 ? sobranteToalla : 0
+        higienico: sobranteHigienico,
+        toalla: sobranteToalla
     };
 }
 
+
+
+
+// Función para aplicar estilo a campos de sobrante del sistema con valores negativos
+function aplicarEstiloSobranteSistema(elementId, valor) {
+    const elemento = document.getElementById(elementId);
+    
+    if (!elemento) return; // Salir si el elemento no existe
+    
+    if (valor < 0) {
+        elemento.style.background = 'linear-gradient(135deg, #ffebee, #ffcdd2)';
+        elemento.style.border = '2px solid #f44336';
+        elemento.style.color = '#c62828';
+        elemento.title = 'Valor negativo: Hay discrepancia en el inventario';
+    } else {
+        elemento.style.background = 'linear-gradient(135deg, #e3f2fd, #bbdefb)';
+        elemento.style.border = '2px solid #3498db';
+        elemento.style.color = '#1565c0';
+        elemento.title = '';
+    }
+}
+
+// Función para verificar coincidencia entre sobrante del sistema y final
+function verificarCoincidenciaSobrante() {
+    const sistemaHigienico = parseInt(document.getElementById('papelHigienicoSistema').value) || 0;
+    const sistemaToalla = parseInt(document.getElementById('papelToallaSistema').value) || 0;
+    
+    const finalHigienico = parseInt(document.getElementById('papelHigienicoSobrante').value) || 0;
+    const finalToalla = parseInt(document.getElementById('papelToallaSobrante').value) || 0;
+    
+    // Verificar coincidencia para papel higiénico
+    mostrarIconoValidacion('validacionHigienico', sistemaHigienico, finalHigienico);
+    
+    // Verificar coincidencia para papel toalla
+    mostrarIconoValidacion('validacionToalla', sistemaToalla, finalToalla);
+}
+
+// Función para mostrar icono de validación
+function mostrarIconoValidacion(contenedorId, valorSistema, valorFinal) {
+    const contenedor = document.getElementById(contenedorId);
+    
+    if (valorSistema === valorFinal) {
+        contenedor.innerHTML = '<i class="fas fa-check-circle" style="color: #2ecc71; font-size: 1.2em;"></i>';
+        contenedor.title = 'Los valores coinciden';
+    } else {
+        contenedor.innerHTML = '<i class="fas fa-times-circle" style="color: #e74c3c; font-size: 1.2em;"></i>';
+        contenedor.title = 'Los valores no coinciden';
+    }
+}
+
+// Función para actualizar la validación cuando cambia el sobrante final
+function actualizarValidacionSobrante() {
+    verificarCoincidenciaSobrante();
+    saveFormData(); // Guardar los cambios
+}
 
 
   </script>

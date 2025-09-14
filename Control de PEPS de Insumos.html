@@ -1980,21 +1980,21 @@ async function generarReporte() {
         format: 'a4'
     });
 
-    // Configuración de estilos
+    // Configuración de estilos mejorados
     const styles = {
         title: {
-            fontSize: 16,
+            fontSize: 18,
             bold: true,
             color: [13, 71, 161],
-            marginBottom: 8
+            marginBottom: 10
         },
         subtitle: {
-            fontSize: 12,
+            fontSize: 14,
             bold: true,
             color: [33, 33, 33],
-            marginBottom: 6,
-            background: [245, 245, 245],
-            padding: 3
+            marginBottom: 8,
+            background: [240, 240, 240],
+            padding: 4
         },
         tableColors: {
             inventory: { header: [13, 71, 161], body: [255, 255, 255], footer: [227, 242, 253] },
@@ -2003,7 +2003,7 @@ async function generarReporte() {
             remaining: { header: [183, 28, 28], body: [255, 255, 255], footer: [255, 235, 238] }
         },
         infoText: {
-            fontSize: 10,
+            fontSize: 11,
             color: [33, 33, 33]
         },
         margins: {
@@ -2011,8 +2011,8 @@ async function generarReporte() {
             right: 15,
             top: 20,
             bottom: 20,
-            section: 12,
-            paragraph: 8
+            section: 15,
+            paragraph: 10
         },
         tableWidth: 180
     };
@@ -2023,48 +2023,55 @@ async function generarReporte() {
     const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
     const dayName = days[dateObj.getDay()];
     const formattedDate = `${String(dateObj.getDate()).padStart(2, '0')}/${String(dateObj.getMonth() + 1).padStart(2, '0')}/${dateObj.getFullYear()}`;
-    const displayDate = `${dayName, formattedDate}`;
+    const displayDate = `${dayName}, ${formattedDate}`;
 
-    // Encabezado
+    // Encabezado mejorado
     let currentY = styles.margins.top;
     
+    // Logo o título principal
+    doc.setFillColor(13, 71, 161);
+    doc.roundedRect(styles.margins.left, currentY, styles.tableWidth, 15, 3, 3, 'F');
+    
     doc.setFontSize(styles.title.fontSize);
-    doc.setTextColor(...styles.title.color);
+    doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
-    doc.text("REPORTE DE INVENTARIO PEPS", 105, currentY, { align: 'center' });
-    currentY += 10;
+    doc.text("CONTROL DE INVENTARIO PEPS", 105, currentY + 10, { align: 'center' });
+    currentY += 20;
     
-    doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.setFont('helvetica', 'normal');
-    doc.text("Sistema de Control de Insumos - Pisos Brillantes", 105, currentY, { align: 'center' });
-    currentY += 15;
-
-    // Información general
+    // Línea decorativa
+    doc.setDrawColor(13, 71, 161);
+    doc.setLineWidth(0.5);
+    doc.line(styles.margins.left, currentY, styles.margins.left + styles.tableWidth, currentY);
+    currentY += 5;
+    
+    // Información general con diseño mejorado
+    doc.setFontSize(12);
+    doc.setTextColor(13, 71, 161);
+    doc.setFont('helvetica', 'bold');
+    doc.text("INFORMACIÓN DEL REPORTE", styles.margins.left, currentY);
+    currentY += 8;
+    
+    // Fondo para información
+    doc.setFillColor(240, 240, 240);
+    doc.roundedRect(styles.margins.left, currentY, styles.tableWidth, 28, 3, 3, 'F');
+    
     doc.setFontSize(11);
-    doc.setTextColor(40);
-    doc.setFont('helvetica', 'bold');
-    doc.text("Información del Reporte", styles.margins.left, currentY);
-    currentY += 6;
-    
-    doc.setFontSize(10);
-    doc.setTextColor(...styles.infoText.color);
+    doc.setTextColor(60, 60, 60);
     doc.setFont('helvetica', 'normal');
     
     const infoLines = [
-        `• Fecha: ${displayDate}`,
-        `• Turno: ${turno}`,
-        `• Encargado/a: ${personaEncargada}`,
-        `• Edificio: ${edificio}`,
-        `• Generado: ${new Date().toLocaleString()}`
+        `Fecha: ${displayDate}`,
+        `Turno: ${turno}`,
+        `Encargado/a: ${personaEncargada}`,
+        `Edificio: ${edificio}`,
+        `Generado: ${new Date().toLocaleString()}`
     ];
     
-    infoLines.forEach(line => {
-        doc.text(line, styles.margins.left + 5, currentY);
-        currentY += 5;
+    infoLines.forEach((line, index) => {
+        doc.text(line, styles.margins.left + 5, currentY + 5 + (index * 5));
     });
     
-    currentY += styles.margins.section;
+    currentY += 30;
 
     // Cálculos
     const totalPapelHigienicoFixed = papelHigienicoQuantities.reduce((sum, qty) => sum + qty, 0);
@@ -2072,22 +2079,37 @@ async function generarReporte() {
     const totalHigienicoDisponible = (papelHigienicoRestante || 0) + totalPapelHigienicoFixed;
     const totalToallaDisponible = (papelToallaRestante || 0) + totalPapelToallaFixed;
 
-    // Función para títulos de sección
+    // Función para verificar espacio en página
+    function checkPageHeight(neededSpace) {
+        if (currentY + neededSpace > 270) { // 270mm es aproximadamente el límite de una página A4
+            doc.addPage();
+            currentY = styles.margins.top;
+            return true;
+        }
+        return false;
+    }
+
+    // Función para títulos de sección mejorados
     const drawSectionTitle = (title, y) => {
-        doc.setFontSize(12);
-        doc.setTextColor(33, 33, 33);
+        checkPageHeight(15);
+        
+        doc.setFontSize(14);
+        doc.setTextColor(13, 71, 161);
         doc.setFont('helvetica', 'bold');
-        doc.text(title, styles.margins.left, y);
+        doc.text(title, 105, y, { align: 'center' });
         
-        doc.setDrawColor(200, 200, 200);
-        doc.setLineWidth(0.3);
-        doc.line(styles.margins.left, y + 2, styles.margins.left + 50, y + 2);
+        // Línea decorativa bajo el título
+        doc.setDrawColor(13, 71, 161);
+        doc.setLineWidth(0.5);
+        const titleWidth = doc.getTextWidth(title);
+        doc.line(105 - titleWidth/2 - 5, y + 2, 105 + titleWidth/2 + 5, y + 2);
         
-        return y + styles.margins.paragraph;
+        return y + 10;
     };
 
     // 1. TABLA DE INVENTARIO (con color en fila final)
-    currentY = drawSectionTitle("1. INVENTARIO DE PRODUCTOS", currentY);
+    currentY = drawSectionTitle("INVENTARIO DE PRODUCTOS", currentY+5);
+    checkPageHeight(40); // Espacio aproximado que necesita la tabla
 
     doc.autoTable({
         startY: currentY,
@@ -2098,54 +2120,57 @@ async function generarReporte() {
             ['Total disponible', totalHigienicoDisponible, totalToallaDisponible]
         ],
         styles: {
-            fontSize: 10,
-            cellPadding: 5,
+            fontSize: 11,
+            cellPadding: 6,
             overflow: 'linebreak',
             valign: 'middle',
             minCellWidth: 20,
-            cellWidth: 'wrap'
+            cellWidth: 'wrap',
+            lineWidth: 0.2,
+            lineColor: [200, 200, 200]
         },
         headStyles: {
             fillColor: styles.tableColors.inventory.header,
             textColor: 255,
             fontStyle: 'bold',
             halign: 'center',
-            fontSize: 11
+            fontSize: 12
         },
         bodyStyles: {
             fillColor: styles.tableColors.inventory.body,
             textColor: 0,
             halign: 'center',
-            lineWidth: 0.1,
+            lineWidth: 0.2,
             lineColor: [220, 220, 220]
         },
-didDrawCell: (data) => {
-    if (data.section === 'body' && data.row.index === 2) {
-        doc.setFillColor(227, 242, 253); // Mantener fondo azul claro
-        doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
-        // Forzar texto negro y estilo bold para mejor visibilidad
-        doc.setTextColor(0, 0, 0);
-        doc.setFont('helvetica', 'bold');
-        doc.text(data.cell.text, data.cell.x + data.cell.width/2, data.cell.y + 7, {
-            align: 'center',
-            baseline: 'middle'
-        });
-        return false; // Evitar que autoTable dibuje el texto automáticamente
-    }
+        didDrawCell: (data) => {
+            if (data.section === 'body' && data.row.index === 2) {
+                doc.setFillColor(227, 242, 253);
+                doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+                doc.setTextColor(0, 0, 0);
+                doc.setFont('helvetica', 'bold');
+                doc.text(data.cell.text, data.cell.x + data.cell.width/2, data.cell.y + 7, {
+                    align: 'center',
+                    baseline: 'middle'
+                });
+                return false;
+            }
         },
         columnStyles: {
-            0: { cellWidth: 90, halign: 'center', fontStyle: 'bold' }, // Centrado
+            0: { cellWidth: 90, halign: 'center', fontStyle: 'bold' },
             1: { cellWidth: 45, halign: 'center' },
             2: { cellWidth: 45, halign: 'center' }
         },
         margin: { left: styles.margins.left, right: styles.margins.right },
         tableWidth: styles.tableWidth,
-        theme: 'grid'
+        theme: 'grid',
+        tableLineWidth: 0.2,
+        tableLineColor: [200, 200, 200]
     });
     currentY = doc.autoTable.previous.finalY + styles.margins.section;
 
-    // 2. DISTRIBUCIÓN POR NIVELES (se mantiene igual)
-    currentY = drawSectionTitle(`2. DISTRIBUCIÓN POR NIVELES - ${edificio.toUpperCase()}`, currentY);
+    // 2. DISTRIBUCIÓN POR NIVELES (se mantiene igual pero con mejoras visuales)
+    currentY = drawSectionTitle(`DISTRIBUCIÓN POR NIVELES - ${edificio.toUpperCase()}`, currentY);
 
     let grandTotalHigienicoNiveles = 0;
     let grandTotalToallaNiveles = 0;
@@ -2155,6 +2180,9 @@ didDrawCell: (data) => {
             const subBuildings = ['CBA', 'CBB', 'CBC'];
             
             subBuildings.forEach(sub => {
+                // Verificar si hay espacio para la siguiente tabla
+                checkPageHeight(50);
+                
                 const subBuildingData = dynamicLevelQuantities[edificio][sub] || {higienico: {}, toalla: {}};
                 const combinedLevelData = [];
                 let subTotalHigienico = 0;
@@ -2181,26 +2209,33 @@ didDrawCell: (data) => {
                 });
 
                 if (combinedLevelData.length > 0) {
+                    // Subtítulo para el sub-edificio
+                    doc.setFontSize(12);
+                    doc.setTextColor(0, 96, 100);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text(`EDIFICIO ${sub}`, 105, currentY, { align: 'center' });
+                    currentY += 7;
+                    
                     doc.autoTable({
                         startY: currentY,
-                        head: [[`${sub} - Nivel`, 'Higiénico', 'Toalla']],
+                        head: [['Nivel', 'Higiénico', 'Toalla']],
                         body: combinedLevelData,
                         foot: [['Subtotal', subTotalHigienico, subTotalToalla]],
                         styles: {
-                            fontSize: 9,
-                            cellPadding: 4,
+                            fontSize: 10,
+                            cellPadding: 5,
                             overflow: 'linebreak',
                             minCellWidth: 20,
                             cellWidth: 'wrap',
-                            lineWidth: 0.1,
-                            lineColor: [220, 220, 220]
+                            lineWidth: 0.2,
+                            lineColor: [200, 200, 200]
                         },
                         headStyles: {
                             fillColor: styles.tableColors.distribution.header,
                             textColor: 255,
                             fontStyle: 'bold',
                             halign: 'center',
-                            fontSize: 10
+                            fontSize: 11
                         },
                         bodyStyles: {
                             fillColor: styles.tableColors.distribution.body,
@@ -2228,6 +2263,9 @@ didDrawCell: (data) => {
                 grandTotalToallaNiveles += subTotalToalla;
             });
         } else {
+            // Verificar espacio para la tabla
+            checkPageHeight(50);
+            
             const higienicoLevels = dynamicLevelQuantities[edificio].higienico || {};
             const toallaLevels = dynamicLevelQuantities[edificio].toalla || {};
             const combinedLevelData = [];
@@ -2261,20 +2299,20 @@ didDrawCell: (data) => {
                     body: combinedLevelData,
                     foot: [['Subtotal', subTotalHigienico, subTotalToalla]],
                     styles: {
-                        fontSize: 9,
-                        cellPadding: 4,
+                        fontSize: 10,
+                        cellPadding: 5,
                         overflow: 'linebreak',
                         minCellWidth: 20,
                         cellWidth: 'wrap',
-                        lineWidth: 0.1,
-                        lineColor: [220, 220, 220]
+                        lineWidth: 0.2,
+                        lineColor: [200, 200, 200]
                     },
                     headStyles: {
                         fillColor: styles.tableColors.distribution.header,
                         textColor: 255,
                         fontStyle: 'bold',
                         halign: 'center',
-                        fontSize: 10
+                        fontSize: 11
                     },
                     bodyStyles: {
                         fillColor: styles.tableColors.distribution.body,
@@ -2288,7 +2326,7 @@ didDrawCell: (data) => {
                         halign: 'center'
                     },
                     columnStyles: {
-                        0: { cellWidth: 60, halign: 'center', fontStyle: 'bold' }, // Cambiado a centrado
+                        0: { cellWidth: 60, halign: 'center', fontStyle: 'bold' },
                         1: { cellWidth: 60, halign: 'center' },
                         2: { cellWidth: 60, halign: 'center' }
                     },
@@ -2303,55 +2341,57 @@ didDrawCell: (data) => {
         }
     }
 
-    // 3. TABLA DE RESUMEN (con "Diferencia" y color)
-    currentY = drawSectionTitle("3. RESUMEN DE TOTALES", currentY);
+    // 3. TABLA DE RESUMEN (con color en fila final)
+    // Verificar si hay espacio suficiente para la tabla completa
+    checkPageHeight(40); // Esto asegura que si no hay espacio, se crea una nueva página
+    
+    currentY = drawSectionTitle("RESUMEN DE DISTRIBUCIÓN", currentY);
 
     doc.autoTable({
         startY: currentY,
         head: [['Concepto', 'Papel Higiénico', 'Papel Toalla']],
         body: [
             ['Total disponible', totalHigienicoDisponible, totalToallaDisponible],
-            ['Total distribuido', grandTotalHigienicoNiveles, grandTotalToallaNiveles],
-            ['Diferencia', totalHigienicoDisponible - grandTotalHigienicoNiveles, totalToallaDisponible - grandTotalToallaNiveles]
+            ['Distribuido por niveles', grandTotalHigienicoNiveles, grandTotalToallaNiveles],
+            ['Sobrante actual (Según Sistema)', (papelHigienicoSobrante || 0), (papelToallaSobrante || 0)]
         ],
         styles: {
-            fontSize: 10,
-            cellPadding: 5,
+            fontSize: 11,
+            cellPadding: 6,
             overflow: 'linebreak',
             valign: 'middle',
             minCellWidth: 20,
             cellWidth: 'wrap',
-            lineWidth: 0.1,
-            lineColor: [220, 220, 220]
+            lineWidth: 0.2,
+            lineColor: [200, 200, 200]
         },
         headStyles: {
             fillColor: styles.tableColors.summary.header,
             textColor: 255,
             fontStyle: 'bold',
             halign: 'center',
-            fontSize: 11
+            fontSize: 12
         },
         bodyStyles: {
             fillColor: styles.tableColors.summary.body,
             textColor: 0,
             halign: 'center'
         },
-didDrawCell: (data) => {
-    if (data.section === 'body' && data.row.index === 2) {
-        doc.setFillColor(237, 231, 246); // Mantener fondo morado claro
-        doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
-        // Forzar texto negro y estilo bold para mejor visibilidad
-        doc.setTextColor(0, 0, 0);
-        doc.setFont('helvetica', 'bold');
-        doc.text(data.cell.text, data.cell.x + data.cell.width/2, data.cell.y + 7, {
-            align: 'center',
-            baseline: 'middle'
-        });
-        return false; // Evitar que autoTable dibuje el texto automáticamente
-    }
-},
+        didDrawCell: (data) => {
+            if (data.section === 'body' && data.row.index === 2) {
+                doc.setFillColor(255, 235, 238);
+                doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+                doc.setTextColor(183, 28, 28);
+                doc.setFont('helvetica', 'bold');
+                doc.text(data.cell.text, data.cell.x + data.cell.width/2, data.cell.y + 7, {
+                    align: 'center',
+                    baseline: 'middle'
+                });
+                return false;
+            }
+        },
         columnStyles: {
-            0: { cellWidth: 90, halign: 'center', fontStyle: 'bold' }, // Centrado
+            0: { cellWidth: 90, halign: 'center', fontStyle: 'bold' },
             1: { cellWidth: 45, halign: 'center' },
             2: { cellWidth: 45, halign: 'center' }
         },
@@ -2361,32 +2401,35 @@ didDrawCell: (data) => {
     });
     currentY = doc.autoTable.previous.finalY + styles.margins.section;
 
-    // 4. TABLA DE PRODUCTO SOBRANTE (nueva tabla)
-    currentY = drawSectionTitle("4. PRODUCTO SOBRANTE REGISTRADO", currentY);
+    // 4. TABLA DE SOBRANTE (con color en fila final)
+    // Verificar si hay espacio suficiente para la tabla completa
+    checkPageHeight(40);
+    
+    currentY = drawSectionTitle("SOBRANTE PARA EL SIGUIENTE TURNO (REALIDAD)", currentY);
 
     doc.autoTable({
         startY: currentY,
         head: [['Producto', 'Cantidad']],
         body: [
-            ['Papel Higiénico', papelHigienicoSobrante || 0],
-            ['Papel Toalla', papelToallaSobrante || 0]
+            ['Papel Higiénico', (papelHigienicoSobrante || 0)],
+            ['Papel Toalla', (papelToallaSobrante || 0)]
         ],
         styles: {
-            fontSize: 10,
-            cellPadding: 5,
+            fontSize: 11,
+            cellPadding: 6,
             overflow: 'linebreak',
             valign: 'middle',
             minCellWidth: 20,
             cellWidth: 'wrap',
-            lineWidth: 0.1,
-            lineColor: [220, 220, 220]
+            lineWidth: 0.2,
+            lineColor: [200, 200, 200]
         },
         headStyles: {
             fillColor: styles.tableColors.remaining.header,
             textColor: 255,
             fontStyle: 'bold',
             halign: 'center',
-            fontSize: 11
+            fontSize: 12
         },
         bodyStyles: {
             fillColor: styles.tableColors.remaining.body,
@@ -2394,27 +2437,21 @@ didDrawCell: (data) => {
             halign: 'center'
         },
         columnStyles: {
-            0: { cellWidth: 90, halign: 'center', fontStyle: 'bold' }, // Centrado
-            1: { cellWidth: 90, halign: 'center' }  // Centrado
+            0: { cellWidth: 135, halign: 'center', fontStyle: 'bold' },
+            1: { cellWidth: 45, halign: 'center' }
         },
         margin: { left: styles.margins.left, right: styles.margins.right },
         tableWidth: styles.tableWidth,
         theme: 'grid'
     });
 
-    // Pie de página
+    // Número de página
     const pageCount = doc.internal.getNumberOfPages();
-    for(let i = 1; i <= pageCount; i++) {
+    for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
         doc.setFontSize(8);
-        doc.setTextColor(100);
-        doc.text(`Página ${i} de ${pageCount}`, 105, 285, { align: 'center' });
-        
-        doc.setDrawColor(200, 200, 200);
-        doc.setLineWidth(0.3);
-        doc.line(styles.margins.left, 287, 200 - styles.margins.right, 287);
-        
-        doc.text("Sistema de Control de Insumos PEPS - Pisos Brillantes", 105, 290, { align: 'center' });
+        doc.setTextColor(150, 150, 150);
+        doc.text(`Página ${i} de ${pageCount}`, 200, 285, { align: 'right' });
     }
 
     // Nombre del archivo
@@ -2423,6 +2460,7 @@ didDrawCell: (data) => {
     const pdfBlob = doc.output('blob');
     Swal.close();
 
+    // Funciones para compartir o descargar
     function tryShareOrDownload() {
         if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([pdfBlob], filename, { type: 'application/pdf' })] })) {
             navigator.share({

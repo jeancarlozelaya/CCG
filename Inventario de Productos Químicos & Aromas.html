@@ -2,389 +2,550 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Inventario de Productos Químicos & Aromas</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --success-color: #2ecc71;
+            --warning-color: #f39c12;
+            --light-color: #ecf0f1;
+            --dark-color: #34495e;
+            --text-color: #333;
+            --border-color: #ddd;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
 
-<style>
-    body {
-        font-family: Arial, sans-serif;
-        margin: 0;
-        padding: 0;
-        background-color: #f9f9f9;
-        color: #333;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        min-height: 100vh;
-    }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
-    .header {
-        background-color: #007BFF;
-        color: white;
-        text-align: center;
-        padding: 15px;
-        width: 100%;
-        font-size: 1.5em;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            color: var(--text-color);
+            line-height: 1.6;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            touch-action: manipulation;
+            -webkit-text-size-adjust: 100%;
+        }
 
-    .container {
-        background: #ffffff;
-        padding: 30px;
-        border-radius: 10px;
-        width: 90%;
-        max-width: 600px;
-        box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
-        margin-top: 20px;
-        text-align: center;
-        margin: 40px auto;
-        grid-row: 2;
-        height: auto;
-        box-sizing: border-box;
-    }
+        .header {
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+            color: white;
+            text-align: center;
+            padding: 18px 0;
+            font-size: 1.5rem;
+            font-weight: bold;
+            box-shadow: var(--shadow);
+            position: relative;
+            width: 100%;
+        }
 
-    h1 {
-        text-align: center;
-        color: #333;
-    }
+        .container {
+            background: #ffffff;
+            padding: 25px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 1200px;
+            box-shadow: var(--shadow);
+            margin: 25px auto;
+            text-align: center;
+            height: auto;
+            box-sizing: border-box;
+        }
 
-    label {
-        display: block;
-        margin-top: 10px; /* Margen por defecto para labels */
-        font-weight: bold;
-    }
+        h1, h2, h3 {
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            position: relative;
+            padding-bottom: 10px;
+        }
 
-    input[type="date"],
-    textarea,
-    input[type="file"],
-    select,
-    button,
-    input[type="text"], /* Aplicar estilos generales a todos los inputs de texto */
-    input[type="number"] { /* Aplicar estilos generales a todos los inputs de número */
-        width: 100%;
-        margin-top: 5px;
-        padding: 10px;
-        font-size: 16px;
-        border: 1px solid #ccc;
-        border-radius: 5px;
-        box-sizing: border-box;
-    }
+        h1:after, h2:after, h3:after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 4px;
+            background-color: var(--secondary-color);
+            border-radius: 2px;
+        }
 
-    button {
-        background-color: #007bff;
-        color: #fff;
-        border: none;
-        cursor: pointer;
-        padding: 12px 0;
-    }
+        .question-container {
+            margin-bottom: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+            border-left: 4px solid var(--secondary-color);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: var(--transition);
+            text-align: left;
+            position: relative;
+            overflow: visible;
+        }
 
-    button:hover {
-        background-color: #0056b3;
-    }
+        .question-container:hover {
+            border-left-color: var(--primary-color);
+        }
 
-    .question-container {
-        margin-bottom: 25px; 
-        text-align: left;
-        padding: 10px; /* Mantener padding general de 10px */
-        border: 2px solid #ccc;
-        border-radius: 5px;
-        background-color: #f9f9f9;
-        transition: border-color 0.3s;
-        box-sizing: border-box;
-        overflow: hidden; /* Para contener el float del botón eliminar */
-    }
+        .question-container label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--dark-color);
+            font-size: 0.95em;
+        }
 
-    .question-container textarea {
-        padding: 15px;
-        border: 2px solid #ccc;
-        border-radius: 5px;
-        width: 100%;
-        font-size: 16px;
-        background-color: #f9f9f9;
-        color: #333;
-        transition: border-color 0.3s;
-        box-sizing: border-box;
-        margin-top: 5px;
-        height: 200px;
-        resize: vertical;
-    }
+        .question-container input,
+        .question-container select,
+        .question-container textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 14px;
+            transition: var(--transition);
+            background-color: white;
+            margin-top: 5px;
+        }
 
-    .question-container:hover {
-        border-color: #007BFF;
-    }
+        .question-container input:focus,
+        .question-container select:focus,
+        .question-container textarea:focus {
+            border-color: var(--secondary-color);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+        }
 
-    .radio-group {
-        display: flex;
-        align-items: center;
-        margin-bottom: 10px;
-    }
+        .divider {
+            width: 100%;
+            height: 1px;
+            background-color: var(--border-color);
+            margin: 20px 0;
+        }
 
-    .radio-group input[type="radio"] {
-        margin: 0 10px 0 0;
-        accent-color: #007BFF;
-        cursor: pointer;
-        transform: scale(1.6);
-    }
+        button {
+            background: linear-gradient(to right, var(--secondary-color), var(--primary-color));
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            margin-top: 10px;
+        }
 
-    .radio-group label {
-        font-size: 16px;
-        color: #333;
-        cursor: pointer;
-    }
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
 
-    /* ESTILOS DE LA PANTALLA DE CARGA (Overlay) */
-    #overlay {
-        display: none; /* Inicia oculto, se muestra con JS */
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(255, 255, 255, 0.9); /* Fondo semi-transparente blanco */
-        display: flex; 
-        justify-content: center;
-        align-items: center;
-        z-index: 9999;
-        flex-direction: column; /* Para apilar spinner y mensaje */
-    }
+        .add-product-btn {
+            background: linear-gradient(to right, var(--success-color), #27ae60);
+            width: auto;
+            align-self: center;
+            margin-top: 15px;
+            padding: 10px 20px;
+        }
 
-    .spinner {
-        width: 50px;
-        height: 50px;
-        border: 5px solid rgba(0, 123, 255, 0.2);
-        border-radius: 50%;
-        border-top-color: #007BFF;
-        animation: spin 1s ease-in-out infinite;
-        margin-bottom: 20px;
-    }
-
-    #loadingMessage {
-        text-align: center;
-        color: #333;
-        font-family: Arial, sans-serif;
-    }
-
-    #loadingMessage h3 {
-        margin: 0 0 10px;
-        font-size: 1.2em;
-    }
-
-    #loadingMessage p {
-        margin: 0;
-        color: #666;
-    }
-
-    @keyframes spin {
-        to { transform: rotate(360deg); }
-    }
-
-    /* Fin ESTILOS DE LA PANTALLA DE CARGA */
-
-    /* Ajuste para los inputs de día, mes, año */
-    .fecha-container input {
-        width: 30%; 
-        text-align: center;
-        font-size: 15px;
-        margin: 0 2%; 
-        box-sizing: border-box;
-    }
-    .fecha-container span {
-        font-size: 15px;
-        margin: 0 2px;
-    }
-
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        margin: 20px 0;
-        background: white;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-        table-layout: fixed;
-    }
-
-    th, td {
-        padding: 12px;
-        text-align: center;
-        border-bottom: 1px solid #ddd;
-        word-wrap: break-word;
-        overflow: hidden;
-    }
-
-    th {
-        background-color: #4CAF50;
-        color: white;
-        font-size: 1.1em;
-        text-transform: uppercase;
-        position: sticky;
-        top: 0;
-        z-index: 2;
-    }
-
-    tr:hover {
-        background-color: #f1f1f1;
-    }
-
-    tbody tr:nth-child(even) {
-        background-color: #f9f9f9;
-    }
-
-    .vencimiento-cercano {
-        background-color: yellow !important;
-    }
-
-    .vencimiento-expirado {
-        background-color: red !important;
-        color: white;
-    }
-
-    #tabla-contenedor {
-        max-height: 300px;
-        overflow-y: auto;
-        overflow-x: hidden;
-        border: 1px solid #ddd;
-    }
-
-    .simbologia {
-        font-size: 1em;
-        color: #333;
-        margin-bottom: 15px;
-        text-align: center;
-    }
-
-    .por-vencerse {
-        padding: 2px 5px;
-        border: 2px solid #ccc;
-        border-radius: 5px;
-        width: 100%;
-        font-size: 15px;
-        background-color: yellow;
-        color: black;
-    }
-
-    .vencido {
-        padding: 2px 5px;
-        border: 2px solid #ccc;
-        border-radius: 5px;
-        width: 100%;
-        font-size: 15px;
-        background-color: red;
-        color: white;
-    }
-
-    .fecha-container {
-        display: flex;
-        align-items: center;
-        justify-content: space-between; 
-    }
-
-
-    .sugerencias-productos {
-        position: relative;
-        background: white;
-        border: 1px solid #ddd;
-        border-radius: 6px;
-        max-height: 200px;
-        overflow-y: auto;
-        z-index: 1000;
-        width: 100%;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        margin-top: -10px;
-        display: none;
-    }
-
-    .sugerencia-producto {
-        padding: 10px 15px;
-        cursor: pointer;
-        font-size: 14px;
-        color: #333;
-        border-bottom: 1px solid #f0f0f0;
-        transition: background-color 0.2s;
-    }
-
-    .sugerencia-producto:last-child {
-        border-bottom: none;
-    }
-
-    .sugerencia-producto:hover {
-        background-color: #f5f5f5;
-    }
-
-    .sugerencia-producto.highlighted {
-        background-color: #e0e0e0;
-    }
-
-
-    .input-error {
-        border: 2px solid red !important;
-        animation: shake 0.5s;
-    }
-
-    @keyframes shake {
-        0%, 100% { transform: translateX(0); }
-        20%, 60% { transform: translateX(-5px); }
-        40%, 80% { transform: translateX(5px); }
-    }
-
-    /* Estilos para el botón de eliminar producto */
-    .remove-btn {
-        background-color: #dc3545; /* Rojo */
-        color: white;
-        border: none;
-        cursor: pointer;
+        /* Botón de eliminar estilo mejorado */
+        .remove-product {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+            z-index: 10;
+        }
         
-        /* Nuevo posicionamiento absoluto */
-        position: absolute;
-        top: 5px; /* Ajusta según sea necesario */
-        right: 5px; /* Ajusta según sea necesario */
-        width: 30px; /* Ancho fijo para la X */
-        height: 30px; /* Alto fijo para la X */
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        font-size: 1.2em; /* Tamaño de la X */
+        .remove-product:hover {
+            background: #c0392b;
+            transform: scale(1.1);
+        }
         
-        /* Cambios para hacerlo circular y con sombra sutil */
-        border-radius: 50%; 
-        box-shadow: 0 1px 3px rgba(0,0,0,0.2); 
-        z-index: 10; 
-    }
+        .remove-product i {
+            font-size: 14px;
+        }
 
-    .remove-btn:hover {
-        background-color: #c82333; /* Rojo más oscuro al pasar el mouse */
-    }
+        .main-button {
+            background: linear-gradient(to right, var(--success-color), #27ae60);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 14px 30px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            margin-top: 20px;
+        }
 
-    /* Estilos para el botón de agregar producto */
-    .add-product-btn {
-        background-color: #28a745; /* Verde */
-        margin-top: 20px;
-    }
+        /* ESTILOS DE LA PANTALLA DE CARGA (Overlay) */
+        #overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            flex-direction: column;
+            display: none;
+        }
 
-    .add-product-btn:hover {
-        background-color: #218838; /* Verde más oscuro al pasar el mouse */
-    }
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid rgba(52, 152, 219, 0.2);
+            border-radius: 50%;
+            border-top-color: var(--secondary-color);
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 20px;
+        }
 
-    /* Estilo para los contenedores individuales de producto */
-    .product-entry-section {
-        border-bottom: 1px dashed #ccc; 
-        /* Eliminado padding-bottom: 50px; para evitar exceso de espacio */
-        margin-bottom: 15px;
-        position: relative; /* Esencial para el posicionamiento absoluto del botón de eliminar */
-    }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
 
-    .product-entry-section:last-child {
-        border-bottom: none; 
-        margin-bottom: 0;
-    }
-    
-    /* Nuevo estilo para el contenedor dinámico */
-    #productos-dinamicos-container {
-        padding-bottom: 20px; /* Espacio adicional al final del contenedor */
-    }
+        #loadingMessage {
+            text-align: center;
+            color: var(--dark-color);
+        }
 
-</style>
+        #loadingMessage h4 {
+            margin: 0 0 10px;
+            font-size: 1.3rem;
+            color: var(--primary-color);
+        }
+
+        #loadingMessage p {
+            margin: 0;
+            color: #7f8c8d;
+        }
+
+        /* Fin ESTILOS DE LA PANTALLA DE CARGA */
+
+        /* Estilos para la tabla */
+        #tabla-contenedor {
+            max-height: 300px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            position: relative;
+        }
+
+        #tabla-inventario {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            table-layout: fixed;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: center;
+            border-bottom: 1px solid var(--border-color);
+            word-wrap: break-word;
+            overflow: hidden;
+        }
+
+        th {
+            background-color: var(--primary-color);
+            color: white;
+            font-size: 1em;
+            text-transform: uppercase;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        .vencimiento-cercano {
+            background-color: var(--warning-color) !important;
+        }
+
+        .vencimiento-expirado {
+            background-color: var(--accent-color) !important;
+            color: white;
+        }
+
+        .simbologia {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .por-vencerse, .vencido {
+            padding: 8px 15px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.9em;
+            white-space: nowrap;
+        }
+
+        .por-vencerse {
+            background-color: var(--warning-color);
+            color: black;
+        }
+
+        .vencido {
+            background-color: var(--accent-color);
+            color: white;
+        }
+
+        .fecha-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 5px;
+        }
+
+        .fecha-container input {
+            width: 30%;
+            text-align: center;
+            font-size: 15px;
+            box-sizing: border-box;
+        }
+
+        .fecha-container span {
+            font-size: 15px;
+            margin: 0 2px;
+        }
+
+        .sugerencias-productos {
+            position: absolute;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            width: calc(100% - 30px);
+            box-shadow: var(--shadow);
+            margin-top: 2px;
+            display: none;
+        }
+
+        .sugerencia-producto {
+            padding: 10px 15px;
+            cursor: pointer;
+            font-size: 14px;
+            color: var(--text-color);
+            border-bottom: 1px solid #f0f0f0;
+            transition: background-color 0.2s;
+        }
+
+        .sugerencia-producto:last-child {
+            border-bottom: none;
+        }
+
+        .sugerencia-producto:hover {
+            background-color: #f5f5f5;
+        }
+
+        .sugerencia-producto.highlighted {
+            background-color: #e0e0e0;
+        }
+
+        .input-error {
+            border: 2px solid var(--accent-color) !important;
+            animation: shake 0.5s;
+        }
+
+        @keyframes shake {
+           0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-5px); }
+            40%, 80% { transform: translateX(5px); }
+        }
+
+        /* Contenedor de productos en grid de 2 columnas */
+        #products-grid-wrapper {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            align-items: start;
+        }
+        
+        .product-item-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            position: relative;
+        }
+
+        .product-entry-section {
+            border: 2px solid var(--secondary-color);
+            border-radius: 8px;
+            padding: 15px;
+            position: relative;
+            background-color: #f0f8ff;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            overflow: visible;
+        }
+
+        #productos-dinamicos-container {
+            padding-bottom: 20px;
+            display: contents; /* Cambiado para que funcione con grid */
+        }
+
+        .fecha-input {
+            padding: 10px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 14px;
+            transition: var(--transition);
+        }
+
+        .fecha-input:focus {
+            border-color: var(--secondary-color);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+        }
+
+        .add-another-product-btn {
+            background: linear-gradient(to right, var(--secondary-color), var(--primary-color));
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            width: auto;
+            align-self: center;
+            margin-top: 10px;
+            grid-column: 1 / -1;
+            justify-self: center;
+        }
+
+        .add-another-product-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        @media (max-width: 900px) {
+            #products-grid-wrapper {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                width: 95%;
+                padding: 15px;
+                margin: 15px auto;
+            }
+            
+            h1, h2, h3 {
+                font-size: 1.5rem;
+            }
+            
+            .question-container {
+                padding: 12px;
+            }
+
+            .simbologia {
+                flex-direction: row;
+                align-items: center;
+                gap: 10px;
+                justify-content: center;
+            }
+            
+            .fecha-container {
+                flex-direction: row;
+                gap: 5px;
+            }
+            
+            .fecha-container input {
+                width: 30%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .question-container {
+                padding: 10px;
+            }
+            
+            .fecha-container {
+                flex-direction: row;
+                gap: 5px;
+            }
+            
+            .fecha-container input {
+                width: 30%;
+            }
+            
+            #products-grid-wrapper {
+                grid-template-columns: 1fr;
+            }
+            
+            .simbologia {
+                flex-direction: row;
+                flex-wrap: nowrap;
+            }
+            
+            .por-vencerse, .vencido {
+                font-size: 0.8em;
+                padding: 6px 10px;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="header">
@@ -393,10 +554,10 @@
 
     <div class="container">
         <h2>Inventario de Productos Químicos & Aromas</h2>
-        <div style="border-bottom: 1px solid #ccc; margin: 20px 0;"></div>
+        <div class="divider"></div>
 
         <div class="simbologia">
-            <span class="por-vencerse">VENCERÁ</span> | 
+            <span class="por-vencerse">VENCERÁ</span>
             <span class="vencido">VENCIDO</span>
         </div>
 
@@ -421,7 +582,7 @@
             <strong>Total de Productos:</strong> <span id="totalCantidad">0</span>
         </div>
 
-        <div style="border-bottom: 1px solid #ccc; margin: 20px 0;"></div>
+        <div class="divider"></div>
 
         <h3>PEPS de Productos</h3>
 
@@ -433,20 +594,24 @@
             </select>
         </div>
 
-        <div id="productos-dinamicos-container">
+        <div id="products-grid-wrapper">
+            <div id="productos-dinamicos-container">
+                <!-- Las entradas de productos se agregarán aquí dinámicamente -->
             </div>
+        </div>
 
-        <button id="addProductoBtn" class="add-product-btn">Agregar Otro Producto</button>
+        <button id="addProductoBtn" class="add-product-btn">
+            <i class="fas fa-plus-circle"></i> Agregar Producto
+        </button>
 
-        <div style="border-bottom: 1px solid #ccc; margin: 20px 0;"></div>
-        <button id="procesarBtn">Procesar</button>
+        <div class="divider"></div>
+        <button id="procesarBtn" class="main-button">Procesar</button>
     </div>
 
     <div id="overlay">
         <div class="spinner"></div>
         <div id="loadingMessage">
             <h4>Por favor espera un momento...</h4>
-            <p></p>
         </div>
     </div>
 
@@ -651,26 +816,37 @@ function addProductEntry() {
     productEntryCounter++;
     const container = document.getElementById('productos-dinamicos-container');
     const newEntry = document.createElement('div');
-    newEntry.className = 'question-container product-entry-section';
-    newEntry.id = `product-entry-${productEntryCounter}`;
+    newEntry.className = 'product-item-wrapper';
+    newEntry.id = `product-item-wrapper-${productEntryCounter}`;
     newEntry.innerHTML = `
-        <button type="button" class="remove-btn" data-entry-id="${productEntryCounter}"><i class="fas fa-times"></i></button>
-        <label for="producto-${productEntryCounter}">Producto:</label>
-        <input type="text" id="producto-${productEntryCounter}" placeholder="Escribe el nombre del producto..." autocomplete="off" required>
-        <div id="sugerencias-productos-${productEntryCounter}" class="sugerencias-productos"></div>
+        <div class="product-entry-section" id="product-entry-${productEntryCounter}">
+            <button type="button" class="remove-product" onclick="confirmRemoval(${productEntryCounter})">
+                <i class="fas fa-trash-alt"></i>
+            </button>
+            
+            <div class="question-container">
+                <label for="producto-${productEntryCounter}">Producto:</label>
+                <input type="text" id="producto-${productEntryCounter}" placeholder="Escribe el nombre del producto..." autocomplete="off" required>
+                <div id="sugerencias-productos-${productEntryCounter}" class="sugerencias-productos"></div>
+            </div>
 
-        <label for="fechaVencimiento-${productEntryCounter}">Fecha de Vencimiento</label>
-        <div class="fecha-container">
-            <input type="number" id="dia-${productEntryCounter}" min="1" max="31" placeholder="DIA" oninput="validarDiaMes(this, 31)">
-            <span>/</span>
-            <input type="number" id="mes-${productEntryCounter}" min="1" max="12" placeholder="MES" oninput="validarDiaMes(this, 12)">
-            <span>/</span>
-            <input type="number" id="anio-${productEntryCounter}" maxlength="4" placeholder="AÑO" oninput="validarAnio(this)">
+            <div class="question-container">
+                <label for="fechaVencimiento-${productEntryCounter}">Fecha de Vencimiento</label>
+                <div class="fecha-container">
+                    <input type="number" id="dia-${productEntryCounter}" min="1" max="31" placeholder="Día" oninput="validarDiaMes(this, 31)" class="fecha-input">
+                    <span>/</span>
+                    <input type="number" id="mes-${productEntryCounter}" min="1" max="12" placeholder="Mes" oninput="validarDiaMes(this, 12)" class="fecha-input">
+                    <span>/</span>
+                    <input type="number" id="anio-${productEntryCounter}" maxlength="4" placeholder="Año" oninput="validarAnio(this)" class="fecha-input">
+                </div>
+                <input type="hidden" id="fechaVencimiento-${productEntryCounter}">
+            </div>
+
+            <div class="question-container">
+                <label for="cantidad-${productEntryCounter}">Cantidad</label>
+                <input type="number" id="cantidad-${productEntryCounter}" placeholder="Cantidad" required>
+            </div>
         </div>
-        <input type="hidden" id="fechaVencimiento-${productEntryCounter}">
-
-        <label for="cantidad-${productEntryCounter}">Cantidad</label>
-        <input type="number" id="cantidad-${productEntryCounter}" placeholder="Cantidad" required>
     `;
     container.appendChild(newEntry);
 
@@ -689,7 +865,10 @@ function addProductEntry() {
             
             mostrarSugerenciasProductos(this, sugerencias, texto, currentEntryId);
         } else {
-            document.getElementById(`sugerencias-productos-${currentEntryId}`).style.display = "none";
+            const contenedorSugerencias = document.getElementById(`sugerencias-productos-${currentEntryId}`);
+            if (contenedorSugerencias) {
+                contenedorSugerencias.style.display = "none";
+            }
         }
     });
 
@@ -731,7 +910,10 @@ function addProductEntry() {
     inputProducto.addEventListener("blur", function() {
         setTimeout(() => {
             validarProducto(this);
-            document.getElementById(`sugerencias-productos-${currentEntryId}`).style.display = "none";
+            const contenedorSugerencias = document.getElementById(`sugerencias-productos-${currentEntryId}`);
+            if (contenedorSugerencias) {
+                contenedorSugerencias.style.display = "none";
+            }
         }, 200);
     });
 
@@ -745,10 +927,23 @@ function addProductEntry() {
         actualizarFechaVencimiento(currentEntryId);
     });
 
-    // Evento para eliminar esta entrada
-    newEntry.querySelector('.remove-btn').addEventListener('click', function() {
-        newEntry.remove();
-    });
+    // Mover el botón de agregar al final del grid
+    const addButton = document.getElementById('addProductoBtn');
+    if (addButton && addButton.parentNode) {
+        addButton.parentNode.removeChild(addButton);
+        document.getElementById('products-grid-wrapper').appendChild(addButton);
+    }
+}
+
+// Función para confirmar eliminación de producto
+function confirmRemoval(id) {
+    const productItemWrapper = document.getElementById(`product-item-wrapper-${id}`);
+    if (productItemWrapper) {
+        productItemWrapper.remove();
+        if (document.querySelectorAll('.product-item-wrapper').length === 0) {
+            addProductEntry();
+        }
+    }
 }
 
 document.getElementById('procesarBtn').addEventListener('click', async function() {
@@ -1030,7 +1225,6 @@ document.addEventListener("DOMContentLoaded", function() {
     document.getElementById('addProductoBtn').addEventListener('click', addProductEntry);
 });
 </script>
-
 
 </body>
 </html>

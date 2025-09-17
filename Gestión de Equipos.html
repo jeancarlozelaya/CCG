@@ -1264,241 +1264,233 @@
             return todosSeleccionados;
         }
 
-        function solicitarEquipo() {
-            let fecha = $('#fecha').val();
-            let colaborador = $('#colaborador').val();
-            let area = $('#area').val();
-            const checklist = checklistsPreOperativos[categoriaSeleccionada] || checklistsPreOperativos["aspiradoras"];
+function solicitarEquipo() {
+    let fecha = $('#fecha').val();
+    let colaborador = $('#colaborador').val();
+    let area = $('#area').val();
+    const checklist = checklistsPreOperativos[categoriaSeleccionada] || checklistsPreOperativos["aspiradoras"];
+    
+    Swal.fire({
+        title: 'Checklist Preoperativo',
+        html: generarChecklistHTML(checklist, 'pre'),
+        icon: 'info',
+        showCancelButton: true,
+        confirmButtonText: 'Confirmar y Solicitar',
+        cancelButtonText: 'Cancelar',
+        width: '650px',
+        padding: '20px',
+        didOpen: () => {
+            const todosSeleccionados = verificarChecklistCompleto();
+            Swal.getConfirmButton().disabled = !todosSeleccionados;
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const checklistRespuestas = [];
+            $('.checklist-item').each(function() {
+                const selectedButton = $(this).find('.selected');
+                checklistRespuestas.push(selectedButton.data('value'));
+            });
+            
+            // Obtener observaciones
+            const observaciones = document.getElementById('observaciones').value;
+
+            ultimaTransaccion = {
+                fecha: fecha,
+                colaborador: colaborador,
+                area: area,
+                equipo: equipoSeleccionado.nombre,
+                categoria: categoriaSeleccionada,
+                tipo: 'salidas',
+                checklist: checklist.map((item, i) => ({
+                    item: item,
+                    respuesta: checklistRespuestas[i]
+                })),
+                observaciones: observaciones
+            };
             
             Swal.fire({
-                title: 'Checklist Preoperativo', // Este título se mantiene
-                html: generarChecklistHTML(checklist, 'pre'),
-                icon: 'info',
+                title: 'Confirmar Préstamo',
+                html: `
+                    <div style="text-align: left;">
+                        <p><strong>Fecha:</strong> ${fecha}</p>
+                        <p><strong>Colaborador:</strong> ${colaborador}</p>
+                        <p><strong>Área:</strong> ${area}</p>
+                        <p><strong>Equipo:</strong> ${equipoSeleccionado.nombre}</p>
+                        ${observaciones ? `<p><strong>Observaciones:</strong> ${observaciones}</p>` : ''}
+                    </div>
+                `,
+                icon: 'question',
                 showCancelButton: true,
-                confirmButtonText: 'Confirmar y Solicitar',
-                cancelButtonText: 'Cancelar',
-                width: '650px',
-                padding: '20px',
-                didOpen: () => {
-                    const todosSeleccionados = verificarChecklistCompleto();
-                    Swal.getConfirmButton().disabled = !todosSeleccionados;
-                }
+                confirmButtonText: 'Sí, enviar',
+                cancelButtonText: 'No, revisar',
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#6c757d',
+                width: '500px'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    const checklistRespuestas = [];
-                    $('.checklist-item').each(function() {
-                        const selectedButton = $(this).find('.selected');
-                        checklistRespuestas.push(selectedButton.data('value'));
-                    });
-                    
-                    // Obtener observaciones
-                    const observaciones = document.getElementById('observaciones').value;
-
-                    ultimaTransaccion = {
-                        fecha: fecha,
-                        colaborador: colaborador,
-                        area: area,
-                        equipo: equipoSeleccionado.nombre,
-                        categoria: categoriaSeleccionada,
-                        tipo: 'salidas',
-                        checklist: checklist.map((item, i) => ({
-                            item: item,
-                            respuesta: checklistRespuestas[i]
-                        })),
-                        observaciones: observaciones
-                    };
-                    
-                    Swal.fire({
-                        title: 'Confirmar Préstamo',
-                        html: `
-                            <div style="text-align: left;">
-                                <p><strong>Fecha:</strong> ${fecha}</p>
-                                <p><strong>Colaborador:</strong> ${colaborador}</p>
-                                <p><strong>Área:</strong> ${area}</p>
-                                <p><strong>Equipo:</strong> ${equipoSeleccionado.nombre}</p>
-                                ${observaciones ? `<p><strong>Observaciones:</strong> ${observaciones}</p>` : ''}
-                            </div>
-                        `,
-                        icon: 'question',
-                        showCancelButton: true,
-                        confirmButtonText: 'Sí, enviar',
-                        cancelButtonText: 'No, revisar',
-                        confirmButtonColor: '#28a745',
-                        cancelButtonColor: '#6c757d',
-                        width: '500px'
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            $('#overlay').show();
-                            const scriptURL = "https://script.google.com/macros/s/AKfycbweOAqrT8cQuoW9xPbWBwOyLxbORFTT6HaStsNUz7i9ySkTRlElJIirZwcoGC-l8Sb-/exec";
-                            $.ajax({
-                                url: scriptURL,
-                                type: "POST",
-                                data: {
-                                    fecha: fecha,
-                                    colaborador: colaborador,
-                                    area: area,
-                                    equipo: equipoSeleccionado.nombre,
-                                    categoria: categoriaSeleccionada,
-                                    retornable: equipoSeleccionado.devolucion,
-                                    checklist: JSON.stringify(checklistRespuestas),
-                                    observaciones: observaciones
-                                },
-                                success: function(response) {
-                                    $('#overlay').hide();
-                                    Swal.fire({
-                                        title: '¡Éxito!',
-                                        html: `
-                                            <div style="text-align: center;">
-                                                <p style="font-size: 1.1em; margin-bottom: 15px;">Préstamo registrado correctamente</p>
-                                                <div style="color: #28a745; font-size: 2em;">
-                                                    <i class="fas fa-check-circle"></i>
-                                                </div>
-                                                <button id="generarPdfBtn" class="swal2-confirm swal2-styled" style="background-color: #007bff; margin-top: 15px;">Generar y Compartir PDF</button>
-                                            </div>
-                                        `,
-                                        icon: 'success',
-                                        showConfirmButton: false,
-                                        showCloseButton: true,
-                                        allowOutsideClick: false,
-                                        didOpen: () => {
-                                            $('#generarPdfBtn').on('click', () => {
-                                                generarPDF();
-                                            });
-                                        }
-                                    }).then((result) => {
-                                        if (result.dismiss === Swal.DismissReason.close) {
-                                            location.reload();
-                                        }
-                                    });
-                                },
-                                error: function(xhr, status, error) {
-                                    $('#overlay').hide();
-                                    Swal.fire('Error', 'Hubo un problema al registrar el préstamo. Por favor inténtalo nuevamente.', 'error');
+                    $('#overlay').show();
+                    const scriptURL = "https://script.google.com/macros/s/AKfycbweOAqrT8cQuoW9xPbWBwOyLxbORFTT6HaStsNUz7i9ySkTRlElJIirZwcoGC-l8Sb-/exec";
+                    $.ajax({
+                        url: scriptURL,
+                        type: "POST",
+                        data: {
+                            fecha: fecha,
+                            colaborador: colaborador,
+                            area: area,
+                            equipo: equipoSeleccionado.nombre,
+                            categoria: categoriaSeleccionada,
+                            retornable: equipoSeleccionado.devolucion,
+                            checklist: JSON.stringify(checklistRespuestas),
+                            observaciones: observaciones
+                        },
+                        success: function(response) {
+                            $('#overlay').hide();
+                            Swal.fire({
+                                title: '¡Éxito!',
+                                html: `
+                                    <div style="text-align: center;">
+                                        <p style="font-size: 1.1em; margin-bottom: 15px;">Préstamo registrada correctamente</p>
+                                        <div style="color: #28a745; font-size: 2em; margin-bottom: 15px;">
+                                            <i class="fas fa-check-circle"></i>
+                                        </div>
+                                        <p style="font-size: 0.9em; color: #666;">Generando PDF, por favor espera...</p>
+                                    </div>
+                                `,
+                                icon: 'success',
+                                showConfirmButton: false,
+                                showCancelButton: false,
+                                allowOutsideClick: false,
+                                didOpen: () => {
+                                    // Llamar directamente a generarPDF sin botón intermedio
+                                    generarPDF();
                                 }
                             });
+                        },
+                        error: function(xhr, status, error) {
+                            $('#overlay').hide();
+                            Swal.fire('Error', 'Hubo un problema al registrar el préstamo. Por favor inténtalo nuevamente.', 'error');
                         }
                     });
                 }
             });
         }
+    });
+}
 
-        function devolverEquipo() {
-            let fecha = $('#fecha').val();
-            let colaborador = $('#colaborador').val();
-            let area = $('#area').val();
-            const checklist = checklistsPostOperativos[categoriaSeleccionada] || checklistsPostOperativos["aspiradoras"];
+
+function devolverEquipo() {
+    let fecha = $('#fecha').val();
+    let colaborador = $('#colaborador').val();
+    let area = $('#area').val();
+    const checklist = checklistsPostOperativos[categoriaSeleccionada] || checklistsPostOperativos["aspiradoras"];
+
+    Swal.fire({
+        title: 'Checklist Postoperativo',
+        html: generarChecklistHTML(checklist, 'post'),
+        icon: 'info',
+        showCancelButton: true,
+        confirmButtonText: 'Confirmar Devolución',
+        cancelButtonText: 'Cancelar',
+        width: '650px',
+        padding: '20px',
+        didOpen: () => {
+            const todosSeleccionados = verificarChecklistCompleto();
+            Swal.getConfirmButton().disabled = !todosSeleccionados;
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const checklistRespuestas = [];
+            $('.checklist-item').each(function() {
+                const selectedButton = $(this).find('.selected');
+                checklistRespuestas.push(selectedButton.data('value'));
+            });
+            
+            // Obtener observaciones
+            const observaciones = document.getElementById('observaciones').value;
+
+            ultimaTransaccion = {
+                fecha: fecha,
+                colaborador: colaborador,
+                area: area,
+                equipo: equipoSeleccionado.nombre,
+                categoria: categoriaSeleccionada,
+                tipo: 'entradas',
+                checklist: checklist.map((item, i) => ({
+                    item: item,
+                    respuesta: checklistRespuestas[i]
+                })),
+                observaciones: observaciones
+            };
 
             Swal.fire({
-                title: 'Checklist Postoperativo', // Este título se mantiene
-                html: generarChecklistHTML(checklist, 'post'),
-                icon: 'info',
+                title: 'Confirmar Devolución',
+                html: `
+                    <div style="text-align: left;">
+                        <p><strong>Fecha:</strong> ${fecha}</p>
+                        <p><strong>Colaborador:</strong> ${colaborador}</p>
+                        <p><strong>Área:</strong> ${area}</p>
+                        <p><strong>Equipo:</strong> ${equipoSeleccionado.nombre}</p>
+                        ${observaciones ? `<p><strong>Observaciones:</strong> ${observaciones}</p>` : ''}
+                    </div>
+                `,
+                icon: 'question',
                 showCancelButton: true,
-                confirmButtonText: 'Confirmar Devolución',
-                cancelButtonText: 'Cancelar',
-                width: '650px',
-                padding: '20px',
-                didOpen: () => {
-                    const todosSeleccionados = verificarChecklistCompleto();
-                    Swal.getConfirmButton().disabled = !todosSeleccionados;
-                }
+                confirmButtonText: 'Sí, devolver',
+                cancelButtonText: 'No, revisar',
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#6c757d',
+                width: '500px'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    const checklistRespuestas = [];
-                    $('.checklist-item').each(function() {
-                        const selectedButton = $(this).find('.selected');
-                        checklistRespuestas.push(selectedButton.data('value'));
-                    });
-                    
-                    // Obtener observaciones
-                    const observaciones = document.getElementById('observaciones').value;
-
-                    ultimaTransaccion = {
-                        fecha: fecha,
-                        colaborador: colaborador,
-                        area: area,
-                        equipo: equipoSeleccionado.nombre,
-                        categoria: categoriaSeleccionada,
-                        tipo: 'entradas',
-                        checklist: checklist.map((item, i) => ({
-                            item: item,
-                            respuesta: checklistRespuestas[i]
-                        })),
-                        observaciones: observaciones
-                    };
-
-                    Swal.fire({
-                        title: 'Confirmar Devolución',
-                        html: `
-                            <div style="text-align: left;">
-                                <p><strong>Fecha:</strong> ${fecha}</p>
-                                <p><strong>Colaborador:</strong> ${colaborador}</p>
-                                <p><strong>Área:</strong> ${area}</p>
-                                <p><strong>Equipo:</strong> ${equipoSeleccionado.nombre}</p>
-                                ${observaciones ? `<p><strong>Observaciones:</strong> ${observaciones}</p>` : ''}
-                            </div>
-                        `,
-                        icon: 'question',
-                        showCancelButton: true,
-                        confirmButtonText: 'Sí, devolver',
-                        cancelButtonText: 'No, revisar',
-                        confirmButtonColor: '#28a745',
-                        cancelButtonColor: '#6c757d',
-                        width: '500px'
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            $('#overlay').show();
-                            const scriptURL = "https://script.google.com/macros/s/AKfycbw4OfK5DQQqbiro8olfyb8MvjQnOHGZBoELkTBJnOYS2GMpkr8yFrJJASiAiAxxePGfzA/exec";
-                            $.ajax({
-                                url: scriptURL,
-                                type: "POST",
-                                data: {
-                                    fecha: fecha,
-                                    colaborador: colaborador,
-                                    area: area,
-                                    equipo: equipoSeleccionado.nombre,
-                                    categoria: categoriaSeleccionada,
-                                    checklist: JSON.stringify(checklistRespuestas),
-                                    tipo: 'devolucion',
-                                    observaciones: observaciones
-                                },
-                                success: function(response) {
-                                    $('#overlay').hide();
-                                    Swal.fire({
-                                        title: '¡Éxito!',
-                                        html: `
-                                            <div style="text-align: center;">
-                                                <p style="font-size: 1.1em; margin-bottom: 15px;">Devolución registrada correctamente</p>
-                                                <div style="color: #28a745; font-size: 2em;">
-                                                    <i class="fas fa-check-circle"></i>
-                                                </div>
-                                                <button id="generarPdfBtn" class="swal2-confirm swal2-styled" style="background-color: #007bff; margin-top: 15px;">Generar y Compartir PDF</button>
-                                            </div>
-                                        `,
-                                        icon: 'success',
-                                        showConfirmButton: false,
-                                        showCloseButton: true,
-                                        allowOutsideClick: false,
-                                        didOpen: () => {
-                                            $('#generarPdfBtn').on('click', () => {
-                                                generarPDF();
-                                            });
-                                        }
-                                    }).then((result) => {
-                                        if (result.dismiss === Swal.DismissReason.close) {
-                                            location.reload();
-                                        }
-                                    });
-                                },
-                                error: function(xhr, status, error) {
-                                    $('#overlay').hide();
-                                    Swal.fire('Error', 'Hubo un problema al registrar la devolución. Por favor inténtalo nuevamente.', 'error');
+                    $('#overlay').show();
+                    const scriptURL = "https://script.google.com/macros/s/AKfycbw4OfK5DQQqbiro8olfyb8MvjQnOHGZBoELkTBJnOYS2GMpkr8yFrJJASiAiAxxePGfzA/exec";
+                    $.ajax({
+                        url: scriptURL,
+                        type: "POST",
+                        data: {
+                            fecha: fecha,
+                            colaborador: colaborador,
+                            area: area,
+                            equipo: equipoSeleccionado.nombre,
+                            categoria: categoriaSeleccionada,
+                            checklist: JSON.stringify(checklistRespuestas),
+                            tipo: 'devolucion',
+                            observaciones: observaciones
+                        },
+                        success: function(response) {
+                            $('#overlay').hide();
+                            Swal.fire({
+                                title: '¡Éxito!',
+                                html: `
+                                    <div style="text-align: center;">
+                                        <p style="font-size: 1.1em; margin-bottom: 15px;">Devolución registrada correctamente</p>
+                                        <div style="color: #28a745; font-size: 2em; margin-bottom: 15px;">
+                                            <i class="fas fa-check-circle"></i>
+                                        </div>
+                                        <p style="font-size: 0.9em; color: #666;">Generando PDF, por favor espera...</p>
+                                    </div>
+                                `,
+                                icon: 'success',
+                                showConfirmButton: false,
+                                showCancelButton: false,
+                                allowOutsideClick: false,
+                                didOpen: () => {
+                                    // Llamar directamente a generarPDF sin botón intermedio
+                                    generarPDF();
                                 }
                             });
+                        },
+                        error: function(xhr, status, error) {
+                            $('#overlay').hide();
+                            Swal.fire('Error', 'Hubo un problema al registrar la devolución. Por favor inténtalo nuevamente.', 'error');
                         }
                     });
                 }
             });
         }
+    });
+}
+
 
         function scrollToTop() {
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1599,302 +1591,344 @@ async function compressImage(file, quality) {
     });
 }
 
-        async function addPhotoSection(doc, title, files, startY) {
-            if (files.length === 0) return startY;
-            let currentY = startY;
-            const pageHeight = doc.internal.pageSize.getHeight();
-            const spaceNeeded = 10 + 10 + 40;
-            if (currentY + spaceNeeded > pageHeight - 10) {
-                doc.addPage();
-                currentY = 15;
-            }
-            doc.setFontSize(14);
-            doc.setFont("times", "bold");
-            doc.text(title, 10, currentY);
-            currentY += 10;
-            const imgWidth = 60;
-            const imgHeight = 40;
-            const marginX = 15;
-            const spacingX = 65;
-            const spacingY = 45;
-            let currentX = marginX;
-            let imagesInRow = 0;
-            for (const file of files) {
-                const imgData = await compressImage(file, 0.5);
-                if (imagesInRow === 3) {
-                    imagesInRow = 0;
-                    currentX = marginX;
-                    currentY += spacingY;
-                }
-                if (currentY + imgHeight > pageHeight - 10) {
-                    doc.addPage();
-                    currentY = 15;
-                    currentX = marginX;
-                    imagesInRow = 0;
-                }
-                doc.addImage(imgData, 'JPEG', currentX, currentY, imgWidth, imgHeight);
-                currentX += spacingX;
-                imagesInRow++;
-            }
-            return currentY + spacingY;
+async function addPhotoSection(doc, title, files, startY) {
+    if (files.length === 0) return startY;
+    let currentY = startY;
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const spaceNeeded = 10 + 10 + 40;
+    if (currentY + spaceNeeded > pageHeight - 10) {
+        doc.addPage();
+        currentY = 15;
+    }
+    doc.setFontSize(14);
+    doc.setFont("times", "bold");
+    doc.text(title, 10, currentY);
+    currentY += 10;
+    const imgWidth = 60;
+    const imgHeight = 40;
+    const marginX = 15;
+    const spacingX = 65;
+    const spacingY = 45;
+    let currentX = marginX;
+    let imagesInRow = 0;
+    for (const file of files) {
+        const imgData = await compressImage(file, 0.5);
+        if (imagesInRow === 3) {
+            imagesInRow = 0;
+            currentX = marginX;
+            currentY += spacingY;
         }
+        if (currentY + imgHeight > pageHeight - 10) {
+            doc.addPage();
+            currentY = 15;
+            currentX = marginX;
+            imagesInRow = 0;
+        }
+        doc.addImage(imgData, 'JPEG', currentX, currentY, imgWidth, imgHeight);
+        currentX += spacingX;
+        imagesInRow++;
+    }
+    return currentY + spacingY;
+}
 
-        async function generarPDF() {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF({
-                orientation: 'portrait',
-                format: 'letter',
-                unit: 'mm'
-            });
-            
-            doc.setFont("times", "normal");
-            const tipoMovimiento = ultimaTransaccion.tipo === 'salidas' ? 'Acta de Compromiso' : 'Acta de Recepción';
-            const tituloChecklist = ultimaTransaccion.tipo === 'salidas' ? 'Checklist Preoperativo' : 'Checklist Postoperativo';
-            const now = new Date();
-            const horaGeneracion = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
-            const [yyyy, mm, dd] = ultimaTransaccion.fecha.split('-');
-            const meses = [
-                "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-                "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
-            ];
-            const mesTexto = meses[parseInt(mm) - 1];
-            let y = 15;
-            const margin = 15;
-            const pageWidth = doc.internal.pageSize.getWidth();
-            const pageHeight = doc.internal.pageSize.getHeight();
-            const textWidth = pageWidth - (2 * margin);
-            
-            // Encabezado
-            doc.setFontSize(16);
-            doc.setTextColor(34, 49, 63);
-            doc.setFont("times", "bold");
-            doc.text(tipoMovimiento, pageWidth / 2, y, { align: 'center' });
-            y += 8;
-            doc.setDrawColor(200, 200, 200);
-            doc.line(margin, y, pageWidth - margin, y);
-            y += 10;
-            doc.setFontSize(12);
-            doc.setTextColor(50, 50, 50);
-            doc.setFont("times", "normal");
 
-            // Contenido del acta
-            if (ultimaTransaccion.tipo === 'salidas') {
-                const textoCompleto = `Yo ${ultimaTransaccion.colaborador} mediante la presente Acta de Compromiso hago constar que en esta fecha estoy recibiendo el equipo ${ultimaTransaccion.equipo}, el cual será utilizado para el desempeño de mis funciones.`;
-                const lineas = doc.splitTextToSize(textoCompleto, textWidth);
-                doc.text(lineas, margin, y);
-                y += (lineas.length * 6) + 4;
-                
-                doc.setFont("times", "bold");
-                const textoCompromiso = "Habiendo recibido me comprometo a lo siguiente:";
-                doc.text(textoCompromiso, margin, y);
-                y += 7;
-                
-                doc.setFont("times", "normal");
-                const compromisos = [
-                    "- Cuidar y hacer buen uso del mismo, durante el tiempo que este bajo mi cargo en beneficio de las actividades del negocio.",
-                    "- En caso de accidente, daño por mal uso y cualquier que bajo mi uso dañe el equipo se procederá a realizar la deducción del valor completo proporcionando uno nuevo.",
-                    "- Me comprometo a cuidar todos y cada uno de los componentes del equipo."
-                ];
-                
-                compromisos.forEach(compromiso => {
-                    const splitText = doc.splitTextToSize(compromiso, textWidth - 5);
-                    doc.text(splitText, margin + 5, y);
-                    y += (splitText.length * 5) + 3;
-                });
-                
-                y += 5;
-                const textoFinal = `Firmo la presente en la ciudad de Tegucigalpa a los ${dd} días del mes de ${mesTexto} del ${yyyy}.`;
-                const lineasFinal = doc.splitTextToSize(textoFinal, textWidth);
-                doc.text(lineasFinal, margin, y);
-                y += (lineasFinal.length * 6) + 10;
-            } else if (ultimaTransaccion.tipo === 'entradas') {
-                const textoCompleto = `Yo ${ultimaTransaccion.colaborador} mediante la presente Acta de Recepción hago constar que en esta fecha estoy entregando el equipo ${ultimaTransaccion.equipo}, el cual fue utilizado para el desempeño de mis funciones y ahora estoy retornando.`;
-                const lineas = doc.splitTextToSize(textoCompleto, textWidth);
-                doc.text(lineas, margin, y);
-                y += (lineas.length * 6) + 4;
-                
-                doc.setFont("times", "bold");
-                const textoDeclaracion = "Al entregarla declaro lo siguiente:";
-                doc.text(textoDeclaracion, margin, y);
-                y += 7;
-                
-                doc.setFont("times", "normal");
-                const declaraciones = [
-                    "- El equipo se encuentra en las mismas condiciones en las que me fue entregado.",
-                    "- Fui responsable y cuidadoso en el uso del equipo y todos sus componentes.",
-                    "- Cualquier daño, accidente o mal uso fue reportado en tiempo y forma."
-                ];
-                
-                declaraciones.forEach(declaracion => {
-                    const splitText = doc.splitTextToSize(declaracion, textWidth - 5);
-                    doc.text(splitText, margin + 5, y);
-                    y += (splitText.length * 5) + 3;
-                });
-                
-                y += 5;
-                const textoFinal = `Firmo la presente en la ciudad de Tegucigalpa a los ${dd} días del mes de ${mesTexto} del ${yyyy}.`;
-                const lineasFinal = doc.splitTextToSize(textoFinal, textWidth);
-                doc.text(lineasFinal, margin, y);
-                y += (lineasFinal.length * 6) + 10;
+async function generarPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({
+        orientation: 'portrait',
+        format: 'letter',
+        unit: 'mm'
+    });
+    
+    doc.setFont("times", "normal");
+    const tipoMovimiento = ultimaTransaccion.tipo === 'salidas' ? 'Acta de Compromiso' : 'Acta de Recepción';
+    const tituloChecklist = ultimaTransaccion.tipo === 'salidas' ? 'Checklist Preoperativo' : 'Checklist Postoperativo';
+    const now = new Date();
+    const horaGeneracion = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const [yyyy, mm, dd] = ultimaTransaccion.fecha.split('-');
+    const meses = [
+        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+    ];
+    const mesTexto = meses[parseInt(mm) - 1];
+    let y = 15;
+    const margin = 15;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const textWidth = pageWidth - (2 * margin);
+    
+    // Encabezado
+    doc.setFontSize(16);
+    doc.setTextColor(34, 49, 63);
+    doc.setFont("times", "bold");
+    doc.text(tipoMovimiento, pageWidth / 2, y, { align: 'center' });
+    y += 8;
+    doc.setDrawColor(200, 200, 200);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 10;
+    doc.setFontSize(12);
+    doc.setTextColor(50, 50, 50);
+    doc.setFont("times", "normal");
+
+    // Contenido del acta
+    if (ultimaTransaccion.tipo === 'salidas') {
+        const textoCompleto = `Yo ${ultimaTransaccion.colaborador} mediante la presente Acta de Compromiso hago constar que en esta fecha estoy recibiendo el equipo ${ultimaTransaccion.equipo}, el cual será utilizado para el desempeño de mis funciones.`;
+        const lineas = doc.splitTextToSize(textoCompleto, textWidth);
+        doc.text(lineas, margin, y);
+        y += (lineas.length * 6) + 4;
+        
+        doc.setFont("times", "bold");
+        const textoCompromiso = "Habiendo recibido me comprometo a lo siguiente:";
+        doc.text(textoCompromiso, margin, y);
+        y += 7;
+        
+        doc.setFont("times", "normal");
+        const compromisos = [
+            "- Cuidar y hacer buen uso del mismo, durante el tiempo que este bajo mi cargo en beneficio de las actividades del negocio.",
+            "- En caso de accidente, daño por mal uso y cualquier que bajo mi uso dañe el equipo se procederá a realizar la deducción del valor completo proporcionando uno nuevo.",
+            "- Me comprometo a cuidar todos y cada uno de los componentes del equipo."
+        ];
+        
+        compromisos.forEach(compromiso => {
+            const splitText = doc.splitTextToSize(compromiso, textWidth - 5);
+            doc.text(splitText, margin + 5, y);
+            y += (splitText.length * 5) + 3;
+        });
+        
+        y += 5;
+        const textoFinal = `Firmo la presente en la ciudad de Tegucigalpa a los ${dd} días del mes de ${mesTexto} del ${yyyy}.`;
+        const lineasFinal = doc.splitTextToSize(textoFinal, textWidth);
+        doc.text(lineasFinal, margin, y);
+        y += (lineasFinal.length * 6) + 10;
+    } else if (ultimaTransaccion.tipo === 'entradas') {
+        const textoCompleto = `Yo ${ultimaTransaccion.colaborador} mediante la presente Acta de Recepción hago constar que en esta fecha estoy entregando el equipo ${ultimaTransaccion.equipo}, el cual fue utilizado para el desempeño de mis funciones y ahora estoy retornando.`;
+        const lineas = doc.splitTextToSize(textoCompleto, textWidth);
+        doc.text(lineas, margin, y);
+        y += (lineas.length * 6) + 4;
+        
+        doc.setFont("times", "bold");
+        const textoDeclaracion = "Al entregarla declaro lo siguiente:";
+        doc.text(textoDeclaracion, margin, y);
+        y += 7;
+        
+        doc.setFont("times", "normal");
+        const declaraciones = [
+            "- El equipo se encuentra en las mismas condiciones en las que me fue entregado.",
+            "- Fui responsable y cuidadoso en el uso del equipo y todos sus componentes.",
+            "- Cualquier daño, accidente o mal uso fue reportado en tiempo y forma."
+        ];
+        
+        declaraciones.forEach(declaracion => {
+            const splitText = doc.splitTextToSize(declaracion, textWidth - 5);
+            doc.text(splitText, margin + 5, y);
+            y += (splitText.length * 5) + 3;
+        });
+        
+        y += 5;
+        const textoFinal = `Firmo la presente en la ciudad de Tegucigalpa a los ${dd} días del mes de ${mesTexto} del ${yyyy}.`;
+        const lineasFinal = doc.splitTextToSize(textoFinal, textWidth);
+        doc.text(lineasFinal, margin, y);
+        y += (lineasFinal.length * 6) + 10;
+    }
+
+    // Firma
+    const canvasFirma = document.getElementById('firmaCanvas');
+    const firmaDataUrl = canvasFirma.toDataURL('image/png');
+    const firmaWidth = 60;
+    const firmaHeight = 25;
+    const firmaX = (pageWidth - firmaWidth) / 2;
+    doc.addImage(firmaDataUrl, 'PNG', firmaX, y, firmaWidth, firmaHeight);
+    y += firmaHeight + 2;
+    doc.line(firmaX, y, firmaX + firmaWidth, y);
+    y += 4;
+    doc.setFontSize(12);
+    doc.setTextColor(80, 80, 80);
+    doc.setFont("times", "bold");
+    doc.text(ultimaTransaccion.colaborador, pageWidth / 2, y, { align: 'center' });
+    y += 10;
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 8;
+
+    // Para el checklist preoperativo (salidas) con muchas preguntas, comenzar en nueva página
+    if (ultimaTransaccion.tipo === 'salidas' && ultimaTransaccion.checklist.length > 8) {
+        doc.addPage();
+        y = 15;
+    }
+
+    // Checklist
+    doc.setFontSize(14);
+    doc.setTextColor(34, 49, 63);
+    doc.setFont("times", "bold");
+    doc.text(tituloChecklist, pageWidth / 2, y, { align: 'center' });
+    y += 8;
+    
+    // Cambiar los encabezados de la tabla
+    const tableColumn = ["Punto de Verificación", "Cumple", "No Cumple"];
+    const tableRows = ultimaTransaccion.checklist.map(item => {
+        const cumple = item.respuesta === "✔" ? "X" : "";
+        const noCumple = item.respuesta === "X" ? "X" : "";
+        return [item.item, cumple, noCumple];
+    });
+    
+    const espacioDisponible = pageHeight - y - 15;
+    const alturaPorFila = 5;
+    const alturaEncabezado = 8;
+    const alturaTotalTabla = alturaEncabezado + (tableRows.length * alturaPorFila);
+    let fontSize = 9;
+    let cellPadding = 2;
+    let rowHeight = 5;
+    
+    if (alturaTotalTabla > espacioDisponible) {
+        fontSize = 8;
+        cellPadding = 1.5;
+        rowHeight = 4;
+    }
+    
+    // Calcular el ancho de las columnas para centrar la tabla
+    const anchoDisponible = pageWidth - (2 * margin);
+    const col1Width = anchoDisponible * 0.75; // 75% para la primera columna
+    const col2Width = (anchoDisponible - col1Width) / 2; // 12.5% para cada columna de check
+    const col3Width = col2Width;
+    
+    doc.autoTable({
+        startY: y,
+        head: [tableColumn],
+        body: tableRows,
+        theme: 'grid',
+        tableWidth: anchoDisponible,
+        margin: { 
+            left: margin, 
+            right: margin,
+            top: y
+        },
+        headStyles: {
+            fillColor: [0, 123, 255],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold',
+            fontSize: fontSize,
+            font: "times",
+            cellPadding: cellPadding,
+            minCellHeight: rowHeight,
+            halign: 'center' // Centrar texto en encabezados
+        },
+        styles: {
+            fontSize: fontSize,
+            cellPadding: cellPadding,
+            textColor: [50, 50, 50],
+            lineColor: [200, 200, 200],
+            lineWidth: 0.1,
+            font: "times",
+            minCellHeight: rowHeight
+        },
+        columnStyles: {
+            0: {
+                cellWidth: col1Width,
+                fontStyle: 'bold',
+                halign: 'left'
+            },
+            1: {
+                cellWidth: col2Width,
+                halign: 'center'
+            },
+            2: {
+                cellWidth: col3Width,
+                halign: 'center'
             }
+        },
+        pageBreak: 'avoid'
+    });
 
-            // Firma
-            const canvasFirma = document.getElementById('firmaCanvas');
-            const firmaDataUrl = canvasFirma.toDataURL('image/png');
-            const firmaWidth = 60;
-            const firmaHeight = 25;
-            const firmaX = (pageWidth - firmaWidth) / 2;
-            doc.addImage(firmaDataUrl, 'PNG', firmaX, y, firmaWidth, firmaHeight);
-            y += firmaHeight + 2;
-            doc.line(firmaX, y, firmaX + firmaWidth, y);
-            y += 4;
-            doc.setFontSize(12);
-            doc.setTextColor(80, 80, 80);
-            doc.setFont("times", "bold");
-            doc.text(ultimaTransaccion.colaborador, pageWidth / 2, y, { align: 'center' });
-            y += 10;
-            doc.line(margin, y, pageWidth - margin, y);
-            y += 8;
+    // Añadir observaciones si existen
+    let currentY = doc.autoTable.previous.finalY + 10;
+    
+    if (ultimaTransaccion.observaciones && ultimaTransaccion.observaciones.trim() !== '') {
+        if (currentY + 20 > pageHeight) {
+            doc.addPage();
+            currentY = 15;
+        }
+        
+        doc.setFontSize(12);
+        doc.setTextColor(34, 49, 63);
+        doc.setFont("times", "bold");
+        doc.text("Observaciones:", margin, currentY);
+        currentY += 5;
+        
+        doc.setFontSize(10);
+        doc.setTextColor(50, 50, 50);
+        doc.setFont("times", "normal");
+        
+        const observacionesLines = doc.splitTextToSize(ultimaTransaccion.observaciones, textWidth);
+        doc.text(observacionesLines, margin, currentY);
+        currentY += (observacionesLines.length * 4) + 10;
+    }
 
-            // Para el checklist preoperativo (salidas) con muchas preguntas, comenzar en nueva página
-            if (ultimaTransaccion.tipo === 'salidas' && ultimaTransaccion.checklist.length > 8) {
-                doc.addPage();
-                y = 15;
-            }
+    // Añadir fotos
+    let photosSectionY = currentY;
+    photosSectionY = await addPhotoSection(doc, "Evidencia:", selectedFiles.preview4, photosSectionY);
 
-            // Checklist
-            doc.setFontSize(14);
-            doc.setTextColor(34, 49, 63);
-            doc.setFont("times", "bold");
-            doc.text(tituloChecklist, pageWidth / 2, y, { align: 'center' });
-            y += 8;
-            
-            // Cambiar los encabezados de la tabla
-            const tableColumn = ["Punto de Verificación", "Cumple", "No Cumple"];
-            const tableRows = ultimaTransaccion.checklist.map(item => {
-                const cumple = item.respuesta === "✔" ? "X" : "";
-                const noCumple = item.respuesta === "X" ? "X" : "";
-                return [item.item, cumple, noCumple];
-            });
-            
-            const espacioDisponible = pageHeight - y - 15;
-            const alturaPorFila = 5;
-            const alturaEncabezado = 8;
-            const alturaTotalTabla = alturaEncabezado + (tableRows.length * alturaPorFila);
-            let fontSize = 9;
-            let cellPadding = 2;
-            let rowHeight = 5;
-            
-            if (alturaTotalTabla > espacioDisponible) {
-                fontSize = 8;
-                cellPadding = 1.5;
-                rowHeight = 4;
-            }
-            
-            // Calcular el ancho de las columnas para centrar la tabla
-            const anchoDisponible = pageWidth - (2 * margin);
-            const col1Width = anchoDisponible * 0.75; // 75% para la primera columna
-            const col2Width = (anchoDisponible - col1Width) / 2; // 12.5% para cada columna de check
-            const col3Width = col2Width;
-            
-            doc.autoTable({
-                startY: y,
-                head: [tableColumn],
-                body: tableRows,
-                theme: 'grid',
-                tableWidth: anchoDisponible,
-                margin: { 
-                    left: margin, 
-                    right: margin,
-                    top: y
-                },
-                headStyles: {
-                    fillColor: [0, 123, 255],
-                    textColor: [255, 255, 255],
-                    fontStyle: 'bold',
-                    fontSize: fontSize,
-                    font: "times",
-                    cellPadding: cellPadding,
-                    minCellHeight: rowHeight,
-                    halign: 'center' // Centrar texto en encabezados
-                },
-                styles: {
-                    fontSize: fontSize,
-                    cellPadding: cellPadding,
-                    textColor: [50, 50, 50],
-                    lineColor: [200, 200, 200],
-                    lineWidth: 0.1,
-                    font: "times",
-                    minCellHeight: rowHeight
-                },
-                columnStyles: {
-                    0: {
-                        cellWidth: col1Width,
-                        fontStyle: 'bold',
-                        halign: 'left'
-                    },
-                    1: {
-                        cellWidth: col2Width,
-                        halign: 'center'
-                    },
-                    2: {
-                        cellWidth: col3Width,
-                        halign: 'center'
-                    }
-                },
-                pageBreak: 'avoid'
-            });
-
-            // Añadir observaciones si existen
-            let currentY = doc.autoTable.previous.finalY + 10;
-            
-            if (ultimaTransaccion.observaciones && ultimaTransaccion.observaciones.trim() !== '') {
-                if (currentY + 20 > pageHeight) {
-                    doc.addPage();
-                    currentY = 15;
-                }
-                
-                doc.setFontSize(12);
-                doc.setTextColor(34, 49, 63);
-                doc.setFont("times", "bold");
-                doc.text("Observaciones:", margin, currentY);
-                currentY += 5;
-                
-                doc.setFontSize(10);
-                doc.setTextColor(50, 50, 50);
-                doc.setFont("times", "normal");
-                
-                const observacionesLines = doc.splitTextToSize(ultimaTransaccion.observaciones, textWidth);
-                doc.text(observacionesLines, margin, currentY);
-                currentY += (observacionesLines.length * 4) + 10;
-            }
-
-            // Añadir fotos
-            let photosSectionY = currentY;
-            photosSectionY = await addPhotoSection(doc, "Evidencia:", selectedFiles.preview4, photosSectionY);
-
-            const tipoMovimientoNombre = ultimaTransaccion.tipo === 'salidas' ? 'Salida' : 'Entrada';
-            const pdfName = `${dd}-${mm}-${yyyy} - ${tipoMovimientoNombre} - ${ultimaTransaccion.equipo} - ${ultimaTransaccion.colaborador}.pdf`;
-            const pdfBlob = doc.output('blob');
-            const pdfFile = new File([pdfBlob], pdfName, { type: 'application/pdf' });
-            
-            if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+    const tipoMovimientoNombre = ultimaTransaccion.tipo === 'salidas' ? 'Salida' : 'Entrada';
+    const pdfName = `${dd}-${mm}-${yyyy} - ${tipoMovimientoNombre} - ${ultimaTransaccion.equipo} - ${ultimaTransaccion.colaborador}.pdf`;
+    const pdfBlob = doc.output('blob');
+    const pdfFile = new File([pdfBlob], pdfName, { type: 'application/pdf' });
+    
+    // Cerrar el SweetAlert actual y mostrar directamente las opciones de compartir/descargar
+    Swal.close();
+    
+    // Mostrar SweetAlert con opciones de compartir y descargar
+    Swal.fire({
+        title: '¡Éxito!',
+        html: `
+            <div style="text-align: center;">
+                <p style="font-size: 1.1em; margin-bottom: 15px;">${ultimaTransaccion.tipo === 'salidas' ? 'Préstamo' : 'Devolución'} registrada correctamente</p>
+                <div style="color: #28a745; font-size: 2em; margin-bottom: 15px;">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <p style="font-size: 0.9em; color: #666; margin-bottom: 20px;">¿Qué deseas hacer con el PDF?</p>
+                <div style="display: flex; justify-content: center; gap: 10px;">
+                    <button id="sharePdfBtn" class="swal2-confirm swal2-styled" style="background-color: #007bff;">
+                        <i class="fas fa-share-alt"></i> Compartir
+                    </button>
+                    <button id="downloadPdfBtn" class="swal2-cancel swal2-styled" style="background-color: #6c757d;">
+                        <i class="fas fa-download"></i> Descargar
+                    </button>
+                </div>
+            </div>
+        `,
+        icon: 'success',
+        showConfirmButton: false,
+        showCloseButton: true,
+        allowOutsideClick: false,
+        didOpen: () => {
+            // Asignar los event listeners directamente a los botones
+            document.getElementById('sharePdfBtn').addEventListener('click', async function() {
                 try {
-                    await navigator.share({
-                        files: [pdfFile],
-                        title: pdfName,
-                        text: `Comparto el documento de ${tipoMovimientoNombre} para el equipo ${ultimaTransaccion.equipo}.`
-                    });
+                    if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+                        await navigator.share({
+                            files: [pdfFile],
+                            title: pdfName,
+                            text: `Comparto el documento de ${tipoMovimientoNombre} para el equipo ${ultimaTransaccion.equipo}.`
+                        });
+                    } else {
+                        // Fallback: descargar el PDF si no se puede compartir
+                        doc.save(pdfName);
+                    }
                 } catch (error) {
                     console.error('Error al compartir el archivo:', error);
                     if (error.name !== 'AbortError') {
-                        Swal.fire('Error', 'No se pudo compartir el archivo. ' + error.message, 'error');
+                        // Fallback: descargar el PDF si hay error
+                        doc.save(pdfName);
                     }
                 }
-            } else {
+            });
+            
+            document.getElementById('downloadPdfBtn').addEventListener('click', function() {
                 doc.save(pdfName);
-            }
+            });
         }
+    });
+}
+
+
 
         let isDrawing = false;
         let isErasing = false;

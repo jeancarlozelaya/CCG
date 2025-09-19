@@ -952,30 +952,41 @@
             ]
         };
 
-        document.addEventListener('DOMContentLoaded', function() {
-            var today = new Date();
-            var yyyy = today.getFullYear();
-            var mm = String(today.getMonth() + 1).padStart(2, '0');
-            var dd = String(today.getDate()).padStart(2, '0');
-            document.getElementById("fecha").value = yyyy + '-' + mm + '-' + dd;
+document.addEventListener('DOMContentLoaded', function() {
+    var today = new Date();
+    var yyyy = today.getFullYear();
+    var mm = String(today.getMonth() + 1).padStart(2, '0');
+    var dd = String(today.getDate()).padStart(2, '0');
+    document.getElementById("fecha").value = yyyy + '-' + mm + '-' + dd;
 
-            cargarTodosLosDatos();
-            configurarEventos();
+    cargarTodosLosDatos();
+    configurarEventos();
 
-            document.addEventListener('contextmenu', function(e) {
-                e.preventDefault();
-            });
+    document.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+    });
 
-            document.addEventListener('selectstart', function(e) {
-                e.preventDefault();
-            });
+    document.addEventListener('selectstart', function(e) {
+        e.preventDefault();
+    });
 
-            document.querySelectorAll('img').forEach(img => {
-                img.addEventListener('dragstart', function(e) {
-                    e.preventDefault();
-                });
-            });
+    document.querySelectorAll('img').forEach(img => {
+        img.addEventListener('dragstart', function(e) {
+            e.preventDefault();
         });
+    });
+    
+    // Verificar si hay PDFs pendientes de recuperar
+    setTimeout(() => {
+        verificarPDFPendiente();
+    }, 1000); // Pequeño delay para que cargue primero la página
+
+    // Inicializar eventos para el autocomplete
+    initAutocomplete();
+});
+
+
+
 
         function cambiarModo(modo) {
             modoActual = modo;
@@ -1900,6 +1911,22 @@ async function generarPDF() {
     const pdfBlob = doc.output('blob');
     const pdfFile = new File([pdfBlob], pdfName, { type: 'application/pdf' });
     
+    // Guardar el PDF en localStorage para recuperación
+    const reader = new FileReader();
+    reader.onload = function() {
+        const pdfData = {
+            data: reader.result,
+            name: pdfName,
+            tipo: ultimaTransaccion.tipo,
+            equipo: ultimaTransaccion.equipo,
+            colaborador: ultimaTransaccion.colaborador,
+            fecha: ultimaTransaccion.fecha,
+            timestamp: new Date().getTime()
+        };
+        localStorage.setItem('ultimoPDFGenerado', JSON.stringify(pdfData));
+    };
+    reader.readAsDataURL(pdfBlob);
+    
     // Cerrar el SweetAlert actual y mostrar directamente las opciones de compartir/descargar
     Swal.close();
     
@@ -1937,21 +1964,27 @@ async function generarPDF() {
                             title: pdfName,
                             text: `Comparto el documento de ${tipoMovimientoNombre} para el equipo ${ultimaTransaccion.equipo}.`
                         });
+                        // Eliminar después de compartir exitosamente
+                        localStorage.removeItem('ultimoPDFGenerado');
                     } else {
                         // Fallback: descargar el PDF si no se puede compartir
                         doc.save(pdfName);
+                        localStorage.removeItem('ultimoPDFGenerado');
                     }
                 } catch (error) {
                     console.error('Error al compartir el archivo:', error);
                     if (error.name !== 'AbortError') {
                         // Fallback: descargar el PDF si hay error
                         doc.save(pdfName);
+                        localStorage.removeItem('ultimoPDFGenerado');
                     }
                 }
             });
             
             document.getElementById('downloadPdfBtn').addEventListener('click', function() {
                 doc.save(pdfName);
+                // Eliminar después de descargar
+                localStorage.removeItem('ultimoPDFGenerado');
             });
         }
     }).then((result) => {
@@ -2164,12 +2197,7 @@ async function generarPDF() {
         let selectedColaboradorIndex = -1;
         let filteredColaboradores = [];
 
-        document.addEventListener('DOMContentLoaded', function() {
-            // Código existente...
-            
-            // Inicializar eventos para el autocomplete
-            initAutocomplete();
-        });
+
 
         function initAutocomplete() {
             const input = document.getElementById('colaborador');
@@ -2288,6 +2316,162 @@ async function generarPDF() {
             hideSuggestions();
             verificarFormulario();
         }
+
+
+
+
+// Función para verificar PDFs pendientes
+function verificarPDFPendiente() {
+    const pdfGuardado = localStorage.getItem('ultimoPDFGenerado');
+    if (pdfGuardado) {
+        const pdfData = JSON.parse(pdfGuardado);
+        const ahora = new Date().getTime();
+        const unaHora = 60 * 60 * 1000; // 1 hora en milisegundos
+        
+        // Verificar si el PDF tiene menos de 1 hora de antigüedad
+        if (ahora - pdfData.timestamp < unaHora) {
+            // Mostrar directamente las opciones de compartir/descargar
+            recuperarPDF(pdfData);
+        } else {
+            // Eliminar PDFs viejos (más de 1 hora)
+            localStorage.removeItem('ultimoPDFGenerado');
+        }
+    }
+}
+
+
+
+function recuperarPDF(pdfData) {
+    // Convertir data URL de vuelta a Blob
+    const byteString = atob(pdfData.data.split(',')[1]);
+    const mimeString = pdfData.data.split(',')[0].split(':')[1].split(';')[0];
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+    
+    for (let i = 0; i < byteString.length; i++) {
+        ia[i] = byteString.charCodeAt(i);
+    }
+    
+    const blob = new Blob([ab], { type: mimeString });
+    const pdfFile = new File([blob], pdfData.name, { type: 'application/pdf' });
+    
+    // Guardar referencia al diálogo principal
+    let mainDialog = null;
+    
+    // Mostrar opciones de compartir/descargar directamente
+    mainDialog = Swal.fire({
+        title: 'PDF Pendiente de Descargar',
+        html: `
+            <div style="text-align: center;">
+                <p style="font-size: 1.1em; margin-bottom: 15px;">Tienes un PDF pendiente de descargar/compartir</p>
+                <div style="color: #ff9800; font-size: 2em; margin-bottom: 15px;">
+                    <i class="fas fa-file-pdf"></i>
+                </div>
+                <p style="font-size: 0.9em; color: #666; margin-bottom: 10px;">
+                    <strong>Equipo:</strong> ${pdfData.equipo}<br>
+                    <strong>Colaborador:</strong> ${pdfData.colaborador}<br>
+                    <strong>Fecha:</strong> ${pdfData.fecha}
+                </p>
+                <p style="font-size: 0.8em; color: #888; margin-bottom: 20px;">
+                    Este PDF fue generado anteriormente y está pendiente de descargar
+                </p>
+                <div style="display: flex; justify-content: center; gap: 10px; margin-top: 20px;">
+                    <button id="shareRecoveredPdfBtn" class="swal2-confirm swal2-styled" style="background-color: #007bff;">
+                        <i class="fas fa-share-alt"></i> Compartir
+                    </button>
+                    <button id="downloadRecoveredPdfBtn" class="swal2-confirm swal2-styled" style="background-color: #28a745;">
+                        <i class="fas fa-download"></i> Descargar
+                    </button>
+                    <button id="eliminarPdfBtn" class="swal2-cancel swal2-styled" style="background-color: #6c757d;">
+                        <i class="fas fa-trash"></i> Eliminar
+                    </button>
+                </div>
+            </div>
+        `,
+        icon: 'info',
+        showConfirmButton: false,
+        showCloseButton: true,
+        allowOutsideClick: false,
+        didOpen: () => {
+            // Compartir PDF
+            document.getElementById('shareRecoveredPdfBtn').addEventListener('click', async function() {
+                try {
+                    if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+                        await navigator.share({
+                            files: [pdfFile],
+                            title: pdfData.name,
+                            text: `Comparto el documento de ${pdfData.tipo === 'salidas' ? 'Salida' : 'Entrada'} para el equipo ${pdfData.equipo}.`
+                        });
+                        // Eliminar después de compartir exitosamente
+                        localStorage.removeItem('ultimoPDFGenerado');
+                    } else {
+                        // Fallback: descargar si no se puede compartir
+                        const link = document.createElement('a');
+                        link.href = URL.createObjectURL(blob);
+                        link.download = pdfData.name;
+                        link.click();
+                        URL.revokeObjectURL(link.href);
+                    }
+                } catch (error) {
+                    console.error('Error al compartir el archivo:', error);
+                    if (error.name !== 'AbortError') {
+                        // Descargar si hay error
+                        const link = document.createElement('a');
+                        link.href = URL.createObjectURL(blob);
+                        link.download = pdfData.name;
+                        link.click();
+                        URL.revokeObjectURL(link.href);
+                    }
+                }
+            });
+            
+            // Descargar PDF
+            document.getElementById('downloadRecoveredPdfBtn').addEventListener('click', function() {
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = pdfData.name;
+                link.click();
+                URL.revokeObjectURL(link.href);
+            });
+            
+            // Eliminar PDF (con confirmación)
+            document.getElementById('eliminarPdfBtn').addEventListener('click', function() {
+                // Cerrar el diálogo principal temporalmente
+                Swal.close();
+                
+                // Mostrar diálogo de confirmación
+                Swal.fire({
+                    title: '¿Estás seguro?',
+                    text: 'Esta acción eliminará el PDF permanentemente',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Sí, eliminar',
+                    cancelButtonText: 'Cancelar',
+                    allowOutsideClick: false
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // Eliminar y cerrar completamente
+                        localStorage.removeItem('ultimoPDFGenerado');
+                    } else {
+                        // Si cancela, volver a mostrar el diálogo principal
+                        recuperarPDF(pdfData);
+                    }
+                });
+            });
+        }
+    }).then((result) => {
+        if (result.dismiss === Swal.DismissReason.close) {
+            // Solo se cierra cuando se hace clic en la X
+            console.log('Diálogo cerrado por el usuario');
+        }
+    });
+}
+
+
+
+
     </script>
 </body>
 </html>

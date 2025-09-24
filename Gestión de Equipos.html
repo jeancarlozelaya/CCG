@@ -783,6 +783,47 @@
         margin-top: 5px;
     }
 
+    /* Mejoras para la firma en móviles */
+    #firmaCanvas {
+        width: 100% !important;
+        height: 200px !important;
+        background: white;
+        border: 1px solid #ccc;
+        touch-action: none;
+        -ms-touch-action: none;
+    }
+
+    .firma-container {
+        position: relative;
+        overflow: hidden;
+    }
+
+    /* Prevenir selección de texto en el canvas */
+    #firmaCanvas {
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Botones de herramientas siempre visibles en móviles */
+    @media (max-width: 768px) {
+        #toggleEraser, #undo, #redo {
+            display: block !important;
+        }
+        
+        .firma-buttons {
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .icon-button {
+            min-width: 44px; /* Tamaño mínimo para touch */
+            min-height: 44px;
+        }
+    }
+
     @media (max-width: 768px) {
         .form-container {
             width: 95%;
@@ -837,8 +878,6 @@
             width: 100%;
         }
 
-
-
         .checklist-item {
             flex-direction: column;
             align-items: flex-start;
@@ -891,10 +930,10 @@
     <div class="form-container">
         <h1>Gestión de Equipos</h1>
 
-<div class="modo-buttons" id="modo-buttons">
-    <button id="btnSalidas" class="modo-button activo" onclick="cambiarModo('salidas')">Salidas</button>
-    <button id="btnEntradas" class="modo-button inactivo" onclick="cambiarModo('entradas')">Entradas</button>
-</div>
+        <div class="modo-buttons" id="modo-buttons">
+            <button id="btnSalidas" class="modo-button activo" onclick="cambiarModo('salidas')">Salidas</button>
+            <button id="btnEntradas" class="modo-button inactivo" onclick="cambiarModo('entradas')">Entradas</button>
+        </div>
 
         <div class="question-container">
             <div>
@@ -1008,7 +1047,7 @@
     <button class="scroll-button" id="scroll-bottom-button" onclick="scrollToBottom()" title="Ir al final">&#9660;</button>
 
     <script>
-        // El código JavaScript se mantiene exactamente igual hasta las funciones que vamos a modificar
+        // Extensión jQuery para navegación entre elementos
         jQuery.fn.firstUntil = function(selector) {
             const result = $();
             this.each(function() {
@@ -1021,6 +1060,7 @@
             return result;
         };
 
+        // Variables globales
         let equipos = [];
         let colaboradores = [];
         let areas = ["Bodega"];
@@ -1028,9 +1068,9 @@
         let categoriaSeleccionada = "";
         let modoActual = "salidas";
         let ultimaTransaccion = null;
-        let checklistEstado = {}; // <- Agrega esta línea
+        let checklistEstado = {};
 
-
+        // Checklists preoperativos y postoperativos
         const checklistsPreOperativos = {
             "aspiradoras": [
                 "¿La aspiradora está limpia por fuera?",
@@ -1106,16 +1146,224 @@
             ]
         };
 
+        // ===== CÓDIGO MEJORADO PARA LA FIRMA =====
+        let isDrawing = false;
+        let isErasing = false;
+        let lastX = 0;
+        let lastY = 0;
+        const canvas = document.getElementById("firmaCanvas");
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        const undoStack = [];
+        const redoStack = [];
+
+        // Configuración inicial del canvas
+        function initializeCanvas() {
+            // Establecer tamaño fijo para mejor compatibilidad
+            canvas.width = 400;
+            canvas.height = 200;
+            ctx.strokeStyle = "#000000";
+            ctx.lineWidth = 4;
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
+            
+            // Limpiar canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // Función mejorada para obtener coordenadas
+        function getCoordinates(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            
+            if (e.touches && e.touches.length > 0) {
+                return {
+                    x: (e.touches[0].clientX - rect.left) * scaleX,
+                    y: (e.touches[0].clientY - rect.top) * scaleY
+                };
+            } else if (e.offsetX !== undefined) {
+                return {
+                    x: e.offsetX * scaleX,
+                    y: e.offsetY * scaleY
+                };
+            } else if (e.clientX !== undefined) {
+                return {
+                    x: (e.clientX - rect.left) * scaleX,
+                    y: (e.clientY - rect.top) * scaleY
+                };
+            }
+            
+            return { x: 0, y: 0 };
+        }
+
+        // Función para empezar a dibujar
+        function startDrawing(e) {
+            e.preventDefault();
+            saveToUndoStack();
+            isDrawing = true;
+            const { x, y } = getCoordinates(e);
+            lastX = x;
+            lastY = y;
+            
+            // Dibujar un punto inicial (importante para touch)
+            ctx.beginPath();
+            ctx.arc(x, y, ctx.lineWidth/2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        }
+
+        // Función para dibujar
+        function draw(e) {
+            if (!isDrawing) return;
+            e.preventDefault();
+            
+            const { x, y } = getCoordinates(e);
+            
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(x, y);
+            ctx.strokeStyle = isErasing ? "#FFFFFF" : "#000000";
+            ctx.lineWidth = isErasing ? 20 : 4;
+            ctx.stroke();
+            
+            lastX = x;
+            lastY = y;
+        }
+
+        // Función para terminar de dibujar
+        function stopDrawing() {
+            if (isDrawing) {
+                isDrawing = false;
+                verificarFormulario();
+            }
+        }
+
+        // Stack functions
+        function saveToUndoStack() {
+            undoStack.push(canvas.toDataURL());
+            redoStack.length = 0;
+            updateButtonStates();
+        }
+
+        function undo() {
+            if (undoStack.length > 0) {
+                redoStack.push(canvas.toDataURL());
+                const lastState = undoStack.pop();
+                const img = new Image();
+                img.src = lastState;
+                img.onload = () => {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0);
+                    verificarFormulario();
+                };
+                updateButtonStates();
+            }
+        }
+
+        function redo() {
+            if (redoStack.length > 0) {
+                undoStack.push(canvas.toDataURL());
+                const lastState = redoStack.pop();
+                const img = new Image();
+                img.src = lastState;
+                img.onload = () => {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0);
+                    verificarFormulario();
+                };
+                updateButtonStates();
+            }
+        }
+
+        function updateButtonStates() {
+            document.getElementById("undo").style.display = undoStack.length > 0 ? "block" : "none";
+            document.getElementById("redo").style.display = redoStack.length > 0 ? "block" : "none";
+        }
+
+        // Limpiar firma
+        function clearSignature() {
+            saveToUndoStack();
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            verificarFormulario();
+            updateButtonStates();
+        }
+
+        // ===== CONFIGURACIÓN DE EVENTOS MEJORADA =====
+        function setupSignatureEvents() {
+            // Eventos de mouse
+            canvas.addEventListener("mousedown", startDrawing);
+            canvas.addEventListener("mousemove", draw);
+            canvas.addEventListener("mouseup", stopDrawing);
+            canvas.addEventListener("mouseout", stopDrawing);
+            
+            // Eventos de touch (mejorados)
+            canvas.addEventListener("touchstart", function(e) {
+                startDrawing(e);
+                // Prevenir scroll y zoom
+                e.preventDefault();
+            }, { passive: false });
+            
+            canvas.addEventListener("touchmove", function(e) {
+                draw(e);
+                // Prevenir scroll durante el dibujo
+                e.preventDefault();
+            }, { passive: false });
+            
+            canvas.addEventListener("touchend", stopDrawing);
+            canvas.addEventListener("touchcancel", stopDrawing);
+            
+            // Botones de herramientas
+            document.getElementById("toggleEraser").addEventListener("click", function() {
+                isErasing = !isErasing;
+                this.classList.toggle("active");
+                this.innerHTML = isErasing ? 
+                    '<i class="fas fa-pen"></i>' : 
+                    '<i class="fas fa-eraser"></i>';
+            });
+            
+            document.getElementById("undo").addEventListener("click", undo);
+            document.getElementById("redo").addEventListener("click", redo);
+            document.getElementById("clearSignature").addEventListener("click", clearSignature);
+            
+            // Prevenir acciones por defecto en el canvas
+            canvas.addEventListener("contextmenu", function(e) {
+                e.preventDefault();
+            });
+            
+            // Estilos CSS adicionales para mejorar la experiencia táctil
+            canvas.style.touchAction = "none";
+            canvas.style.msTouchAction = "none";
+        }
+
+        // ===== INICIALIZACIÓN =====
         document.addEventListener('DOMContentLoaded', function() {
+            // Establecer fecha actual
             var today = new Date();
             var yyyy = today.getFullYear();
             var mm = String(today.getMonth() + 1).padStart(2, '0');
             var dd = String(today.getDate()).padStart(2, '0');
             document.getElementById("fecha").value = yyyy + '-' + mm + '-' + dd;
 
+            // Inicializar canvas después de que todo esté cargado
+            setTimeout(() => {
+                initializeCanvas();
+                setupSignatureEvents();
+                
+                // Mostrar botones de herramientas
+                document.getElementById("toggleEraser").style.display = "block";
+                document.getElementById("undo").style.display = "none";
+                document.getElementById("redo").style.display = "none";
+            }, 100);
+
             cargarTodosLosDatos();
             configurarEventos();
 
+            // Prevenir acciones no deseadas
             document.addEventListener('contextmenu', function(e) {
                 e.preventDefault();
             });
@@ -1133,55 +1381,58 @@
             // Verificar si hay PDFs pendientes de recuperar
             setTimeout(() => {
                 verificarPDFPendiente();
-            }, 1000); // Pequeño delay para que cargue primero la página
+            }, 1000);
 
             // Inicializar eventos para el autocomplete
             initAutocomplete();
         });
 
-function cambiarModo(modo) {
-    // Limpiar estado del checklist cuando se cambie de modo
-    checklistEstado = {};
-    
-    modoActual = modo;
-    equipoSeleccionado = null;
-    $('.equipo').css('border-color', '#ddd').css('background-color', '#f9f9f9');
-    
-    // Limpiar campos
-    $('#buscador').val('');
-    
-    if (modo === 'salidas') {
-        $('#btnSalidas').removeClass('inactivo').addClass('activo');
-        $('#btnEntradas').removeClass('activo').addClass('inactivo');
-        $('#solicitar').show();
-        $('#devolver').hide();
-        $('#titulo-equipos').text('Seleccione el equipo a prestar:');
-        
-        // Habilitar campos en modo salidas
-        $('#fecha').prop('disabled', false);
-        $('#colaborador').prop('disabled', false).val('');
-        $('#area').prop('disabled', false).val('');
-        $('#buscador').prop('disabled', false);
-        
-    } else {
-        $('#btnSalidas').removeClass('activo').addClass('inactivo');
-        $('#btnEntradas').removeClass('inactivo').addClass('activo');
-        $('#solicitar').hide();
-        $('#devolver').show();
-        $('#titulo-equipos').text('Seleccione el equipo a devolver:');
-        
-        // Deshabilitar campos en modo entradas hasta que se seleccione un equipo
-        $('#fecha').prop('disabled', true);
-        $('#colaborador').prop('disabled', true).val('');
-        $('#area').prop('disabled', true).val('Bodega');
-        $('#buscador').prop('disabled', false);
-    }
+        // ===== FUNCIÓN PARA VERIFICAR SI EL CANVAS ESTÁ VACÍO =====
+        function isCanvasBlank(canvas) {
+            const context = canvas.getContext('2d');
+            const pixelBuffer = new Uint32Array(
+                context.getImageData(0, 0, canvas.width, canvas.height).data.buffer
+            );
+            return !pixelBuffer.some(color => color !== 0);
+        }
 
-    mostrarEquiposEnUI();
-    verificarFormulario();
-}
+        // ===== RESTO DEL CÓDIGO DE LA APLICACIÓN =====
+        function cambiarModo(modo) {
+            checklistEstado = {};
+            modoActual = modo;
+            equipoSeleccionado = null;
+            $('.equipo').css('border-color', '#ddd').css('background-color', '#f9f9f9');
+            
+            $('#buscador').val('');
+            
+            if (modo === 'salidas') {
+                $('#btnSalidas').removeClass('inactivo').addClass('activo');
+                $('#btnEntradas').removeClass('activo').addClass('inactivo');
+                $('#solicitar').show();
+                $('#devolver').hide();
+                $('#titulo-equipos').text('Seleccione el equipo a prestar:');
+                
+                $('#fecha').prop('disabled', false);
+                $('#colaborador').prop('disabled', false).val('');
+                $('#area').prop('disabled', false).val('');
+                $('#buscador').prop('disabled', false);
+                
+            } else {
+                $('#btnSalidas').removeClass('activo').addClass('inactivo');
+                $('#btnEntradas').removeClass('inactivo').addClass('activo');
+                $('#solicitar').hide();
+                $('#devolver').show();
+                $('#titulo-equipos').text('Seleccione el equipo a devolver:');
+                
+                $('#fecha').prop('disabled', true);
+                $('#colaborador').prop('disabled', true).val('');
+                $('#area').prop('disabled', true).val('Bodega');
+                $('#buscador').prop('disabled', false);
+            }
 
-
+            mostrarEquiposEnUI();
+            verificarFormulario();
+        }
 
         function cargarTodosLosDatos() {
             $('#overlay').show();
@@ -1211,7 +1462,6 @@ function cambiarModo(modo) {
         }
 
         function llenarSelects() {
-            // Ya no usamos el select de colaborador, pero mantenemos la variable allColaboradores
             allColaboradores = colaboradores;
             
             const areaSelect = $('#area');
@@ -1325,7 +1575,7 @@ function cambiarModo(modo) {
 
             if (modoActual === "entradas") {
                 $('#buscador').prop('disabled', true);
-                $('#fecha').prop('disabled', true); // Asegurar que la fecha esté deshabilitada
+                $('#fecha').prop('disabled', true);
                 $('#colaborador').prop('disabled', true);
                 $('#area').prop('disabled', true).val("Bodega");
                 if (equipoSeleccionado.asignadoA) {
@@ -1336,16 +1586,6 @@ function cambiarModo(modo) {
             verificarFormulario();
         }
 
-        function isCanvasBlank(canvas) {
-            const context = canvas.getContext('2d', {
-                willReadFrequently: true
-            });
-            const pixelBuffer = new Uint32Array(
-                context.getImageData(0, 0, canvas.width, canvas.height).data.buffer
-            );
-            return !pixelBuffer.some(color => color !== 0);
-        }
-
         function verificarFormulario() {
             let fecha = $("#fecha").val();
             let colaborador = $("#colaborador").val();
@@ -1353,12 +1593,10 @@ function cambiarModo(modo) {
             const hayFotos = selectedFiles.preview4.length > 0;
             const hayFirma = !isCanvasBlank(document.getElementById('firmaCanvas'));
             
-            // Validar que el colaborador ingresado existe en la lista (solo en modo salidas)
             let colaboradorValido = true;
             if (modoActual === "salidas") {
                 colaboradorValido = allColaboradores.includes(colaborador);
             } else {
-                // En modo entradas, el colaborador viene del equipo seleccionado
                 colaboradorValido = colaborador !== '';
             }
             
@@ -1373,7 +1611,6 @@ function cambiarModo(modo) {
                 $("#devolver").prop("disabled", true);
             }
             
-            // Cambiar el color del borde según si es válido o no (solo en modo salidas)
             if (modoActual === "salidas") {
                 if (colaborador && !colaboradorValido) {
                     $("#colaborador").css("border-color", "red");
@@ -1385,7 +1622,6 @@ function cambiarModo(modo) {
 
         // FUNCIONES MODIFICADAS PARA EL CHECKLIST EN FORMULARIO
         function solicitarEquipo() {
-            // Validar formulario básico antes de mostrar checklist
             let fecha = $('#fecha').val();
             let colaborador = $('#colaborador').val();
             let area = $('#area').val();
@@ -1395,7 +1631,6 @@ function cambiarModo(modo) {
                 return;
             }
 
-            // Configurar para modo salidas
             ultimaTransaccion = {
                 fecha: fecha,
                 colaborador: colaborador,
@@ -1405,18 +1640,15 @@ function cambiarModo(modo) {
                 tipo: 'salidas'
             };
 
-            // Mostrar checklist en el formulario
             mostrarChecklistEnFormulario('pre');
         }
 
         function devolverEquipo() {
-            // Validar formulario básico
             if (!equipoSeleccionado) {
                 Swal.fire('Error', 'Por favor selecciona un equipo a devolver', 'error');
                 return;
             }
 
-            // Configurar para modo entradas
             ultimaTransaccion = {
                 fecha: $('#fecha').val(),
                 colaborador: $('#colaborador').val(),
@@ -1426,190 +1658,160 @@ function cambiarModo(modo) {
                 tipo: 'entradas'
             };
 
-            // Mostrar checklist en el formulario
             mostrarChecklistEnFormulario('post');
         }
 
         // NUEVAS FUNCIONES PARA EL CHECKLIST EN FORMULARIO
-function mostrarChecklistEnFormulario(tipo) {
-    console.log('Mostrando checklist en formulario, tipo:', tipo);
-    
-    // Ocultar elementos específicos del formulario principal
-    const elementosAOcultar = [
-        'modo-buttons', // Contenedor de botones Salidas/Entradas
-        'question-container', // Campos de fecha, colaborador, destino
-        'formulario' // El formulario completo
-    ];
-    
-    elementosAOcultar.forEach(id => {
-        const elemento = document.getElementById(id);
-        if (elemento) {
-            // Para modo-buttons, aplicar una clase específica en lugar de display none
-            if (id === 'modo-buttons') {
-                elemento.classList.add('hidden-checklist');
-            } else {
-                elemento.style.display = 'none';
-            }
-        } else {
-            // Si no encuentra por ID, buscar por clase
-            const elementoPorClase = document.querySelector('.' + id);
-            if (elementoPorClase) {
-                if (id === 'modo-buttons') {
-                    elementoPorClase.classList.add('hidden-checklist');
+        function mostrarChecklistEnFormulario(tipo) {
+            console.log('Mostrando checklist en formulario, tipo:', tipo);
+            
+            const elementosAOcultar = [
+                'modo-buttons',
+                'question-container', 
+                'formulario'
+            ];
+            
+            elementosAOcultar.forEach(id => {
+                const elemento = document.getElementById(id);
+                if (elemento) {
+                    if (id === 'modo-buttons') {
+                        elemento.classList.add('hidden-checklist');
+                    } else {
+                        elemento.style.display = 'none';
+                    }
                 } else {
-                    elementoPorClase.style.display = 'none';
+                    const elementoPorClase = document.querySelector('.' + id);
+                    if (elementoPorClase) {
+                        if (id === 'modo-buttons') {
+                            elementoPorClase.classList.add('hidden-checklist');
+                        } else {
+                            elementoPorClase.style.display = 'none';
+                        }
+                    }
                 }
+            });
+            
+            const tituloEquipos = document.getElementById('titulo-equipos');
+            if (tituloEquipos) tituloEquipos.style.display = 'none';
+            
+            const checklistPage = document.getElementById('checklistPage');
+            if (checklistPage) checklistPage.style.display = 'block';
+            
+            const titulo = tipo === 'pre' ? 'Checklist Preoperativo' : 'Checklist Postoperativo';
+            const subtitulo = tipo === 'pre' ? 'Verificación antes del uso' : 'Verificación después del uso';
+            const textoBoton = tipo === 'pre' ? 'Solicitar' : 'Devolver';
+            
+            const checklistTitulo = document.getElementById('checklistTitulo');
+            const checklistSubtitulo = document.getElementById('checklistSubtitulo');
+            const checklistEquipoNombre = document.getElementById('checklistEquipoNombre');
+            const btnConfirmarTexto = document.getElementById('btnConfirmarTexto');
+            
+            if (checklistTitulo) checklistTitulo.textContent = titulo;
+            if (checklistSubtitulo) checklistSubtitulo.innerHTML = `${subtitulo} - Para: <strong>${ultimaTransaccion.equipo}</strong>`;
+            if (checklistEquipoNombre) checklistEquipoNombre.textContent = ultimaTransaccion.equipo;
+            if (btnConfirmarTexto) btnConfirmarTexto.textContent = textoBoton;
+            
+            const checklistData = tipo === 'pre' ? 
+                checklistsPreOperativos[ultimaTransaccion.categoria] || checklistsPreOperativos["aspiradoras"] :
+                checklistsPostOperativos[ultimaTransaccion.categoria] || checklistsPostOperativos["aspiradoras"];
+            
+            console.log('Checklist data:', checklistData);
+            
+            generarChecklistUI(checklistData);
+            
+            if (checklistEstado.respuestas) {
+                restaurarEstadoChecklist(checklistEstado.respuestas);
             }
+            
+            const observacionesTextarea = document.getElementById('checklistObservaciones');
+            if (observacionesTextarea && checklistEstado.observaciones !== undefined) {
+                observacionesTextarea.value = checklistEstado.observaciones;
+            } else if (observacionesTextarea) {
+                observacionesTextarea.value = '';
+            }
+            
+            if (observacionesTextarea) {
+                observacionesTextarea.removeEventListener('input', guardarEstadoChecklist);
+                observacionesTextarea.addEventListener('input', guardarEstadoChecklist);
+            }
+            
+            actualizarProgresoChecklist();
         }
-    });
-    
-    // Ocultar también el título de equipos
-    const tituloEquipos = document.getElementById('titulo-equipos');
-    if (tituloEquipos) tituloEquipos.style.display = 'none';
-    
-    // Mostrar checklist
-    const checklistPage = document.getElementById('checklistPage');
-    if (checklistPage) checklistPage.style.display = 'block';
-    
-    // Configurar título y subtítulo
-    const titulo = tipo === 'pre' ? 'Checklist Preoperativo' : 'Checklist Postoperativo';
-    const subtitulo = tipo === 'pre' ? 'Verificación antes del uso' : 'Verificación después del uso';
-    const textoBoton = tipo === 'pre' ? 'Solicitar' : 'Devolver';
-    
-    // Verificar que los elementos existan antes de intentar modificarlos
-    const checklistTitulo = document.getElementById('checklistTitulo');
-    const checklistSubtitulo = document.getElementById('checklistSubtitulo');
-    const checklistEquipoNombre = document.getElementById('checklistEquipoNombre');
-    const btnConfirmarTexto = document.getElementById('btnConfirmarTexto');
-    
-    if (checklistTitulo) checklistTitulo.textContent = titulo;
-    if (checklistSubtitulo) checklistSubtitulo.innerHTML = `${subtitulo} - Para: <strong>${ultimaTransaccion.equipo}</strong>`;
-    if (checklistEquipoNombre) checklistEquipoNombre.textContent = ultimaTransaccion.equipo;
-    if (btnConfirmarTexto) btnConfirmarTexto.textContent = textoBoton;
-    
-    // Obtener checklist correspondiente
-    const checklistData = tipo === 'pre' ? 
-        checklistsPreOperativos[ultimaTransaccion.categoria] || checklistsPreOperativos["aspiradoras"] :
-        checklistsPostOperativos[ultimaTransaccion.categoria] || checklistsPostOperativos["aspiradoras"];
-    
-    console.log('Checklist data:', checklistData);
-    
-    // Generar HTML del checklist
-    generarChecklistUI(checklistData);
-    
-    // Restaurar estado guardado del checklist si existe
-    if (checklistEstado.respuestas) {
-        restaurarEstadoChecklist(checklistEstado.respuestas);
-    }
-    
-    // Restaurar observaciones si existen
-    const observacionesTextarea = document.getElementById('checklistObservaciones');
-    if (observacionesTextarea && checklistEstado.observaciones !== undefined) {
-        observacionesTextarea.value = checklistEstado.observaciones;
-    } else if (observacionesTextarea) {
-        observacionesTextarea.value = '';
-    }
-    
-    // Agregar event listener para guardar observaciones
-    if (observacionesTextarea) {
-        observacionesTextarea.removeEventListener('input', guardarEstadoChecklist); // Remover primero para evitar duplicados
-        observacionesTextarea.addEventListener('input', guardarEstadoChecklist);
-    }
-    
-    // Actualizar progreso
-    actualizarProgresoChecklist();
-}
 
+        function restaurarEstadoChecklist(respuestasGuardadas) {
+            const items = document.querySelectorAll('.checklist-item');
+            items.forEach((item, index) => {
+                if (respuestasGuardadas[index]) {
+                    const respuesta = respuestasGuardadas[index];
+                    if (respuesta === '✔') {
+                        item.querySelector('.check-button').classList.add('selected');
+                    } else if (respuesta === 'X') {
+                        item.querySelector('.x-button').classList.add('selected');
+                    }
+                }
+            });
+        }
 
-function restaurarEstadoChecklist(respuestasGuardadas) {
-    const items = document.querySelectorAll('.checklist-item');
-    items.forEach((item, index) => {
-        if (respuestasGuardadas[index]) {
-            const respuesta = respuestasGuardadas[index];
+        function generarChecklistUI(checklist) {
+            const container = document.getElementById('checklistContainer');
+            if (!container) {
+                console.error('No se encontró el elemento checklistContainer');
+                return;
+            }
+            
+            container.innerHTML = '';
+            
+            checklist.forEach((item, index) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'checklist-item';
+                itemDiv.innerHTML = `
+                    <label>${item}</label>
+                    <div class="checklist-buttons">
+                        <button type="button" class="check-button" onclick="seleccionarRespuesta(${index}, '✔')">Cumple</button>
+                        <button type="button" class="x-button" onclick="seleccionarRespuesta(${index}, 'X')">No<br>Cumple</button>
+                    </div>
+                `;
+                container.appendChild(itemDiv);
+            });
+            
+            console.log('Checklist UI generado con', checklist.length, 'elementos');
+        }
+
+        function seleccionarRespuesta(index, respuesta) {
+            const item = document.querySelectorAll('.checklist-item')[index];
+            
+            item.querySelectorAll('.check-button, .x-button').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            
             if (respuesta === '✔') {
                 item.querySelector('.check-button').classList.add('selected');
-            } else if (respuesta === 'X') {
+            } else {
                 item.querySelector('.x-button').classList.add('selected');
             }
+            
+            guardarEstadoChecklist();
+            actualizarProgresoChecklist();
         }
-    });
-}
 
-
-function generarChecklistUI(checklist) {
-    const container = document.getElementById('checklistContainer');
-    if (!container) {
-        console.error('No se encontró el elemento checklistContainer');
-        return;
-    }
-    
-    container.innerHTML = '';
-    
-    checklist.forEach((item, index) => {
-        const itemDiv = document.createElement('div');
-        itemDiv.className = 'checklist-item';
-        itemDiv.innerHTML = `
-            <label>${item}</label>
-            <div class="checklist-buttons">
-                <button type="button" class="check-button" onclick="seleccionarRespuesta(${index}, '✔')">Cumple</button>
-                <button type="button" class="x-button" onclick="seleccionarRespuesta(${index}, 'X')">No<br>Cumple</button>
-            </div>
-        `;
-        container.appendChild(itemDiv);
-    });
-    
-    console.log('Checklist UI generado con', checklist.length, 'elementos');
-}
-
-
-
-
-function seleccionarRespuesta(index, respuesta) {
-    const item = document.querySelectorAll('.checklist-item')[index];
-    
-    // Remover selección anterior
-    item.querySelectorAll('.check-button, .x-button').forEach(btn => {
-        btn.classList.remove('selected');
-    });
-    
-    // Agregar selección nueva
-    if (respuesta === '✔') {
-        item.querySelector('.check-button').classList.add('selected');
-    } else {
-        item.querySelector('.x-button').classList.add('selected');
-    }
-    
-    // Guardar estado
-    guardarEstadoChecklist();
-    
-    // Actualizar progreso y verificar si está completo
-    actualizarProgresoChecklist();
-}
-
-
-function guardarEstadoChecklist() {
-    // Guardar respuestas del checklist
-    const respuestas = [];
-    document.querySelectorAll('.checklist-item').forEach(item => {
-        const selectedButton = item.querySelector('.selected');
-        respuestas.push(selectedButton ? 
-            (selectedButton.classList.contains('check-button') ? '✔' : 'X') : '');
-    });
-    
-    // Guardar observaciones
-    const observacionesTextarea = document.getElementById('checklistObservaciones');
-    const observaciones = observacionesTextarea ? observacionesTextarea.value : '';
-    
-    // Guardar en variable global
-    checklistEstado = {
-        respuestas: respuestas,
-        observaciones: observaciones
-    };
-    
-    console.log('Estado del checklist guardado:', checklistEstado);
-}
-
-
+        function guardarEstadoChecklist() {
+            const respuestas = [];
+            document.querySelectorAll('.checklist-item').forEach(item => {
+                const selectedButton = item.querySelector('.selected');
+                respuestas.push(selectedButton ? 
+                    (selectedButton.classList.contains('check-button') ? '✔' : 'X') : '');
+            });
+            
+            const observacionesTextarea = document.getElementById('checklistObservaciones');
+            const observaciones = observacionesTextarea ? observacionesTextarea.value : '';
+            
+            checklistEstado = {
+                respuestas: respuestas,
+                observaciones: observaciones
+            };
+            
+            console.log('Estado del checklist guardado:', checklistEstado);
+        }
 
         function actualizarProgresoChecklist() {
             const items = document.querySelectorAll('.checklist-item');
@@ -1617,184 +1819,151 @@ function guardarEstadoChecklist() {
             const total = items.length;
             const porcentaje = total > 0 ? Math.round((completados / total) * 100) : 0;
             
-            // Actualizar barra de progreso
             document.getElementById('progressBar').style.width = porcentaje + '%';
             document.getElementById('progressText').textContent = porcentaje + '% completado';
             
-            // Habilitar/deshabilitar botón de confirmar
             const btnConfirmar = document.getElementById('btnConfirmarChecklist');
             btnConfirmar.disabled = completados !== total;
         }
 
-function volverAlFormulario() {
-    console.log('Volviendo al formulario principal');
-    
-    // Mostrar elementos del formulario principal
-    const elementosAMostrar = [
-        'modo-buttons',
-        'question-container', 
-        'formulario'
-    ];
-    
-    elementosAMostrar.forEach(id => {
-        const elemento = document.getElementById(id);
-        if (elemento) {
-            // Para modo-buttons, remover la clase específica
-            if (id === 'modo-buttons') {
-                elemento.classList.remove('hidden-checklist');
-            } else {
-                elemento.style.display = 'block';
-            }
-        } else {
-            // Si no encuentra por ID, buscar por clase
-            const elementoPorClase = document.querySelector('.' + id);
-            if (elementoPorClase) {
-                if (id === 'modo-buttons') {
-                    elementoPorClase.classList.remove('hidden-checklist');
+        function volverAlFormulario() {
+            console.log('Volviendo al formulario principal');
+            
+            const elementosAMostrar = [
+                'modo-buttons',
+                'question-container', 
+                'formulario'
+            ];
+            
+            elementosAMostrar.forEach(id => {
+                const elemento = document.getElementById(id);
+                if (elemento) {
+                    if (id === 'modo-buttons') {
+                        elemento.classList.remove('hidden-checklist');
+                    } else {
+                        elemento.style.display = 'block';
+                    }
                 } else {
-                    elementoPorClase.style.display = 'block';
+                    const elementoPorClase = document.querySelector('.' + id);
+                    if (elementoPorClase) {
+                        if (id === 'modo-buttons') {
+                            elementoPorClase.classList.remove('hidden-checklist');
+                        } else {
+                            elementoPorClase.style.display = 'block';
+                        }
+                    }
                 }
+            });
+            
+            const tituloEquipos = document.getElementById('titulo-equipos');
+            if (tituloEquipos) tituloEquipos.style.display = 'block';
+            
+            const checklistPage = document.getElementById('checklistPage');
+            if (checklistPage) checklistPage.style.display = 'none';
+            
+            guardarEstadoChecklist();
+            verificarFormulario();
+        }
+
+        function confirmarChecklist() {
+            const checklistRespuestas = [];
+            document.querySelectorAll('.checklist-item').forEach(item => {
+                const selectedButton = item.querySelector('.selected');
+                checklistRespuestas.push(selectedButton ? 
+                    (selectedButton.classList.contains('check-button') ? '✔' : 'X') : '');
+            });
+            
+            const observaciones = document.getElementById('checklistObservaciones').value;
+            
+            ultimaTransaccion.checklist = checklistRespuestas.map((respuesta, index) => {
+                const checklistData = ultimaTransaccion.tipo === 'salidas' ? 
+                    checklistsPreOperativos[ultimaTransaccion.categoria] || checklistsPreOperativos["aspiradoras"] :
+                    checklistsPostOperativos[ultimaTransaccion.categoria] || checklistsPostOperativos["aspiradoras"];
+                
+                return {
+                    item: checklistData[index],
+                    respuesta: respuesta
+                };
+            });
+            
+            ultimaTransaccion.observaciones = observaciones;
+            
+            mostrarConfirmacionFinal();
+        }
+
+        function mostrarConfirmacionFinal() {
+            const tipoMovimiento = ultimaTransaccion.tipo === 'salidas' ? 'préstamo' : 'devolución';
+            const textoAccion = ultimaTransaccion.tipo === 'salidas' ? 'solicitar' : 'devolver';
+            
+            Swal.fire({
+                title: `Confirmar ${tipoMovimiento}`,
+                html: `
+                    <div style="text-align: left;">
+                        <p><strong>Fecha:</strong> ${ultimaTransaccion.fecha}</p>
+                        <p><strong>Colaborador:</strong> ${ultimaTransaccion.colaborador}</p>
+                        <p><strong>Área:</strong> ${ultimaTransaccion.area}</p>
+                        <p><strong>Equipo:</strong> ${ultimaTransaccion.equipo}</p>
+                        ${ultimaTransaccion.observaciones ? `<p><strong>Observaciones:</strong> ${ultimaTransaccion.observaciones}</p>` : ''}
+                    </div>
+                `,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: `Sí, ${textoAccion}`,
+                cancelButtonText: 'No, revisar',
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#6c757d',
+                width: '500px'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    enviarTransaccion();
+                } else {
+                    console.log('Usuario decidió revisar, manteniendo estado del checklist');
+                }
+            });
+        }
+
+        function enviarTransaccion() {
+            $('#overlay').show();
+            
+            const scriptURL = ultimaTransaccion.tipo === 'salidas' ? 
+                "https://script.google.com/macros/s/AKfycbweOAqrT8cQuoW9xPbWBwOyLxbORFTT6HaStsNUz7i9ySkTRlElJIirZwcoGC-l8Sb-/exec" :
+                "https://script.google.com/macros/s/AKfycbw4OfK5DQQqbiro8olfyb8MvjQnOHGZBoELkTBJnOYS2GMpkr8yFrJJASiAiAxxePGfzA/exec";
+            
+            const data = {
+                fecha: ultimaTransaccion.fecha,
+                colaborador: ultimaTransaccion.colaborador,
+                area: ultimaTransaccion.area,
+                equipo: ultimaTransaccion.equipo,
+                categoria: ultimaTransaccion.categoria,
+                checklist: JSON.stringify(ultimaTransaccion.checklist.map(item => item.respuesta)),
+                observaciones: ultimaTransaccion.observaciones
+            };
+            
+            if (ultimaTransaccion.tipo === 'salidas') {
+                data.retornable = equipoSeleccionado.devolucion;
+            } else {
+                data.tipo = 'devolucion';
             }
+            
+            $.ajax({
+                url: scriptURL,
+                type: "POST",
+                data: data,
+                success: function(response) {
+                    $('#overlay').hide();
+                    checklistEstado = {};
+                    volverAlFormulario();
+                    generarPDF();
+                },
+                error: function(xhr, status, error) {
+                    $('#overlay').hide();
+                    Swal.fire('Error', `Hubo un problema al registrar la transacción. Por favor inténtalo nuevamente. Error: ${error}`, 'error');
+                    volverAlFormulario();
+                }
+            });
         }
-    });
-    
-    // Mostrar también el título de equipos
-    const tituloEquipos = document.getElementById('titulo-equipos');
-    if (tituloEquipos) tituloEquipos.style.display = 'block';
-    
-    // Ocultar checklist (NO limpiar las selecciones)
-    const checklistPage = document.getElementById('checklistPage');
-    if (checklistPage) checklistPage.style.display = 'none';
-    
-    // Guardar estado actual antes de salir
-    guardarEstadoChecklist();
-    
-    // Actualizar el estado del formulario
-    verificarFormulario();
-}
 
-
-
-function confirmarChecklist() {
-    // Recolectar respuestas del checklist
-    const checklistRespuestas = [];
-    document.querySelectorAll('.checklist-item').forEach(item => {
-        const selectedButton = item.querySelector('.selected');
-        checklistRespuestas.push(selectedButton ? 
-            (selectedButton.classList.contains('check-button') ? '✔' : 'X') : '');
-    });
-    
-    // Obtener observaciones
-    const observaciones = document.getElementById('checklistObservaciones').value;
-    
-    // Actualizar última transacción con checklist y observaciones
-    ultimaTransaccion.checklist = checklistRespuestas.map((respuesta, index) => {
-        const checklistData = ultimaTransaccion.tipo === 'salidas' ? 
-            checklistsPreOperativos[ultimaTransaccion.categoria] || checklistsPreOperativos["aspiradoras"] :
-            checklistsPostOperativos[ultimaTransaccion.categoria] || checklistsPostOperativos["aspiradoras"];
-        
-        return {
-            item: checklistData[index],
-            respuesta: respuesta
-        };
-    });
-    
-    ultimaTransaccion.observaciones = observaciones;
-    
-    // NO limpiar el estado aquí todavía, solo después de confirmar exitosamente
-    // checklistEstado = {}; // <- Esto se quita de aquí
-    
-    // Mostrar confirmación final
-    mostrarConfirmacionFinal();
-}
-
-
-function mostrarConfirmacionFinal() {
-    const tipoMovimiento = ultimaTransaccion.tipo === 'salidas' ? 'préstamo' : 'devolución';
-    const textoAccion = ultimaTransaccion.tipo === 'salidas' ? 'solicitar' : 'devolver';
-    
-    Swal.fire({
-        title: `Confirmar ${tipoMovimiento}`,
-        html: `
-            <div style="text-align: left;">
-                <p><strong>Fecha:</strong> ${ultimaTransaccion.fecha}</p>
-                <p><strong>Colaborador:</strong> ${ultimaTransaccion.colaborador}</p>
-                <p><strong>Área:</strong> ${ultimaTransaccion.area}</p>
-                <p><strong>Equipo:</strong> ${ultimaTransaccion.equipo}</p>
-                ${ultimaTransaccion.observaciones ? `<p><strong>Observaciones:</strong> ${ultimaTransaccion.observaciones}</p>` : ''}
-            </div>
-        `,
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonText: `Sí, ${textoAccion}`,
-        cancelButtonText: 'No, revisar',
-        confirmButtonColor: '#28a745',
-        cancelButtonColor: '#6c757d',
-        width: '500px'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            // Proceder con el envío al servidor
-            enviarTransaccion();
-        } else {
-            // Si el usuario hace clic en "No, revisar", NO limpiar el estado
-            console.log('Usuario decidió revisar, manteniendo estado del checklist');
-            // El estado se mantiene automáticamente porque no llamamos a limpiarlo
-        }
-    });
-}
-
-
-function enviarTransaccion() {
-    $('#overlay').show();
-    
-    const scriptURL = ultimaTransaccion.tipo === 'salidas' ? 
-        "https://script.google.com/macros/s/AKfycbweOAqrT8cQuoW9xPbWBwOyLxbORFTT6HaStsNUz7i9ySkTRlElJIirZwcoGC-l8Sb-/exec" :
-        "https://script.google.com/macros/s/AKfycbw4OfK5DQQqbiro8olfyb8MvjQnOHGZBoELkTBJnOYS2GMpkr8yFrJJASiAiAxxePGfzA/exec";
-    
-    const data = {
-        fecha: ultimaTransaccion.fecha,
-        colaborador: ultimaTransaccion.colaborador,
-        area: ultimaTransaccion.area,
-        equipo: ultimaTransaccion.equipo,
-        categoria: ultimaTransaccion.categoria,
-        checklist: JSON.stringify(ultimaTransaccion.checklist.map(item => item.respuesta)),
-        observaciones: ultimaTransaccion.observaciones
-    };
-    
-    // Agregar campos específicos según el tipo
-    if (ultimaTransaccion.tipo === 'salidas') {
-        data.retornable = equipoSeleccionado.devolucion;
-    } else {
-        data.tipo = 'devolucion';
-    }
-    
-    $.ajax({
-        url: scriptURL,
-        type: "POST",
-        data: data,
-        success: function(response) {
-            $('#overlay').hide();
-            // Limpiar estado solo cuando sea exitoso
-            checklistEstado = {};
-            // Volver al formulario principal
-            volverAlFormulario();
-            // Generar PDF
-            generarPDF();
-        },
-        error: function(xhr, status, error) {
-            $('#overlay').hide();
-            Swal.fire('Error', `Hubo un problema al registrar la transacción. Por favor inténtalo nuevamente. Error: ${error}`, 'error');
-            // NO limpiar el estado en caso de error
-            // Volver al formulario principal en caso de error
-            volverAlFormulario();
-        }
-    });
-}
-
-
-        // El resto del código JavaScript permanece igual...
-        // (scrollToTop, scrollToBottom, handleFileInput, deleteImage, compressImage, addPhotoSection, generarPDF, etc.)
-
+        // Funciones auxiliares
         function scrollToTop() {
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
@@ -1803,7 +1972,7 @@ function enviarTransaccion() {
             window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
         }
 
-        // Funciones agregadas para el manejo de imágenes y PDF
+        // Funciones para el manejo de imágenes y PDF
         const selectedFiles = {
             preview3: [],
             preview4: []
@@ -2268,199 +2437,6 @@ function enviarTransaccion() {
             });
         }
 
-        // El resto del código JavaScript (firma, autocomplete, etc.) permanece igual...
-        let isDrawing = false;
-        let isErasing = false;
-        let lastX = 0;
-        let lastY = 0;
-        const canvas = document.getElementById("firmaCanvas");
-        const ctx = canvas.getContext("2d", { willReadFrequently: true });
-        const undoStack = [];
-        const redoStack = [];
-
-        function saveToUndoStack() {
-            undoStack.push(canvas.toDataURL());
-            redoStack.length = 0;
-        }
-
-        function undo() {
-            if (undoStack.length > 0) {
-                saveToRedoStack();
-                const lastState = undoStack.pop();
-                const img = new Image();
-                img.src = lastState;
-                img.onload = () => {
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    ctx.drawImage(img, 0, 0);
-                };
-            }
-        }
-
-        function redo() {
-            if (redoStack.length > 0) {
-                const lastState = redoStack.pop();
-                undoStack.push(canvas.toDataURL());
-                const img = new Image();
-                img.src = lastState;
-                img.onload = () => {
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    ctx.drawImage(img, 0, 0);
-                };
-            }
-        }
-
-        function saveToRedoStack() {
-            redoStack.push(canvas.toDataURL());
-        }
-
-        function getCoordinates(e) {
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            if (e.touches) {
-                return {
-                    x: (e.touches[0].clientX - rect.left) * scaleX,
-                    y: (e.touches[0].clientY - rect.top) * scaleY
-                };
-            }
-            return {
-                x: (e.offsetX) * scaleX,
-                y: (e.offsetY) * scaleY
-            };
-        }
-
-        document.getElementById("toggleEraser").addEventListener("click", () => {
-            isErasing = !isErasing;
-            document.getElementById("toggleEraser").classList.toggle("active");
-        });
-
-        canvas.addEventListener("mousemove", (e) => {
-            if (!isDrawing) return;
-            const {
-                x,
-                y
-            } = getCoordinates(e);
-            ctx.beginPath();
-            ctx.moveTo(lastX, lastY);
-            ctx.lineTo(x, y);
-            ctx.strokeStyle = isErasing ? "#FFF" : "#000";
-            ctx.lineWidth = isErasing ? 10 : 4;
-            ctx.stroke();
-            lastX = x;
-            lastY = y;
-        });
-
-        canvas.addEventListener("mousedown", (e) => {
-            saveToUndoStack();
-            isDrawing = true;
-            const {
-                x,
-                y
-            } = getCoordinates(e);
-            lastX = x;
-            lastY = y;
-        });
-
-        canvas.addEventListener("mouseup", () => {
-            isDrawing = false;
-            verificarFormulario(); // Nuevo: verifica el formulario al terminar de dibujar
-        });
-        canvas.addEventListener("mouseout", () => (isDrawing = false));
-        document.getElementById("undo").addEventListener("click", undo);
-        document.getElementById("redo").addEventListener("click", redo);
-        document.getElementById("clearSignature").addEventListener("click", () => {
-            localStorage.removeItem('canvasState');
-            saveToUndoStack();
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            verificarFormulario(); // Nuevo: verifica el formulario al limpiar
-        });
-
-        canvas.addEventListener("touchstart", (e) => {
-            e.preventDefault();
-            saveToUndoStack();
-            isDrawing = true;
-            const {
-                x,
-                y
-            } = getCoordinates(e);
-            lastX = x;
-            lastY = y;
-        });
-
-        canvas.addEventListener("touchmove", (e) => {
-            e.preventDefault();
-            if (!isDrawing) return;
-            const {
-                x,
-                y
-            } = getCoordinates(e);
-            ctx.beginPath();
-            ctx.moveTo(lastX, lastY);
-            ctx.lineTo(x, y);
-            ctx.strokeStyle = isErasing ? "#FFF" : "#000";
-            ctx.lineWidth = isErasing ? 10 : 2;
-            ctx.stroke();
-            lastX = x;
-            lastY = y;
-        });
-
-        canvas.addEventListener("touchend", (e) => {
-            e.preventDefault();
-            isDrawing = false;
-            verificarFormulario(); // Nuevo: verifica el formulario al terminar de dibujar en móvil
-        });
-
-        canvas.addEventListener("touchcancel", (e) => {
-            e.preventDefault();
-            isDrawing = false;
-        });
-
-        function resizeCanvas() {
-            const currentDrawing = canvas.toDataURL();
-            const container = canvas.parentElement;
-            canvas.style.width = "100%";
-            canvas.style.height = "100%";
-            const rect = container.getBoundingClientRect();
-            const newWidth = rect.width;
-            const newHeight = rect.height;
-            if (canvas.width !== newWidth || canvas.height !== newHeight) {
-                canvas.width = newWidth;
-                canvas.height = newHeight;
-                const img = new Image();
-                img.src = currentDrawing;
-                img.onload = () => {
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                };
-            }
-        }
-
-        window.addEventListener("load", resizeCanvas);
-        window.addEventListener("resize", resizeCanvas);
-
-        function saveCanvasState() {
-            const canvasData = canvas.toDataURL();
-            localStorage.setItem('canvasState', canvasData);
-        }
-
-        function restoreCanvasState() {
-            const canvasData = localStorage.getItem('canvasState');
-            if (canvasData) {
-                const img = new Image();
-                img.src = canvasData;
-                img.onload = () => {
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    ctx.drawImage(img, 0, 0);
-                };
-            }
-        }
-        canvas.addEventListener('click', restoreCanvasState);
-        document.querySelectorAll('input, textarea').forEach(element => {
-            element.addEventListener('focus', () => {
-                saveCanvasState();
-            });
-        });
-
         // Nuevas variables para el autocomplete
         let allColaboradores = [];
         let selectedColaboradorIndex = -1;
@@ -2496,11 +2472,9 @@ function enviarTransaccion() {
             });
             
             input.addEventListener('blur', function() {
-                // Ocultar sugerencias después de un pequeño retraso para permitir la selección
                 setTimeout(hideSuggestions, 200);
             });
             
-            // Cerrar sugerencias al hacer clic fuera
             document.addEventListener('click', function(e) {
                 if (!input.contains(e.target) && !suggestionsContainer.contains(e.target)) {
                     hideSuggestions();
@@ -2549,7 +2523,6 @@ function enviarTransaccion() {
             const suggestions = document.querySelectorAll('.autocomplete-suggestion');
             if (suggestions.length === 0) return;
             
-            // Remover highlight actual
             suggestions.forEach(s => s.classList.remove('highlighted'));
             
             if (direction === 'down') {
@@ -2592,19 +2565,15 @@ function enviarTransaccion() {
                 const ahora = new Date().getTime();
                 const unaHora = 60 * 60 * 1000; // 1 hora en milisegundos
                 
-                // Verificar si el PDF tiene menos de 1 hora de antigüedad
                 if (ahora - pdfData.timestamp < unaHora) {
-                    // Mostrar directamente las opciones de compartir/descargar
                     recuperarPDF(pdfData);
                 } else {
-                    // Eliminar PDFs viejos (más de 1 hora)
                     localStorage.removeItem('ultimoPDFGenerado');
                 }
             }
         }
 
         function recuperarPDF(pdfData) {
-            // Convertir data URL de vuelta a Blob
             const byteString = atob(pdfData.data.split(',')[1]);
             const mimeString = pdfData.data.split(',')[0].split(':')[1].split(';')[0];
             const ab = new ArrayBuffer(byteString.length);
@@ -2617,10 +2586,8 @@ function enviarTransaccion() {
             const blob = new Blob([ab], { type: mimeString });
             const pdfFile = new File([blob], pdfData.name, { type: 'application/pdf' });
             
-            // Guardar referencia al diálogo principal
             let mainDialog = null;
             
-            // Mostrar opciones de compartir/descargar directamente
             mainDialog = Swal.fire({
                 html: `
                     <div style="text-align: center;">
@@ -2654,7 +2621,6 @@ function enviarTransaccion() {
                 showCloseButton: true,
                 allowOutsideClick: false,
                 didOpen: () => {
-                    // Compartir PDF
                     document.getElementById('shareRecoveredPdfBtn').addEventListener('click', async function() {
                         try {
                             if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
@@ -2663,10 +2629,8 @@ function enviarTransaccion() {
                                     title: pdfData.name,
                                     text: `Comparto el documento de ${pdfData.tipo === 'salidas' ? 'Salida' : 'Entrada'} para el equipo ${pdfData.equipo}.`
                                 });
-                                // Eliminar después de compartir exitosamente
                                 localStorage.removeItem('ultimoPDFGenerado');
                             } else {
-                                // Fallback: descargar si no se puede compartir
                                 const link = document.createElement('a');
                                 link.href = URL.createObjectURL(blob);
                                 link.download = pdfData.name;
@@ -2676,7 +2640,6 @@ function enviarTransaccion() {
                         } catch (error) {
                             console.error('Error al compartir el archivo:', error);
                             if (error.name !== 'AbortError') {
-                                // Descargar si hay error
                                 const link = document.createElement('a');
                                 link.href = URL.createObjectURL(blob);
                                 link.download = pdfData.name;
@@ -2686,7 +2649,6 @@ function enviarTransaccion() {
                         }
                     });
                     
-                    // Descargar PDF
                     document.getElementById('downloadRecoveredPdfBtn').addEventListener('click', function() {
                         const link = document.createElement('a');
                         link.href = URL.createObjectURL(blob);
@@ -2695,12 +2657,9 @@ function enviarTransaccion() {
                         URL.revokeObjectURL(link.href);
                     });
                     
-                    // Eliminar PDF (con confirmación)
                     document.getElementById('eliminarPdfBtn').addEventListener('click', function() {
-                        // Cerrar el diálogo principal temporalmente
                         Swal.close();
                         
-                        // Mostrar diálogo de confirmación
                         Swal.fire({
                             title: '¿Estás seguro?',
                             text: 'Esta acción eliminará el PDF permanentemente',
@@ -2713,10 +2672,8 @@ function enviarTransaccion() {
                             allowOutsideClick: false
                         }).then((result) => {
                             if (result.isConfirmed) {
-                                // Eliminar y cerrar completamente
                                 localStorage.removeItem('ultimoPDFGenerado');
                             } else {
-                                // Si cancela, volver a mostrar el diálogo principal
                                 recuperarPDF(pdfData);
                             }
                         });
@@ -2724,10 +2681,10 @@ function enviarTransaccion() {
                 }
             }).then((result) => {
                 if (result.dismiss === Swal.DismissReason.close) {
-                    // Solo se cierra cuando se hace clic en la X
                     console.log('Diálogo cerrado por el usuario');
                 }
             });
         }
     </script>
 </body>
+</html>

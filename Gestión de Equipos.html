@@ -922,6 +922,61 @@
             font-size: 0.9rem;
         }
     }
+
+
+/* Botón flotante para acta pendiente */
+#acta-pendiente-button {
+    background-color: var(--warning-color);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    display: none; /* Oculto por defecto */
+    justify-content: center;
+    align-items: center;
+    font-size: 1.3em;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    transition: var(--transition);
+    position: fixed;
+    left: 25px;
+    top: 80px;
+    z-index: 1000;
+}
+
+#acta-pendiente-button:hover {
+    background-color: #e67e22;
+    transform: scale(1.1);
+}
+
+#acta-pendiente-button.pendiente {
+    display: flex;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+/* Ajustes para móviles */
+@media (max-width: 768px) {
+    #acta-pendiente-button {
+        width: 45px;
+        height: 45px;
+        font-size: 1.2em;
+        left: 15px;
+        top: 70px;
+    }
+    
+    #scroll-top-button {
+        top: 70px; /* Ajustar posición del botón superior */
+    }
+}
+
+
 </style>
 </head>
 <body>
@@ -1046,1645 +1101,2059 @@
     <button class="scroll-button" id="scroll-top-button" onclick="scrollToTop()" title="Ir al inicio">&#9650;</button>
     <button class="scroll-button" id="scroll-bottom-button" onclick="scrollToBottom()" title="Ir al final">&#9660;</button>
 
-    <script>
-        // Extensión jQuery para navegación entre elementos
-        jQuery.fn.firstUntil = function(selector) {
-            const result = $();
-            this.each(function() {
-                let next = $(this).next();
-                while (next.length && !next.is(selector)) {
-                    result.add(next);
-                    next = next.next();
-                }
-            });
-            return result;
-        };
 
-        // Variables globales
-        let equipos = [];
-        let colaboradores = [];
-        let areas = ["Bodega"];
-        let equipoSeleccionado = null;
-        let categoriaSeleccionada = "";
-        let modoActual = "salidas";
-        let ultimaTransaccion = null;
-        let checklistEstado = {};
+<button class="scroll-button" id="acta-pendiente-button" onclick="mostrarActaPendiente()" title="Acta pendiente">
+    <i class="fas fa-file-contract"></i>
+</button>
 
-        // Checklists preoperativos y postoperativos
-        const checklistsPreOperativos = {
-            "aspiradoras": [
-                "¿La aspiradora está limpia por fuera?",
-                "¿El cable de alimentación no tiene cortes y no presenta daños?",
-                "¿El depósito de metal está vacío y limpio?",
-                "¿El filtro de cartucho está presente, limpio y en buen estado?",
-                "¿La bolsa o saco de filtro está presente, no está llena ni dañada?",
-                "¿La bolsa de membrana está presente, en buen estado y bien colocada?",
-                "¿El seguro de presión está en buen estado, y asegura que la tapa encaje correctamente con el cuerpo de la aspiradora?",
-                "¿La manguera de aspiración está presente y no presenta daños?",
-                "¿La manguera de aspiración está libre de basura y no está atascada?",
-                "¿Los dos tubos de aspiración están presentes y no presentan daños?",
-                "¿Los tubos de aspiración están libres de basura y no están atascados?",
-                "¿La boquilla de aspiración está limpia y en buen estado?",
-                "¿Las ruedas giran bien y el estribo de empuje está en buen estado?",
-                "¿La aspiradora enciende y aspira con fuerza cuando la activas?"
-            ],
-            "pulidoras": [
-                "La pulidora está limpia por fuera",
-                "El cable de alimentación está en buen estado",
-                "El disco de pulido está en buen estado",
-                "El mecanismo de velocidad funciona correctamente",
-                "El interruptor de encendido funciona",
-                "La base gira libremente sin ruidos extraños",
-                "El mango ajustable está firme",
-                "Todos los accesorios están presentes"
-            ],
-            "hidrolavadoras": [
-                "La hidrolavadora está limpia por fuera",
-                "Nivel de combustible suficiente",
-                "Manguera de alta presión en buen estado",
-                "Boquilla de spray funciona correctamente",
-                "Filtro de agua limpio y sin obstrucciones",
-                "Conexiones de agua sin fugas",
-                "Interruptor de encendido funciona",
-                "Nivel de aceite del motor verificado"
-            ]
-        };
 
-        const checklistsPostOperativos = {
-            "aspiradoras": [
-                "¿La aspiradora está limpia por fuera?",
-                "¿El cable de alimentación no tiene cortes, no presenta daños, y está bien guardado?",
-                "¿El depósito de metal esta vació y limpio?",
-                "¿El filtro de cartucho se limpió (si es necesario) y se revisó su estado?",
-                "¿La bolsa o saco de filtro se revisó y, si era necesario, se reemplazó?",
-                "¿La bolsa de membrana está presente, y no presenta daños?",
-                "¿El seguro de presión no presenta daños, y asegura que la tapa encaje correctamente con el cuerpo de la aspiradora?",
-                "¿La manguera de aspiración está presente, libre de basura, sin daños y sin atascos?",
-                "¿Los dos tubos de aspiración están presentes, libres de basura, sin daños y sin atascos?",
-                "¿La boquilla de aspiración está limpia y en buen estado?",
-                "¿Las ruedas giran bien y el estribo de empuje está en buen estado?"
-            ],
-            "pulidoras": [
-                "La pulidora fue limpiada después de su uso",
-                "El cable de alimentación está en buen estado",
-                "El disco de pulido fue revisado y reemplazado si es necesario",
-                "El mecanismo de velocidad funciona correctamente",
-                "El interruptor de encendido funciona",
-                "La base gira libremente sin ruidos extraños",
-                "El mango ajustable está firme y en buen estado",
-                "Todos los accesorios fueron devueltos"
-            ],
-            "hidrolavadoras": [
-                "La hidrolavadora fue limpiada después de su uso",
-                "Se verificó el nivel de combustible restante",
-                "Manguera de alta presión en buen estado sin fugas",
-                "Boquilla de spray funciona correctamente",
-                "Filtro de agua limpio y sin obstrucciones",
-                "Conexiones de agua fueron revisadas y ajustadas",
-                "Interruptor de encendido funciona correctamente",
-                "Nivel de aceite del motor verificado y completado"
-            ]
-        };
-
-        // ===== CÓDIGO MEJORADO PARA LA FIRMA =====
-        let isDrawing = false;
-        let isErasing = false;
-        let lastX = 0;
-        let lastY = 0;
-        const canvas = document.getElementById("firmaCanvas");
-        const ctx = canvas.getContext("2d", { willReadFrequently: true });
-        const undoStack = [];
-        const redoStack = [];
-
-        // Configuración inicial del canvas
-        function initializeCanvas() {
-            // Establecer tamaño fijo para mejor compatibilidad
-            canvas.width = 400;
-            canvas.height = 200;
-            ctx.strokeStyle = "#000000";
-            ctx.lineWidth = 4;
-            ctx.lineCap = "round";
-            ctx.lineJoin = "round";
-            
-            // Limpiar canvas
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = "#FFFFFF";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-        }
-
-        // Función mejorada para obtener coordenadas
-        function getCoordinates(e) {
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            
-            if (e.touches && e.touches.length > 0) {
-                return {
-                    x: (e.touches[0].clientX - rect.left) * scaleX,
-                    y: (e.touches[0].clientY - rect.top) * scaleY
-                };
-            } else if (e.offsetX !== undefined) {
-                return {
-                    x: e.offsetX * scaleX,
-                    y: e.offsetY * scaleY
-                };
-            } else if (e.clientX !== undefined) {
-                return {
-                    x: (e.clientX - rect.left) * scaleX,
-                    y: (e.clientY - rect.top) * scaleY
-                };
+<script>
+    // Extensión jQuery para navegación entre elementos
+    jQuery.fn.firstUntil = function(selector) {
+        const result = $();
+        this.each(function() {
+            let next = $(this).next();
+            while (next.length && !next.is(selector)) {
+                result.add(next);
+                next = next.next();
             }
-            
-            return { x: 0, y: 0 };
-        }
+        });
+        return result;
+    };
 
-        // Función para empezar a dibujar
-        function startDrawing(e) {
-            e.preventDefault();
-            saveToUndoStack();
-            isDrawing = true;
-            const { x, y } = getCoordinates(e);
-            lastX = x;
-            lastY = y;
-            
-            // Dibujar un punto inicial (importante para touch)
-            ctx.beginPath();
-            ctx.arc(x, y, ctx.lineWidth/2, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.moveTo(x, y);
-        }
+    // Variables globales
+    let equipos = [];
+    let colaboradores = [];
+    let areas = ["Bodega"];
+    let equipoSeleccionado = null;
+    let categoriaSeleccionada = "";
+    let modoActual = "salidas";
+    let ultimaTransaccion = null;
+    let checklistEstado = {};
 
-        // Función para dibujar
-        function draw(e) {
-            if (!isDrawing) return;
-            e.preventDefault();
-            
-            const { x, y } = getCoordinates(e);
-            
-            ctx.beginPath();
-            ctx.moveTo(lastX, lastY);
-            ctx.lineTo(x, y);
-            ctx.strokeStyle = isErasing ? "#FFFFFF" : "#000000";
-            ctx.lineWidth = isErasing ? 20 : 4;
-            ctx.stroke();
-            
-            lastX = x;
-            lastY = y;
-        }
+    // Checklists preoperativos y postoperativos
+    const checklistsPreOperativos = {
+        "aspiradoras": [
+            "¿La aspiradora está limpia por fuera?",
+            "¿El cable de alimentación no tiene cortes y no presenta daños?",
+            "¿El depósito de metal está vacío y limpio?",
+            "¿El filtro de cartucho está presente, limpio y en buen estado?",
+            "¿La bolsa o saco de filtro está presente, no está llena ni dañada?",
+            "¿La bolsa de membrana está presente, en buen estado y bien colocada?",
+            "¿El seguro de presión está en buen estado, y asegura que la tapa encaje correctamente con el cuerpo de la aspiradora?",
+            "¿La manguera de aspiración está presente y no presenta daños?",
+            "¿La manguera de aspiración está libre de basura y no está atascada?",
+            "¿Los dos tubos de aspiración están presentes y no presentan daños?",
+            "¿Los tubos de aspiración están libres de basura y no están atascados?",
+            "¿La boquilla de aspiración está limpia y en buen estado?",
+            "¿Las ruedas giran bien y el estribo de empuje está en buen estado?",
+            "¿La aspiradora enciende y aspira con fuerza cuando la activas?"
+        ],
+        "pulidoras": [
+            "La pulidora está limpia por fuera",
+            "El cable de alimentación está en buen estado",
+            "El disco de pulido está en buen estado",
+            "El mecanismo de velocidad funciona correctamente",
+            "El interruptor de encendido funciona",
+            "La base gira libremente sin ruidos extraños",
+            "El mango ajustable está firme",
+            "Todos los accesorios están presentes"
+        ],
+        "hidrolavadoras": [
+            "La hidrolavadora está limpia por fuera",
+            "Nivel de combustible suficiente",
+            "Manguera de alta presión en buen estado",
+            "Boquilla de spray funciona correctamente",
+            "Filtro de agua limpio y sin obstrucciones",
+            "Conexiones de agua sin fugas",
+            "Interruptor de encendido funciona",
+            "Nivel de aceite del motor verificado"
+        ]
+    };
 
-        // Función para terminar de dibujar
-        function stopDrawing() {
-            if (isDrawing) {
-                isDrawing = false;
-                verificarFormulario();
-            }
-        }
+    const checklistsPostOperativos = {
+        "aspiradoras": [
+            "¿La aspiradora está limpia por fuera?",
+            "¿El cable de alimentación no tiene cortes, no presenta daños, y está bien guardado?",
+            "¿El depósito de metal esta vació y limpio?",
+            "¿El filtro de cartucho se limpió (si es necesario) y se revisó su estado?",
+            "¿La bolsa o saco de filtro se revisó y, si era necesario, se reemplazó?",
+            "¿La bolsa de membrana está presente, y no presenta daños?",
+            "¿El seguro de presión no presenta daños, y asegura que la tapa encaje correctamente con el cuerpo de la aspiradora?",
+            "¿La manguera de aspiración está presente, libre de basura, sin daños y sin atascos?",
+            "¿Los dos tubos de aspiración están presentes, libres de basura, sin daños y sin atascos?",
+            "¿La boquilla de aspiración está limpia y en buen estado?",
+            "¿Las ruedas giran bien y el estribo de empuje está en buen estado?"
+        ],
+        "pulidoras": [
+            "La pulidora fue limpiada después de su uso",
+            "El cable de alimentación está en buen estado",
+            "El disco de pulido fue revisado y reemplazado si es necesario",
+            "El mecanismo de velocidad funciona correctamente",
+            "El interruptor de encendido funciona",
+            "La base gira libremente sin ruidos extraños",
+            "El mango ajustable está firme y en buen estado",
+            "Todos los accesorios fueron devueltos"
+        ],
+        "hidrolavadoras": [
+            "La hidrolavadora fue limpiada después de su uso",
+            "Se verificó el nivel de combustible restante",
+            "Manguera de alta presión en buen estado sin fugas",
+            "Boquilla de spray funciona correctamente",
+            "Filtro de agua limpio y sin obstrucciones",
+            "Conexiones de agua fueron revisadas y ajustadas",
+            "Interruptor de encendido funciona correctamente",
+            "Nivel de aceite del motor verificado y completado"
+        ]
+    };
 
-        // Stack functions
-        function saveToUndoStack() {
-            undoStack.push(canvas.toDataURL());
-            redoStack.length = 0;
-            updateButtonStates();
-        }
+    // ===== CÓDIGO MEJORADO PARA LA FIRMA =====
+    let isDrawing = false;
+    let isErasing = false;
+    let lastX = 0;
+    let lastY = 0;
+    const canvas = document.getElementById("firmaCanvas");
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    const undoStack = [];
+    const redoStack = [];
 
-        function undo() {
-            if (undoStack.length > 0) {
-                redoStack.push(canvas.toDataURL());
-                const lastState = undoStack.pop();
-                const img = new Image();
-                img.src = lastState;
-                img.onload = () => {
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    ctx.drawImage(img, 0, 0);
-                    verificarFormulario();
-                };
-                updateButtonStates();
-            }
-        }
+    // Configuración inicial del canvas
+    function initializeCanvas() {
+        // Establecer tamaño fijo para mejor compatibilidad
+        canvas.width = 400;
+        canvas.height = 200;
+        ctx.strokeStyle = "#000000";
+        ctx.lineWidth = 4;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        
+        // Limpiar canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        function redo() {
-            if (redoStack.length > 0) {
-                undoStack.push(canvas.toDataURL());
-                const lastState = redoStack.pop();
-                const img = new Image();
-                img.src = lastState;
-                img.onload = () => {
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    ctx.drawImage(img, 0, 0);
-                    verificarFormulario();
-                };
-                updateButtonStates();
-            }
-        }
-
-        function updateButtonStates() {
-            document.getElementById("undo").style.display = undoStack.length > 0 ? "block" : "none";
-            document.getElementById("redo").style.display = redoStack.length > 0 ? "block" : "none";
-        }
-
-        // Limpiar firma
-        function clearSignature() {
-            saveToUndoStack();
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = "#FFFFFF";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // Verificar el formulario después de inicializar el canvas
+        setTimeout(() => {
             verificarFormulario();
+        }, 100);
+
+    }
+
+    // Función mejorada para obtener coordenadas
+    function getCoordinates(e) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        
+        if (e.touches && e.touches.length > 0) {
+            return {
+                x: (e.touches[0].clientX - rect.left) * scaleX,
+                y: (e.touches[0].clientY - rect.top) * scaleY
+            };
+        } else if (e.offsetX !== undefined) {
+            return {
+                x: e.offsetX * scaleX,
+                y: e.offsetY * scaleY
+            };
+        } else if (e.clientX !== undefined) {
+            return {
+                x: (e.clientX - rect.left) * scaleX,
+                y: (e.clientY - rect.top) * scaleY
+            };
+        }
+        
+        return { x: 0, y: 0 };
+    }
+
+    // Función para empezar a dibujar
+    function startDrawing(e) {
+        e.preventDefault();
+        saveToUndoStack();
+        isDrawing = true;
+        const { x, y } = getCoordinates(e);
+        lastX = x;
+        lastY = y;
+        
+        // Dibujar un punto inicial (importante para touch)
+        ctx.beginPath();
+        ctx.arc(x, y, ctx.lineWidth/2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+    }
+
+    // Función para dibujar
+function draw(e) {
+    if (!isDrawing) return;
+    e.preventDefault();
+    
+    const { x, y } = getCoordinates(e);
+    
+    ctx.beginPath();
+    ctx.moveTo(lastX, lastY);
+    ctx.lineTo(x, y);
+    ctx.strokeStyle = isErasing ? "#FFFFFF" : "#000000";
+    ctx.lineWidth = isErasing ? 20 : 4;
+    ctx.stroke();
+    
+    lastX = x;
+    lastY = y;
+    
+    // Verificar después de cada trazo significativo
+    verificarFormulario();
+}
+
+
+    // Función para terminar de dibujar
+function stopDrawing() {
+    if (isDrawing) {
+        isDrawing = false;
+        // Pequeño delay para asegurar que el canvas se actualizó
+        setTimeout(() => {
+            verificarFormulario();
+        }, 50);
+    }
+}
+
+    // Stack functions
+    function saveToUndoStack() {
+        undoStack.push(canvas.toDataURL());
+        redoStack.length = 0;
+        updateButtonStates();
+    }
+
+    function undo() {
+        if (undoStack.length > 0) {
+            redoStack.push(canvas.toDataURL());
+            const lastState = undoStack.pop();
+            const img = new Image();
+            img.src = lastState;
+            img.onload = () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0);
+                verificarFormulario();
+            };
             updateButtonStates();
         }
+    }
 
-        // ===== CONFIGURACIÓN DE EVENTOS MEJORADA =====
-        function setupSignatureEvents() {
-            // Eventos de mouse
-            canvas.addEventListener("mousedown", startDrawing);
-            canvas.addEventListener("mousemove", draw);
-            canvas.addEventListener("mouseup", stopDrawing);
-            canvas.addEventListener("mouseout", stopDrawing);
-            
-            // Eventos de touch (mejorados)
-            canvas.addEventListener("touchstart", function(e) {
-                startDrawing(e);
-                // Prevenir scroll y zoom
-                e.preventDefault();
-            }, { passive: false });
-            
-            canvas.addEventListener("touchmove", function(e) {
-                draw(e);
-                // Prevenir scroll durante el dibujo
-                e.preventDefault();
-            }, { passive: false });
-            
-            canvas.addEventListener("touchend", stopDrawing);
-            canvas.addEventListener("touchcancel", stopDrawing);
-            
-            // Botones de herramientas
-            document.getElementById("toggleEraser").addEventListener("click", function() {
-                isErasing = !isErasing;
-                this.classList.toggle("active");
-                this.innerHTML = isErasing ? 
-                    '<i class="fas fa-pen"></i>' : 
-                    '<i class="fas fa-eraser"></i>';
-            });
-            
-            document.getElementById("undo").addEventListener("click", undo);
-            document.getElementById("redo").addEventListener("click", redo);
-            document.getElementById("clearSignature").addEventListener("click", clearSignature);
-            
-            // Prevenir acciones por defecto en el canvas
-            canvas.addEventListener("contextmenu", function(e) {
-                e.preventDefault();
-            });
-            
-            // Estilos CSS adicionales para mejorar la experiencia táctil
-            canvas.style.touchAction = "none";
-            canvas.style.msTouchAction = "none";
+    function redo() {
+        if (redoStack.length > 0) {
+            undoStack.push(canvas.toDataURL());
+            const lastState = redoStack.pop();
+            const img = new Image();
+            img.src = lastState;
+            img.onload = () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0);
+                verificarFormulario();
+            };
+            updateButtonStates();
         }
+    }
 
-        // ===== INICIALIZACIÓN =====
-        document.addEventListener('DOMContentLoaded', function() {
-            // Establecer fecha actual
-            var today = new Date();
-            var yyyy = today.getFullYear();
-            var mm = String(today.getMonth() + 1).padStart(2, '0');
-            var dd = String(today.getDate()).padStart(2, '0');
-            document.getElementById("fecha").value = yyyy + '-' + mm + '-' + dd;
+    function updateButtonStates() {
+        document.getElementById("undo").style.display = undoStack.length > 0 ? "block" : "none";
+        document.getElementById("redo").style.display = redoStack.length > 0 ? "block" : "none";
+    }
 
-            // Inicializar canvas después de que todo esté cargado
-            setTimeout(() => {
-                initializeCanvas();
-                setupSignatureEvents();
-                
-                // Mostrar botones de herramientas
-                document.getElementById("toggleEraser").style.display = "block";
-                document.getElementById("undo").style.display = "none";
-                document.getElementById("redo").style.display = "none";
-            }, 100);
+// Limpiar firma - MEJORADA
+function clearSignature() {
+    saveToUndoStack();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Asegurar que se verifique después de limpiar
+    setTimeout(() => {
+        verificarFormulario();
+    }, 100);
+    
+    updateButtonStates();
+}
 
-            cargarTodosLosDatos();
-            configurarEventos();
+    // ===== CONFIGURACIÓN DE EVENTOS MEJORADA =====
+    function setupSignatureEvents() {
+        // Eventos de mouse
+        canvas.addEventListener("mousedown", startDrawing);
+        canvas.addEventListener("mousemove", draw);
+        canvas.addEventListener("mouseup", stopDrawing);
+        canvas.addEventListener("mouseout", stopDrawing);
+        
+        // Eventos de touch (mejorados)
+        canvas.addEventListener("touchstart", function(e) {
+            startDrawing(e);
+            // Prevenir scroll y zoom
+            e.preventDefault();
+        }, { passive: false });
+        
+        canvas.addEventListener("touchmove", function(e) {
+            draw(e);
+            // Prevenir scroll durante el dibujo
+            e.preventDefault();
+        }, { passive: false });
+        
+        canvas.addEventListener("touchend", stopDrawing);
+        canvas.addEventListener("touchcancel", stopDrawing);
+        
+        // Botones de herramientas
+        document.getElementById("toggleEraser").addEventListener("click", function() {
+            isErasing = !isErasing;
+            this.classList.toggle("active");
+            this.innerHTML = isErasing ? 
+                '<i class="fas fa-pen"></i>' : 
+                '<i class="fas fa-eraser"></i>';
+        });
+        
+        document.getElementById("undo").addEventListener("click", undo);
+        document.getElementById("redo").addEventListener("click", redo);
+        document.getElementById("clearSignature").addEventListener("click", clearSignature);
+        
+        // Prevenir acciones por defecto en el canvas
+        canvas.addEventListener("contextmenu", function(e) {
+            e.preventDefault();
+        });
+        
+        // Estilos CSS adicionales para mejorar la experiencia táctil
+        canvas.style.touchAction = "none";
+        canvas.style.msTouchAction = "none";
+    }
 
-            // Prevenir acciones no deseadas
-            document.addEventListener('contextmenu', function(e) {
-                e.preventDefault();
-            });
+    // ===== INICIALIZACIÓN =====
+    document.addEventListener('DOMContentLoaded', function() {
+        // Establecer fecha actual
+        var today = new Date();
+        var yyyy = today.getFullYear();
+        var mm = String(today.getMonth() + 1).padStart(2, '0');
+        var dd = String(today.getDate()).padStart(2, '0');
+        document.getElementById("fecha").value = yyyy + '-' + mm + '-' + dd;
 
-            document.addEventListener('selectstart', function(e) {
-                e.preventDefault();
-            });
-
-            document.querySelectorAll('img').forEach(img => {
-                img.addEventListener('dragstart', function(e) {
-                    e.preventDefault();
-                });
-            });
+        // Inicializar canvas después de que todo esté cargado
+        setTimeout(() => {
+            initializeCanvas();
+            setupSignatureEvents();
             
-            // Verificar si hay PDFs pendientes de recuperar
-            setTimeout(() => {
-                verificarPDFPendiente();
-            }, 1000);
+            // Mostrar botones de herramientas
+            document.getElementById("toggleEraser").style.display = "block";
+            document.getElementById("undo").style.display = "none";
+            document.getElementById("redo").style.display = "none";
+        }, 100);
 
-            // Inicializar eventos para el autocomplete
-            initAutocomplete();
+        cargarTodosLosDatos();
+        configurarEventos();
+
+        // Prevenir acciones no deseadas
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
         });
 
-        // ===== FUNCIÓN PARA VERIFICAR SI EL CANVAS ESTÁ VACÍO =====
-        function isCanvasBlank(canvas) {
-            const context = canvas.getContext('2d');
-            const pixelBuffer = new Uint32Array(
-                context.getImageData(0, 0, canvas.width, canvas.height).data.buffer
-            );
-            return !pixelBuffer.some(color => color !== 0);
+        document.addEventListener('selectstart', function(e) {
+            e.preventDefault();
+        });
+
+        document.querySelectorAll('img').forEach(img => {
+            img.addEventListener('dragstart', function(e) {
+                e.preventDefault();
+            });
+        });
+        
+        // Solo verificar PDF pendiente, NO limpiar
+        setTimeout(() => {
+            verificarPDFPendiente();
+        }, 500);
+
+        // Inicializar eventos para el autocomplete
+        initAutocomplete();
+    });
+
+// ===== FUNCIÓN CORREGIDA PARA VERIFICAR SI EL CANVAS ESTÁ VACÍO =====
+function isCanvasBlank(canvas) {
+    try {
+        const context = canvas.getContext('2d');
+        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        const pixelBuffer = new Uint32Array(imageData.data.buffer);
+        
+        console.log('Verificando canvas. Total píxeles:', pixelBuffer.length);
+        
+        // Contar píxeles no blancos (diferentes de blanco puro o transparente)
+        let nonWhitePixels = 0;
+        for (let i = 0; i < pixelBuffer.length; i++) {
+            // Un pixel es considerado "no blanco" si no es completamente blanco (0xFFFFFFFF) o transparente (0x00000000)
+            if (pixelBuffer[i] !== 0xFFFFFFFF && pixelBuffer[i] !== 0x00000000) {
+                nonWhitePixels++;
+            }
+        }
+        
+        console.log('Píxeles no blancos encontrados:', nonWhitePixels);
+        
+        // Si hay más de 100 píxeles no blancos, considerar que tiene contenido
+        const hasContent = nonWhitePixels > 100;
+        
+        return !hasContent;
+        
+    } catch (error) {
+        console.error('Error al verificar canvas:', error);
+        return true; // En caso de error, considerar como vacío
+    }
+}
+
+    // ===== RESTO DEL CÓDIGO DE LA APLICACIÓN =====
+    function cambiarModo(modo) {
+        checklistEstado = {};
+        modoActual = modo;
+        equipoSeleccionado = null;
+        $('.equipo').css('border-color', '#ddd').css('background-color', '#f9f9f9');
+        
+        $('#buscador').val('');
+        
+        if (modo === 'salidas') {
+            $('#btnSalidas').removeClass('inactivo').addClass('activo');
+            $('#btnEntradas').removeClass('activo').addClass('inactivo');
+            $('#solicitar').show();
+            $('#devolver').hide();
+            $('#titulo-equipos').text('Seleccione el equipo a prestar:');
+            
+            $('#fecha').prop('disabled', false);
+            $('#colaborador').prop('disabled', false).val('');
+            $('#area').prop('disabled', false).val('');
+            $('#buscador').prop('disabled', false);
+            
+        } else {
+            $('#btnSalidas').removeClass('activo').addClass('inactivo');
+            $('#btnEntradas').removeClass('inactivo').addClass('activo');
+            $('#solicitar').hide();
+            $('#devolver').show();
+            $('#titulo-equipos').text('Seleccione el equipo a devolver:');
+            
+            $('#fecha').prop('disabled', true);
+            $('#colaborador').prop('disabled', true).val('');
+            $('#area').prop('disabled', true).val('Bodega');
+            $('#buscador').prop('disabled', false);
         }
 
-        // ===== RESTO DEL CÓDIGO DE LA APLICACIÓN =====
-        function cambiarModo(modo) {
-            checklistEstado = {};
-            modoActual = modo;
-            equipoSeleccionado = null;
-            $('.equipo').css('border-color', '#ddd').css('background-color', '#f9f9f9');
-            
-            $('#buscador').val('');
-            
-            if (modo === 'salidas') {
-                $('#btnSalidas').removeClass('inactivo').addClass('activo');
-                $('#btnEntradas').removeClass('activo').addClass('inactivo');
-                $('#solicitar').show();
-                $('#devolver').hide();
-                $('#titulo-equipos').text('Seleccione el equipo a prestar:');
-                
-                $('#fecha').prop('disabled', false);
-                $('#colaborador').prop('disabled', false).val('');
-                $('#area').prop('disabled', false).val('');
-                $('#buscador').prop('disabled', false);
-                
-            } else {
-                $('#btnSalidas').removeClass('activo').addClass('inactivo');
-                $('#btnEntradas').removeClass('inactivo').addClass('activo');
-                $('#solicitar').hide();
-                $('#devolver').show();
-                $('#titulo-equipos').text('Seleccione el equipo a devolver:');
-                
-                $('#fecha').prop('disabled', true);
-                $('#colaborador').prop('disabled', true).val('');
-                $('#area').prop('disabled', true).val('Bodega');
-                $('#buscador').prop('disabled', false);
+        mostrarEquiposEnUI();
+        verificarFormulario();
+    }
+
+    function cargarTodosLosDatos() {
+        $('#overlay').show();
+        const scriptURL = "https://script.google.com/macros/s/AKfycbxbiQDZcTJA2I9XknV-VF-3E9NdK_b8xq-8fc4LkZ4jh5n4jkJQz0_UlB_zbKpHSJGl/exec";
+
+        $.get(scriptURL, function(data) {
+            $('#overlay').hide();
+            if (data.error) {
+                Swal.fire('Error', 'No se pudieron cargar los datos: ' + data.mensaje, 'error');
+                return;
             }
+            equipos = data.equipos;
+            colaboradores = data.colaboradores;
+            data.areas.forEach(area => {
+                if (!areas.includes(area)) {
+                    areas.push(area);
+                }
+            });
 
             mostrarEquiposEnUI();
-            verificarFormulario();
-        }
+            llenarSelects();
+        }).fail(function(jqXHR, textStatus, errorThrown) {
+            $('#overlay').hide();
+            Swal.fire('Error', 'No se pudo conectar al servidor o hubo un error de red. ' + textStatus + ': ' + errorThrown, 'error');
+            console.error("Error en la solicitud AJAX:", jqXHR, textStatus, errorThrown);
+        });
+    }
 
-        function cargarTodosLosDatos() {
-            $('#overlay').show();
-            const scriptURL = "https://script.google.com/macros/s/AKfycbxbiQDZcTJA2I9XknV-VF-3E9NdK_b8xq-8fc4LkZ4jh5n4jkJQz0_UlB_zbKpHSJGl/exec";
+    function llenarSelects() {
+        allColaboradores = colaboradores;
+        
+        const areaSelect = $('#area');
+        areaSelect.find('option:not(:first)').remove();
+        areas.forEach(area => {
+            areaSelect.append(`<option value="${area}">${area}</option>`);
+        });
+    }
 
-            $.get(scriptURL, function(data) {
-                $('#overlay').hide();
-                if (data.error) {
-                    Swal.fire('Error', 'No se pudieron cargar los datos: ' + data.mensaje, 'error');
-                    return;
-                }
-                equipos = data.equipos;
-                colaboradores = data.colaboradores;
-                data.areas.forEach(area => {
-                    if (!areas.includes(area)) {
-                        areas.push(area);
-                    }
-                });
+    function mostrarEquiposEnUI() {
+        const equiposContainer = $('#equipos');
+        equiposContainer.empty();
 
-                mostrarEquiposEnUI();
-                llenarSelects();
-            }).fail(function(jqXHR, textStatus, errorThrown) {
-                $('#overlay').hide();
-                Swal.fire('Error', 'No se pudo conectar al servidor o hubo un error de red. ' + textStatus + ': ' + errorThrown, 'error');
-                console.error("Error en la solicitud AJAX:", jqXHR, textStatus, errorThrown);
-            });
-        }
-
-        function llenarSelects() {
-            allColaboradores = colaboradores;
-            
-            const areaSelect = $('#area');
-            areaSelect.find('option:not(:first)').remove();
-            areas.forEach(area => {
-                areaSelect.append(`<option value="${area}">${area}</option>`);
-            });
-        }
-
-        function mostrarEquiposEnUI() {
-            const equiposContainer = $('#equipos');
-            equiposContainer.empty();
-
-            equipos.forEach((equipo, index) => {
-                if (equipo.nombre.startsWith("-")) {
-                    let categoryName = equipo.nombre.substring(1).trim();
-                    equiposContainer.append(`
-                        <div class="category-separator">
-                            <strong>${categoryName}</strong> <span class="toggle-icon">&#9660;</span>
-                        </div>
-                    `);
-                    return;
-                }
-
-                if (modoActual === "salidas" && !equipo.disponible) {
-                    return;
-                }
-
-                if (modoActual === "entradas" && equipo.disponible) {
-                    return;
-                }
-
-                let estadoClass = equipo.disponible ? 'disponible' : 'no-disponible';
-                let estadoText = equipo.disponible ? 'Disponible' : `Ocupada por: ${equipo.asignadoA}`;
-
-                let equipoHtml = `
-                    <div class="equipo" id="equipo-${index}" onclick="seleccionarEquipo(${index})">
-                        <img src="${equipo.imagen || ''}" alt="${equipo.nombre}" onerror="this.style.display='none'">
-                        <label>${equipo.nombre}</label>
-                        <span class="${estadoClass}">${estadoText}</span>
+        equipos.forEach((equipo, index) => {
+            if (equipo.nombre.startsWith("-")) {
+                let categoryName = equipo.nombre.substring(1).trim();
+                equiposContainer.append(`
+                    <div class="category-separator">
+                        <strong>${categoryName}</strong> <span class="toggle-icon">&#9660;</span>
                     </div>
-                `;
-
-                equiposContainer.append(equipoHtml);
-
-                if (!equipo.disponible && modoActual === "salidas") {
-                    $(`#equipo-${index}`).css('opacity', '0.6').css('cursor', 'not-allowed');
-                }
-            });
-
-            $('.category-separator').on('click', function() {
-                const $separator = $(this);
-                const $toggleIcon = $separator.find('.toggle-icon');
-                const $equiposToToggle = $separator.nextUntil('.category-separator');
-                $equiposToToggle.toggle();
-                $separator.toggleClass('collapsed');
-                if ($separator.hasClass('collapsed')) {
-                    $toggleIcon.html('&#9658;');
-                } else {
-                    $toggleIcon.html('&#9660;');
-                }
-            });
-        }
-
-        function configurarEventos() {
-            $('#buscador').on('input', filtrarEquipos);
-            $("#fecha, #colaborador, #area").on("change", verificarFormulario);
-        }
-
-        function filtrarEquipos() {
-            const textoBusqueda = $('#buscador').val().toLowerCase();
-            if (textoBusqueda === '') {
-                $('.equipo').show();
-                $('.category-separator').show().removeClass('collapsed').find('.toggle-icon').html('&#9660;');
+                `);
                 return;
             }
 
-            $('.equipo').hide();
-            $('.category-separator').hide();
-
-            $('.equipo').each(function() {
-                const nombreEquipo = $(this).find('label').text().toLowerCase();
-                if (nombreEquipo.includes(textoBusqueda)) {
-                    $(this).show();
-                    $(this).prevAll('.category-separator:first').show().removeClass('collapsed').find('.toggle-icon').html('&#9660;');
-                }
-            });
-        }
-
-        function determinarCategoria(equipoIndex) {
-            let categoria = "";
-            for (let i = equipoIndex; i >= 0; i--) {
-                if (equipos[i].nombre.startsWith("-")) {
-                    categoria = equipos[i].nombre.substring(1).trim().toLowerCase();
-                    break;
-                }
+            if (modoActual === "salidas" && !equipo.disponible) {
+                return;
             }
-            return categoria;
-        }
 
-        function seleccionarEquipo(index) {
-            const equipo = equipos[index];
+            if (modoActual === "entradas" && equipo.disponible) {
+                return;
+            }
+
+            let estadoClass = equipo.disponible ? 'disponible' : 'no-disponible';
+            let estadoText = equipo.disponible ? 'Disponible' : `Ocupada por: ${equipo.asignadoA}`;
+
+            let equipoHtml = `
+                <div class="equipo" id="equipo-${index}" onclick="seleccionarEquipo(${index})">
+                    <img src="${equipo.imagen || ''}" alt="${equipo.nombre}" onerror="this.style.display='none'">
+                    <label>${equipo.nombre}</label>
+                    <span class="${estadoClass}">${estadoText}</span>
+                </div>
+            `;
+
+            equiposContainer.append(equipoHtml);
+
             if (!equipo.disponible && modoActual === "salidas") {
-                return;
+                $(`#equipo-${index}`).css('opacity', '0.6').css('cursor', 'not-allowed');
             }
+        });
 
-            $('.equipo').css('border-color', '#ddd').css('background-color', '#f9f9f9');
-            $(`#equipo-${index}`).css('border-color', '#007BFF').css('background-color', '#e6f0ff');
-            equipoSeleccionado = equipo;
-            categoriaSeleccionada = determinarCategoria(index);
-
-            if (modoActual === "entradas") {
-                $('#buscador').prop('disabled', true);
-                $('#fecha').prop('disabled', true);
-                $('#colaborador').prop('disabled', true);
-                $('#area').prop('disabled', true).val("Bodega");
-                if (equipoSeleccionado.asignadoA) {
-                    $('#colaborador').val(equipoSeleccionado.asignadoA);
-                }
-            }
-
-            verificarFormulario();
-        }
-
-        function verificarFormulario() {
-            let fecha = $("#fecha").val();
-            let colaborador = $("#colaborador").val();
-            let area = $("#area").val();
-            const hayFotos = selectedFiles.preview4.length > 0;
-            const hayFirma = !isCanvasBlank(document.getElementById('firmaCanvas'));
-            
-            let colaboradorValido = true;
-            if (modoActual === "salidas") {
-                colaboradorValido = allColaboradores.includes(colaborador);
+        $('.category-separator').on('click', function() {
+            const $separator = $(this);
+            const $toggleIcon = $separator.find('.toggle-icon');
+            const $equiposToToggle = $separator.nextUntil('.category-separator');
+            $equiposToToggle.toggle();
+            $separator.toggleClass('collapsed');
+            if ($separator.hasClass('collapsed')) {
+                $toggleIcon.html('&#9658;');
             } else {
-                colaboradorValido = colaborador !== '';
+                $toggleIcon.html('&#9660;');
             }
-            
-            if (fecha && colaborador && area && equipoSeleccionado && hayFotos && hayFirma && colaboradorValido) {
-                if (modoActual === "salidas") {
-                    $("#solicitar").prop("disabled", false);
+        });
+    }
+
+    function configurarEventos() {
+        $('#buscador').on('input', filtrarEquipos);
+        $("#fecha, #colaborador, #area").on("change", verificarFormulario);
+    }
+
+    function filtrarEquipos() {
+        const textoBusqueda = $('#buscador').val().toLowerCase();
+        if (textoBusqueda === '') {
+            $('.equipo').show();
+            $('.category-separator').show().removeClass('collapsed').find('.toggle-icon').html('&#9660;');
+            return;
+        }
+
+        $('.equipo').hide();
+        $('.category-separator').hide();
+
+        $('.equipo').each(function() {
+            const nombreEquipo = $(this).find('label').text().toLowerCase();
+            if (nombreEquipo.includes(textoBusqueda)) {
+                $(this).show();
+                $(this).prevAll('.category-separator:first').show().removeClass('collapsed').find('.toggle-icon').html('&#9660;');
+            }
+        });
+    }
+
+    function determinarCategoria(equipoIndex) {
+        let categoria = "";
+        for (let i = equipoIndex; i >= 0; i--) {
+            if (equipos[i].nombre.startsWith("-")) {
+                categoria = equipos[i].nombre.substring(1).trim().toLowerCase();
+                break;
+            }
+        }
+        return categoria;
+    }
+
+    function seleccionarEquipo(index) {
+        const equipo = equipos[index];
+        if (!equipo.disponible && modoActual === "salidas") {
+            return;
+        }
+
+        $('.equipo').css('border-color', '#ddd').css('background-color', '#f9f9f9');
+        $(`#equipo-${index}`).css('border-color', '#007BFF').css('background-color', '#e6f0ff');
+        equipoSeleccionado = equipo;
+        categoriaSeleccionada = determinarCategoria(index);
+
+        if (modoActual === "entradas") {
+            $('#buscador').prop('disabled', true);
+            $('#fecha').prop('disabled', true);
+            $('#colaborador').prop('disabled', true);
+            $('#area').prop('disabled', true).val("Bodega");
+            if (equipoSeleccionado.asignadoA) {
+                $('#colaborador').val(equipoSeleccionado.asignadoA);
+            }
+        }
+
+        verificarFormulario();
+    }
+
+
+function verificarFormulario() {
+    let fecha = $("#fecha").val();
+    let colaborador = $("#colaborador").val();
+    let area = $("#area").val();
+    const hayFotos = selectedFiles.preview4.length > 0;
+    
+    // Verificar firma de manera más precisa
+    const canvas = document.getElementById('firmaCanvas');
+    const hayFirma = !isCanvasBlank(canvas);
+    
+    let colaboradorValido = true;
+    if (modoActual === "salidas") {
+        colaboradorValido = allColaboradores.includes(colaborador);
+    } else {
+        colaboradorValido = colaborador !== '';
+    }
+    
+    console.log('Validación formulario:', {
+        fecha: !!fecha,
+        colaborador: !!colaborador,
+        colaboradorValido: colaboradorValido,
+        area: !!area,
+        equipoSeleccionado: !!equipoSeleccionado,
+        hayFotos: hayFotos,
+        hayFirma: hayFirma
+    });
+    
+    // Validación CORREGIDA
+    const formularioCompleto = fecha && 
+                              colaborador && 
+                              area && 
+                              equipoSeleccionado && 
+                              hayFotos && 
+                              hayFirma && 
+                              colaboradorValido;
+    
+    if (modoActual === "salidas") {
+        $("#solicitar").prop("disabled", !formularioCompleto);
+    } else {
+        $("#devolver").prop("disabled", !formularioCompleto);
+    }
+    
+    // Actualizar estilos visuales
+    if (modoActual === "salidas") {
+        if (colaborador && !colaboradorValido) {
+            $("#colaborador").css("border-color", "red");
+        } else {
+            $("#colaborador").css("border-color", colaborador ? "#28a745" : "#ddd");
+        }
+    }
+    
+    // Estilo para el canvas de firma
+    if (hayFirma) {
+        canvas.style.borderColor = "#28a745";
+        canvas.style.borderWidth = "2px";
+    } else {
+        canvas.style.borderColor = "#ddd";
+        canvas.style.borderWidth = "1px";
+    }
+}
+
+
+    // FUNCIONES MODIFICADAS PARA EL CHECKLIST EN FORMULARIO
+    function solicitarEquipo() {
+        let fecha = $('#fecha').val();
+        let colaborador = $('#colaborador').val();
+        let area = $('#area').val();
+        
+        if (!fecha || !colaborador || !area || !equipoSeleccionado) {
+            Swal.fire('Error', 'Por favor completa todos los campos obligatorios', 'error');
+            return;
+        }
+
+        ultimaTransaccion = {
+            fecha: fecha,
+            colaborador: colaborador,
+            area: area,
+            equipo: equipoSeleccionado.nombre,
+            categoria: categoriaSeleccionada,
+            tipo: 'salidas'
+        };
+
+        mostrarChecklistEnFormulario('pre');
+    }
+
+    function devolverEquipo() {
+        if (!equipoSeleccionado) {
+            Swal.fire('Error', 'Por favor selecciona un equipo a devolver', 'error');
+            return;
+        }
+
+        ultimaTransaccion = {
+            fecha: $('#fecha').val(),
+            colaborador: $('#colaborador').val(),
+            area: $('#area').val(),
+            equipo: equipoSeleccionado.nombre,
+            categoria: categoriaSeleccionada,
+            tipo: 'entradas'
+        };
+
+        mostrarChecklistEnFormulario('post');
+    }
+
+    // NUEVAS FUNCIONES PARA EL CHECKLIST EN FORMULARIO
+    function mostrarChecklistEnFormulario(tipo) {
+        console.log('Mostrando checklist en formulario, tipo:', tipo);
+        
+        const elementosAOcultar = [
+            'modo-buttons',
+            'question-container', 
+            'formulario'
+        ];
+        
+        elementosAOcultar.forEach(id => {
+            const elemento = document.getElementById(id);
+            if (elemento) {
+                if (id === 'modo-buttons') {
+                    elemento.classList.add('hidden-checklist');
                 } else {
-                    $("#devolver").prop("disabled", false);
+                    elemento.style.display = 'none';
                 }
             } else {
-                $("#solicitar").prop("disabled", true);
-                $("#devolver").prop("disabled", true);
-            }
-            
-            if (modoActual === "salidas") {
-                if (colaborador && !colaboradorValido) {
-                    $("#colaborador").css("border-color", "red");
-                } else {
-                    $("#colaborador").css("border-color", colaborador ? "#28a745" : "#ddd");
-                }
-            }
-        }
-
-        // FUNCIONES MODIFICADAS PARA EL CHECKLIST EN FORMULARIO
-        function solicitarEquipo() {
-            let fecha = $('#fecha').val();
-            let colaborador = $('#colaborador').val();
-            let area = $('#area').val();
-            
-            if (!fecha || !colaborador || !area || !equipoSeleccionado) {
-                Swal.fire('Error', 'Por favor completa todos los campos obligatorios', 'error');
-                return;
-            }
-
-            ultimaTransaccion = {
-                fecha: fecha,
-                colaborador: colaborador,
-                area: area,
-                equipo: equipoSeleccionado.nombre,
-                categoria: categoriaSeleccionada,
-                tipo: 'salidas'
-            };
-
-            mostrarChecklistEnFormulario('pre');
-        }
-
-        function devolverEquipo() {
-            if (!equipoSeleccionado) {
-                Swal.fire('Error', 'Por favor selecciona un equipo a devolver', 'error');
-                return;
-            }
-
-            ultimaTransaccion = {
-                fecha: $('#fecha').val(),
-                colaborador: $('#colaborador').val(),
-                area: $('#area').val(),
-                equipo: equipoSeleccionado.nombre,
-                categoria: categoriaSeleccionada,
-                tipo: 'entradas'
-            };
-
-            mostrarChecklistEnFormulario('post');
-        }
-
-        // NUEVAS FUNCIONES PARA EL CHECKLIST EN FORMULARIO
-        function mostrarChecklistEnFormulario(tipo) {
-            console.log('Mostrando checklist en formulario, tipo:', tipo);
-            
-            const elementosAOcultar = [
-                'modo-buttons',
-                'question-container', 
-                'formulario'
-            ];
-            
-            elementosAOcultar.forEach(id => {
-                const elemento = document.getElementById(id);
-                if (elemento) {
+                const elementoPorClase = document.querySelector('.' + id);
+                if (elementoPorClase) {
                     if (id === 'modo-buttons') {
-                        elemento.classList.add('hidden-checklist');
+                        elementoPorClase.classList.add('hidden-checklist');
                     } else {
-                        elemento.style.display = 'none';
-                    }
-                } else {
-                    const elementoPorClase = document.querySelector('.' + id);
-                    if (elementoPorClase) {
-                        if (id === 'modo-buttons') {
-                            elementoPorClase.classList.add('hidden-checklist');
-                        } else {
-                            elementoPorClase.style.display = 'none';
-                        }
+                        elementoPorClase.style.display = 'none';
                     }
                 }
-            });
-            
-            const tituloEquipos = document.getElementById('titulo-equipos');
-            if (tituloEquipos) tituloEquipos.style.display = 'none';
-            
-            const checklistPage = document.getElementById('checklistPage');
-            if (checklistPage) checklistPage.style.display = 'block';
-            
-            const titulo = tipo === 'pre' ? 'Checklist Preoperativo' : 'Checklist Postoperativo';
-            const subtitulo = tipo === 'pre' ? 'Verificación antes del uso' : 'Verificación después del uso';
-            const textoBoton = tipo === 'pre' ? 'Solicitar' : 'Devolver';
-            
-            const checklistTitulo = document.getElementById('checklistTitulo');
-            const checklistSubtitulo = document.getElementById('checklistSubtitulo');
-            const checklistEquipoNombre = document.getElementById('checklistEquipoNombre');
-            const btnConfirmarTexto = document.getElementById('btnConfirmarTexto');
-            
-            if (checklistTitulo) checklistTitulo.textContent = titulo;
-            if (checklistSubtitulo) checklistSubtitulo.innerHTML = `${subtitulo} - Para: <strong>${ultimaTransaccion.equipo}</strong>`;
-            if (checklistEquipoNombre) checklistEquipoNombre.textContent = ultimaTransaccion.equipo;
-            if (btnConfirmarTexto) btnConfirmarTexto.textContent = textoBoton;
-            
-            const checklistData = tipo === 'pre' ? 
+            }
+        });
+        
+        const tituloEquipos = document.getElementById('titulo-equipos');
+        if (tituloEquipos) tituloEquipos.style.display = 'none';
+        
+        const checklistPage = document.getElementById('checklistPage');
+        if (checklistPage) checklistPage.style.display = 'block';
+        
+        const titulo = tipo === 'pre' ? 'Checklist Preoperativo' : 'Checklist Postoperativo';
+        const subtitulo = tipo === 'pre' ? 'Verificación antes del uso' : 'Verificación después del uso';
+        const textoBoton = tipo === 'pre' ? 'Solicitar' : 'Devolver';
+        
+        const checklistTitulo = document.getElementById('checklistTitulo');
+        const checklistSubtitulo = document.getElementById('checklistSubtitulo');
+        const checklistEquipoNombre = document.getElementById('checklistEquipoNombre');
+        const btnConfirmarTexto = document.getElementById('btnConfirmarTexto');
+        
+        if (checklistTitulo) checklistTitulo.textContent = titulo;
+        if (checklistSubtitulo) checklistSubtitulo.innerHTML = `${subtitulo} - Para: <strong>${ultimaTransaccion.equipo}</strong>`;
+        if (checklistEquipoNombre) checklistEquipoNombre.textContent = ultimaTransaccion.equipo;
+        if (btnConfirmarTexto) btnConfirmarTexto.textContent = textoBoton;
+        
+        const checklistData = tipo === 'pre' ? 
+            checklistsPreOperativos[ultimaTransaccion.categoria] || checklistsPreOperativos["aspiradoras"] :
+            checklistsPostOperativos[ultimaTransaccion.categoria] || checklistsPostOperativos["aspiradoras"];
+        
+        console.log('Checklist data:', checklistData);
+        
+        generarChecklistUI(checklistData);
+        
+        if (checklistEstado.respuestas) {
+            restaurarEstadoChecklist(checklistEstado.respuestas);
+        }
+        
+        const observacionesTextarea = document.getElementById('checklistObservaciones');
+        if (observacionesTextarea && checklistEstado.observaciones !== undefined) {
+            observacionesTextarea.value = checklistEstado.observaciones;
+        } else if (observacionesTextarea) {
+            observacionesTextarea.value = '';
+        }
+        
+        if (observacionesTextarea) {
+            observacionesTextarea.removeEventListener('input', guardarEstadoChecklist);
+            observacionesTextarea.addEventListener('input', guardarEstadoChecklist);
+        }
+        
+        actualizarProgresoChecklist();
+    }
+
+    function restaurarEstadoChecklist(respuestasGuardadas) {
+        const items = document.querySelectorAll('.checklist-item');
+        items.forEach((item, index) => {
+            if (respuestasGuardadas[index]) {
+                const respuesta = respuestasGuardadas[index];
+                if (respuesta === '✔') {
+                    item.querySelector('.check-button').classList.add('selected');
+                } else if (respuesta === 'X') {
+                    item.querySelector('.x-button').classList.add('selected');
+                }
+            }
+        });
+    }
+
+    function generarChecklistUI(checklist) {
+        const container = document.getElementById('checklistContainer');
+        if (!container) {
+            console.error('No se encontró el elemento checklistContainer');
+            return;
+        }
+        
+        container.innerHTML = '';
+        
+        checklist.forEach((item, index) => {
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'checklist-item';
+            itemDiv.innerHTML = `
+                <label>${item}</label>
+                <div class="checklist-buttons">
+                    <button type="button" class="check-button" onclick="seleccionarRespuesta(${index}, '✔')">Cumple</button>
+                    <button type="button" class="x-button" onclick="seleccionarRespuesta(${index}, 'X')">No<br>Cumple</button>
+                </div>
+            `;
+            container.appendChild(itemDiv);
+        });
+        
+        console.log('Checklist UI generado con', checklist.length, 'elementos');
+    }
+
+    function seleccionarRespuesta(index, respuesta) {
+        const item = document.querySelectorAll('.checklist-item')[index];
+        
+        item.querySelectorAll('.check-button, .x-button').forEach(btn => {
+            btn.classList.remove('selected');
+        });
+        
+        if (respuesta === '✔') {
+            item.querySelector('.check-button').classList.add('selected');
+        } else {
+            item.querySelector('.x-button').classList.add('selected');
+        }
+        
+        guardarEstadoChecklist();
+        actualizarProgresoChecklist();
+    }
+
+    function guardarEstadoChecklist() {
+        const respuestas = [];
+        document.querySelectorAll('.checklist-item').forEach(item => {
+            const selectedButton = item.querySelector('.selected');
+            respuestas.push(selectedButton ? 
+                (selectedButton.classList.contains('check-button') ? '✔' : 'X') : '');
+        });
+        
+        const observacionesTextarea = document.getElementById('checklistObservaciones');
+        const observaciones = observacionesTextarea ? observacionesTextarea.value : '';
+        
+        checklistEstado = {
+            respuestas: respuestas,
+            observaciones: observaciones
+        };
+        
+        console.log('Estado del checklist guardado:', checklistEstado);
+    }
+
+    function actualizarProgresoChecklist() {
+        const items = document.querySelectorAll('.checklist-item');
+        const completados = document.querySelectorAll('.checklist-item .selected').length;
+        const total = items.length;
+        const porcentaje = total > 0 ? Math.round((completados / total) * 100) : 0;
+        
+        document.getElementById('progressBar').style.width = porcentaje + '%';
+        document.getElementById('progressText').textContent = porcentaje + '% completado';
+        
+        const btnConfirmar = document.getElementById('btnConfirmarChecklist');
+        btnConfirmar.disabled = completados !== total;
+    }
+
+    function volverAlFormulario() {
+        console.log('Volviendo al formulario principal');
+        
+        const elementosAMostrar = [
+            'modo-buttons',
+            'question-container', 
+            'formulario'
+        ];
+        
+        elementosAMostrar.forEach(id => {
+            const elemento = document.getElementById(id);
+            if (elemento) {
+                if (id === 'modo-buttons') {
+                    elemento.classList.remove('hidden-checklist');
+                } else {
+                    elemento.style.display = 'block';
+                }
+            } else {
+                const elementoPorClase = document.querySelector('.' + id);
+                if (elementoPorClase) {
+                    if (id === 'modo-buttons') {
+                        elementoPorClase.classList.remove('hidden-checklist');
+                    } else {
+                        elementoPorClase.style.display = 'block';
+                    }
+                }
+            }
+        });
+        
+        const tituloEquipos = document.getElementById('titulo-equipos');
+        if (tituloEquipos) tituloEquipos.style.display = 'block';
+        
+        const checklistPage = document.getElementById('checklistPage');
+        if (checklistPage) checklistPage.style.display = 'none';
+        
+        guardarEstadoChecklist();
+        verificarFormulario();
+    }
+
+    function confirmarChecklist() {
+        const checklistRespuestas = [];
+        document.querySelectorAll('.checklist-item').forEach(item => {
+            const selectedButton = item.querySelector('.selected');
+            checklistRespuestas.push(selectedButton ? 
+                (selectedButton.classList.contains('check-button') ? '✔' : 'X') : '');
+        });
+        
+        const observaciones = document.getElementById('checklistObservaciones').value;
+        
+        ultimaTransaccion.checklist = checklistRespuestas.map((respuesta, index) => {
+            const checklistData = ultimaTransaccion.tipo === 'salidas' ? 
                 checklistsPreOperativos[ultimaTransaccion.categoria] || checklistsPreOperativos["aspiradoras"] :
                 checklistsPostOperativos[ultimaTransaccion.categoria] || checklistsPostOperativos["aspiradoras"];
             
-            console.log('Checklist data:', checklistData);
-            
-            generarChecklistUI(checklistData);
-            
-            if (checklistEstado.respuestas) {
-                restaurarEstadoChecklist(checklistEstado.respuestas);
-            }
-            
-            const observacionesTextarea = document.getElementById('checklistObservaciones');
-            if (observacionesTextarea && checklistEstado.observaciones !== undefined) {
-                observacionesTextarea.value = checklistEstado.observaciones;
-            } else if (observacionesTextarea) {
-                observacionesTextarea.value = '';
-            }
-            
-            if (observacionesTextarea) {
-                observacionesTextarea.removeEventListener('input', guardarEstadoChecklist);
-                observacionesTextarea.addEventListener('input', guardarEstadoChecklist);
-            }
-            
-            actualizarProgresoChecklist();
-        }
+            return {
+                item: checklistData[index],
+                respuesta: respuesta
+            };
+        });
+        
+        ultimaTransaccion.observaciones = observaciones;
+        
+        mostrarConfirmacionFinal();
+    }
 
-        function restaurarEstadoChecklist(respuestasGuardadas) {
-            const items = document.querySelectorAll('.checklist-item');
-            items.forEach((item, index) => {
-                if (respuestasGuardadas[index]) {
-                    const respuesta = respuestasGuardadas[index];
-                    if (respuesta === '✔') {
-                        item.querySelector('.check-button').classList.add('selected');
-                    } else if (respuesta === 'X') {
-                        item.querySelector('.x-button').classList.add('selected');
-                    }
+    function mostrarConfirmacionFinal() {
+        const tipoMovimiento = ultimaTransaccion.tipo === 'salidas' ? 'préstamo' : 'devolución';
+        const textoAccion = ultimaTransaccion.tipo === 'salidas' ? 'solicitar' : 'devolver';
+        
+        Swal.fire({
+            title: `Confirmar ${tipoMovimiento}`,
+            html: `
+                <div style="text-align: left;">
+                    <p><strong>Fecha:</strong> ${ultimaTransaccion.fecha}</p>
+                    <p><strong>Colaborador:</strong> ${ultimaTransaccion.colaborador}</p>
+                    <p><strong>Área:</strong> ${ultimaTransaccion.area}</p>
+                    <p><strong>Equipo:</strong> ${ultimaTransaccion.equipo}</p>
+                    ${ultimaTransaccion.observaciones ? `<p><strong>Observaciones:</strong> ${ultimaTransaccion.observaciones}</p>` : ''}
+                </div>
+            `,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: `Sí, ${textoAccion}`,
+            cancelButtonText: 'No, revisar',
+            confirmButtonColor: '#28a745',
+            cancelButtonColor: '#6c757d',
+            width: '500px'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                enviarTransaccion();
+            } else {
+                console.log('Usuario decidió revisar, manteniendo estado del checklist');
+            }
+        });
+    }
+
+    function enviarTransaccion() {
+        $('#overlay').show();
+        
+        const scriptURL = ultimaTransaccion.tipo === 'salidas' ? 
+            "https://script.google.com/macros/s/AKfycbweOAqrT8cQuoW9xPbWBwOyLxbORFTT6HaStsNUz7i9ySkTRlElJIirZwcoGC-l8Sb-/exec" :
+            "https://script.google.com/macros/s/AKfycbw4OfK5DQQqbiro8olfyb8MvjQnOHGZBoELkTBJnOYS2GMpkr8yFrJJASiAiAxxePGfzA/exec";
+        
+        const data = {
+            fecha: ultimaTransaccion.fecha,
+            colaborador: ultimaTransaccion.colaborador,
+            area: ultimaTransaccion.area,
+            equipo: ultimaTransaccion.equipo,
+            categoria: ultimaTransaccion.categoria,
+            checklist: JSON.stringify(ultimaTransaccion.checklist.map(item => item.respuesta)),
+            observaciones: ultimaTransaccion.observaciones
+        };
+        
+        if (ultimaTransaccion.tipo === 'salidas') {
+            data.retornable = equipoSeleccionado.devolucion;
+        } else {
+            data.tipo = 'devolucion';
+        }
+        
+        $.ajax({
+            url: scriptURL,
+            type: "POST",
+            data: data,
+            success: function(response) {
+                $('#overlay').hide();
+                checklistEstado = {};
+                volverAlFormulario();
+                generarPDF();
+            },
+            error: function(xhr, status, error) {
+                $('#overlay').hide();
+                Swal.fire('Error', `Hubo un problema al registrar la transacción. Por favor inténtalo nuevamente. Error: ${error}`, 'error');
+                volverAlFormulario();
+            }
+        });
+    }
+
+    // Funciones auxiliares
+    function scrollToTop() {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function scrollToBottom() {
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    }
+
+    // Funciones para el manejo de imágenes y PDF
+    const selectedFiles = {
+        preview3: [],
+        preview4: []
+    };
+
+    function handleFileInput(event, previewId) {
+        const files = event.target.files;
+        const previewContainer = document.getElementById(previewId);
+
+        Array.from(files).forEach((file) => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const div = document.createElement('div');
+                div.classList.add('image-preview-item');
+                div.innerHTML = `
+                    <img src="${e.target.result}" alt="Preview">
+                    <div class="delete-icon" onclick="deleteImage('${previewId}', ${selectedFiles[previewId].length})">×</div>
+                `;
+                previewContainer.appendChild(div);
+
+                selectedFiles[previewId].push(file);
+                verificarFormulario();
+            };
+            reader.readAsDataURL(file);
+        });
+        event.target.value = "";
+    }
+
+    function deleteImage(previewId, index) {
+        const previewContainer = document.getElementById(previewId);
+
+        if (previewContainer.children[index]) {
+            previewContainer.removeChild(previewContainer.children[index]);
+            selectedFiles[previewId].splice(index, 1);
+
+            Array.from(previewContainer.children).forEach((child, newIndex) => {
+                const deleteIcon = child.querySelector('.delete-icon');
+                if (deleteIcon) {
+                    deleteIcon.setAttribute('onclick', `deleteImage('${previewId}', ${newIndex})`);
                 }
             });
+            verificarFormulario();
         }
+    }
 
-        function generarChecklistUI(checklist) {
-            const container = document.getElementById('checklistContainer');
-            if (!container) {
-                console.error('No se encontró el elemento checklistContainer');
+    document.getElementById('adjunto4').addEventListener('change', (e) => handleFileInput(e, 'preview4'));
+    document.getElementById('drag-area4').addEventListener('dragover', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        document.getElementById('drag-area4').style.backgroundColor = "#e0f7ff";
+    });
+    document.getElementById('drag-area4').addEventListener('dragleave', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        document.getElementById('drag-area4').style.backgroundColor = "#f0f8ff";
+    });
+    document.getElementById('drag-area4').addEventListener('drop', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const files = event.dataTransfer.files;
+        handleFileInput({
+            target: {
+                files
+            }
+        }, 'preview4');
+    });
+
+    async function compressImage(file, quality) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const maxWidth = 600;
+                    const scale = maxWidth / img.width;
+                    canvas.width = maxWidth;
+                    canvas.height = img.height * scale;
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    const dataUrl = canvas.toDataURL('image/jpeg', quality);
+                    resolve(dataUrl);
+                };
+                img.src = event.target.result;
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async function addPhotoSection(doc, title, files, startY) {
+        if (files.length === 0) return startY;
+        let currentY = startY;
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const spaceNeeded = 10 + 10 + 40;
+        if (currentY + spaceNeeded > pageHeight - 10) {
+            doc.addPage();
+            currentY = 15;
+        }
+        doc.setFontSize(14);
+        doc.setFont("times", "bold");
+        doc.text(title, 10, currentY);
+        currentY += 10;
+        const imgWidth = 60;
+        const imgHeight = 40;
+        const marginX = 15;
+        const spacingX = 65;
+        const spacingY = 45;
+        let currentX = marginX;
+        let imagesInRow = 0;
+        for (const file of files) {
+            const imgData = await compressImage(file, 0.5);
+            if (imagesInRow === 3) {
+                imagesInRow = 0;
+                currentX = marginX;
+                currentY += spacingY;
+            }
+            if (currentY + imgHeight > pageHeight - 10) {
+                doc.addPage();
+                currentY = 15;
+                currentX = marginX;
+                imagesInRow = 0;
+            }
+            doc.addImage(imgData, 'JPEG', currentX, currentY, imgWidth, imgHeight);
+            currentX += spacingX;
+            imagesInRow++;
+        }
+        return currentY + spacingY;
+    }
+
+    // ===== FUNCIONES MEJORADAS PARA GESTIÓN DE PDF =====
+    
+    // Función para limpiar completamente todo el storage relacionado
+    function limpiarCompletamenteStorage() {
+        try {
+            // 1. Eliminar el item principal
+            localStorage.removeItem('ultimoPDFGenerado');
+            
+            // 2. Eliminar cualquier posible item residual
+            const keys = Object.keys(localStorage);
+            keys.forEach(key => {
+                if (key.includes('PDF') || key.includes('pdf') || key.includes('acta') || 
+                    key.includes('Acta') || key.includes('ultimo')) {
+                    localStorage.removeItem(key);
+                }
+            });
+            
+            // 3. Forzar liberación de memoria
+            if (window.gc) {
+                window.gc();
+            }
+            
+            // 4. Verificar que realmente se liberó espacio
+            let espacioUtilizado = 0;
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                const value = localStorage.getItem(key);
+                espacioUtilizado += key.length + value.length;
+            }
+            
+            console.log('Espacio utilizado después de limpiar:', espacioUtilizado, 'caracteres');
+            return true;
+            
+        } catch (error) {
+            console.error('Error al limpiar storage:', error);
+            return false;
+        }
+    }
+
+    // Función para verificar espacio disponible
+    function verificarEspacioDisponible(tamañoNecesario = 5 * 1024 * 1024) {
+        try {
+            // Calcular espacio utilizado
+            let espacioUtilizado = 0;
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                const value = localStorage.getItem(key);
+                espacioUtilizado += key.length + value.length;
+            }
+            
+            // localStorage generalmente tiene límite de 5-10MB
+            const espacioDisponible = (5 * 1024 * 1024) - espacioUtilizado;
+            
+            console.log('Espacio utilizado:', espacioUtilizado, 'caracteres');
+            console.log('Espacio disponible aproximado:', espacioDisponible, 'caracteres');
+            
+            return espacioDisponible > tamañoNecesario;
+            
+        } catch (error) {
+            console.error('Error al verificar espacio:', error);
+            return false;
+        }
+    }
+
+    // Función de compresión más agresiva
+    function comprimirPDFAgresivo(pdfBlob) {
+        return new Promise((resolve, reject) => {
+            if (!(pdfBlob instanceof Blob)) {
+                reject(new Error('Parámetro no es un Blob válido'));
                 return;
             }
             
-            container.innerHTML = '';
-            
-            checklist.forEach((item, index) => {
-                const itemDiv = document.createElement('div');
-                itemDiv.className = 'checklist-item';
-                itemDiv.innerHTML = `
-                    <label>${item}</label>
-                    <div class="checklist-buttons">
-                        <button type="button" class="check-button" onclick="seleccionarRespuesta(${index}, '✔')">Cumple</button>
-                        <button type="button" class="x-button" onclick="seleccionarRespuesta(${index}, 'X')">No<br>Cumple</button>
-                    </div>
-                `;
-                container.appendChild(itemDiv);
-            });
-            
-            console.log('Checklist UI generado con', checklist.length, 'elementos');
-        }
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    // Crear nuevo Blob
+                    const arrayBuffer = event.target.result;
+                    const compressedBlob = new Blob([arrayBuffer], { 
+                        type: 'application/pdf' 
+                    });
+                    resolve(compressedBlob);
+                } catch (error) {
+                    reject(error);
+                }
+            };
+            reader.onerror = () => reject(new Error('Error de lectura'));
+            reader.readAsArrayBuffer(pdfBlob);
+        });
+    }
 
-        function seleccionarRespuesta(index, respuesta) {
-            const item = document.querySelectorAll('.checklist-item')[index];
+    // Función mejorada para guardar el PDF con limpieza garantizada
+    async function guardarPDFEnStorage(pdfBlob, pdfData) {
+        try {
+            console.log('Iniciando guardado de PDF. Tamaño del blob:', pdfBlob.size, 'bytes');
             
-            item.querySelectorAll('.check-button, .x-button').forEach(btn => {
-                btn.classList.remove('selected');
-            });
-            
-            if (respuesta === '✔') {
-                item.querySelector('.check-button').classList.add('selected');
-            } else {
-                item.querySelector('.x-button').classList.add('selected');
+            // 1. LIMPIAR COMPLETAMENTE ANTES DE GUARDAR
+            console.log('Limpiando storage completamente...');
+            if (!limpiarCompletamenteStorage()) {
+                console.warn('No se pudo limpiar el storage completamente, intentando continuar...');
             }
             
-            guardarEstadoChecklist();
-            actualizarProgresoChecklist();
-        }
-
-        function guardarEstadoChecklist() {
-            const respuestas = [];
-            document.querySelectorAll('.checklist-item').forEach(item => {
-                const selectedButton = item.querySelector('.selected');
-                respuestas.push(selectedButton ? 
-                    (selectedButton.classList.contains('check-button') ? '✔' : 'X') : '');
-            });
-            
-            const observacionesTextarea = document.getElementById('checklistObservaciones');
-            const observaciones = observacionesTextarea ? observacionesTextarea.value : '';
-            
-            checklistEstado = {
-                respuestas: respuestas,
-                observaciones: observaciones
-            };
-            
-            console.log('Estado del checklist guardado:', checklistEstado);
-        }
-
-        function actualizarProgresoChecklist() {
-            const items = document.querySelectorAll('.checklist-item');
-            const completados = document.querySelectorAll('.checklist-item .selected').length;
-            const total = items.length;
-            const porcentaje = total > 0 ? Math.round((completados / total) * 100) : 0;
-            
-            document.getElementById('progressBar').style.width = porcentaje + '%';
-            document.getElementById('progressText').textContent = porcentaje + '% completado';
-            
-            const btnConfirmar = document.getElementById('btnConfirmarChecklist');
-            btnConfirmar.disabled = completados !== total;
-        }
-
-        function volverAlFormulario() {
-            console.log('Volviendo al formulario principal');
-            
-            const elementosAMostrar = [
-                'modo-buttons',
-                'question-container', 
-                'formulario'
-            ];
-            
-            elementosAMostrar.forEach(id => {
-                const elemento = document.getElementById(id);
-                if (elemento) {
-                    if (id === 'modo-buttons') {
-                        elemento.classList.remove('hidden-checklist');
-                    } else {
-                        elemento.style.display = 'block';
-                    }
-                } else {
-                    const elementoPorClase = document.querySelector('.' + id);
-                    if (elementoPorClase) {
-                        if (id === 'modo-buttons') {
-                            elementoPorClase.classList.remove('hidden-checklist');
-                        } else {
-                            elementoPorClase.style.display = 'block';
-                        }
-                    }
-                }
-            });
-            
-            const tituloEquipos = document.getElementById('titulo-equipos');
-            if (tituloEquipos) tituloEquipos.style.display = 'block';
-            
-            const checklistPage = document.getElementById('checklistPage');
-            if (checklistPage) checklistPage.style.display = 'none';
-            
-            guardarEstadoChecklist();
-            verificarFormulario();
-        }
-
-        function confirmarChecklist() {
-            const checklistRespuestas = [];
-            document.querySelectorAll('.checklist-item').forEach(item => {
-                const selectedButton = item.querySelector('.selected');
-                checklistRespuestas.push(selectedButton ? 
-                    (selectedButton.classList.contains('check-button') ? '✔' : 'X') : '');
-            });
-            
-            const observaciones = document.getElementById('checklistObservaciones').value;
-            
-            ultimaTransaccion.checklist = checklistRespuestas.map((respuesta, index) => {
-                const checklistData = ultimaTransaccion.tipo === 'salidas' ? 
-                    checklistsPreOperativos[ultimaTransaccion.categoria] || checklistsPreOperativos["aspiradoras"] :
-                    checklistsPostOperativos[ultimaTransaccion.categoria] || checklistsPostOperativos["aspiradoras"];
+            // 2. VERIFICAR ESPACIO DISPONIBLE
+            const tamañoEstimado = pdfBlob.size * 1.37;
+            if (!verificarEspacioDisponible(tamañoEstimado)) {
+                console.warn('Espacio insuficiente, limpiando más agresivamente...');
                 
-                return {
-                    item: checklistData[index],
-                    respuesta: respuesta
-                };
-            });
-            
-            ultimaTransaccion.observaciones = observaciones;
-            
-            mostrarConfirmacionFinal();
-        }
-
-        function mostrarConfirmacionFinal() {
-            const tipoMovimiento = ultimaTransaccion.tipo === 'salidas' ? 'préstamo' : 'devolución';
-            const textoAccion = ultimaTransaccion.tipo === 'salidas' ? 'solicitar' : 'devolver';
-            
-            Swal.fire({
-                title: `Confirmar ${tipoMovimiento}`,
-                html: `
-                    <div style="text-align: left;">
-                        <p><strong>Fecha:</strong> ${ultimaTransaccion.fecha}</p>
-                        <p><strong>Colaborador:</strong> ${ultimaTransaccion.colaborador}</p>
-                        <p><strong>Área:</strong> ${ultimaTransaccion.area}</p>
-                        <p><strong>Equipo:</strong> ${ultimaTransaccion.equipo}</p>
-                        ${ultimaTransaccion.observaciones ? `<p><strong>Observaciones:</strong> ${ultimaTransaccion.observaciones}</p>` : ''}
-                    </div>
-                `,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonText: `Sí, ${textoAccion}`,
-                cancelButtonText: 'No, revisar',
-                confirmButtonColor: '#28a745',
-                cancelButtonColor: '#6c757d',
-                width: '500px'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    enviarTransaccion();
-                } else {
-                    console.log('Usuario decidió revisar, manteniendo estado del checklist');
-                }
-            });
-        }
-
-        function enviarTransaccion() {
-            $('#overlay').show();
-            
-            const scriptURL = ultimaTransaccion.tipo === 'salidas' ? 
-                "https://script.google.com/macros/s/AKfycbweOAqrT8cQuoW9xPbWBwOyLxbORFTT6HaStsNUz7i9ySkTRlElJIirZwcoGC-l8Sb-/exec" :
-                "https://script.google.com/macros/s/AKfycbw4OfK5DQQqbiro8olfyb8MvjQnOHGZBoELkTBJnOYS2GMpkr8yFrJJASiAiAxxePGfzA/exec";
-            
-            const data = {
-                fecha: ultimaTransaccion.fecha,
-                colaborador: ultimaTransaccion.colaborador,
-                area: ultimaTransaccion.area,
-                equipo: ultimaTransaccion.equipo,
-                categoria: ultimaTransaccion.categoria,
-                checklist: JSON.stringify(ultimaTransaccion.checklist.map(item => item.respuesta)),
-                observaciones: ultimaTransaccion.observaciones
-            };
-            
-            if (ultimaTransaccion.tipo === 'salidas') {
-                data.retornable = equipoSeleccionado.devolucion;
-            } else {
-                data.tipo = 'devolucion';
+                // Limpieza más agresiva
+                localStorage.clear();
+                sessionStorage.clear();
+                
+                // Pequeña pausa para permitir la liberación de memoria
+                await new Promise(resolve => setTimeout(resolve, 100));
             }
             
-            $.ajax({
-                url: scriptURL,
-                type: "POST",
-                data: data,
-                success: function(response) {
-                    $('#overlay').hide();
-                    checklistEstado = {};
-                    volverAlFormulario();
-                    generarPDF();
-                },
-                error: function(xhr, status, error) {
-                    $('#overlay').hide();
-                    Swal.fire('Error', `Hubo un problema al registrar la transacción. Por favor inténtalo nuevamente. Error: ${error}`, 'error');
-                    volverAlFormulario();
+            // 3. COMPRIMIR SI ES NECESARIO (más agresivo)
+            let pdfParaGuardar = pdfBlob;
+            if (pdfBlob.size > 1 * 1024 * 1024) {
+                try {
+                    console.log('Comprimiendo PDF...');
+                    pdfParaGuardar = await comprimirPDFAgresivo(pdfBlob);
+                    console.log('PDF comprimido:', pdfBlob.size, '->', pdfParaGuardar.size, 'bytes');
+                } catch (compressionError) {
+                    console.warn('Error en compresión, usando PDF original:', compressionError);
                 }
-            });
-        }
-
-        // Funciones auxiliares
-        function scrollToTop() {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        function scrollToBottom() {
-            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-        }
-
-        // Funciones para el manejo de imágenes y PDF
-        const selectedFiles = {
-            preview3: [],
-            preview4: []
-        };
-
-        function handleFileInput(event, previewId) {
-            const files = event.target.files;
-            const previewContainer = document.getElementById(previewId);
-
-            Array.from(files).forEach((file) => {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const div = document.createElement('div');
-                    div.classList.add('image-preview-item');
-                    div.innerHTML = `
-                        <img src="${e.target.result}" alt="Preview">
-                        <div class="delete-icon" onclick="deleteImage('${previewId}', ${selectedFiles[previewId].length})">×</div>
-                    `;
-                    previewContainer.appendChild(div);
-
-                    selectedFiles[previewId].push(file);
-                    verificarFormulario();
-                };
-                reader.readAsDataURL(file);
-            });
-            event.target.value = "";
-        }
-
-        function deleteImage(previewId, index) {
-            const previewContainer = document.getElementById(previewId);
-
-            if (previewContainer.children[index]) {
-                previewContainer.removeChild(previewContainer.children[index]);
-                selectedFiles[previewId].splice(index, 1);
-
-                Array.from(previewContainer.children).forEach((child, newIndex) => {
-                    const deleteIcon = child.querySelector('.delete-icon');
-                    if (deleteIcon) {
-                        deleteIcon.setAttribute('onclick', `deleteImage('${previewId}', ${newIndex})`);
-                    }
-                });
-                verificarFormulario();
             }
-        }
-
-        document.getElementById('adjunto4').addEventListener('change', (e) => handleFileInput(e, 'preview4'));
-        document.getElementById('drag-area4').addEventListener('dragover', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            document.getElementById('drag-area4').style.backgroundColor = "#e0f7ff";
-        });
-        document.getElementById('drag-area4').addEventListener('dragleave', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            document.getElementById('drag-area4').style.backgroundColor = "#f0f8ff";
-        });
-        document.getElementById('drag-area4').addEventListener('drop', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            const files = event.dataTransfer.files;
-            handleFileInput({
-                target: {
-                    files
-                }
-            }, 'preview4');
-        });
-
-        async function compressImage(file, quality) {
+            
+            // 4. CONVERTIR A BASE64 CON MÁS CONTROL
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
-                reader.onload = (event) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        const canvas = document.createElement('canvas');
-                        const ctx = canvas.getContext('2d');
-                        const maxWidth = 600;
-                        const scale = maxWidth / img.width;
-                        canvas.width = maxWidth;
-                        canvas.height = img.height * scale;
-                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                        const dataUrl = canvas.toDataURL('image/jpeg', quality);
-                        resolve(dataUrl);
-                    };
-                    img.src = event.target.result;
+                
+                reader.onload = function() {
+                    try {
+                        const base64Data = reader.result;
+                        pdfData.data = base64Data;
+                        pdfData.size = pdfParaGuardar.size;
+                        pdfData.timestamp = new Date().getTime();
+                        pdfData.version = '2.0';
+                        
+                        console.log('Intentando guardar en localStorage...');
+                        
+                        // INTENTO PRINCIPAL - Guardar completo
+                        localStorage.setItem('ultimoPDFGenerado', JSON.stringify(pdfData));
+                        
+                        console.log('✅ PDF guardado exitosamente');
+                        console.log('Tamaño del dato guardado:', base64Data.length, 'caracteres');
+                        
+                        mostrarBotonActaPendiente();
+                        resolve(true);
+                        
+                    } catch (storageError) {
+                        console.error('❌ Error al guardar PDF completo:', storageError);
+                        
+                        // ESTRATEGIA DE FALLBACK - Intentar guardar sin las imágenes
+                        try {
+                            console.log('Intentando estrategia de fallback...');
+                            
+                            const pdfDataLigero = {
+                                name: pdfData.name,
+                                tipo: pdfData.tipo,
+                                equipo: pdfData.equipo,
+                                colaborador: pdfData.colaborador,
+                                fecha: pdfData.fecha,
+                                timestamp: new Date().getTime(),
+                                version: '2.0-ligero',
+                                error: 'pdf_sin_imagenes',
+                                mensaje: 'PDF guardado sin imágenes para reducir tamaño'
+                            };
+                            
+                            // Limpiar nuevamente antes del fallback
+                            localStorage.removeItem('ultimoPDFGenerado');
+                            
+                            localStorage.setItem('ultimoPDFGenerado', JSON.stringify(pdfDataLigero));
+                            
+                            console.log('✅ Metadatos guardados exitosamente');
+                            mostrarBotonActaPendiente();
+                            resolve(false);
+                            
+                        } catch (fallbackError) {
+                            console.error('❌ Error crítico en fallback:', fallbackError);
+                            
+                            // ÚLTIMO INTENTO - Solo datos esenciales
+                            try {
+                                localStorage.clear();
+                                
+                                const pdfDataMinimo = {
+                                    name: pdfData.name,
+                                    tipo: pdfData.tipo,
+                                    equipo: pdfData.equipo, 
+                                    colaborador: pdfData.colaborador,
+                                    fecha: pdfData.fecha,
+                                    timestamp: new Date().getTime(),
+                                    error: 'solo_metadatos'
+                                };
+                                
+                                localStorage.setItem('ultimoPDFGenerado', JSON.stringify(pdfDataMinimo));
+                                console.log('✅ Solo metadatos guardados');
+                                resolve(false);
+                                
+                            } catch (minimalError) {
+                                console.error('❌ Error catastrófico:', minimalError);
+                                reject(new Error('No se pudo guardar ningún dato'));
+                            }
+                        }
+                    }
                 };
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
+                
+                reader.onerror = function(error) {
+                    console.error('Error en FileReader:', error);
+                    reject(new Error('Error al leer el archivo PDF'));
+                };
+                
+                reader.readAsDataURL(pdfParaGuardar);
             });
+            
+        } catch (error) {
+            console.error('❌ Error crítico en guardarPDFEnStorage:', error);
+            return false;
+        }
+    }
+
+    // Función para recuperar el PDF desde localStorage
+    function recuperarPDFDesdeStorage() {
+        try {
+            const pdfGuardado = localStorage.getItem('ultimoPDFGenerado');
+            if (!pdfGuardado) {
+                console.log('No hay PDF guardado en storage');
+                return null;
+            }
+            
+            const pdfData = JSON.parse(pdfGuardado);
+            console.log('PDF recuperado del storage:', pdfData.name);
+            return pdfData;
+            
+        } catch (error) {
+            console.error('Error al recuperar PDF desde storage:', error);
+            try {
+                localStorage.removeItem('ultimoPDFGenerado');
+            } catch (e) {
+                console.error('No se pudo limpiar el item corrupto:', e);
+            }
+            return null;
+        }
+    }
+
+    // Función para mostrar/ocultar el botón de acta pendiente
+    function mostrarBotonActaPendiente() {
+        const botonActa = document.getElementById('acta-pendiente-button');
+        const pdfGuardado = localStorage.getItem('ultimoPDFGenerado');
+        
+        if (pdfGuardado) {
+            botonActa.classList.add('pendiente');
+        } else {
+            botonActa.classList.remove('pendiente');
+        }
+    }
+
+    // Función para mostrar el acta pendiente
+    function mostrarActaPendiente() {
+        const pdfData = recuperarPDFDesdeStorage();
+        
+        if (!pdfData) {
+            Swal.fire('Información', 'No hay actas pendientes por compartir', 'info');
+            mostrarBotonActaPendiente();
+            return;
+        }
+        
+        console.log('Mostrando acta pendiente:', pdfData.name);
+        recuperarPDF(pdfData);
+    }
+
+    // Función para eliminar el acta pendiente
+    function eliminarActaPendiente() {
+        try {
+            localStorage.removeItem('ultimoPDFGenerado');
+            mostrarBotonActaPendiente();
+            
+            Swal.fire({
+                title: 'Eliminado',
+                text: 'El acta pendiente ha sido eliminada',
+                icon: 'success',
+                confirmButtonText: 'Aceptar',
+                timer: 2000,
+                timerProgressBar: true
+            });
+            
+        } catch (error) {
+            console.error('Error al eliminar acta:', error);
+            Swal.fire('Error', 'No se pudo eliminar el acta', 'error');
+        }
+    }
+
+    // Función para verificar PDF pendiente
+    function verificarPDFPendiente() {
+        const pdfData = recuperarPDFDesdeStorage();
+        
+        if (pdfData) {
+            const ahora = new Date().getTime();
+            const unaSemana = 7 * 24 * 60 * 60 * 1000;
+            
+            if (ahora - pdfData.timestamp > unaSemana) {
+                console.log('PDF expirado, eliminando...');
+                localStorage.removeItem('ultimoPDFGenerado');
+                mostrarBotonActaPendiente();
+            } else {
+                console.log('PDF válido encontrado:', pdfData.name);
+                mostrarBotonActaPendiente();
+            }
+        } else {
+            console.log('No hay PDF pendiente');
+            mostrarBotonActaPendiente();
+        }
+    }
+
+    // Función principal para recuperar PDF
+    function recuperarPDF(pdfData) {
+        console.log('Recuperando PDF:', pdfData);
+        
+        if (pdfData.data && !pdfData.error) {
+            try {
+                const base64Data = pdfData.data.split(',')[1];
+                const byteString = atob(base64Data);
+                const mimeString = pdfData.data.split(',')[0].split(':')[1].split(';')[0];
+                
+                const ab = new ArrayBuffer(byteString.length);
+                const ia = new Uint8Array(ab);
+                
+                for (let i = 0; i < byteString.length; i++) {
+                    ia[i] = byteString.charCodeAt(i);
+                }
+                
+                const blob = new Blob([ab], { type: mimeString });
+                const pdfFile = new File([blob], pdfData.name, { type: 'application/pdf' });
+                
+                console.log('PDF recuperado correctamente. Tamaño:', blob.size);
+                mostrarDialogoActaCompleta(pdfData, pdfFile, blob);
+                return;
+                
+            } catch (error) {
+                console.error('Error al procesar PDF completo:', error);
+            }
+        }
+        
+        mostrarDialogoMetadatos(pdfData);
+    }
+
+    function mostrarDialogoActaCompleta(pdfData, pdfFile, blob) {
+        Swal.fire({
+            html: `
+                <div style="text-align: center;">
+                    <p style="font-size: 1.1em; margin-bottom: 15px; color: #28a745;">
+                        <i class="fas fa-check-circle"></i> Acta generada anteriormente
+                    </p>
+                    <div style="color: #28a745; font-size: 2em; margin-bottom: 15px;">
+                        <i class="fas fa-file-pdf"></i>
+                    </div>
+                    <p style="font-size: 0.9em; color: #666; margin-bottom: 10px;">
+                        <strong>Equipo:</strong> ${pdfData.equipo}<br>
+                        <strong>Colaborador:</strong> ${pdfData.colaborador}<br>
+                        <strong>Fecha:</strong> ${pdfData.fecha}<br>
+                        <strong>Tipo:</strong> ${pdfData.tipo === 'salidas' ? 'Salida' : 'Entrada'}
+                    </p>
+                    <div style="display: flex; justify-content: center; gap: 8px; margin-top: 20px; flex-wrap: wrap;">
+                        <button id="shareRecoveredPdfBtn" class="swal2-confirm swal2-styled" style="background-color: #007bff; font-size: 12px; padding: 8px 12px; min-width: 100px;">
+                            <i class="fas fa-share-alt"></i> Compartir
+                        </button>
+                        <button id="downloadRecoveredPdfBtn" class="swal2-confirm swal2-styled" style="background-color: #28a745; font-size: 12px; padding: 8px 12px; min-width: 100px;">
+                            <i class="fas fa-download"></i> Descargar
+                        </button>
+                        <button id="eliminarPdfBtn" class="swal2-cancel swal2-styled" style="background-color: #dc3545; font-size: 12px; padding: 8px 12px; min-width: 100px;">
+                            <i class="fas fa-trash"></i> Eliminar
+                        </button>
+                    </div>
+                </div>
+            `,
+            icon: 'success',
+            showConfirmButton: false,
+            showCloseButton: true,
+            allowOutsideClick: false,
+            width: '90%',
+            maxWidth: '500px',
+            didOpen: () => {
+                document.getElementById('shareRecoveredPdfBtn').addEventListener('click', async function() {
+                    console.log('Intentando compartir PDF...');
+                    try {
+                        if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+                            await navigator.share({
+                                files: [pdfFile],
+                                title: pdfData.name,
+                                text: `Comparto el documento de ${pdfData.tipo === 'salidas' ? 'Salida' : 'Entrada'} para el equipo ${pdfData.equipo}.`
+                            });
+                            console.log('PDF compartido exitosamente');
+                        } else {
+                            console.log('Compartir no disponible, descargando...');
+                            const link = document.createElement('a');
+                            link.href = URL.createObjectURL(blob);
+                            link.download = pdfData.name;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            setTimeout(() => URL.revokeObjectURL(link.href), 100);
+                        }
+                    } catch (error) {
+                        console.error('Error al compartir:', error);
+                        if (error.name !== 'AbortError') {
+                            const link = document.createElement('a');
+                            link.href = URL.createObjectURL(blob);
+                            link.download = pdfData.name;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            setTimeout(() => URL.revokeObjectURL(link.href), 100);
+                        }
+                    }
+                });
+                
+                document.getElementById('downloadRecoveredPdfBtn').addEventListener('click', function() {
+                    console.log('Descargando PDF...');
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = pdfData.name;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    setTimeout(() => URL.revokeObjectURL(link.href), 100);
+                });
+                
+                document.getElementById('eliminarPdfBtn').addEventListener('click', function() {
+                    Swal.fire({
+                        title: '¿Eliminar acta?',
+                        text: 'Esta acción no se puede deshacer',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#d33',
+                        cancelButtonColor: '#3085d6',
+                        confirmButtonText: 'Sí, eliminar',
+                        cancelButtonText: 'Cancelar',
+                        allowOutsideClick: false
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            eliminarActaPendiente();
+                            Swal.close();
+                        }
+                    });
+                });
+            }
+        }).then((result) => {
+            if (result.dismiss === Swal.DismissReason.close) {
+                console.log('Diálogo cerrado por el usuario');
+            }
+        });
+    }
+
+    function mostrarDialogoMetadatos(pdfData) {
+        Swal.fire({
+            title: 'Información del Acta',
+            html: `
+                <div style="text-align: center;">
+                    <p>Los datos del acta están registrados</p>
+                    <p><strong>Equipo:</strong> ${pdfData.equipo}</p>
+                    <p><strong>Colaborador:</strong> ${pdfData.colaborador}</p>
+                    <p><strong>Fecha:</strong> ${pdfData.fecha}</p>
+                    <p><strong>Tipo:</strong> ${pdfData.tipo === 'salidas' ? 'Salida' : 'Entrada'}</p>
+                    <p style="color: #666; font-size: 0.9em; margin-top: 15px;">
+                        <i class="fas fa-info-circle"></i>
+                        El PDF no está disponible para descargar/compartir.
+                    </p>
+                </div>
+            `,
+            icon: 'info',
+            confirmButtonText: 'Aceptar'
+        });
+    }
+
+    async function generarPDF() {
+        // LIMPIAR PREVENTIVAMENTE ANTES DE GENERAR EL PDF
+        console.log('Limpieza preventiva antes de generar PDF...');
+        limpiarCompletamenteStorage();
+        
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({
+            orientation: 'portrait',
+            format: 'letter',
+            unit: 'mm'
+        });
+        
+        doc.setFont("times", "normal");
+        const tipoMovimiento = ultimaTransaccion.tipo === 'salidas' ? 'Acta de Compromiso' : 'Acta de Recepción';
+        const tituloChecklist = ultimaTransaccion.tipo === 'salidas' ? 'Checklist Preoperativo' : 'Checklist Postoperativo';
+        const now = new Date();
+        const horaGeneracion = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+        const [yyyy, mm, dd] = ultimaTransaccion.fecha.split('-');
+        const meses = [
+            "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+            "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+        ];
+        const mesTexto = meses[parseInt(mm) - 1];
+        let y = 15;
+        const margin = 15;
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const textWidth = pageWidth - (2 * margin);
+        
+        // Encabezado
+        doc.setFontSize(16);
+        doc.setTextColor(34, 49, 63);
+        doc.setFont("times", "bold");
+        doc.text(tipoMovimiento, pageWidth / 2, y, { align: 'center' });
+        y += 8;
+        doc.setDrawColor(200, 200, 200);
+        doc.line(margin, y, pageWidth - margin, y);
+        y += 10;
+        doc.setFontSize(12);
+        doc.setTextColor(50, 50, 50);
+        doc.setFont("times", "normal");
+
+        // Contenido del acta
+        if (ultimaTransaccion.tipo === 'salidas') {
+            const textoCompleto = `Yo ${ultimaTransaccion.colaborador} mediante la presente Acta de Compromiso hago constar que en esta fecha estoy recibiendo el equipo ${ultimaTransaccion.equipo}, el cual será utilizado para el desempeño de mis funciones.`;
+            const lineas = doc.splitTextToSize(textoCompleto, textWidth);
+            doc.text(lineas, margin, y);
+            y += (lineas.length * 6) + 4;
+            
+            doc.setFont("times", "bold");
+            const textoCompromiso = "Habiendo recibido me comprometo a lo siguiente:";
+            doc.text(textoCompromiso, margin, y);
+            y += 7;
+            
+            doc.setFont("times", "normal");
+            const compromisos = [
+                "- Cuidar y hacer buen uso del mismo, durante el tiempo que este bajo mi cargo en beneficio de las actividades del negocio.",
+                "- En caso de accidente, daño por mal uso y cualquier que bajo mi uso dañe el equipo se procederá a realizar la deducción del valor completo proporcionando uno nuevo.",
+                "- Me comprometo a cuidar todos y cada uno de los componentes del equipo."
+            ];
+            
+            compromisos.forEach(compromiso => {
+                const splitText = doc.splitTextToSize(compromiso, textWidth - 5);
+                doc.text(splitText, margin + 5, y);
+                y += (splitText.length * 5) + 3;
+            });
+            
+            y += 5;
+            const textoFinal = `Firmo la presente en la ciudad de Tegucigalpa a los ${dd} días del mes de ${mesTexto} del ${yyyy}.`;
+            const lineasFinal = doc.splitTextToSize(textoFinal, textWidth);
+            doc.text(lineasFinal, margin, y);
+            y += (lineasFinal.length * 6) + 10;
+        } else if (ultimaTransaccion.tipo === 'entradas') {
+            const textoCompleto = `Yo ${ultimaTransaccion.colaborador} mediante la presente Acta de Recepción hago constar que en esta fecha estoy entregando el equipo ${ultimaTransaccion.equipo}, el cual fue utilizado para el desempeño de mis funciones y ahora estoy retornando.`;
+            const lineas = doc.splitTextToSize(textoCompleto, textWidth);
+            doc.text(lineas, margin, y);
+            y += (lineas.length * 6) + 4;
+            
+            doc.setFont("times", "bold");
+            const textoDeclaracion = "Al entregarla declaro lo siguiente:";
+            doc.text(textoDeclaracion, margin, y);
+            y += 7;
+            
+            doc.setFont("times", "normal");
+            const declaraciones = [
+                "- El equipo se encuentra en las mismas condiciones en las que me fue entregado.",
+                "- Fui responsable y cuidadoso en el uso del equipo y todos sus componentes.",
+                "- Cualquier daño, accidente o mal uso fue reportado en tiempo y forma."
+            ];
+            
+            declaraciones.forEach(declaracion => {
+                const splitText = doc.splitTextToSize(declaracion, textWidth - 5);
+                doc.text(splitText, margin + 5, y);
+                y += (splitText.length * 5) + 3;
+            });
+            
+            y += 5;
+            const textoFinal = `Firmo la presente en la ciudad de Tegucigalpa a los ${dd} días del mes de ${mesTexto} del ${yyyy}.`;
+            const lineasFinal = doc.splitTextToSize(textoFinal, textWidth);
+            doc.text(lineasFinal, margin, y);
+            y += (lineasFinal.length * 6) + 10;
         }
 
-        async function addPhotoSection(doc, title, files, startY) {
-            if (files.length === 0) return startY;
-            let currentY = startY;
-            const pageHeight = doc.internal.pageSize.getHeight();
-            const spaceNeeded = 10 + 10 + 40;
-            if (currentY + spaceNeeded > pageHeight - 10) {
+        // Firma
+        const canvasFirma = document.getElementById('firmaCanvas');
+        const firmaDataUrl = canvasFirma.toDataURL('image/png');
+        const firmaWidth = 60;
+        const firmaHeight = 25;
+        const firmaX = (pageWidth - firmaWidth) / 2;
+        doc.addImage(firmaDataUrl, 'PNG', firmaX, y, firmaWidth, firmaHeight);
+        y += firmaHeight + 2;
+        doc.line(firmaX, y, firmaX + firmaWidth, y);
+        y += 4;
+        doc.setFontSize(12);
+        doc.setTextColor(80, 80, 80);
+        doc.setFont("times", "bold");
+        doc.text(ultimaTransaccion.colaborador, pageWidth / 2, y, { align: 'center' });
+        y += 10;
+        doc.line(margin, y, pageWidth - margin, y);
+        y += 8;
+
+        // Para checklists largos (más de 8 ítems), comenzar en nueva página
+        if (ultimaTransaccion.checklist.length > 8) {
+            doc.addPage();
+            y = 15;
+        }
+
+        // Checklist
+        doc.setFontSize(14);
+        doc.setTextColor(34, 49, 63);
+        doc.setFont("times", "bold");
+        doc.text(tituloChecklist, pageWidth / 2, y, { align: 'center' });
+        y += 8;
+        
+        // Cambiar los encabezados de la tabla
+        const tableColumn = ["Punto de Verificación", "Cumple", "No Cumple"];
+        const tableRows = ultimaTransaccion.checklist.map(item => {
+            const cumple = item.respuesta === "✔" ? "X" : "";
+            const noCumple = item.respuesta === "X" ? "X" : "";
+            return [item.item, cumple, noCumple];
+        });
+        
+        // Configuración de la tabla para checklists largos
+        let fontSize = 9;
+        let cellPadding = 2;
+        let rowHeight = 5;
+        
+        // Ajustar tamaño de fuente para checklists largos
+        if (ultimaTransaccion.checklist.length > 10) {
+            fontSize = 8;
+            cellPadding = 1.5;
+            rowHeight = 4;
+        }
+        
+        // Calcular el ancho de las columnas para centrar la tabla
+        const anchoDisponible = pageWidth - (2 * margin);
+        const col1Width = anchoDisponible * 0.75;
+        const col2Width = (anchoDisponible - col1Width) / 2;
+        const col3Width = col2Width;
+        
+        // Configuración de autoTable para manejar múltiples páginas
+        doc.autoTable({
+            startY: y,
+            head: [tableColumn],
+            body: tableRows,
+            theme: 'grid',
+            tableWidth: anchoDisponible,
+            margin: { 
+                left: margin, 
+                right: margin,
+                top: y
+            },
+            headStyles: {
+                fillColor: [0, 123, 255],
+                textColor: [255, 255, 255],
+                fontStyle: 'bold',
+                fontSize: fontSize,
+                font: "times",
+                cellPadding: cellPadding,
+                minCellHeight: rowHeight,
+                halign: 'center'
+            },
+            styles: {
+                fontSize: fontSize,
+                cellPadding: cellPadding,
+                textColor: [50, 50, 50],
+                lineColor: [200, 200, 200],
+                lineWidth: 0.1,
+                font: "times",
+                minCellHeight: rowHeight
+            },
+            columnStyles: {
+                0: {
+                    cellWidth: col1Width,
+                    fontStyle: 'bold',
+                    halign: 'left',
+                    cellPadding: {left: 3, right: 3, top: cellPadding, bottom: cellPadding}
+                },
+                1: {
+                    cellWidth: col2Width,
+                    halign: 'center',
+                    cellPadding: {left: 1, right: 1, top: cellPadding, bottom: cellPadding}
+                },
+                2: {
+                    cellWidth: col3Width,
+                    halign: 'center',
+                    cellPadding: {left: 1, right: 1, top: cellPadding, bottom: cellPadding}
+                }
+            },
+            pageBreak: 'auto',
+            showHead: 'everyPage',
+            tableLineWidth: 0.1,
+            tableLineColor: [200, 200, 200]
+        });
+
+        // Añadir observaciones si existen
+        let currentY = doc.autoTable.previous.finalY + 10;
+        
+        if (ultimaTransaccion.observaciones && ultimaTransaccion.observaciones.trim() !== '') {
+            if (currentY + 30 > pageHeight) {
                 doc.addPage();
                 currentY = 15;
             }
-            doc.setFontSize(14);
-            doc.setFont("times", "bold");
-            doc.text(title, 10, currentY);
-            currentY += 10;
-            const imgWidth = 60;
-            const imgHeight = 40;
-            const marginX = 15;
-            const spacingX = 65;
-            const spacingY = 45;
-            let currentX = marginX;
-            let imagesInRow = 0;
-            for (const file of files) {
-                const imgData = await compressImage(file, 0.5);
-                if (imagesInRow === 3) {
-                    imagesInRow = 0;
-                    currentX = marginX;
-                    currentY += spacingY;
-                }
-                if (currentY + imgHeight > pageHeight - 10) {
-                    doc.addPage();
-                    currentY = 15;
-                    currentX = marginX;
-                    imagesInRow = 0;
-                }
-                doc.addImage(imgData, 'JPEG', currentX, currentY, imgWidth, imgHeight);
-                currentX += spacingX;
-                imagesInRow++;
-            }
-            return currentY + spacingY;
-        }
-
-        async function generarPDF() {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF({
-                orientation: 'portrait',
-                format: 'letter',
-                unit: 'mm'
-            });
             
-            doc.setFont("times", "normal");
-            const tipoMovimiento = ultimaTransaccion.tipo === 'salidas' ? 'Acta de Compromiso' : 'Acta de Recepción';
-            const tituloChecklist = ultimaTransaccion.tipo === 'salidas' ? 'Checklist Preoperativo' : 'Checklist Postoperativo';
-            const now = new Date();
-            const horaGeneracion = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
-            const [yyyy, mm, dd] = ultimaTransaccion.fecha.split('-');
-            const meses = [
-                "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-                "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
-            ];
-            const mesTexto = meses[parseInt(mm) - 1];
-            let y = 15;
-            const margin = 15;
-            const pageWidth = doc.internal.pageSize.getWidth();
-            const pageHeight = doc.internal.pageSize.getHeight();
-            const textWidth = pageWidth - (2 * margin);
-            
-            // Encabezado
-            doc.setFontSize(16);
+            doc.setFontSize(12);
             doc.setTextColor(34, 49, 63);
             doc.setFont("times", "bold");
-            doc.text(tipoMovimiento, pageWidth / 2, y, { align: 'center' });
-            y += 8;
-            doc.setDrawColor(200, 200, 200);
-            doc.line(margin, y, pageWidth - margin, y);
-            y += 10;
-            doc.setFontSize(12);
+            doc.text("Observaciones:", margin, currentY);
+            currentY += 5;
+            
+            doc.setFontSize(10);
             doc.setTextColor(50, 50, 50);
             doc.setFont("times", "normal");
+            
+            const observacionesLines = doc.splitTextToSize(ultimaTransaccion.observaciones, textWidth);
+            doc.text(observacionesLines, margin, currentY);
+            currentY += (observacionesLines.length * 4) + 10;
+        }
 
-            // Contenido del acta
-            if (ultimaTransaccion.tipo === 'salidas') {
-                const textoCompleto = `Yo ${ultimaTransaccion.colaborador} mediante la presente Acta de Compromiso hago constar que en esta fecha estoy recibiendo el equipo ${ultimaTransaccion.equipo}, el cual será utilizado para el desempeño de mis funciones.`;
-                const lineas = doc.splitTextToSize(textoCompleto, textWidth);
-                doc.text(lineas, margin, y);
-                y += (lineas.length * 6) + 4;
-                
-                doc.setFont("times", "bold");
-                const textoCompromiso = "Habiendo recibido me comprometo a lo siguiente:";
-                doc.text(textoCompromiso, margin, y);
-                y += 7;
-                
-                doc.setFont("times", "normal");
-                const compromisos = [
-                    "- Cuidar y hacer buen uso del mismo, durante el tiempo que este bajo mi cargo en beneficio de las actividades del negocio.",
-                    "- En caso de accidente, daño por mal uso y cualquier que bajo mi uso dañe el equipo se procederá a realizar la deducción del valor completo proporcionando uno nuevo.",
-                    "- Me comprometo a cuidar todos y cada uno de los componentes del equipo."
-                ];
-                
-                compromisos.forEach(compromiso => {
-                    const splitText = doc.splitTextToSize(compromiso, textWidth - 5);
-                    doc.text(splitText, margin + 5, y);
-                    y += (splitText.length * 5) + 3;
-                });
-                
-                y += 5;
-                const textoFinal = `Firmo la presente en la ciudad de Tegucigalpa a los ${dd} días del mes de ${mesTexto} del ${yyyy}.`;
-                const lineasFinal = doc.splitTextToSize(textoFinal, textWidth);
-                doc.text(lineasFinal, margin, y);
-                y += (lineasFinal.length * 6) + 10;
-            } else if (ultimaTransaccion.tipo === 'entradas') {
-                const textoCompleto = `Yo ${ultimaTransaccion.colaborador} mediante la presente Acta de Recepción hago constar que en esta fecha estoy entregando el equipo ${ultimaTransaccion.equipo}, el cual fue utilizado para el desempeño de mis funciones y ahora estoy retornando.`;
-                const lineas = doc.splitTextToSize(textoCompleto, textWidth);
-                doc.text(lineas, margin, y);
-                y += (lineas.length * 6) + 4;
-                
-                doc.setFont("times", "bold");
-                const textoDeclaracion = "Al entregarla declaro lo siguiente:";
-                doc.text(textoDeclaracion, margin, y);
-                y += 7;
-                
-                doc.setFont("times", "normal");
-                const declaraciones = [
-                    "- El equipo se encuentra en las mismas condiciones en las que me fue entregado.",
-                    "- Fui responsable y cuidadoso en el uso del equipo y todos sus componentes.",
-                    "- Cualquier daño, accidente o mal uso fue reportado en tiempo y forma."
-                ];
-                
-                declaraciones.forEach(declaracion => {
-                    const splitText = doc.splitTextToSize(declaracion, textWidth - 5);
-                    doc.text(splitText, margin + 5, y);
-                    y += (splitText.length * 5) + 3;
-                });
-                
-                y += 5;
-                const textoFinal = `Firmo la presente en la ciudad de Tegucigalpa a los ${dd} días del mes de ${mesTexto} del ${yyyy}.`;
-                const lineasFinal = doc.splitTextToSize(textoFinal, textWidth);
-                doc.text(lineasFinal, margin, y);
-                y += (lineasFinal.length * 6) + 10;
-            }
-
-            // Firma
-            const canvasFirma = document.getElementById('firmaCanvas');
-            const firmaDataUrl = canvasFirma.toDataURL('image/png');
-            const firmaWidth = 60;
-            const firmaHeight = 25;
-            const firmaX = (pageWidth - firmaWidth) / 2;
-            doc.addImage(firmaDataUrl, 'PNG', firmaX, y, firmaWidth, firmaHeight);
-            y += firmaHeight + 2;
-            doc.line(firmaX, y, firmaX + firmaWidth, y);
-            y += 4;
-            doc.setFontSize(12);
-            doc.setTextColor(80, 80, 80);
-            doc.setFont("times", "bold");
-            doc.text(ultimaTransaccion.colaborador, pageWidth / 2, y, { align: 'center' });
-            y += 10;
-            doc.line(margin, y, pageWidth - margin, y);
-            y += 8;
-
-            // Para checklists largos (más de 8 ítems), comenzar en nueva página
-            if (ultimaTransaccion.checklist.length > 8) {
+        // Añadir fotos - solo si hay espacio disponible
+        let photosSectionY = currentY;
+        if (selectedFiles.preview4.length > 0) {
+            if (photosSectionY + 60 > pageHeight) {
                 doc.addPage();
-                y = 15;
+                photosSectionY = 15;
             }
-
-            // Checklist
-            doc.setFontSize(14);
-            doc.setTextColor(34, 49, 63);
-            doc.setFont("times", "bold");
-            doc.text(tituloChecklist, pageWidth / 2, y, { align: 'center' });
-            y += 8;
-            
-            // Cambiar los encabezados de la tabla
-            const tableColumn = ["Punto de Verificación", "Cumple", "No Cumple"];
-            const tableRows = ultimaTransaccion.checklist.map(item => {
-                const cumple = item.respuesta === "✔" ? "X" : "";
-                const noCumple = item.respuesta === "X" ? "X" : "";
-                return [item.item, cumple, noCumple];
-            });
-            
-            // Configuración de la tabla para checklists largos
-            let fontSize = 9;
-            let cellPadding = 2;
-            let rowHeight = 5;
-            
-            // Ajustar tamaño de fuente para checklists largos
-            if (ultimaTransaccion.checklist.length > 10) {
-                fontSize = 8;
-                cellPadding = 1.5;
-                rowHeight = 4;
-            }
-            
-            // Calcular el ancho de las columnas para centrar la tabla
-            const anchoDisponible = pageWidth - (2 * margin);
-            const col1Width = anchoDisponible * 0.75; // 75% para la primera columna
-            const col2Width = (anchoDisponible - col1Width) / 2; // 12.5% para cada columna de check
-            const col3Width = col2Width;
-            
-            // Configuración de autoTable para manejar múltiples páginas
-            doc.autoTable({
-                startY: y,
-                head: [tableColumn],
-                body: tableRows,
-                theme: 'grid',
-                tableWidth: anchoDisponible,
-                margin: { 
-                    left: margin, 
-                    right: margin,
-                    top: y
-                },
-                headStyles: {
-                    fillColor: [0, 123, 255],
-                    textColor: [255, 255, 255],
-                    fontStyle: 'bold',
-                    fontSize: fontSize,
-                    font: "times",
-                    cellPadding: cellPadding,
-                    minCellHeight: rowHeight,
-                    halign: 'center'
-                },
-                styles: {
-                    fontSize: fontSize,
-                    cellPadding: cellPadding,
-                    textColor: [50, 50, 50],
-                    lineColor: [200, 200, 200],
-                    lineWidth: 0.1,
-                    font: "times",
-                    minCellHeight: rowHeight
-                },
-                columnStyles: {
-                    0: {
-                        cellWidth: col1Width,
-                        fontStyle: 'bold',
-                        halign: 'left',
-                        cellPadding: {left: 3, right: 3, top: cellPadding, bottom: cellPadding}
-                    },
-                    1: {
-                        cellWidth: col2Width,
-                        halign: 'center',
-                        cellPadding: {left: 1, right: 1, top: cellPadding, bottom: cellPadding}
-                    },
-                    2: {
-                        cellWidth: col3Width,
-                        halign: 'center',
-                        cellPadding: {left: 1, right: 1, top: cellPadding, bottom: cellPadding}
-                    }
-                },
-                pageBreak: 'auto', // Cambiado a 'auto' para permitir saltos de página automáticos
-                showHead: 'everyPage', // Mostrar encabezados en cada página
-                tableLineWidth: 0.1,
-                tableLineColor: [200, 200, 200]
-            });
-
-            // Añadir observaciones si existen
-            let currentY = doc.autoTable.previous.finalY + 10;
-            
-            if (ultimaTransaccion.observaciones && ultimaTransaccion.observaciones.trim() !== '') {
-                // Si no hay espacio suficiente en la página actual, crear nueva página
-                if (currentY + 30 > pageHeight) {
-                    doc.addPage();
-                    currentY = 15;
-                }
-                
-                doc.setFontSize(12);
-                doc.setTextColor(34, 49, 63);
-                doc.setFont("times", "bold");
-                doc.text("Observaciones:", margin, currentY);
-                currentY += 5;
-                
-                doc.setFontSize(10);
-                doc.setTextColor(50, 50, 50);
-                doc.setFont("times", "normal");
-                
-                const observacionesLines = doc.splitTextToSize(ultimaTransaccion.observaciones, textWidth);
-                doc.text(observacionesLines, margin, currentY);
-                currentY += (observacionesLines.length * 4) + 10;
-            }
-
-            // Añadir fotos - solo si hay espacio disponible
-            let photosSectionY = currentY;
-            if (selectedFiles.preview4.length > 0) {
-                // Verificar si hay espacio para al menos una fila de fotos
-                if (photosSectionY + 60 > pageHeight) {
-                    doc.addPage();
-                    photosSectionY = 15;
-                }
-                photosSectionY = await addPhotoSection(doc, "Evidencia:", selectedFiles.preview4, photosSectionY);
-            }
-
-            const tipoMovimientoNombre = ultimaTransaccion.tipo === 'salidas' ? 'Salida' : 'Entrada';
-            const pdfName = `${dd}-${mm}-${yyyy} - ${tipoMovimientoNombre} - ${ultimaTransaccion.equipo} - ${ultimaTransaccion.colaborador}.pdf`;
-            const pdfBlob = doc.output('blob');
-            const pdfFile = new File([pdfBlob], pdfName, { type: 'application/pdf' });
-            
-            // Guardar el PDF en localStorage para recuperación
-            const reader = new FileReader();
-            reader.onload = function() {
-                const pdfData = {
-                    data: reader.result,
-                    name: pdfName,
-                    tipo: ultimaTransaccion.tipo,
-                    equipo: ultimaTransaccion.equipo,
-                    colaborador: ultimaTransaccion.colaborador,
-                    fecha: ultimaTransaccion.fecha,
-                    timestamp: new Date().getTime()
-                };
-                localStorage.setItem('ultimoPDFGenerado', JSON.stringify(pdfData));
-            };
-            reader.readAsDataURL(pdfBlob);
-            
-            // Mostrar SweetAlert con opciones de compartir y descargar
-            Swal.fire({
-                title: '¡Éxito!',
-                html: `
-                    <div style="text-align: center;">
-                        <p style="font-size: 1.1em; margin-bottom: 15px;">${ultimaTransaccion.tipo === 'salidas' ? 'Préstamo' : 'Devolución'} registrada correctamente</p>
-                        <div style="color: #28a745; font-size: 2em; margin-bottom: 15px;">
-                            <i class="fas fa-check-circle"></i>
-                        </div>
-                        <p style="font-size: 0.9em; color: #666; margin-bottom: 20px;">¿Qué deseas hacer con el PDF?</p>
-                        <div style="display: flex; justify-content: center; gap: 10px;">
-                            <button id="sharePdfBtn" class="swal2-confirm swal2-styled" style="background-color: #007bff;">
-                                <i class="fas fa-share-alt"></i> Compartir
-                            </button>
-                            <button id="downloadPdfBtn" class="swal2-cancel swal2-styled" style="background-color: #6c757d;">
-                                <i class="fas fa-download"></i> Descargar
-                            </button>
-                        </div>
-                    </div>
-                `,
-                icon: 'success',
-                showConfirmButton: false,
-                showCloseButton: true,
-                allowOutsideClick: false,
-                didOpen: () => {
-                    // Asignar los event listeners directamente a los botones
-                    document.getElementById('sharePdfBtn').addEventListener('click', async function() {
-                        try {
-                            if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
-                                await navigator.share({
-                                    files: [pdfFile],
-                                    title: pdfName,
-                                    text: `Comparto el documento de ${tipoMovimientoNombre} para el equipo ${ultimaTransaccion.equipo}.`
-                                });
-                                // Eliminar después de compartir exitosamente
-                                localStorage.removeItem('ultimoPDFGenerado');
-                            } else {
-                                // Fallback: descargar el PDF si no se puede compartir
-                                doc.save(pdfName);
-                                localStorage.removeItem('ultimoPDFGenerado');
-                            }
-                        } catch (error) {
-                            console.error('Error al compartir el archivo:', error);
-                            if (error.name !== 'AbortError') {
-                                // Fallback: descargar el PDF si hay error
-                                doc.save(pdfName);
-                                localStorage.removeItem('ultimoPDFGenerado');
-                            }
-                        }
-                    });
-                    
-                    document.getElementById('downloadPdfBtn').addEventListener('click', function() {
-                        doc.save(pdfName);
-                        // Eliminar después de descargar
-                        localStorage.removeItem('ultimoPDFGenerado');
-                    });
-                }
-            }).then((result) => {
-                // Este código se ejecuta cuando se cierra el SweetAlert
-                if (result.dismiss === Swal.DismissReason.close) {
-                    // Recargar la página cuando se hace clic en la X
-                    location.reload();
-                }
-            });
+            photosSectionY = await addPhotoSection(doc, "Evidencia:", selectedFiles.preview4, photosSectionY);
         }
 
-        // Nuevas variables para el autocomplete
-        let allColaboradores = [];
-        let selectedColaboradorIndex = -1;
-        let filteredColaboradores = [];
-
-        function initAutocomplete() {
-            const input = document.getElementById('colaborador');
-            const suggestionsContainer = document.getElementById('colaborador-suggestions');
-            
-            input.addEventListener('input', function(e) {
-                const value = e.target.value.toLowerCase();
-                filteredColaboradores = allColaboradores.filter(col => 
-                    col.toLowerCase().includes(value)
-                );
-                
-                showSuggestions(filteredColaboradores);
-                verificarFormulario();
-            });
-            
-            input.addEventListener('keydown', function(e) {
-                if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    highlightSuggestion('down');
-                } else if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    highlightSuggestion('up');
-                } else if (e.key === 'Enter') {
-                    e.preventDefault();
-                    selectHighlightedSuggestion();
-                } else if (e.key === 'Escape') {
-                    hideSuggestions();
-                }
-            });
-            
-            input.addEventListener('blur', function() {
-                setTimeout(hideSuggestions, 200);
-            });
-            
-            document.addEventListener('click', function(e) {
-                if (!input.contains(e.target) && !suggestionsContainer.contains(e.target)) {
-                    hideSuggestions();
-                }
-            });
-        }
+        const tipoMovimientoNombre = ultimaTransaccion.tipo === 'salidas' ? 'Salida' : 'Entrada';
+        const pdfName = `${dd}-${mm}-${yyyy} - ${tipoMovimientoNombre} - ${ultimaTransaccion.equipo} - ${ultimaTransaccion.colaborador}.pdf`;
+        const pdfBlob = doc.output('blob');
+        const pdfFile = new File([pdfBlob], pdfName, { type: 'application/pdf' });
         
-        function showSuggestions(suggestions) {
-            const suggestionsContainer = document.getElementById('colaborador-suggestions');
-            suggestionsContainer.innerHTML = '';
-            
-            if (suggestions.length === 0) {
-                hideSuggestions();
-                return;
-            }
-            
-            suggestions.forEach((suggestion, index) => {
-                const div = document.createElement('div');
-                div.className = 'autocomplete-suggestion';
-                div.textContent = suggestion;
-                div.dataset.index = index;
-                
-                div.addEventListener('mousedown', function(e) {
-                    e.preventDefault();
-                    selectSuggestion(suggestion);
-                });
-                
-                div.addEventListener('mouseover', function() {
-                    highlightSuggestionIndex(index);
-                });
-                
-                suggestionsContainer.appendChild(div);
-            });
-            
-            suggestionsContainer.style.display = 'block';
-            selectedColaboradorIndex = -1;
-        }
+        // GUARDAR EL PDF CON LA NUEVA FUNCIÓN MEJORADA
+        const pdfData = {
+            name: pdfName,
+            tipo: ultimaTransaccion.tipo,
+            equipo: ultimaTransaccion.equipo,
+            colaborador: ultimaTransaccion.colaborador,
+            fecha: ultimaTransaccion.fecha
+        };
         
-        function hideSuggestions() {
-            const suggestionsContainer = document.getElementById('colaborador-suggestions');
-            suggestionsContainer.style.display = 'none';
-            selectedColaboradorIndex = -1;
-        }
-        
-        function highlightSuggestion(direction) {
-            const suggestions = document.querySelectorAll('.autocomplete-suggestion');
-            if (suggestions.length === 0) return;
-            
-            suggestions.forEach(s => s.classList.remove('highlighted'));
-            
-            if (direction === 'down') {
-                selectedColaboradorIndex = (selectedColaboradorIndex + 1) % suggestions.length;
+        // GUARDAR CON LA NUEVA FUNCIÓN MEJORADA
+        guardarPDFEnStorage(pdfBlob, pdfData).then((exito) => {
+            if (exito) {
+                console.log('✅ PDF guardado completamente');
             } else {
-                selectedColaboradorIndex = (selectedColaboradorIndex - 1 + suggestions.length) % suggestions.length;
+                console.log('⚠️ PDF guardado con limitaciones');
             }
-            
-            suggestions[selectedColaboradorIndex].classList.add('highlighted');
-            suggestions[selectedColaboradorIndex].scrollIntoView({ block: 'nearest' });
-        }
+        }).catch((error) => {
+            console.error('❌ Error crítico al guardar PDF:', error);
+        });
         
-        function highlightSuggestionIndex(index) {
-            const suggestions = document.querySelectorAll('.autocomplete-suggestion');
-            suggestions.forEach(s => s.classList.remove('highlighted'));
-            selectedColaboradorIndex = index;
-            
-            if (index >= 0 && index < suggestions.length) {
-                suggestions[index].classList.add('highlighted');
-            }
-        }
-        
-        function selectHighlightedSuggestion() {
-            if (selectedColaboradorIndex >= 0 && filteredColaboradores[selectedColaboradorIndex]) {
-                selectSuggestion(filteredColaboradores[selectedColaboradorIndex]);
-            }
-        }
-        
-        function selectSuggestion(suggestion) {
-            document.getElementById('colaborador').value = suggestion;
-            hideSuggestions();
-            verificarFormulario();
-        }
-
-        // Función para verificar PDFs pendientes
-        function verificarPDFPendiente() {
-            const pdfGuardado = localStorage.getItem('ultimoPDFGenerado');
-            if (pdfGuardado) {
-                const pdfData = JSON.parse(pdfGuardado);
-                const ahora = new Date().getTime();
-                const unaHora = 60 * 60 * 1000; // 1 hora en milisegundos
-                
-                if (ahora - pdfData.timestamp < unaHora) {
-                    recuperarPDF(pdfData);
-                } else {
-                    localStorage.removeItem('ultimoPDFGenerado');
-                }
-            }
-        }
-
-        function recuperarPDF(pdfData) {
-            const byteString = atob(pdfData.data.split(',')[1]);
-            const mimeString = pdfData.data.split(',')[0].split(':')[1].split(';')[0];
-            const ab = new ArrayBuffer(byteString.length);
-            const ia = new Uint8Array(ab);
-            
-            for (let i = 0; i < byteString.length; i++) {
-                ia[i] = byteString.charCodeAt(i);
-            }
-            
-            const blob = new Blob([ab], { type: mimeString });
-            const pdfFile = new File([blob], pdfData.name, { type: 'application/pdf' });
-            
-            let mainDialog = null;
-            
-            mainDialog = Swal.fire({
-                html: `
-                    <div style="text-align: center;">
-                        <p style="font-size: 1.1em; margin-bottom: 15px;">Tienes una Acta pendiente de compartir</p>
-                        <div style="color: #ff9800; font-size: 2em; margin-bottom: 15px;">
-                            <i class="fas fa-file-pdf"></i>
-                        </div>
-                        <p style="font-size: 0.9em; color: #666; margin-bottom: 10px;">
-                            <strong>Equipo:</strong> ${pdfData.equipo}<br>
-                            <strong>Colaborador:</strong> ${pdfData.colaborador}<br>
-                            <strong>Fecha:</strong> ${pdfData.fecha}
-                        </p>
-                        <p style="font-size: 0.8em; color: #888; margin-bottom: 20px;">
-                            Esta Acta fue generada anteriormente y está pendiente de compartir
-                        </p>
-                        <div style="display: flex; justify-content: center; gap: 8px; margin-top: 20px; flex-wrap: nowrap;">
-                            <button id="shareRecoveredPdfBtn" class="swal2-confirm swal2-styled" style="background-color: #007bff; font-size: 12px; padding: 8px 12px; white-space: nowrap;">
-                                <i class="fas fa-share-alt"></i> Compartir
-                            </button>
-                            <button id="downloadRecoveredPdfBtn" class="swal2-confirm swal2-styled" style="background-color: #28a745; font-size: 12px; padding: 8px 12px; white-space: nowrap;">
-                                <i class="fas fa-download"></i> Descargar
-                            </button>
-                            <button id="eliminarPdfBtn" class="swal2-cancel swal2-styled" style="background-color: #6c757d; font-size: 12px; padding: 8px 12px; white-space: nowrap;">
-                                <i class="fas fa-trash"></i> Eliminar
-                            </button>
-                        </div>
+        // Mostrar SweetAlert con opciones de compartir y descargar
+        Swal.fire({
+            title: '¡Éxito!',
+            html: `
+                <div style="text-align: center;">
+                    <p style="font-size: 1.1em; margin-bottom: 15px;">${ultimaTransaccion.tipo === 'salidas' ? 'Préstamo' : 'Devolución'} registrada correctamente</p>
+                    <div style="color: #28a745; font-size: 2em; margin-bottom: 15px;">
+                        <i class="fas fa-check-circle"></i>
                     </div>
-                `,
-                icon: 'info',
-                showConfirmButton: false,
-                showCloseButton: true,
-                allowOutsideClick: false,
-                didOpen: () => {
-                    document.getElementById('shareRecoveredPdfBtn').addEventListener('click', async function() {
-                        try {
-                            if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
-                                await navigator.share({
-                                    files: [pdfFile],
-                                    title: pdfData.name,
-                                    text: `Comparto el documento de ${pdfData.tipo === 'salidas' ? 'Salida' : 'Entrada'} para el equipo ${pdfData.equipo}.`
-                                });
-                                localStorage.removeItem('ultimoPDFGenerado');
-                            } else {
-                                const link = document.createElement('a');
-                                link.href = URL.createObjectURL(blob);
-                                link.download = pdfData.name;
-                                link.click();
-                                URL.revokeObjectURL(link.href);
-                            }
-                        } catch (error) {
-                            console.error('Error al compartir el archivo:', error);
-                            if (error.name !== 'AbortError') {
-                                const link = document.createElement('a');
-                                link.href = URL.createObjectURL(blob);
-                                link.download = pdfData.name;
-                                link.click();
-                                URL.revokeObjectURL(link.href);
-                            }
+                    <p style="font-size: 0.9em; color: #666; margin-bottom: 20px;">¿Qué deseas hacer con el PDF?</p>
+                    <div style="display: flex; justify-content: center; gap: 10px;">
+                        <button id="sharePdfBtn" class="swal2-confirm swal2-styled" style="background-color: #007bff;">
+                            <i class="fas fa-share-alt"></i> Compartir
+                        </button>
+                        <button id="downloadPdfBtn" class="swal2-cancel swal2-styled" style="background-color: #6c757d;">
+                            <i class="fas fa-download"></i> Descargar
+                        </button>
+                    </div>
+                </div>
+            `,
+            icon: 'success',
+            showConfirmButton: false,
+            showCloseButton: true,
+            allowOutsideClick: false,
+            didOpen: () => {
+                document.getElementById('sharePdfBtn').addEventListener('click', async function() {
+                    try {
+                        if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+                            await navigator.share({
+                                files: [pdfFile],
+                                title: pdfName,
+                                text: `Comparto el documento de ${tipoMovimientoNombre} para el equipo ${ultimaTransaccion.equipo}.`
+                            });
+                        } else {
+                            doc.save(pdfName);
                         }
-                    });
-                    
-                    document.getElementById('downloadRecoveredPdfBtn').addEventListener('click', function() {
-                        const link = document.createElement('a');
-                        link.href = URL.createObjectURL(blob);
-                        link.download = pdfData.name;
-                        link.click();
-                        URL.revokeObjectURL(link.href);
-                    });
-                    
-                    document.getElementById('eliminarPdfBtn').addEventListener('click', function() {
-                        Swal.close();
-                        
-                        Swal.fire({
-                            title: '¿Estás seguro?',
-                            text: 'Esta acción eliminará el PDF permanentemente',
-                            icon: 'warning',
-                            showCancelButton: true,
-                            confirmButtonColor: '#d33',
-                            cancelButtonColor: '#3085d6',
-                            confirmButtonText: 'Sí, eliminar',
-                            cancelButtonText: 'Cancelar',
-                            allowOutsideClick: false
-                        }).then((result) => {
-                            if (result.isConfirmed) {
-                                localStorage.removeItem('ultimoPDFGenerado');
-                            } else {
-                                recuperarPDF(pdfData);
-                            }
-                        });
-                    });
-                }
-            }).then((result) => {
-                if (result.dismiss === Swal.DismissReason.close) {
-                    console.log('Diálogo cerrado por el usuario');
-                }
-            });
+                    } catch (error) {
+                        console.error('Error al compartir el archivo:', error);
+                        if (error.name !== 'AbortError') {
+                            doc.save(pdfName);
+                        }
+                    }
+                });
+                
+                document.getElementById('downloadPdfBtn').addEventListener('click', function() {
+                    doc.save(pdfName);
+                });
+            }
+        }).then((result) => {
+            if (result.dismiss === Swal.DismissReason.close) {
+                location.reload();
+            }
+        });
+    }
+
+    // Nuevas variables para el autocomplete
+    let allColaboradores = [];
+    let selectedColaboradorIndex = -1;
+    let filteredColaboradores = [];
+
+    function initAutocomplete() {
+        const input = document.getElementById('colaborador');
+        const suggestionsContainer = document.getElementById('colaborador-suggestions');
+        
+        input.addEventListener('input', function(e) {
+            const value = e.target.value.toLowerCase();
+            filteredColaboradores = allColaboradores.filter(col => 
+                col.toLowerCase().includes(value)
+            );
+            
+            showSuggestions(filteredColaboradores);
+            verificarFormulario();
+        });
+        
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                highlightSuggestion('down');
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                highlightSuggestion('up');
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                selectHighlightedSuggestion();
+            } else if (e.key === 'Escape') {
+                hideSuggestions();
+            }
+        });
+        
+        input.addEventListener('blur', function() {
+            setTimeout(hideSuggestions, 200);
+        });
+        
+        document.addEventListener('click', function(e) {
+            if (!input.contains(e.target) && !suggestionsContainer.contains(e.target)) {
+                hideSuggestions();
+            }
+        });
+    }
+    
+    function showSuggestions(suggestions) {
+        const suggestionsContainer = document.getElementById('colaborador-suggestions');
+        suggestionsContainer.innerHTML = '';
+        
+        if (suggestions.length === 0) {
+            hideSuggestions();
+            return;
         }
-    </script>
+        
+        suggestions.forEach((suggestion, index) => {
+            const div = document.createElement('div');
+            div.className = 'autocomplete-suggestion';
+            div.textContent = suggestion;
+            div.dataset.index = index;
+            
+            div.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                selectSuggestion(suggestion);
+            });
+            
+            div.addEventListener('mouseover', function() {
+                highlightSuggestionIndex(index);
+            });
+            
+            suggestionsContainer.appendChild(div);
+        });
+        
+        suggestionsContainer.style.display = 'block';
+        selectedColaboradorIndex = -1;
+    }
+    
+    function hideSuggestions() {
+        const suggestionsContainer = document.getElementById('colaborador-suggestions');
+        suggestionsContainer.style.display = 'none';
+        selectedColaboradorIndex = -1;
+    }
+    
+    function highlightSuggestion(direction) {
+        const suggestions = document.querySelectorAll('.autocomplete-suggestion');
+        if (suggestions.length === 0) return;
+        
+        suggestions.forEach(s => s.classList.remove('highlighted'));
+        
+        if (direction === 'down') {
+            selectedColaboradorIndex = (selectedColaboradorIndex + 1) % suggestions.length;
+        } else {
+            selectedColaboradorIndex = (selectedColaboradorIndex - 1 + suggestions.length) % suggestions.length;
+        }
+        
+        suggestions[selectedColaboradorIndex].classList.add('highlighted');
+        suggestions[selectedColaboradorIndex].scrollIntoView({ block: 'nearest' });
+    }
+    
+    function highlightSuggestionIndex(index) {
+        const suggestions = document.querySelectorAll('.autocomplete-suggestion');
+        suggestions.forEach(s => s.classList.remove('highlighted'));
+        selectedColaboradorIndex = index;
+        
+        if (index >= 0 && index < suggestions.length) {
+            suggestions[index].classList.add('highlighted');
+        }
+    }
+    
+    function selectHighlightedSuggestion() {
+        if (selectedColaboradorIndex >= 0 && filteredColaboradores[selectedColaboradorIndex]) {
+            selectSuggestion(filteredColaboradores[selectedColaboradorIndex]);
+        }
+    }
+    
+    function selectSuggestion(suggestion) {
+        document.getElementById('colaborador').value = suggestion;
+        hideSuggestions();
+        verificarFormulario();
+    }
+</script>
 </body>
 </html>

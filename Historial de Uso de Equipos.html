@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historial de Uso de Equipos</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --success-color: #2ecc71;
+            --warning-color: #f39c12;
+            --light-color: #ecf0f1;
+            --dark-color: #34495e;
+            --text-color: #333;
+            --border-color: #ddd;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+            color: white;
+            text-align: center;
+            padding: 18px 0;
+            font-size: 1.5rem;
+            font-weight: bold;
+            box-shadow: var(--shadow);
+            position: relative;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 1200px;
+            margin: 25px auto;
+            padding: 25px;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 25px;
+            font-size: 1.8rem;
+            position: relative;
+            padding-bottom: 10px;
+        }
+
+        h1:after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 4px;
+            background-color: var(--secondary-color);
+            border-radius: 2px;
+        }
+
+        .filters {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex: 1;
+            min-width: 300px;
+        }
+
+        .filter-group label {
+            font-weight: 600;
+            color: var(--dark-color);
+            white-space: nowrap;
+            min-width: 80px;
+        }
+
+        .filter-group select {
+            padding: 12px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 16px;
+            transition: var(--transition);
+            background-color: white;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .filter-group select:focus {
+            border-color: var(--secondary-color);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+        }
+
+        .machines-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .machines-grid:has(.loading) {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 200px;
+        }
+
+        @media (max-width: 768px) {
+            .machines-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 15px;
+            }
+            
+            .filters {
+                gap: 15px;
+            }
+            
+            .filter-group {
+                min-width: 100%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .machines-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .machine-card {
+            background-color: white;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+            transition: var(--transition);
+            border: 1px solid #eee;
+            cursor: pointer;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .machine-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            border-color: var(--secondary-color);
+        }
+
+        .machine-card.selected {
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+        }
+
+        .machine-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .machine-image {
+            width: 60px;
+            height: 60px;
+            margin-right: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: transparent;
+        }
+
+        .machine-image img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .machine-info {
+            flex: 1;
+        }
+
+        .machine-info h3 {
+            margin-bottom: 5px;
+            color: var(--dark-color);
+            font-size: 1rem;
+        }
+
+        .machine-status {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        .status-available {
+            background-color: var(--success-color);
+            color: white;
+        }
+
+        .status-unavailable {
+            background-color: var(--accent-color);
+            color: white;
+        }
+
+        .machine-details {
+            margin-top: auto;
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .machine-details p {
+            margin-bottom: 3px;
+        }
+
+        .summary-section {
+            display: none;
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid var(--secondary-color);
+        }
+
+        .summary-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .summary-title {
+            font-size: 1.3rem;
+            color: var(--primary-color);
+        }
+
+        .transaction-type {
+            display: flex;
+            gap: 10px;
+        }
+
+        .type-btn {
+            padding: 8px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background-color: white;
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 0.9rem;
+        }
+
+        .type-btn.active {
+            background-color: var(--secondary-color);
+            color: white;
+            border-color: var(--secondary-color);
+        }
+
+        .pagination-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .pagination-info {
+            font-size: 1rem;
+            color: var(--dark-color);
+            font-weight: 600;
+        }
+
+        .pagination-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .pagination-btn {
+            padding: 8px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background-color: white;
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .pagination-btn:hover:not(:disabled) {
+            background-color: var(--secondary-color);
+            color: white;
+            border-color: var(--secondary-color);
+        }
+
+        .pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .history-item {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #eee;
+            flex-wrap: wrap;
+        }
+
+        .history-date {
+            color: var(--primary-color);
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+
+        .history-type {
+            padding: 5px 12px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+
+        .type-salida {
+            background-color: var(--warning-color);
+            color: white;
+        }
+
+        .type-entrada {
+            background-color: var(--success-color);
+            color: white;
+        }
+
+        .history-details {
+            margin-bottom: 20px;
+        }
+
+        .history-details p {
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        .checklist-results {
+            margin-top: 20px;
+        }
+
+        .checklist-results h4 {
+            margin-bottom: 15px;
+            color: var(--primary-color);
+            font-size: 1.1rem;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 8px;
+        }
+
+        .checklist-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+
+        .checklist-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border-radius: 6px;
+            background-color: #f8f9fa;
+            border-left: 4px solid #ddd;
+            transition: var(--transition);
+        }
+
+        .checklist-item:hover {
+            transform: translateY(-1px); /* Solo un pequeño movimiento */
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Sombra sutil */
+        }
+
+        .checklist-question {
+            flex: 1;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .checklist-answer {
+            margin-left: 15px;
+            font-weight: bold;
+            padding: 6px 12px;
+            border-radius: 4px;
+            min-width: 100px;
+            text-align: center;
+        }
+
+        .answer-cumple {
+            background-color: var(--success-color);
+            color: white;
+            border-left-color: var(--success-color);
+        }
+
+        .answer-no-cumple {
+            background-color: var(--accent-color);
+            color: white;
+            border-left-color: var(--accent-color);
+        }
+
+        .checklist-item.answer-cumple {
+            border-left-color: var(--success-color);
+        }
+
+        .checklist-item.answer-no-cumple {
+            border-left-color: var(--accent-color);
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .no-data i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            color: #ccc;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            grid-column: 1 / -1; /* Esto hace que ocupe todas las columnas */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(52, 152, 219, 0.2);
+            border-radius: 50%;
+            border-top-color: var(--secondary-color);
+            animation: spin 1s ease-in-out infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .filters {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .filter-group {
+                min-width: 100%;
+            }
+            
+            .summary-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+            
+            .transaction-type {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .pagination-controls {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+            
+            .history-header {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .filter-group select {
+                min-width: 150px;
+            }
+            
+            .checklist-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+            
+            .checklist-answer {
+                margin-left: 0;
+                align-self: flex-end;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">Pisos Brillantes</div>
+    
+    <div class="container">
+        <h1>Historial de Uso de Equipos</h1>
+        
+        <div class="filters">
+            <div class="filter-group">
+                <label for="categoryFilter">Categoría:</label>
+                <select id="categoryFilter">
+                    <option value="">Todas las categorías</option>
+                    <option value="Aspiradoras">Aspiradoras</option>
+                    <option value="Pulidoras">Pulidoras</option>
+                    <option value="Hidrolavadoras">Hidrolavadoras</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="statusFilter">Estado:</label>
+                <select id="statusFilter">
+                    <option value="">Todos los estados</option>
+                    <option value="disponible">Disponible</option>
+                    <option value="no-disponible">No disponible</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="machines-grid" id="machinesGrid">
+            <!-- Las máquinas se cargarán aquí dinámicamente -->
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Cargando equipos...</p>
+            </div>
+        </div>
+        
+        <div class="summary-section" id="summarySection">
+            <div class="summary-header">
+                <h2 class="summary-title" id="summaryTitle">Resumen de la Máquina</h2>
+                <div class="transaction-type">
+                    <button class="type-btn active" data-type="salidas">Salidas</button>
+                    <button class="type-btn" data-type="entradas">Entradas</button>
+                </div>
+            </div>
+            
+            <div class="pagination-controls" id="paginationControls" style="display: none;">
+                <div class="pagination-info" id="paginationInfo">Registro 1 de 1</div>
+                <div class="pagination-buttons">
+                    <button class="pagination-btn" id="prevPage" disabled>
+                        <i class="fas fa-chevron-left"></i> Anterior
+                    </button>
+                    <button class="pagination-btn" id="nextPage" disabled>
+                        Siguiente <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="checklist-history" id="checklistHistory">
+                <!-- El historial de checklists se cargará aquí -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        let equipos = [];
+        let categoriasMap = {}; // Mapeo de equipos a categorías
+        let historialData = {};
+        let equipoSeleccionado = null;
+        let tipoTransaccionSeleccionado = 'salidas';
+        let registroActual = 1;
+        let totalRegistros = 0;
+        
+        // URLs de los scripts de Google Apps
+        const URL_OBTENER_EQUIPOS = "https://script.google.com/macros/s/AKfycbxbiQDZcTJA2I9XknV-VF-3E9NdK_b8xq-8fc4LkZ4jh5n4jkJQz0_UlB_zbKpHSJGl/exec";
+        const URL_OBTENER_HISTORIAL = "https://script.google.com/macros/s/AKfycbw1PfhMR0w-8MNMHd5kK5nqlvJ3Iuta14ReNY1ZQfdN3Iob8RrXfMesgB_Xy1YmainKUg/exec"; // Reemplazar con ID real
+        
+        // Cargar datos al iniciar la página
+        document.addEventListener('DOMContentLoaded', function() {
+            cargarEquipos();
+            configurarFiltros();
+            configurarPaginacion();
+        });
+        
+        // Función para cargar los equipos y mapear categorías
+        function cargarEquipos() {
+            $('#machinesGrid').html(`
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Cargando equipos...</p>
+                </div>
+            `);
+            
+            $.get(URL_OBTENER_EQUIPOS, function(data) {
+                if (data.error) {
+                    mostrarError('No se pudieron cargar los equipos: ' + data.mensaje);
+                    return;
+                }
+                
+                // Procesar equipos y categorías
+                procesarCategoriasYEquipos(data.equipos);
+                mostrarEquipos(equipos);
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                mostrarError('Error de conexión: ' + textStatus);
+                console.error("Error en la solicitud AJAX:", jqXHR, textStatus, errorThrown);
+            });
+        }
+        
+        // Función para procesar categorías y equipos
+        function procesarCategoriasYEquipos(todosLosEquipos) {
+            equipos = [];
+            categoriasMap = {};
+            let categoriaActual = "";
+            
+            todosLosEquipos.forEach(equipo => {
+                if (equipo.nombre.startsWith("-")) {
+                    // Es una categoría
+                    categoriaActual = equipo.nombre.substring(1).trim();
+                } else {
+                    // Es un equipo
+                    equipos.push(equipo);
+                    categoriasMap[equipo.nombre] = categoriaActual;
+                }
+            });
+        }
+        
+        // Función para mostrar los equipos en la interfaz
+        function mostrarEquipos(equiposFiltrados) {
+            const machinesGrid = document.getElementById('machinesGrid');
+            
+            if (equiposFiltrados.length === 0) {
+                machinesGrid.innerHTML = `
+                    <div class="no-data">
+                        <i class="fas fa-search"></i>
+                        <p>No se encontraron equipos con los filtros seleccionados</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '';
+            
+            equiposFiltrados.forEach((equipo, index) => {
+                const categoria = categoriasMap[equipo.nombre] || 'Sin categoría';
+                const estado = equipo.disponible ? 'Disponible' : `Ocupado por: ${equipo.asignadoA}`;
+                const claseEstado = equipo.disponible ? 'status-available' : 'status-unavailable';
+                
+                html += `
+                    <div class="machine-card" data-nombre="${equipo.nombre}" onclick="seleccionarEquipo('${equipo.nombre}')">
+                        <div class="machine-header">
+                            <div class="machine-image">
+                                ${equipo.imagen ? 
+                                    `<img src="${equipo.imagen}" alt="${equipo.nombre}" onerror="this.style.display='none'">` : 
+                                    `<i class="fas fa-tools" style="font-size: 2rem; color: #ccc;"></i>`
+                                }
+                            </div>
+                            <div class="machine-info">
+                                <h3>${equipo.nombre}</h3>
+                                <span class="machine-status ${claseEstado}">${estado}</span>
+                            </div>
+                        </div>
+                        <!--
+                        <div class="machine-details">
+                            <p><strong>Categoría:</strong> ${categoria}</p>
+                        </div>
+                        -->
+                    </div>
+                `;
+            });
+            
+            machinesGrid.innerHTML = html;
+        }
+        
+        // Función para configurar los filtros
+        function configurarFiltros() {
+            $('#categoryFilter, #statusFilter').on('change', function() {
+                filtrarEquipos();
+            });
+        }
+        
+        // Función para filtrar los equipos
+        function filtrarEquipos() {
+            const categoriaFiltro = $('#categoryFilter').val();
+            const estadoFiltro = $('#statusFilter').val();
+            
+            let equiposFiltrados = equipos.filter(equipo => {
+                // Filtrar por categoría
+                if (categoriaFiltro) {
+                    const categoriaEquipo = categoriasMap[equipo.nombre];
+                    if (categoriaEquipo !== categoriaFiltro) return false;
+                }
+                
+                // Filtrar por estado
+                if (estadoFiltro === 'disponible' && !equipo.disponible) return false;
+                if (estadoFiltro === 'no-disponible' && equipo.disponible) return false;
+                
+                return true;
+            });
+            
+            mostrarEquipos(equiposFiltrados);
+        }
+        
+        // Función para seleccionar un equipo
+        function seleccionarEquipo(nombreEquipo) {
+            // Quitar selección anterior
+            $('.machine-card').removeClass('selected');
+            
+            // Seleccionar nuevo equipo
+            $(`.machine-card[data-nombre="${nombreEquipo}"]`).addClass('selected');
+            equipoSeleccionado = equipos.find(e => e.nombre === nombreEquipo);
+            
+            // Mostrar sección de resumen
+            $('#summarySection').show();
+            $('#summaryTitle').text(`Resumen: ${equipoSeleccionado.nombre}`);
+            
+            // Reiniciar paginación
+            registroActual = 1;
+            
+            // Cargar historial del equipo
+            cargarHistorialEquipo(equipoSeleccionado.nombre);
+        }
+        
+        // Función para cargar el historial de un equipo
+        function cargarHistorialEquipo(nombreEquipo) {
+            $('#checklistHistory').html(`
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Cargando historial...</p>
+                </div>
+            `);
+            
+            $.get(URL_OBTENER_HISTORIAL, { equipo: nombreEquipo }, function(data) {
+                if (data.error) {
+                    mostrarError('No se pudo cargar el historial: ' + data.mensaje);
+                    return;
+                }
+                
+                historialData = data;
+                totalRegistros = historialData[tipoTransaccionSeleccionado]?.length || 0;
+                mostrarRegistroActual();
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                mostrarError('Error de conexión: ' + textStatus);
+                console.error("Error en la solicitud AJAX:", jqXHR, textStatus, errorThrown);
+            });
+        }
+        
+        // Función para mostrar el registro actual
+        function mostrarRegistroActual() {
+            const historial = historialData[tipoTransaccionSeleccionado] || [];
+            const checklistHistory = document.getElementById('checklistHistory');
+            const paginationControls = document.getElementById('paginationControls');
+            
+            if (historial.length === 0) {
+                checklistHistory.innerHTML = `
+                    <div class="no-data">
+                        <i class="fas fa-history"></i>
+                        <p>No hay registros de ${tipoTransaccionSeleccionado === 'salidas' ? 'salidas' : 'entradas'} para este equipo</p>
+                    </div>
+                `;
+                paginationControls.style.display = 'none';
+                return;
+            }
+            
+            // Mostrar controles de paginación
+            paginationControls.style.display = 'flex';
+            totalRegistros = historial.length;
+            
+            // Actualizar información de paginación
+            document.getElementById('paginationInfo').textContent = 
+                `Registro ${registroActual} de ${totalRegistros}`;
+            
+            // Actualizar botones de paginación
+            document.getElementById('prevPage').disabled = registroActual <= 1;
+            document.getElementById('nextPage').disabled = registroActual >= totalRegistros;
+            
+            // Obtener registro actual
+            const registro = historial[registroActual - 1];
+            
+            // Formatear fecha correctamente
+            const fechaFormateada = formatearFecha(registro.fecha);
+            const horaFormateada = formatearHora(registro.hora);
+            
+            // Generar HTML para el registro actual
+            let html = `
+                <div class="history-item">
+                    <div class="history-header">
+                        <span class="history-date">${fechaFormateada} ${horaFormateada}</span>
+                        <span class="history-type ${tipoTransaccionSeleccionado === 'salidas' ? 'type-salida' : 'type-entrada'}">
+                            ${tipoTransaccionSeleccionado === 'salidas' ? 'Salida' : 'Entrada'}
+                        </span>
+                    </div>
+                    <div class="history-details">
+                        <p><strong>Colaborador:</strong> ${registro.colaborador}</p>
+                        <p><strong>Área:</strong> ${registro.area}</p>
+                        ${registro.observaciones ? `<p><strong>Observaciones:</strong> ${registro.observaciones}</p>` : ''}
+                    </div>
+                    <div class="checklist-results">
+                        <h4>Checklist:</h4>
+                        <div class="checklist-grid">
+            `;
+            
+            // Agregar items del checklist
+            registro.checklist.forEach(item => {
+                const claseRespuesta = item.respuesta === '✔' ? 'answer-cumple' : 'answer-no-cumple';
+                html += `
+                    <div class="checklist-item ${claseRespuesta}">
+                        <span class="checklist-question">${item.pregunta}</span>
+                        <span class="checklist-answer ${claseRespuesta}">
+                            ${item.respuesta === '✔' ? 'Cumple' : 'No Cumple'}
+                        </span>
+                    </div>
+                `;
+            });
+            
+            html += `
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            checklistHistory.innerHTML = html;
+        }
+        
+        // Función para formatear fecha
+        function formatearFecha(fechaString) {
+            if (!fechaString) return 'Fecha no disponible';
+            
+            try {
+                let fecha;
+                if (fechaString.includes('T')) {
+                    fecha = new Date(fechaString);
+                } else {
+                    fecha = new Date(fechaString + 'T00:00:00');
+                }
+                
+                if (isNaN(fecha.getTime())) {
+                    return fechaString;
+                }
+                
+                return fecha.toLocaleDateString('es-HN', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit'
+                });
+            } catch (e) {
+                return fechaString;
+            }
+        }
+        
+        // Función para formatear hora
+        function formatearHora(horaString) {
+            if (!horaString) return '';
+            
+            try {
+                let hora;
+                if (horaString.includes('T')) {
+                    hora = new Date(horaString);
+                } else {
+                    hora = new Date(horaString);
+                }
+                
+                if (isNaN(hora.getTime())) {
+                    return '';
+                }
+                
+                return hora.toLocaleTimeString('es-HN', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            } catch (e) {
+                return '';
+            }
+        }
+        
+        // Configurar botones de tipo de transacción
+        document.querySelectorAll('.type-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                tipoTransaccionSeleccionado = this.dataset.type;
+                registroActual = 1; // Reiniciar al primer registro
+                
+                if (equipoSeleccionado) {
+                    totalRegistros = historialData[tipoTransaccionSeleccionado]?.length || 0;
+                    mostrarRegistroActual();
+                }
+            });
+        });
+        
+        // Configurar paginación
+        function configurarPaginacion() {
+            document.getElementById('prevPage').addEventListener('click', function() {
+                if (registroActual > 1) {
+                    registroActual--;
+                    mostrarRegistroActual();
+                }
+            });
+            
+            document.getElementById('nextPage').addEventListener('click', function() {
+                if (registroActual < totalRegistros) {
+                    registroActual++;
+                    mostrarRegistroActual();
+                }
+            });
+        }
+        
+        // Función para mostrar errores
+        function mostrarError(mensaje) {
+            Swal.fire('Error', mensaje, 'error');
+        }
+    </script>
+</body>
+</html>

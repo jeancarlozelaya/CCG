@@ -10,7 +10,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <style>
+<style>
     :root {
       --primary-color: #2c3e50;
       --secondary-color: #3498db;
@@ -96,9 +96,28 @@
       flex-wrap: wrap;
     }
 
+    .date-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
     .date-filter-container label {
       font-weight: bold;
       color: #333;
+      white-space: nowrap;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .button-group button {
+      flex: 1;
+      min-width: 120px;
     }
 
     /* ESTILOS DE FECHA MEJORADOS */
@@ -113,6 +132,7 @@
       background-color: #f8f8f8;
       cursor: pointer;
       transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      min-width: 140px;
     }
 
     .date-filter-container input[type="date"]::-webkit-calendar-picker-indicator {
@@ -160,7 +180,6 @@
       border-radius: 4px;
       cursor: pointer;
       font-size: 16px;
-      margin-left: 10px;
       transition: var(--transition);
     }
 
@@ -309,7 +328,6 @@
       border-radius: 4px;
       cursor: pointer;
       font-size: 16px;
-      margin-left: 10px;
       transition: var(--transition);
     }
 
@@ -533,13 +551,63 @@
       h1 {
         font-size: 1.5rem;
       }
+      
+      /* NUEVO: Estilos específicos para el contenedor de fechas en móviles */
+      .date-filter-container {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+      }
+      
+      .date-group {
+        justify-content: space-between;
+        width: 100%;
+      }
+      
+      .date-group label {
+        width: 80px;
+        text-align: left;
+      }
+      
+      .date-group input[type="date"] {
+        width: calc(100% - 90px);
+      }
+      
+      .button-group {
+        width: 100%;
+        justify-content: space-between;
+      }
+      
+      .button-group button {
+        flex: 1;
+        margin: 2px;
+        font-size: 14px;
+        padding: 10px 8px;
+      }
     }
 
     @media (max-width: 480px) {
-      .date-filter-container {
-        flex-direction: column;
+      .button-group button {
+        font-size: 12px;
+        padding: 8px 6px;
+      }
+      
+      .date-group label {
+        width: 70px;
+        font-size: 14px;
+      }
+      
+      .date-group input[type="date"] {
+        width: calc(100% - 80px);
+        font-size: 14px;
       }
     }
+
+    .chart-type-selector {
+      display: none; /* La forma más común para ocultar el elemento por completo */
+    }
+
+
   </style>
 </head>
 <body>
@@ -550,13 +618,18 @@
       <h1>Resumen de Gastos de Insumos</h1>
 
       <div class="date-filter-container">
-        <label for="fecha-inicio-resumen">Desde:</label>
-        <input type="date" id="fecha-inicio-resumen">
-        <label for="fecha-fin-resumen">Hasta:</label>
-        <input type="date" id="fecha-fin-resumen">
-        <button type="button" id="btn-cargar-resumen-fechas" onclick="cargarResumenDevoluciones()">Cargar Resumen</button>
-        <button type="button" id="btn-generar-pdf" onclick="generarPDFResumen()">Generar PDF</button>
-        <button type="button" id="btn-mostrar-graficos" onclick="abrirModalGraficos()">Mostrar Gráficos</button>
+        <div class="date-group">
+          <label for="fecha-inicio-resumen">Desde:</label>
+          <input type="date" id="fecha-inicio-resumen">
+        </div>
+        <div class="date-group">
+          <label for="fecha-fin-resumen">Hasta:</label>
+          <input type="date" id="fecha-fin-resumen">
+        </div>
+        <div class="button-group">
+          <button type="button" id="btn-cargar-resumen-fechas" onclick="cargarResumenDevoluciones()">Cargar Resumen</button>
+          <button type="button" id="btn-mostrar-graficos" onclick="abrirModalGraficos()">Mostrar Gráficos</button>
+        </div>
       </div>
 
       <div class="resumen-search-container">
@@ -576,7 +649,7 @@
           <tbody id="resumen-tbody">
             <tr>
               <td colspan="4" style="text-align: center; color: #666; font-style: italic;">
-                Seleccione un rango de fechas y haga clic en "Cargar Resumen"
+                Seleccione un rango de fechas y haga clic en "Cargar Resumen", luego podrán cargar los gráficos
               </td>
             </tr>
           </tbody>
@@ -642,6 +715,7 @@
       </div>
     </div>
   </div>
+
 
 <script>
   // Variables globales
@@ -861,138 +935,6 @@
   }
 
   // NUEVA FUNCIÓN: Generar PDF del Resumen
-  function generarPDFResumen() {
-      if (filteredResumenData.length === 0) {
-          Swal.fire('Advertencia', 'No hay datos en el resumen para generar un PDF.', 'warning');
-          return;
-      }
-
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-
-      // Encontrar el rango de fechas de TODAS las transacciones del resumen
-      let minDate = null;
-      let maxDate = null;
-
-      // Usa allSummaryDates para calcular el rango de fechas
-      allSummaryDates.forEach(dateStr => {
-          if (dateStr) {
-              const currentDate = new Date(dateStr);
-              if (!isNaN(currentDate.getTime())) { // Asegurarse de que la fecha es válida
-                  if (minDate === null || currentDate < minDate) {
-                      minDate = currentDate;
-                  }
-                  if (maxDate === null || currentDate > maxDate) {
-                      maxDate = currentDate;
-                  }
-              }
-          }
-      });
-
-      // Función auxiliar para formatear la fecha a DD/MM/YYYY
-      const formatDateForPDF = (date) => {
-          if (!date) return 'N/A';
-          const day = String(date.getDate()).padStart(2, '0');
-          const month = String(date.getMonth() + 1).padStart(2, '0'); // Meses son 0-indexados
-          const year = date.getFullYear();
-          return `${day}/${month}/${year}`;
-      };
-
-      const dateRangeText = (minDate && maxDate) ? 
-          `Rango de Fechas: ${formatDateForPDF(minDate)} - ${formatDateForPDF(maxDate)}` :
-          'Rango de Fechas no disponible';
-
-      // Función auxiliar para formatear la fecha a DD-MM-YYYY para el nombre del archivo
-      const formatDateForFilename = (date) => {
-          if (!date) return 'N/A';
-          const day = String(date.getDate()).padStart(2, '0');
-          const month = String(date.getMonth() + 1).padStart(2, '0'); // Meses son 0-indexados
-          const year = date.getFullYear();
-          return `${day}-${month}-${year}`; // Usamos guiones para el nombre del archivo
-      };
-
-      // Obtener las fechas de los inputs para el nombre del archivo
-      const fechaInicioInput = document.getElementById('fecha-inicio-resumen').value; // e.g., "2025-07-16"
-      const fechaFinInput = document.getElementById('fecha-fin-resumen').value;     // e.g., "2025-07-16"
-
-      // CORRECCIÓN AQUÍ: Parsear la fecha para evitar problemas de zona horaria
-      let startDateForFilename = null;
-      if (fechaInicioInput) {
-          const [year, month, day] = fechaInicioInput.split('-').map(Number);
-          startDateForFilename = new Date(year, month - 1, day); // month - 1 porque los meses son 0-indexados
-      }
-
-      let endDateForFilename = null;
-      if (fechaFinInput) {
-          const [year, month, day] = fechaFinInput.split('-').map(Number);
-          endDateForFilename = new Date(year, month - 1, day); // month - 1 porque los meses son 0-indexados
-      }
-
-      let filename = 'Resumen de Gastos de Insumos';
-      if (startDateForFilename && endDateForFilename) {
-          filename += ` (${formatDateForFilename(startDateForFilename)} - ${formatDateForFilename(endDateForFilename)})`;
-      } else if (startDateForFilename) {
-          filename += ` (${formatDateForFilename(startDateForFilename)})`;
-      } else if (endDateForFilename) {
-          filename += ` (${formatDateForFilename(endDateForFilename)})`;
-      }
-      filename += '.pdf';
-
-      // Configurar el título del documento
-      doc.setFontSize(16);
-      doc.text("Resumen de Gastos de Insumos", doc.internal.pageSize.getWidth() / 2, 15, { align: "center" });
-
-      // Añadir el rango de fechas
-      doc.setFontSize(10); // Tamaño de fuente más pequeño para la fecha
-      doc.text(dateRangeText, doc.internal.pageSize.getWidth() / 2, 22, { align: "center" });
-
-      // Preparar los datos para la tabla
-      const headers = [["Edificio", "Nivel", "Producto", "Total de Consumo"]];
-      const data = filteredResumenData.map(item => [item.area, item.nivel === '0' ? 'Sin Nivel' : item.nivel, item.producto, item.cantidadTotal]);
-
-      // Generar la tabla con autoTable
-      doc.autoTable({
-          startY: 30, // Ajustado para dar espacio al rango de fechas
-          head: headers,
-          body: data,
-          theme: 'grid', // Estilo de tabla
-          styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak', halign: 'center' }, // Estilos de celda
-          headStyles: { fillColor: [0, 123, 255], textColor: 255, fontStyle: 'bold', halign: 'center' }, // Estilos de encabezado
-          margin: { top: 20 },
-          didDrawPage: function(data) {
-              // Footer
-              let str = "Página " + doc.internal.getNumberOfPages();
-              doc.setFontSize(8);
-              doc.text(str, data.settings.margin.left, doc.internal.pageSize.height - 10);
-          }
-      });
-
-      // INICIO DE CAMBIO: Condición para añadir el resumen de consumo al PDF
-      const totalsSection = document.getElementById('resumen-totals-section');
-      if (totalsSection.style.display !== 'none') { // Solo añadir si la sección está visible
-        const finalY = doc.lastAutoTable.finalY + 10; // Obtener la posición final de la tabla
-        doc.setFontSize(12);
-        doc.text("Resumen de Consumo:", 14, finalY);
-
-        const productSums = {}; // Calcular sumas por producto nuevamente para el PDF
-        filteredResumenData.forEach(item => {
-            if (productSums[item.producto]) {
-                productSums[item.producto] += item.cantidadTotal;
-            } else {
-                productSums[item.producto] = item.cantidadTotal;
-            }
-        });
-
-        let currentY = finalY + 7;
-        for (const product in productSums) {
-            doc.text(`- ${product}: ${productSums[product].toLocaleString('es-HN')} unidades`, 18, currentY);
-            currentY += 5;
-        }
-      }
-      // FIN DE CAMBIO
-
-      doc.save(filename); // Se usa el nombre de archivo dinámico
-  }
 
   // Funciones para el modal de gráficos
   function abrirModalGraficos() {
@@ -1012,7 +954,7 @@
           <h2 class="modal-title">Gráficos de Consumo</h2>
           <div style="text-align: center; margin-bottom: 20px;">
               <button type="button" id="btn-generar-pdf-graficos" class="btn-generar-pdf" onclick="generarPDFGraficos()">
-                  Generar PDF de Gráficos
+                  Generar Reporte en PDF
               </button>
           </div>
           <div id="graficos-loading" style="text-align: center; padding: 40px;">

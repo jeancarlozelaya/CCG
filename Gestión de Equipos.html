@@ -1125,7 +1125,7 @@
 
 <!-- Solo un botón flotante -->
 <button class="scroll-button" id="acta-pendiente-button" onclick="mostrarTodasLasActas()" title="Actas pendientes">
-    <i class="fas fa-file-contract"></i>
+    <i class="fa-solid fa-download"></i>
     <span class="badge">0</span>
 </button>
 
@@ -2258,93 +2258,13 @@ function verificarFormulario() {
         return currentY + spacingY;
     }
 
-    // ===== FUNCIONES MEJORADAS PARA GESTIÓN DE PDF =====
     
-// Función para limpiar completamente - ACTUALIZADA
-function limpiarCompletamenteStorage() {
-    try {
-        console.log('=== LIMPIANDO STORAGE ===');
-        
-        // Guardar información antes de limpiar (para debugging)
-        const pdfsAntes = obtenerPDFsAlmacenados();
-        console.log('PDFs antes de limpiar:', pdfsAntes.length);
-        
-        // Limpiar todo
-        localStorage.removeItem('pdfsAlmacenados');
-        localStorage.removeItem('ultimoPDFGenerado');
-        
-        // Limpiar items residuales
-        const keys = Object.keys(localStorage);
-        keys.forEach(key => {
-            if (key.includes('PDF') || key.includes('pdf') || key.includes('acta')) {
-                localStorage.removeItem(key);
-            }
-        });
-        
-        const pdfsDespues = obtenerPDFsAlmacenados();
-        console.log('PDFs después de limpiar:', pdfsDespues.length);
-        console.log('✅ Storage limpiado completamente');
-        
-        return true;
-        
-    } catch (error) {
-        console.error('❌ Error al limpiar storage:', error);
-        return false;
-    }
-}
 
 
 
-    // Función para verificar espacio disponible
-    function verificarEspacioDisponible(tamañoNecesario = 5 * 1024 * 1024) {
-        try {
-            // Calcular espacio utilizado
-            let espacioUtilizado = 0;
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                const value = localStorage.getItem(key);
-                espacioUtilizado += key.length + value.length;
-            }
-            
-            // localStorage generalmente tiene límite de 5-10MB
-            const espacioDisponible = (5 * 1024 * 1024) - espacioUtilizado;
-            
-            console.log('Espacio utilizado:', espacioUtilizado, 'caracteres');
-            console.log('Espacio disponible aproximado:', espacioDisponible, 'caracteres');
-            
-            return espacioDisponible > tamañoNecesario;
-            
-        } catch (error) {
-            console.error('Error al verificar espacio:', error);
-            return false;
-        }
-    }
 
-    // Función de compresión más agresiva
-    function comprimirPDFAgresivo(pdfBlob) {
-        return new Promise((resolve, reject) => {
-            if (!(pdfBlob instanceof Blob)) {
-                reject(new Error('Parámetro no es un Blob válido'));
-                return;
-            }
-            
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                try {
-                    // Crear nuevo Blob
-                    const arrayBuffer = event.target.result;
-                    const compressedBlob = new Blob([arrayBuffer], { 
-                        type: 'application/pdf' 
-                    });
-                    resolve(compressedBlob);
-                } catch (error) {
-                    reject(error);
-                }
-            };
-            reader.onerror = () => reject(new Error('Error de lectura'));
-            reader.readAsArrayBuffer(pdfBlob);
-        });
-    }
+
+
 
 // Constante para el número máximo de PDFs a guardar
 const MAX_PDFS_ALMACENADOS = 5;
@@ -2417,10 +2337,7 @@ async function guardarPDFEnStorage(pdfBlob, pdfData) {
 
 
 
-// Función para generar ID único
-function generarIdUnico() {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
-}
+
 
 // Función para obtener todos los PDFs almacenados
 // Función para obtener PDFs - VERSIÓN SIMPLIFICADA
@@ -2442,41 +2359,9 @@ function obtenerPDFsAlmacenados() {
     }
 }
 
-    // Función para recuperar el PDF desde localStorage
-    function recuperarPDFDesdeStorage() {
-        try {
-            const pdfGuardado = localStorage.getItem('ultimoPDFGenerado');
-            if (!pdfGuardado) {
-                console.log('No hay PDF guardado en storage');
-                return null;
-            }
-            
-            const pdfData = JSON.parse(pdfGuardado);
-            console.log('PDF recuperado del storage:', pdfData.name);
-            return pdfData;
-            
-        } catch (error) {
-            console.error('Error al recuperar PDF desde storage:', error);
-            try {
-                localStorage.removeItem('ultimoPDFGenerado');
-            } catch (e) {
-                console.error('No se pudo limpiar el item corrupto:', e);
-            }
-            return null;
-        }
-    }
 
-    // Función para mostrar/ocultar el botón de acta pendiente
-    function mostrarBotonActaPendiente() {
-        const botonActa = document.getElementById('acta-pendiente-button');
-        const pdfGuardado = localStorage.getItem('ultimoPDFGenerado');
-        
-        if (pdfGuardado) {
-            botonActa.classList.add('pendiente');
-        } else {
-            botonActa.classList.remove('pendiente');
-        }
-    }
+
+
 
 // Función para mostrar el acta pendiente (ahora recibe índice)
 // Función para mostrar acta pendiente - VERSIÓN CORREGIDA
@@ -2531,27 +2416,6 @@ function eliminarActaPendiente(indice) {
     }
 }
 
-    // Función para verificar PDF pendiente
-    function verificarPDFPendiente() {
-        const pdfData = recuperarPDFDesdeStorage();
-        
-        if (pdfData) {
-            const ahora = new Date().getTime();
-            const unaSemana = 7 * 24 * 60 * 60 * 1000;
-            
-            if (ahora - pdfData.timestamp > unaSemana) {
-                console.log('PDF expirado, eliminando...');
-                localStorage.removeItem('ultimoPDFGenerado');
-                mostrarBotonActaPendiente();
-            } else {
-                console.log('PDF válido encontrado:', pdfData.name);
-                mostrarBotonActaPendiente();
-            }
-        } else {
-            console.log('No hay PDF pendiente');
-            mostrarBotonActaPendiente();
-        }
-    }
 
     // Función principal para recuperar PDF
 function recuperarPDF(pdfData, indice) {
@@ -2851,28 +2715,7 @@ function mostrarDialogoTodosLosPDFs() {
 }
 
 
-// Función auxiliar para eliminar desde el diálogo de todos los PDFs
-function eliminarActaPendienteDesdeDialogo(indice) {
-    Swal.fire({
-        title: '¿Eliminar esta acta?',
-        text: 'Esta acción no se puede deshacer',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Sí, eliminar',
-        cancelButtonText: 'Cancelar'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            eliminarActaPendiente(indice);
-            Swal.close();
-            // Recargar el diálogo después de un breve delay
-            setTimeout(() => {
-                mostrarDialogoTodosLosPDFs();
-            }, 500);
-        }
-    });
-}
+
 
 function mostrarDialogoMetadatos(pdfData, indice) {
     const fecha = new Date(pdfData.timestamp).toLocaleString();
@@ -3421,39 +3264,10 @@ function mostrarBotonesActasPendientes() {
 
 
 
-// Función para convertir blob a base64
-function blobToBase64(blob) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = function() {
-            resolve(reader.result);
-        };
-        reader.onerror = function(error) {
-            reject(error);
-        };
-        reader.readAsDataURL(blob);
-    });
-}
 
 
-// Función para debuggear el storage (ejecutar en consola)
-function debugStorage() {
-    console.log('=== DEBUG DEL STORAGE ===');
-    const pdfs = JSON.parse(localStorage.getItem('pdfsAlmacenados') || '[]');
-    console.log('PDFs en storage:', pdfs.length);
-    pdfs.forEach((pdf, i) => {
-        console.log(`PDF ${i + 1}:`, {
-            nombre: pdf.name,
-            equipo: pdf.equipo,
-            timestamp: new Date(pdf.timestamp).toLocaleString(),
-            tieneData: !!pdf.data,
-            error: pdf.error
-        });
-    });
-    console.log('=== FIN DEBUG ===');
-}
 
-// Ejecutar debugStorage() en la consola para verificar
+
 
 // Función para mostrar todas las actas disponibles
 function mostrarTodasLasActas() {
@@ -3486,14 +3300,12 @@ function mostrarTodasLasActas() {
                     <div style="flex: 1;">
                         <strong style="font-size: 1.1em;">${pdf.equipo}</strong>
                         <span style="background-color: ${tipoTexto === 'Salida' ? '#007bff' : '#28a745'}; color: white; padding: 3px 8px; border-radius: 4px; font-size: 0.8em; margin-left: 10px;">${tipoTexto}</span>
-                        ${esReciente ? '<span style="background-color: #ffc107; color: black; padding: 2px 6px; border-radius: 4px; font-size: 0.7em; margin-left: 5px;">Nueva</span>' : ''}
                     </div>
                     <span style="font-size: 0.8em; color: #6c757d;">#${index + 1}</span>
                 </div>
                 
                 <div style="font-size: 0.9em; color: #555; margin-bottom: 8px;">
                     <div><strong>Colaborador:</strong> ${pdf.colaborador}</div>
-                    <div><strong>Fecha acta:</strong> ${pdf.fecha}</div>
                     <div><strong>Generado:</strong> ${fecha}</div>
                 </div>
                 

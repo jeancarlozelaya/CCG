@@ -156,6 +156,27 @@
             .machine-card {
                 padding: 12px;
             }
+
+
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+    
+    .stat-card {
+        padding: 10px;
+    }
+    
+    .stat-value {
+        font-size: 1.5rem;
+    }
+    
+    .health-score {
+        font-size: 1.8rem;
+    }
+
+
+
         }
 
         @media (max-width: 350px) {
@@ -771,6 +792,25 @@
                 font-size: 2rem;
             }
         }
+
+
+
+/* Tooltip básico para los iconos de información */
+.stat-card {
+    position: relative;
+    cursor: help;
+}
+
+.stat-card .fa-info-circle {
+    opacity: 0.7;
+    transition: opacity 0.3s ease;
+}
+
+.stat-card .fa-info-circle:hover {
+    opacity: 1;
+}
+
+
     </style>
 </head>
 <body>
@@ -1189,91 +1229,93 @@
         checklistHistory.innerHTML = html;
     }
 
-    function mostrarEstadisticas() {
-        const statsContent = document.getElementById('statsContent');
-        
-        if (!equipoSeleccionado || !historialData.salidas) {
-            statsContent.innerHTML = `
-                <div class="no-data">
-                    <i class="fas fa-chart-bar"></i>
-                    <p>No hay suficientes datos para mostrar estadísticas</p>
-                </div>
-            `;
-            return;
-        }
-        
-        charts.forEach(chart => chart.destroy());
-        charts = [];
-        
-        const salidas = historialData.salidas || [];
-        const entradas = historialData.entradas || [];
-        
-        // Estadísticas originales
-        const totalUsos = salidas.length;
-        const usoMensual = calcularUsoMensual(salidas);
-        const colaboradoresFrecuentes = calcularColaboradoresFrecuentes(salidas);
-        const cumplimientoChecklist = calcularCumplimientoChecklist(salidas, entradas);
-        
-        // Nuevas estadísticas
-        const scoreSalud = calcularScoreSalud(salidas, entradas);
-        const predictorMantenimiento = calcularPredictorMantenimiento(salidas, entradas);
-        const anomalias = detectarAnomalias(salidas, entradas);
-        
-        let html = `
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-label">Score de Salud</div>
-                    <div class="health-score ${getHealthScoreClass(scoreSalud)}">${scoreSalud}</div>
-                    <div class="stat-label">${getHealthScoreLabel(scoreSalud)}</div>
-                </div>
-                
-                <div class="stat-card">
-                    <div class="stat-label">Predictor Mantenimiento</div>
-                    <div class="stat-value">${predictorMantenimiento}%</div>
-                    <div class="stat-label">probabilidad</div>
-                </div>
-                
-                <div class="stat-card">
-                    <div class="stat-label">Total de Usos</div>
-                    <div class="stat-value">${totalUsos}</div>
-                    <div class="stat-label">registros históricos</div>
-                </div>
-                
-                <div class="stat-card">
-                    <div class="stat-label">Cumplimiento</div>
-                    <div class="stat-value">${cumplimientoChecklist}%</div>
-                    <div class="stat-label">en checklist</div>
-                </div>
+function mostrarEstadisticas() {
+    const statsContent = document.getElementById('statsContent');
+    
+    if (!equipoSeleccionado || !historialData.salidas) {
+        statsContent.innerHTML = `
+            <div class="no-data">
+                <i class="fas fa-chart-bar"></i>
+                <p>No hay suficientes datos para mostrar estadísticas</p>
             </div>
         `;
-        
-        // Mostrar alertas de anomalías si existen
-        if (anomalias.length > 0) {
-            html += `<div class="anomaly-alert">
-                <h4><i class="fas fa-exclamation-triangle"></i> Anomalías Detectadas</h4>
-                <p>${anomalias[0].descripcion}</p>
-            </div>`;
-        }
-        
-        html += `            
-            <div class="chart-container">
-                <div class="chart-title">Frecuencia de Uso por Mes</div>
-                <canvas id="usoMensualChart"></canvas>
+        return;
+    }
+    
+    charts.forEach(chart => chart.destroy());
+    charts = [];
+    
+    const salidas = historialData.salidas || [];
+    const entradas = historialData.entradas || [];
+    
+    // Estadísticas
+    const totalUsos = salidas.length;
+    const usoMensual = calcularUsoMensual(salidas);
+    const colaboradoresFrecuentes = calcularColaboradoresFrecuentes(salidas);
+    const cumplimientoChecklist = calcularCumplimientoChecklist(salidas, entradas);
+    
+    // Nuevas estadísticas
+    const scoreSalud = calcularScoreSalud(salidas, entradas);
+    const predictorMantenimiento = calcularPredictorMantenimiento(salidas, entradas);
+    const anomalias = detectarAnomalias(salidas, entradas);
+    
+    let html = `
+        <div class="stats-grid">
+            <div class="stat-card" title="Indica el estado general del equipo basado en uso, mantenimiento y cumplimiento">
+                <div class="stat-label">Score de Salud <i class="fas fa-info-circle" style="color: #3498db; font-size: 0.7rem;"></i></div>
+                <div class="health-score ${getHealthScoreClass(scoreSalud)}">${scoreSalud}</div>
+                <div class="stat-label">${getHealthScoreLabel(scoreSalud)}</div>
             </div>
             
-            <div class="chart-container">
-                <div class="chart-title">Colaboradores que más usan este equipo</div>
-                <canvas id="colaboradoresChart"></canvas>
+            <div class="stat-card" title="Probabilidad de que el equipo necesite mantenimiento en el corto plazo">
+                <div class="stat-label">Predictor Mantenimiento <i class="fas fa-info-circle" style="color: #3498db; font-size: 0.7rem;"></i></div>
+                <div class="stat-value">${predictorMantenimiento}%</div>
+                <div class="stat-label">probabilidad</div>
             </div>
-        `;
-        
-        statsContent.innerHTML = html;
-        
-        setTimeout(() => {
-            crearGraficoUsoMensual(usoMensual.grafico);
-            crearGraficoColaboradores(colaboradoresFrecuentes.top);
-        }, 100);
+            
+            <div class="stat-card" title="Número total de veces que el equipo ha sido utilizado">
+                <div class="stat-label">Total de Usos <i class="fas fa-info-circle" style="color: #3498db; font-size: 0.7rem;"></i></div>
+                <div class="stat-value">${totalUsos}</div>
+                <div class="stat-label">registros históricos</div>
+            </div>
+            
+            <div class="stat-card" title="Porcentaje de cumplimiento en los checklist de salida y entrada">
+                <div class="stat-label">Cumplimiento <i class="fas fa-info-circle" style="color: #3498db; font-size: 0.7rem;"></i></div>
+                <div class="stat-value">${cumplimientoChecklist}%</div>
+                <div class="stat-label">en checklist</div>
+            </div>
+        </div>
+    `;
+    
+    // Mostrar alertas de anomalías si existen
+    if (anomalias.length > 0) {
+        html += `<div class="anomaly-alert">
+            <h4><i class="fas fa-exclamation-triangle"></i> Anomalías Detectadas</h4>
+            <p>${anomalias[0].descripcion}</p>
+        </div>`;
     }
+    
+    html += `            
+        <div class="chart-container">
+            <div class="chart-title">Frecuencia de Uso por Mes</div>
+            <canvas id="usoMensualChart"></canvas>
+        </div>
+        
+        <div class="chart-container">
+            <div class="chart-title">Colaboradores que más usan este equipo</div>
+            <canvas id="colaboradoresChart"></canvas>
+        </div>
+    `;
+    
+    statsContent.innerHTML = html;
+    
+    setTimeout(() => {
+        crearGraficoUsoMensual(usoMensual.grafico);
+        crearGraficoColaboradores(colaboradoresFrecuentes.top);
+    }, 100);
+}
+
+
 
     function mostrarAlertas() {
         const alertsContent = document.getElementById('alertsContent');

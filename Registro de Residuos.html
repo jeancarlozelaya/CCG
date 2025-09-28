@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pisos Brillantes - Registro de Residuos</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --success-color: #2ecc71;
+            --warning-color: #f39c12;
+            --light-color: #ecf0f1;
+            --dark-color: #34495e;
+            --text-color: #333;
+            --border-color: #ddd;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            color: var(--text-color);
+            line-height: 1.6;
+            /* Desactivar selección de texto para todo el cuerpo */
+            -webkit-touch-callout: none; /* iOS Safari */
+            -webkit-user-select: none;   /* Safari */
+            -khtml-user-select: none;    /* Konqueror HTML */
+            -moz-user-select: none;      /* Old versions of Firefox */
+            -ms-user-select: none;       /* Internet Explorer/Edge */
+            user-select: none;           /* Non-prefixed version, currently supported by Chrome, Edge, Opera and Firefox */
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+            color: white;
+            text-align: center;
+            padding: 18px 0;
+            font-size: 1.5rem;
+            font-weight: bold;
+            box-shadow: var(--shadow);
+            position: relative;
+        }
+
+        .form-container {
+            width: 90%;
+            max-width: 800px;
+            margin: 25px auto;
+            padding: 25px;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 25px;
+            font-size: 1.8rem;
+            position: relative;
+            padding-bottom: 10px;
+        }
+
+        h1:after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 4px;
+            background-color: var(--secondary-color);
+            border-radius: 2px;
+        }
+
+        .question-container {
+            margin-bottom: 25px;
+            padding: 20px;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+            border-left: 4px solid var(--secondary-color);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .question-container label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--dark-color);
+        }
+
+        .question-container input,
+        .question-container select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 16px;
+            transition: var(--transition);
+            background-color: white;
+        }
+
+        .question-container input:focus,
+        .question-container select:focus {
+            border-color: var(--secondary-color);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+        }
+
+        .button-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .button-group button {
+            padding: 12px 8px;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            background-color: white;
+            color: var(--dark-color);
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 0.9em;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .button-group button.active {
+            background-color: var(--secondary-color);
+            color: white;
+            border-color: var(--secondary-color);
+        }
+
+        .button-group button:hover:not(.active) {
+            background-color: var(--light-color);
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        #registrar {
+            background: linear-gradient(to right, var(--success-color), #27ae60);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 14px 30px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 300px;
+        }
+
+        #registrar:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        #registrar:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Overlay de carga corregido - igual que en Requisiciones */
+        #overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.95);
+            z-index: 9999;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid rgba(52, 152, 219, 0.2);
+            border-radius: 50%;
+            border-top-color: var(--secondary-color);
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        #loadingMessage {
+            text-align: center;
+            color: var(--dark-color);
+        }
+
+        #loadingMessage h4 {
+            margin: 0 0 10px;
+            font-size: 1.3rem;
+        }
+
+        #loadingMessage p {
+            margin: 0;
+            color: #7f8c8d;
+        }
+
+        .sync-button {
+            background-color: var(--warning-color);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2em;
+            cursor: pointer;
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+            position: fixed;
+            left: 25px;
+            top: 25px;
+            z-index: 1000;
+        }
+
+        .sync-button:hover {
+            background-color: #e67e22;
+            transform: scale(1.1);
+        }
+
+        .sync-button.syncing {
+            animation: spin 1s linear infinite;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background-color: var(--accent-color);
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+
+        /* Modal para revisar registros */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            width: 95%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .modal-body {
+            padding: 20px;
+            overflow: auto;
+            flex-grow: 1;
+        }
+
+        /* TABLA MEJORADA PARA MÓVILES CON SCROLL HORIZONTAL */
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .registros-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            min-width: 700px; /* Ancho mínimo para evitar compresión */
+        }
+
+        .registros-table th,
+        .registros-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+
+        .registros-table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: var(--dark-color);
+            position: sticky;
+            top: 0;
+        }
+
+        .registros-table tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        /* CORRECCIÓN: Botones de acciones alineados correctamente */
+        .acciones-cell {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            min-height: 50px;
+        }
+
+        .btn-editar, .btn-eliminar {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: var(--transition);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .btn-editar {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+
+        .btn-eliminar {
+            background-color: var(--accent-color);
+            color: white;
+        }
+
+        .btn-editar:hover {
+            background-color: #2980b9;
+        }
+
+        .btn-eliminar:hover {
+            background-color: #c0392b;
+        }
+
+        .modal-footer {
+            padding: 20px;
+            background-color: #f8f9fa;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .btn-sincronizar {
+            background: linear-gradient(to right, var(--success-color), #27ae60);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 20px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .btn-sincronizar:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-cerrar {
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 20px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .btn-cerrar:hover {
+            background-color: #5a6268;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #6c757d;
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            color: #bdc3c7;
+        }
+
+        /* Indicador de scroll para móviles */
+        .scroll-indicator {
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 0.8em;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .scroll-indicator i {
+            margin: 0 5px;
+        }
+
+        /* MEDIA QUERIES MEJORADAS */
+        @media (max-width: 768px) {
+            .form-container {
+                width: 95%;
+                padding: 15px;
+                margin: 15px auto;
+            }
+            
+            /* CAMBIO PRINCIPAL: 3 columnas en móviles */
+            .button-group {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 8px;
+            }
+            
+            .button-group button {
+                padding: 10px 6px;
+                font-size: 0.85em;
+                min-height: 45px;
+            }
+            
+            .sync-button {
+                width: 50px;
+                height: 50px;
+                font-size: 1em;
+                left: 15px;
+                top: 15px;
+            }
+            
+            .notification-badge {
+                width: 20px;
+                height: 20px;
+                font-size: 0.7em;
+            }
+            
+            h1 {
+                font-size: 1.5rem;
+            }
+            
+            .modal-content {
+                width: 98%;
+                max-height: 85vh;
+                margin: 10px;
+            }
+            
+            .modal-header h2 {
+                font-size: 1.3rem;
+            }
+            
+            .registros-table {
+                font-size: 0.85em;
+                min-width: 650px;
+            }
+            
+            .registros-table th,
+            .registros-table td {
+                padding: 10px 8px;
+            }
+            
+            .acciones-cell {
+                flex-direction: row;
+                gap: 5px;
+            }
+            
+            .btn-editar, .btn-eliminar {
+                padding: 5px 8px;
+                font-size: 0.8em;
+            }
+            
+            /* Mostrar indicador de scroll en móviles */
+            .scroll-indicator {
+                display: block;
+            }
+        }
+
+        @media (max-width: 480px) {
+            /* Para pantallas muy pequeñas, mantener 3 columnas pero ajustar tamaño */
+            .button-group {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 6px;
+            }
+            
+            .button-group button {
+                padding: 8px 4px;
+                font-size: 0.8em;
+                min-height: 40px;
+            }
+            
+            .question-container {
+                padding: 15px;
+            }
+            
+            .modal-content {
+                width: 98%;
+                max-height: 90vh;
+            }
+            
+            .modal-header {
+                padding: 15px;
+            }
+            
+            .modal-body {
+                padding: 15px;
+            }
+        }
+
+        @media (max-width: 360px) {
+            /* Para pantallas extra pequeñas, 2 columnas */
+            .button-group {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            #tipo-residuo.button-group {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        /* Para escritorio - diseño responsive normal */
+        @media (min-width: 769px) {
+            .button-group {
+                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            }
+            
+            .table-container {
+                overflow-x: visible;
+            }
+            
+            .registros-table {
+                min-width: auto;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">Pisos Brillantes</div>
+    
+    <button class="sync-button" id="sync-button" onclick="mostrarModalRegistros()" title="Revisar y sincronizar datos">
+        <i class="fas fa-sync-alt"></i>
+        <div class="notification-badge" id="notification-badge" style="display: none;">0</div>
+    </button>
+    
+    <div class="form-container">
+        <h1>Registro de Residuos</h1>
+
+        <form id="formulario">
+            <div class="question-container">
+                <label for="fecha"><strong>Fecha:</strong></label>
+                <input type="text" id="fecha" name="fecha" placeholder="DD/MM/AAAA" readonly>
+            </div>
+
+            <div class="question-container">
+                <label><strong>Edificio:</strong></label>
+                <div class="button-group" id="edificio-group">
+                    <button type="button" data-value="CBA">CBA</button>
+                    <button type="button" data-value="CBB">CBB</button>
+                    <button type="button" data-value="CBC">CBC</button>
+                    <button type="button" data-value="Torre #1">Torre #1</button>
+                    <button type="button" data-value="Torre #2">Torre #2</button>
+                </div>
+            </div>
+
+            <div class="question-container">
+                <label><strong>Tipo de Residuo:</strong></label>
+                <div class="button-group" id="tipo-residuo">
+                    <button type="button" class="active" data-value="Común">Común</button>
+                    <button type="button" data-value="Plástico">Plástico</button>
+                    <button type="button" data-value="Aluminio">Aluminio</button>
+                    <button type="button" data-value="Cartón">Cartón</button>
+                    <button type="button" data-value="Vidrio">Vidrio</button>
+                    <button type="button" data-value="RPBI">RPBI</button>
+                </div>
+            </div>
+
+            <div class="question-container">
+                <label for="cantidad"><strong>Cantidad (Lbs):</strong></label>
+                <input type="number" id="cantidad" name="cantidad" min="0" step="0.1" placeholder="Ingrese la cantidad en libras">
+            </div>
+
+            <div class="question-container">
+                <label><strong>Clasificación:</strong></label>
+                <div class="button-group" id="clasificacion">
+                    <button type="button" class="active" data-value="Orgánico">Orgánico</button>
+                    <button type="button" data-value="Inorgánico">Inorgánico</button>
+                </div>
+            </div>
+
+            <div class="question-container">
+                <label><strong>Estado Físico:</strong></label>
+                <div class="button-group" id="estado-fisico">
+                    <button type="button" class="active" data-value="Sólido">Sólido</button>
+                    <button type="button" data-value="Líquido">Líquido</button>
+                    <button type="button" data-value="Gaseoso">Gaseoso</button>
+                </div>
+            </div>
+
+            <div class="button-container">
+                <button type="button" id="registrar" disabled onclick="registrarEntrada()">Registrar Entrada</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Modal para revisar registros -->
+    <div class="modal" id="modal-registros">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Registros Pendientes de Sincronizar</h2>
+                <button class="close-modal" onclick="cerrarModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <!-- Aquí se cargarán los registros -->
+            </div>
+            <div class="modal-footer">
+                <span id="contador-registros">0 registros pendientes</span>
+                <div>
+                    <button class="btn-cerrar" onclick="cerrarModal()">Cerrar</button>
+                    <button class="btn-sincronizar" id="btn-sincronizar" onclick="sincronizarDatos()" disabled>Sincronizar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overlay de carga corregido -->
+    <div id="overlay">
+        <div class="spinner"></div>
+        <div id="loadingMessage">
+            <h4>Por favor espera un momento...</h4>
+            <p id="loading-detail"></p>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        let datosLocales = [];
+        let tipoResiduoSeleccionado = "Común";
+        let clasificacionSeleccionada = "Orgánico";
+        let estadoFisicoSeleccionado = "Sólido";
+        let edificioSeleccionado = "";
+        const scriptURL = "https://script.google.com/macros/s/AKfycbyEonibd5OZnnSMJidnlAWTcFjKJvH6TehqaYVdxGsIVi59z3W96qX9-OUEEKOuHeg7Xg/exec";
+
+        // Configuración inicial al cargar la página
+        document.addEventListener('DOMContentLoaded', function() {
+            // Establecer fecha actual en formato DD/MM/AAAA
+            var today = new Date();
+            var dd = String(today.getDate()).padStart(2, '0');
+            var mm = String(today.getMonth() + 1).padStart(2, '0');
+            var yyyy = today.getFullYear();
+            document.getElementById("fecha").value = dd + '/' + mm + '/' + yyyy;
+            
+            // Cargar datos locales si existen
+            cargarDatosLocales();
+            
+            // Cargar última selección de edificio
+            cargarUltimaSeleccion();
+            
+            // Actualizar contador
+            actualizarContador();
+            
+            // Configurar eventos
+            configurarEventos();
+
+            // Desactivar el menú contextual (clic derecho) en todo el documento
+            document.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+            });
+
+            // Desactivar la selección de texto en todo el documento
+            document.addEventListener('selectstart', function(e) {
+                e.preventDefault();
+            });
+        });
+
+        // Función para cargar la última selección de edificio
+        function cargarUltimaSeleccion() {
+            let ultimoEdificio = localStorage.getItem('ultimoEdificio');
+            if (ultimoEdificio) {
+                // Buscar el botón correspondiente y activarlo
+                const botonEdificio = $(`#edificio-group button[data-value="${ultimoEdificio}"]`);
+                if (botonEdificio.length) {
+                    botonEdificio.addClass('active');
+                    edificioSeleccionado = ultimoEdificio;
+                }
+            }
+            verificarFormulario();
+        }
+
+        // Función para guardar la última selección de edificio
+        function guardarUltimaSeleccion() {
+            if (edificioSeleccionado) {
+                localStorage.setItem('ultimoEdificio', edificioSeleccionado);
+            }
+        }
+
+        // Función para resetear selecciones a valores por defecto (excepto edificio)
+        function resetearSelecciones() {
+            // Resetear tipo de residuo a "Común"
+            $('#tipo-residuo button').removeClass('active');
+            $('#tipo-residuo button[data-value="Común"]').addClass('active');
+            tipoResiduoSeleccionado = "Común";
+            
+            // Resetear clasificación a "Orgánico"
+            $('#clasificacion button').removeClass('active');
+            $('#clasificacion button[data-value="Orgánico"]').addClass('active');
+            clasificacionSeleccionada = "Orgánico";
+            
+            // Resetear estado físico a "Sólido"
+            $('#estado-fisico button').removeClass('active');
+            $('#estado-fisico button[data-value="Sólido"]').addClass('active');
+            estadoFisicoSeleccionado = "Sólido";
+        }
+
+        // Función para configurar eventos
+        function configurarEventos() {
+            // Botones de edificio
+            $('#edificio-group button').on('click', function() {
+                $('#edificio-group button').removeClass('active');
+                $(this).addClass('active');
+                edificioSeleccionado = $(this).data('value');
+                guardarUltimaSeleccion();
+                verificarFormulario();
+            });
+
+            // Botones de tipo de residuo
+            $('#tipo-residuo button').on('click', function() {
+                $('#tipo-residuo button').removeClass('active');
+                $(this).addClass('active');
+                tipoResiduoSeleccionado = $(this).data('value');
+                verificarFormulario();
+            });
+
+            // Botones de clasificación
+            $('#clasificacion button').on('click', function() {
+                $('#clasificacion button').removeClass('active');
+                $(this).addClass('active');
+                clasificacionSeleccionada = $(this).data('value');
+                verificarFormulario();
+            });
+
+            // Botones de estado físico
+            $('#estado-fisico button').on('click', function() {
+                $('#estado-fisico button').removeClass('active');
+                $(this).addClass('active');
+                estadoFisicoSeleccionado = $(this).data('value');
+                verificarFormulario();
+            });
+
+            // Validación de formulario
+            $("#cantidad").on("change input", verificarFormulario);
+        }
+
+        // Función para verificar si el formulario está completo
+        function verificarFormulario() {
+            let cantidad = $("#cantidad").val();
+
+            if (edificioSeleccionado !== "" && cantidad.trim() !== "" && parseFloat(cantidad) > 0) {
+                $("#registrar").prop("disabled", false);
+            } else {
+                $("#registrar").prop("disabled", true);
+            }
+        }
+
+        // Función para registrar entrada
+        function registrarEntrada() {
+            let fecha = $('#fecha').val();
+            let cantidad = parseFloat($('#cantidad').val());
+
+            // Crear objeto con los datos
+            let registro = {
+                fecha: fecha,
+                edificio: edificioSeleccionado,
+                tipoResiduo: tipoResiduoSeleccionado,
+                cantidad: cantidad,
+                clasificacion: clasificacionSeleccionada,
+                estadoFisico: estadoFisicoSeleccionado,
+                timestamp: new Date().getTime()
+            };
+
+            // Guardar en almacenamiento local
+            datosLocales.push(registro);
+            guardarDatosLocales();
+            actualizarContador();
+
+            // Mostrar confirmación
+            Swal.fire({
+                title: 'Registro Exitoso',
+                html: `
+                    <div style="text-align: center;">
+                        <p style="font-size: 1.1em; margin-bottom: 15px;">El registro se ha guardado correctamente.</p>
+                        <p style="font-size: 0.9em; color: #7f8c8d;">Registros pendientes de sincronizar: ${datosLocales.length}</p>
+                        <div style="color: #28a745; font-size: 2em;">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                    </div>
+                `,
+                icon: 'success',
+                confirmButtonText: 'Aceptar',
+                confirmButtonColor: '#28a745'
+            }).then(() => {
+                // Resetear selecciones a valores por defecto (excepto edificio)
+                resetearSelecciones();
+                
+                // Limpiar solo el campo de cantidad y poner el foco ahí
+                $('#cantidad').val('');
+                $('#cantidad').focus();
+                verificarFormulario();
+            });
+        }
+
+        // Función para cargar datos locales
+        function cargarDatosLocales() {
+            let datosGuardados = localStorage.getItem('registrosResiduos');
+            if (datosGuardados) {
+                datosLocales = JSON.parse(datosGuardados);
+                console.log(`Cargados ${datosLocales.length} registros locales`);
+            }
+        }
+
+        // Función para guardar datos locales
+        function guardarDatosLocales() {
+            localStorage.setItem('registrosResiduos', JSON.stringify(datosLocales));
+        }
+
+        // Función para actualizar el contador del botón
+        function actualizarContador() {
+            const badge = document.getElementById('notification-badge');
+            if (datosLocales.length > 0) {
+                badge.style.display = 'flex';
+                badge.textContent = datosLocales.length > 99 ? '99+' : datosLocales.length;
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        // Función para mostrar el modal con los registros
+        function mostrarModalRegistros() {
+            const modal = document.getElementById('modal-registros');
+            const modalBody = document.getElementById('modal-body');
+            const contador = document.getElementById('contador-registros');
+            const btnSincronizar = document.getElementById('btn-sincronizar');
+            
+            // Actualizar contador en el modal
+            contador.textContent = `${datosLocales.length} registro${datosLocales.length !== 1 ? 's' : ''} pendiente${datosLocales.length !== 1 ? 's' : ''}`;
+            
+            // Habilitar o deshabilitar botón de sincronizar
+            btnSincronizar.disabled = datosLocales.length === 0;
+            
+            if (datosLocales.length === 0) {
+                modalBody.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <h3>No hay registros pendientes</h3>
+                        <p>Los registros que crees aparecerán aquí para revisión antes de sincronizar.</p>
+                    </div>
+                `;
+            } else {
+                let tablaHTML = `
+                    <div class="table-container">
+                        <table class="registros-table">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Edificio</th>
+                                    <th>Tipo Residuo</th>
+                                    <th>Cantidad (Lbs)</th>
+                                    <th>Clasificación</th>
+                                    <th>Estado Físico</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                datosLocales.forEach((registro, index) => {
+                    tablaHTML += `
+                        <tr>
+                            <td>${registro.fecha}</td>
+                            <td>${registro.edificio}</td>
+                            <td>${registro.tipoResiduo}</td>
+                            <td>${registro.cantidad}</td>
+                            <td>${registro.clasificacion}</td>
+                            <td>${registro.estadoFisico}</td>
+                            <td class="acciones-cell">
+                                <button class="btn-editar" onclick="editarRegistro(${index})">Editar</button>
+                                <button class="btn-eliminar" onclick="eliminarRegistro(${index})">Eliminar</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                tablaHTML += `
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="scroll-indicator">
+                        <i class="fas fa-arrows-alt-h"></i> Desliza horizontalmente para ver más información
+                    </div>
+                `;
+                
+                modalBody.innerHTML = tablaHTML;
+            }
+            
+            modal.style.display = 'flex';
+        }
+
+        // Función para cerrar el modal
+        function cerrarModal() {
+            document.getElementById('modal-registros').style.display = 'none';
+        }
+
+        // Función para editar un registro
+        function editarRegistro(index) {
+            const registro = datosLocales[index];
+            
+            // Llenar el formulario con los datos del registro
+            document.getElementById('fecha').value = registro.fecha;
+            
+            // Actualizar botones de selección
+            $(`#edificio-group button[data-value="${registro.edificio}"]`).click();
+            $(`#tipo-residuo button[data-value="${registro.tipoResiduo}"]`).click();
+            $(`#clasificacion button[data-value="${registro.clasificacion}"]`).click();
+            $(`#estado-fisico button[data-value="${registro.estadoFisico}"]`).click();
+            
+            document.getElementById('cantidad').value = registro.cantidad;
+            
+            // Eliminar el registro de la lista
+            eliminarRegistro(index, false);
+            
+            // Cerrar el modal
+            cerrarModal();
+            
+            // Poner el foco en el campo de cantidad
+            $('#cantidad').focus();
+            
+            Swal.fire({
+                title: 'Registro cargado para edición',
+                text: 'El registro se ha cargado en el formulario. Realiza los cambios necesarios y vuelve a registrar.',
+                icon: 'info',
+                confirmButtonText: 'Entendido',
+                confirmButtonColor: '#3498db'
+            });
+        }
+
+        // Función para eliminar un registro
+        function eliminarRegistro(index, mostrarConfirmacion = true) {
+            if (mostrarConfirmacion) {
+                Swal.fire({
+                    title: '¿Eliminar registro?',
+                    text: 'Esta acción no se puede deshacer.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, eliminar',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: '#e74c3c'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        datosLocales.splice(index, 1);
+                        guardarDatosLocales();
+                        actualizarContador();
+                        mostrarModalRegistros(); // Refrescar la vista
+                        
+                        Swal.fire({
+                            title: 'Eliminado',
+                            text: 'El registro ha sido eliminado.',
+                            icon: 'success',
+                            confirmButtonText: 'Aceptar',
+                            confirmButtonColor: '#28a745'
+                        });
+                    }
+                });
+            } else {
+                datosLocales.splice(index, 1);
+                guardarDatosLocales();
+                actualizarContador();
+            }
+        }
+
+        // Función para sincronizar datos con Google Sheets
+        function sincronizarDatos() {
+            if (datosLocales.length === 0) {
+                Swal.fire({
+                    title: 'Sin datos',
+                    text: 'No hay registros pendientes para sincronizar.',
+                    icon: 'info',
+                    confirmButtonText: 'Entendido',
+                    confirmButtonColor: '#3498db'
+                });
+                return;
+            }
+
+            // Crear copia de seguridad de los datos antes de enviar
+            const datosBackup = [...datosLocales];
+            const timestampBackup = new Date().getTime();
+
+            // Cerrar el modal
+            cerrarModal();
+
+            // Mostrar animación de sincronización
+            $('#sync-button').addClass('syncing');
+            $('#overlay').css('display', 'flex');
+            $('#loading-detail').text('Sincronizando datos...');
+
+            // Configurar timeout para detectar problemas de red
+            const timeoutDuration = 30000; // 30 segundos
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Timeout: La sincronización está tomando demasiado tiempo')), timeoutDuration);
+            });
+
+            // Promesa para la solicitud AJAX
+            const ajaxPromise = new Promise((resolve, reject) => {
+                $.ajax({
+                    url: scriptURL,
+                    type: "POST",
+                    data: {
+                        registros: JSON.stringify(datosLocales)
+                    },
+                    success: resolve,
+                    error: reject
+                });
+            });
+
+            // Ejecutar con timeout
+            Promise.race([ajaxPromise, timeoutPromise])
+                .then(function(response) {
+                    $('#overlay').hide();
+                    $('#sync-button').removeClass('syncing');
+                    
+                    // Intentar parsear la respuesta
+                    let responseData;
+                    try {
+                        responseData = typeof response === 'string' ? JSON.parse(response) : response;
+                    } catch (e) {
+                        responseData = {success: false, message: 'Respuesta no válida del servidor'};
+                    }
+                    
+                    if (responseData.success && responseData.registrosProcesados === datosLocales.length) {
+                        // Sincronización completamente exitosa
+                        datosLocales = [];
+                        guardarDatosLocales();
+                        actualizarContador();
+                        
+                        let mensajeHTML = `
+                            <div style="text-align: center;">
+                                <p style="font-size: 1.1em; margin-bottom: 15px;">${responseData.message}</p>
+                                <p style="font-size: 0.9em; color: #28a745;">
+                                    <i class="fas fa-check-circle"></i> Todos los registros fueron procesados correctamente
+                                </p>
+                                <div style="color: #28a745; font-size: 2em; margin-top: 15px;">
+                                    <i class="fas fa-cloud-upload-alt"></i>
+                                </div>
+                        `;
+                        
+                        Swal.fire({
+                            title: 'Sincronización Exitosa',
+                            html: mensajeHTML,
+                            icon: 'success',
+                            confirmButtonText: 'Aceptar',
+                            confirmButtonColor: '#28a745',
+                            width: '500px'
+                        });
+                    } else if (responseData.success && responseData.registrosProcesados > 0) {
+                        // Sincronización parcialmente exitosa
+                        let mensajeHTML = `
+                            <div style="text-align: center;">
+                                <p style="font-size: 1.1em; margin-bottom: 15px;">${responseData.message}</p>
+                                <p style="font-size: 0.9em; color: #f39c12;">
+                                    <i class="fas fa-exclamation-triangle"></i> Sincronización parcial
+                                </p>
+                        `;
+                        
+                        if (responseData.detalles && responseData.detalles.length > 0) {
+                            mensajeHTML += `
+                                <div style="margin-top: 15px; text-align: left;">
+                                    <p style="font-size: 0.9em; color: #e74c3c; margin-bottom: 8px;"><strong>Errores:</strong></p>
+                                    <ul style="font-size: 0.8em; color: #7f8c8d; text-align: left; padding-left: 20px;">
+                            `;
+                            responseData.detalles.forEach(detalle => {
+                                mensajeHTML += `<li>${detalle}</li>`;
+                            });
+                            mensajeHTML += `</ul></div>`;
+                        }
+                        
+                        mensajeHTML += `</div>`;
+                        
+                        Swal.fire({
+                            title: 'Sincronización Parcial',
+                            html: mensajeHTML,
+                            icon: 'warning',
+                            confirmButtonText: 'Entendido',
+                            confirmButtonColor: '#f39c12',
+                            width: '600px'
+                        }).then(() => {
+                            // Actualizar la vista del modal
+                            mostrarModalRegistros();
+                        });
+                    } else {
+                        // Error en la sincronización
+                        Swal.fire({
+                            title: 'Error en Sincronización',
+                            text: responseData.message || 'Error desconocido al sincronizar',
+                            icon: 'error',
+                            confirmButtonText: 'Entendido',
+                            confirmButtonColor: '#e74c3c'
+                        });
+                    }
+                })
+                .catch(function(error) {
+                    $('#overlay').hide();
+                    $('#sync-button').removeClass('syncing');
+                    
+                    // Restaurar datos desde el backup en caso de error
+                    datosLocales = datosBackup;
+                    guardarDatosLocales();
+                    actualizarContador();
+                    
+                    let errorMessage = 'Error de conexión: ';
+                    
+                    if (error.message.includes('Timeout')) {
+                        errorMessage = 'La sincronización está tomando demasiado tiempo. ';
+                        errorMessage += 'Verifica tu conexión a internet e intenta nuevamente.';
+                    } else {
+                        errorMessage += 'No se pudo conectar al servidor. ';
+                        if (error.status === 0) {
+                            errorMessage += 'Verifica tu conexión a internet.';
+                        } else {
+                            errorMessage += `Error ${error.status}: ${error.statusText || error.message}`;
+                        }
+                    }
+                    
+                    Swal.fire({
+                        title: 'Error de Conexión',
+                        html: `
+                            <div style="text-align: center;">
+                                <p style="font-size: 1.1em; margin-bottom: 15px;">${errorMessage}</p>
+                                <p style="font-size: 0.9em; color: #7f8c8d; margin-top: 15px;">
+                                    <i class="fas fa-info-circle"></i> Los registros se mantienen guardados localmente para reintentar más tarde.
+                                </p>
+                                <div style="color: #e74c3c; font-size: 2em; margin-top: 15px;">
+                                    <i class="fas fa-wifi-slash"></i>
+                                </div>
+                            </div>
+                        `,
+                        icon: 'error',
+                        confirmButtonText: 'Entendido',
+                        confirmButtonColor: '#e74c3c',
+                        width: '500px'
+                    });
+                });
+        }
+
+        // Cerrar modal al hacer clic fuera de él
+        window.onclick = function(event) {
+            const modal = document.getElementById('modal-registros');
+            if (event.target === modal) {
+                cerrarModal();
+            }
+        }
+    </script>
+</body>
+</html>

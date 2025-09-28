@@ -111,6 +111,13 @@
             background-color: white;
         }
 
+        /* Campo de fecha bloqueado */
+        .question-container input[readonly] {
+            background-color: #f8f9fa;
+            color: #6c757d;
+            cursor: not-allowed;
+        }
+
         .question-container input:focus,
         .question-container select:focus {
             border-color: var(--secondary-color);
@@ -373,7 +380,7 @@
             min-height: 50px;
         }
 
-        .btn-editar, .btn-eliminar {
+        .btn-editar, .btn-eliminar, .btn-confirmar, .btn-cancelar {
             padding: 6px 12px;
             border: none;
             border-radius: 4px;
@@ -382,6 +389,11 @@
             transition: var(--transition);
             white-space: nowrap;
             flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 40px;
+            height: 32px;
         }
 
         .btn-editar {
@@ -394,12 +406,30 @@
             color: white;
         }
 
+        .btn-confirmar {
+            background-color: var(--success-color);
+            color: white;
+        }
+
+        .btn-cancelar {
+            background-color: #6c757d;
+            color: white;
+        }
+
         .btn-editar:hover {
             background-color: #2980b9;
         }
 
         .btn-eliminar:hover {
             background-color: #c0392b;
+        }
+
+        .btn-confirmar:hover {
+            background-color: #27ae60;
+        }
+
+        .btn-cancelar:hover {
+            background-color: #5a6268;
         }
 
         .modal-footer {
@@ -530,9 +560,11 @@
                 gap: 5px;
             }
             
-            .btn-editar, .btn-eliminar {
+            .btn-editar, .btn-eliminar, .btn-confirmar, .btn-cancelar {
                 padding: 5px 8px;
                 font-size: 0.8em;
+                min-width: 35px;
+                height: 28px;
             }
             
             /* Mostrar indicador de scroll en móviles */
@@ -704,6 +736,7 @@
         let clasificacionSeleccionada = "Orgánico";
         let estadoFisicoSeleccionado = "Sólido";
         let edificioSeleccionado = "";
+        let registroEnEdicion = null; // Para controlar el registro en edición
         const scriptURL = "https://script.google.com/macros/s/AKfycbyEonibd5OZnnSMJidnlAWTcFjKJvH6TehqaYVdxGsIVi59z3W96qX9-OUEEKOuHeg7Xg/exec";
 
         // Configuración inicial al cargar la página
@@ -843,17 +876,30 @@
                 timestamp: new Date().getTime()
             };
 
-            // Guardar en almacenamiento local
-            datosLocales.push(registro);
+            // Si hay un registro en edición, reemplazarlo
+            if (registroEnEdicion !== null) {
+                // Buscar y reemplazar el registro en edición
+                const index = datosLocales.findIndex(r => r.timestamp === registroEnEdicion.timestamp);
+                if (index !== -1) {
+                    datosLocales[index] = registro;
+                    // Limpiar el registro en edición
+                    registroEnEdicion = null;
+                    localStorage.removeItem('registroEditando');
+                }
+            } else {
+                // Agregar nuevo registro
+                datosLocales.push(registro);
+            }
+
             guardarDatosLocales();
             actualizarContador();
 
             // Mostrar confirmación
             Swal.fire({
-                title: 'Registro Exitoso',
+                title: registroEnEdicion !== null ? 'Registro Actualizado' : 'Registro Exitoso',
                 html: `
                     <div style="text-align: center;">
-                        <p style="font-size: 1.1em; margin-bottom: 15px;">El registro se ha guardado correctamente.</p>
+                        <p style="font-size: 1.1em; margin-bottom: 15px;">El registro se ha ${registroEnEdicion !== null ? 'actualizado' : 'guardado'} correctamente.</p>
                         <p style="font-size: 0.9em; color: #7f8c8d;">Registros pendientes de sincronizar: ${datosLocales.length}</p>
                         <div style="color: #28a745; font-size: 2em;">
                             <i class="fas fa-check-circle"></i>
@@ -939,6 +985,7 @@
                 `;
                 
                 datosLocales.forEach((registro, index) => {
+                    const estaEnConfirmacion = registro.enConfirmacion;
                     tablaHTML += `
                         <tr>
                             <td>${registro.fecha}</td>
@@ -948,8 +995,21 @@
                             <td>${registro.clasificacion}</td>
                             <td>${registro.estadoFisico}</td>
                             <td class="acciones-cell">
-                                <button class="btn-editar" onclick="editarRegistro(${index})">Editar</button>
-                                <button class="btn-eliminar" onclick="eliminarRegistro(${index})">Eliminar</button>
+                                ${estaEnConfirmacion ? `
+                                    <button class="btn-confirmar" onclick="confirmarEliminacion(${index})" title="Confirmar eliminación">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    <button class="btn-cancelar" onclick="cancelarEliminacion(${index})" title="Cancelar eliminación">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                ` : `
+                                    <button class="btn-editar" onclick="editarRegistro(${index})" title="Editar registro">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn-eliminar" onclick="solicitarEliminacion(${index})" title="Eliminar registro">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                `}
                             </td>
                         </tr>
                     `;
@@ -979,7 +1039,27 @@
         function editarRegistro(index) {
             const registro = datosLocales[index];
             
-            // Llenar el formulario con los datos del registro
+            // Guardar el registro en edición
+            registroEnEdicion = registro;
+            localStorage.setItem('registroEditando', JSON.stringify(registro));
+            
+            // Cargar el registro en el formulario
+            cargarRegistroEnFormulario(registro);
+            
+            // Cerrar el modal
+            cerrarModal();
+            
+            Swal.fire({
+                title: 'Registro cargado para edición',
+                text: 'El registro se ha cargado en el formulario. Realiza los cambios necesarios y guarda el registro actualizado.',
+                icon: 'info',
+                confirmButtonText: 'Entendido',
+                confirmButtonColor: '#3498db'
+            });
+        }
+
+        // Función para cargar un registro en el formulario
+        function cargarRegistroEnFormulario(registro) {
             document.getElementById('fecha').value = registro.fecha;
             
             // Actualizar botones de selección
@@ -990,56 +1070,39 @@
             
             document.getElementById('cantidad').value = registro.cantidad;
             
-            // Eliminar el registro de la lista
-            eliminarRegistro(index, false);
-            
-            // Cerrar el modal
-            cerrarModal();
-            
             // Poner el foco en el campo de cantidad
             $('#cantidad').focus();
-            
-            Swal.fire({
-                title: 'Registro cargado para edición',
-                text: 'El registro se ha cargado en el formulario. Realiza los cambios necesarios y vuelve a registrar.',
-                icon: 'info',
-                confirmButtonText: 'Entendido',
-                confirmButtonColor: '#3498db'
-            });
         }
 
-        // Función para eliminar un registro
-        function eliminarRegistro(index, mostrarConfirmacion = true) {
-            if (mostrarConfirmacion) {
-                Swal.fire({
-                    title: '¿Eliminar registro?',
-                    text: 'Esta acción no se puede deshacer.',
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonText: 'Sí, eliminar',
-                    cancelButtonText: 'Cancelar',
-                    confirmButtonColor: '#e74c3c'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        datosLocales.splice(index, 1);
-                        guardarDatosLocales();
-                        actualizarContador();
-                        mostrarModalRegistros(); // Refrescar la vista
-                        
-                        Swal.fire({
-                            title: 'Eliminado',
-                            text: 'El registro ha sido eliminado.',
-                            icon: 'success',
-                            confirmButtonText: 'Aceptar',
-                            confirmButtonColor: '#28a745'
-                        });
-                    }
-                });
-            } else {
-                datosLocales.splice(index, 1);
-                guardarDatosLocales();
-                actualizarContador();
-            }
+        // Función para solicitar eliminación (mostrar botones de confirmación)
+        function solicitarEliminacion(index) {
+            // Marcar el registro para confirmación de eliminación
+            datosLocales[index].enConfirmacion = true;
+            guardarDatosLocales();
+            
+            // Actualizar la vista del modal
+            mostrarModalRegistros();
+        }
+
+        // Función para confirmar eliminación (SIN mensaje de confirmación)
+        function confirmarEliminacion(index) {
+            // Eliminar el registro
+            datosLocales.splice(index, 1);
+            guardarDatosLocales();
+            actualizarContador();
+            
+            // Actualizar la vista del modal (sin mostrar mensaje)
+            mostrarModalRegistros();
+        }
+
+        // Función para cancelar eliminación
+        function cancelarEliminacion(index) {
+            // Quitar la marca de confirmación
+            delete datosLocales[index].enConfirmacion;
+            guardarDatosLocales();
+            
+            // Actualizar la vista del modal
+            mostrarModalRegistros();
         }
 
         // Función para sincronizar datos con Google Sheets

@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pisos Brillantes - Registro de Trazabilidad & Volumen de Residuos</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --success-color: #2ecc71;
+            --warning-color: #f39c12;
+            --light-color: #ecf0f1;
+            --dark-color: #34495e;
+            --text-color: #333;
+            --border-color: #ddd;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            color: var(--text-color);
+            line-height: 1.6;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+            color: white;
+            text-align: center;
+            padding: 18px 0;
+            font-size: 1.5rem;
+            font-weight: bold;
+            box-shadow: var(--shadow);
+            position: relative;
+        }
+
+        .form-container {
+            width: 90%;
+            max-width: 1000px;
+            margin: 25px auto;
+            padding: 25px;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 25px;
+            font-size: 1.8rem;
+            position: relative;
+            padding-bottom: 10px;
+        }
+
+        h1:after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 4px;
+            background-color: var(--secondary-color);
+            border-radius: 2px;
+        }
+
+        .question-container {
+            margin-bottom: 25px;
+            padding: 20px;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+            border-left: 4px solid var(--secondary-color);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .question-container label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--dark-color);
+        }
+
+        .question-container input,
+        .question-container select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 16px;
+            transition: var(--transition);
+            background-color: white;
+        }
+
+        .question-container input:focus,
+        .question-container select:focus {
+            border-color: var(--secondary-color);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+        }
+
+        .button-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .button-group button {
+            padding: 12px 8px;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            background-color: white;
+            color: var(--dark-color);
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 0.9em;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .button-group button.active {
+            background-color: var(--secondary-color);
+            color: white;
+            border-color: var(--secondary-color);
+        }
+
+        .button-group button:hover:not(.active) {
+            background-color: var(--light-color);
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+            gap: 15px;
+        }
+
+        #filtrar, #generar-pdf {
+            background: linear-gradient(to right, var(--secondary-color), #2980b9);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 14px 30px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 200px;
+        }
+
+        #generar-pdf {
+            background: linear-gradient(to right, var(--success-color), #27ae60);
+            display: none;
+        }
+
+        #filtrar:hover:not(:disabled), #generar-pdf:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        #filtrar:disabled, #generar-pdf:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Overlay de carga */
+        #overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.95);
+            z-index: 9999;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid rgba(52, 152, 219, 0.2);
+            border-radius: 50%;
+            border-top-color: var(--secondary-color);
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        #loadingMessage {
+            text-align: center;
+            color: var(--dark-color);
+        }
+
+        #loadingMessage h4 {
+            margin: 0 0 10px;
+            font-size: 1.3rem;
+        }
+
+        #loadingMessage p {
+            margin: 0;
+            color: #7f8c8d;
+        }
+
+        /* Tabla de resultados */
+        .resultados-container {
+            display: none;
+            margin-top: 30px;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .table-wrapper {
+            width: 100%;
+            max-height: 400px;
+            overflow: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .resultados-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 800px;
+        }
+
+        .resultados-table th,
+        .resultados-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: middle;
+        }
+
+        .resultados-table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: var(--dark-color);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .resultados-table tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .totales-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .totales-table th,
+        .totales-table td {
+            padding: 15px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+            font-weight: 600;
+        }
+
+        .totales-table th {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .totales-table td {
+            background-color: white;
+            font-size: 1.1em;
+        }
+
+        .scroll-indicator {
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 0.8em;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #6c757d;
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            color: #bdc3c7;
+        }
+
+        .info-message {
+            background-color: #e3f2fd;
+            border-left: 4px solid var(--secondary-color);
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+        }
+
+        /* Estilos para la tabla vertical de totales */
+        .totales-vertical-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .totales-vertical-table th,
+        .totales-vertical-table td {
+            padding: 15px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+            font-weight: 600;
+        }
+
+        .totales-vertical-table th {
+            background-color: var(--primary-color);
+            color: white;
+            width: 50%;
+        }
+
+        .totales-vertical-table td {
+            background-color: white;
+            font-size: 1.1em;
+            width: 50%;
+        }
+
+        /* Estilos personalizados para SweetAlert */
+        .swal-confirm-button {
+            background: linear-gradient(135deg, #2ecc71, #27ae60) !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 8px !important;
+            padding: 12px 24px !important;
+            font-size: 16px !important;
+            font-weight: 600 !important;
+            cursor: pointer !important;
+            transition: all 0.3s ease !important;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 8px !important;
+        }
+
+        .swal-confirm-button:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15) !important;
+        }
+
+        .swal-deny-button {
+            background: linear-gradient(135deg, #25D366, #128C7E) !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 8px !important;
+            padding: 12px 24px !important;
+            font-size: 16px !important;
+            font-weight: 600 !important;
+            cursor: pointer !important;
+            transition: all 0.3s ease !important;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 8px !important;
+        }
+
+        .swal-deny-button:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15) !important;
+        }
+
+        .swal-close-button {
+            color: #7f8c8d !important;
+            font-size: 24px !important;
+        }
+
+        /* MEDIA QUERIES */
+        @media (max-width: 768px) {
+            .form-container {
+                width: 95%;
+                padding: 15px;
+                margin: 15px auto;
+            }
+            
+            .button-group {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 8px;
+            }
+            
+            .button-group button {
+                padding: 10px 6px;
+                font-size: 0.85em;
+                min-height: 45px;
+            }
+            
+            h1 {
+                font-size: 1.5rem;
+            }
+            
+            .resultados-table {
+                font-size: 0.85em;
+                min-width: 700px;
+            }
+            
+            .resultados-table th,
+            .resultados-table td {
+                padding: 10px 8px;
+            }
+            
+            .button-container {
+                flex-direction: row;
+                align-items: center;
+            }
+            
+            #filtrar, #generar-pdf {
+                max-width: 200px;
+            }
+            
+            .scroll-indicator {
+                display: block;
+            }
+
+            .table-wrapper {
+                max-height: 300px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .button-group {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 6px;
+            }
+            
+            .button-group button {
+                padding: 8px 4px;
+                font-size: 0.8em;
+                min-height: 40px;
+            }
+            
+            .question-container {
+                padding: 15px;
+            }
+        }
+
+        @media (max-width: 360px) {
+            .button-group {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">Pisos Brillantes</div>
+    
+    <div class="form-container">
+        <h1>Registro de Trazabilidad & Volumen de Residuos</h1>
+
+        <div class="info-message">
+            <i class="fas fa-info-circle"></i> Selecciona el mes, año y edificio para generar un reporte detallado de los residuos registrados.
+        </div>
+
+        <form id="formulario-reporte">
+            <div class="question-container">
+                <label for="mes"><strong>Mes:</strong></label>
+                <select id="mes" name="mes">
+                    <option value="01">Enero</option>
+                    <option value="02">Febrero</option>
+                    <option value="03">Marzo</option>
+                    <option value="04">Abril</option>
+                    <option value="05">Mayo</option>
+                    <option value="06">Junio</option>
+                    <option value="07">Julio</option>
+                    <option value="08">Agosto</option>
+                    <option value="09">Septiembre</option>
+                    <option value="10">Octubre</option>
+                    <option value="11">Noviembre</option>
+                    <option value="12">Diciembre</option>
+                </select>
+            </div>
+
+            <div class="question-container">
+                <label for="anio"><strong>Año:</strong></label>
+                <input type="number" id="anio" name="anio" min="2020" max="2030" placeholder="Ingrese el año">
+            </div>
+
+            <div class="question-container">
+                <label><strong>Edificio:</strong></label>
+                <div class="button-group" id="edificio-group">
+                    <button type="button" data-value="CBA">CBA</button>
+                    <button type="button" data-value="CBB">CBB</button>
+                    <button type="button" data-value="CBC">CBC</button>
+                    <button type="button" data-value="Torre #1">Torre #1</button>
+                    <button type="button" data-value="Torre #2">Torre #2</button>
+                </div>
+            </div>
+
+            <div class="button-container">
+                <button type="button" id="filtrar" disabled onclick="filtrarDatos()">Filtrar Datos</button>
+                <button type="button" id="generar-pdf" disabled onclick="generarPDF()">Generar PDF</button>
+            </div>
+        </form>
+
+        <div class="resultados-container" id="resultados-container">
+            <h2>Resultados</h2>
+            <div class="table-wrapper">
+                <table class="resultados-table" id="tabla-resultados">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Edificio</th>
+                            <th>Tipo Residuo</th>
+                            <th>Cantidad (Lbs)</th>
+                            <th>Clasificación</th>
+                            <th>Estado Físico</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cuerpo-tabla">
+                        <!-- Los datos se cargarán aquí -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="scroll-indicator">
+                <i class="fas fa-arrows-alt-h"></i> Desliza horizontalmente para ver más información
+                <br>
+                <i class="fas fa-arrows-alt-v"></i> Desliza verticalmente para ver más registros
+            </div>
+
+            <h3>Totales por Tipo de Residuo</h3>
+            <table class="totales-vertical-table" id="tabla-totales">
+                <thead>
+                    <tr>
+                        <th>Tipo de Residuo</th>
+                        <th>Cantidad Total (Lbs)</th>
+                    </tr>
+                </thead>
+                <tbody id="cuerpo-totales">
+                    <!-- Los totales se cargarán aquí -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Overlay de carga -->
+    <div id="overlay">
+        <div class="spinner"></div>
+        <div id="loadingMessage">
+            <h4>Por favor espera un momento...</h4>
+            <p id="loading-detail"></p>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        let datosFiltrados = [];
+        let edificioSeleccionado = "";
+        let mesSeleccionado = "";
+        let anioSeleccionado = "";
+        const scriptURL = "https://script.google.com/macros/s/AKfycbwDfkQd6ge-3Pj7yYSOJ2zhTk27pIS9JjqEGGZxH7evJytRzyc7Dx8mdKmRExsjdyu-/exec";
+
+        // Configuración inicial al cargar la página
+        document.addEventListener('DOMContentLoaded', function() {
+            // Establecer mes y año actual
+            const today = new Date();
+            const mesActual = String(today.getMonth() + 1).padStart(2, '0');
+            const anioActual = today.getFullYear();
+            
+            document.getElementById("mes").value = mesActual;
+            document.getElementById("anio").value = anioActual;
+            
+            // Configurar eventos
+            configurarEventos();
+
+            // Desactivar el menú contextual (clic derecho) en todo el documento
+            document.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+            });
+
+            // Desactivar la selección de texto en todo el documento
+            document.addEventListener('selectstart', function(e) {
+                e.preventDefault();
+            });
+        });
+
+        // Función para configurar eventos
+        function configurarEventos() {
+            // Botones de edificio
+            $('#edificio-group button').on('click', function() {
+                $('#edificio-group button').removeClass('active');
+                $(this).addClass('active');
+                edificioSeleccionado = $(this).data('value');
+                verificarFormulario();
+            });
+
+            // Validación de formulario
+            $("#mes, #anio").on("change", verificarFormulario);
+        }
+
+        // Función para verificar si el formulario está completo
+        function verificarFormulario() {
+            const mes = $("#mes").val();
+            const anio = $("#anio").val();
+
+            if (mes.trim() !== "" && anio.trim() !== "" && edificioSeleccionado !== "") {
+                $("#filtrar").prop("disabled", false);
+            } else {
+                $("#filtrar").prop("disabled", true);
+            }
+        }
+
+        // Función para filtrar datos
+        function filtrarDatos() {
+            mesSeleccionado = $("#mes").val();
+            anioSeleccionado = $("#anio").val();
+
+            // Mostrar animación de carga
+            $('#overlay').css('display', 'flex');
+
+            // Enviar solicitud al script de Google
+            $.ajax({
+                url: scriptURL,
+                type: "POST",
+                data: {
+                    action: "obtenerReporte",
+                    mes: mesSeleccionado,
+                    anio: anioSeleccionado,
+                    edificio: edificioSeleccionado
+                },
+                success: function(response) {
+                    $('#overlay').hide();
+                    
+                    // Intentar parsear la respuesta
+                    let responseData;
+                    try {
+                        responseData = typeof response === 'string' ? JSON.parse(response) : response;
+                    } catch (e) {
+                        responseData = {success: false, message: 'Respuesta no válida del servidor'};
+                    }
+                    
+                    if (responseData.success) {
+                        datosFiltrados = responseData.datos;
+                        mostrarResultados();
+                    } else {
+                        Swal.fire({
+                            title: 'Error',
+                            text: responseData.message || 'Error al obtener los datos',
+                            icon: 'error',
+                            confirmButtonText: 'Entendido',
+                            confirmButtonColor: '#e74c3c'
+                        });
+                    }
+                },
+                error: function(xhr, status, error) {
+                    $('#overlay').hide();
+                    
+                    let errorMessage = 'No se pudo conectar al servidor. ';
+                    if (xhr.status === 0) {
+                        errorMessage += 'Verifica tu conexión a internet.';
+                    } else {
+                        errorMessage += `Error ${xhr.status}: ${error}`;
+                    }
+                    
+                    Swal.fire({
+                        title: 'Error de Conexión',
+                        text: errorMessage,
+                        icon: 'error',
+                        confirmButtonText: 'Entendido',
+                        confirmButtonColor: '#e74c3c'
+                    });
+                }
+            });
+        }
+
+        // Función para formatear fecha a dd/mm/aaaa
+        function formatearFecha(fecha) {
+            if (!fecha) return 'N/A';
+            
+            // Si ya está en formato dd/mm/aaaa, retornar tal cual
+            if (typeof fecha === 'string' && fecha.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+                return fecha;
+            }
+            
+            // Si es una fecha de Google Sheets o string ISO
+            try {
+                const date = new Date(fecha);
+                if (isNaN(date.getTime())) {
+                    return fecha; // Retornar original si no es una fecha válida
+                }
+                
+                const dia = String(date.getDate()).padStart(2, '0');
+                const mes = String(date.getMonth() + 1).padStart(2, '0');
+                const anio = date.getFullYear();
+                
+                return `${dia}/${mes}/${anio}`;
+            } catch (e) {
+                return fecha; // Retornar original si hay error
+            }
+        }
+
+        // Función para mostrar resultados en la tabla
+        function mostrarResultados() {
+            const cuerpoTabla = document.getElementById('cuerpo-tabla');
+            const cuerpoTotales = document.getElementById('cuerpo-totales');
+            
+            // Limpiar tablas
+            cuerpoTabla.innerHTML = '';
+            cuerpoTotales.innerHTML = '';
+
+            if (datosFiltrados.length === 0) {
+                cuerpoTabla.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="empty-state">
+                            <i class="fas fa-inbox"></i>
+                            <h3>No se encontraron registros</h3>
+                            <p>No hay datos para el mes, año y edificio seleccionados.</p>
+                        </td>
+                    </tr>
+                `;
+                document.getElementById('resultados-container').style.display = 'block';
+                $("#generar-pdf").prop("disabled", true).hide();
+                return;
+            }
+
+            // Calcular totales
+            const totales = {
+                común: 0,
+                plástico: 0,
+                aluminio: 0,
+                cartón: 0,
+                vidrio: 0,
+                rpbi: 0
+            };
+
+            // Llenar tabla de resultados
+            datosFiltrados.forEach(registro => {
+                const fila = document.createElement('tr');
+                fila.innerHTML = `
+                    <td>${formatearFecha(registro.fecha)}</td>
+                    <td>${registro.edificio}</td>
+                    <td>${registro.tipoResiduo}</td>
+                    <td>${registro.cantidad}</td>
+                    <td>${registro.clasificacion}</td>
+                    <td>${registro.estadoFisico}</td>
+                `;
+                cuerpoTabla.appendChild(fila);
+
+                // Acumular totales
+                const tipo = registro.tipoResiduo.toLowerCase();
+                if (totales.hasOwnProperty(tipo)) {
+                    totales[tipo] += parseFloat(registro.cantidad);
+                }
+            });
+
+            // Mostrar totales en tabla vertical
+            cuerpoTotales.innerHTML = `
+                <tr>
+                    <td>Común</td>
+                    <td>${totales.común.toFixed(2)} lbs</td>
+                </tr>
+                <tr>
+                    <td>Plástico</td>
+                    <td>${totales.plástico.toFixed(2)} lbs</td>
+                </tr>
+                <tr>
+                    <td>Aluminio</td>
+                    <td>${totales.aluminio.toFixed(2)} lbs</td>
+                </tr>
+                <tr>
+                    <td>Cartón</td>
+                    <td>${totales.cartón.toFixed(2)} lbs</td>
+                </tr>
+                <tr>
+                    <td>Vidrio</td>
+                    <td>${totales.vidrio.toFixed(2)} lbs</td>
+                </tr>
+                <tr>
+                    <td>RPBI</td>
+                    <td>${totales.rpbi.toFixed(2)} lbs</td>
+                </tr>
+            `;
+
+            // Mostrar contenedor de resultados y habilitar botón PDF
+            document.getElementById('resultados-container').style.display = 'block';
+            $("#generar-pdf").prop("disabled", false).show();
+
+            // Guardar totales para el PDF
+            window.totalesReporte = totales;
+        }
+
+        // Función para generar PDF
+        function generarPDF() {
+            $('#overlay').css('display', 'flex');
+
+            // Usar setTimeout para permitir que se muestre el overlay
+            setTimeout(() => {
+                const { jsPDF } = window.jspdf;
+                // Cambiar a tamaño CARTA (216x279 mm)
+                const doc = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'mm',
+                    format: 'letter'
+                });
+
+                // Configuración - Tamaño carta (216x279 mm)
+                const pageWidth = doc.internal.pageSize.getWidth(); // 216 mm
+                const pageHeight = doc.internal.pageSize.getHeight(); // 279 mm
+                const margin = 10; // Margen uniforme
+
+                // Agregar icono en la parte izquierda
+                const iconUrl = "https://raw.githubusercontent.com/jeancarlozelaya/CCG/refs/heads/main/Im%C3%A1genes/Icono.png";
+                
+                // Crear una imagen y agregarla al PDF
+                const img = new Image();
+                img.src = iconUrl;
+                
+                // Agregar icono (20x20 mm) en la esquina superior izquierda
+                doc.addImage(img, 'PNG', margin, 12, 20, 20);
+
+                // Título principal (ajustado para dejar espacio para el icono)
+                doc.setFontSize(16);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(44, 62, 80);
+                doc.text('REGISTRO DE TRAZABILIDAD & VOLUMEN DE RESIDUOS', pageWidth / 2, 20, { align: 'center' });
+
+                // Información del reporte
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(100, 100, 100);
+                doc.text(`Edificio: ${edificioSeleccionado}`, margin + 25, 30);
+                doc.text(`Período: ${obtenerNombreMes(mesSeleccionado)} ${anioSeleccionado}`, pageWidth - margin, 30, { align: 'right' });
+                doc.text(`Generado: ${new Date().toLocaleDateString('es-ES')}`, pageWidth / 2, 35, { align: 'center' });
+
+                // TABLA DE TOTALES - CON COLUMNAS INDIVIDUALES PARA CADA TIPO
+                const totalesStartY = 45;
+                
+                doc.setFontSize(12);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(44, 62, 80);
+                doc.text('TOTALES POR TIPO DE RESIDUO', pageWidth / 2, totalesStartY, { align: 'center' });
+
+                // Tabla de totales con columnas individuales
+                const totalesData = [
+                    ['Común (lbs)', 'Plástico (lbs)', 'Aluminio (lbs)', 'Cartón (lbs)', 'Vidrio (lbs)', 'RPBI (lbs)'],
+                    [
+                        window.totalesReporte.común.toFixed(2),
+                        window.totalesReporte.plástico.toFixed(2),
+                        window.totalesReporte.aluminio.toFixed(2),
+                        window.totalesReporte.cartón.toFixed(2),
+                        window.totalesReporte.vidrio.toFixed(2),
+                        window.totalesReporte.rpbi.toFixed(2)
+                    ]
+                ];
+
+                // Calcular el ancho total de la tabla de totales
+                const totalTableWidth = pageWidth - (2 * margin);
+                
+                doc.autoTable({
+                    startY: totalesStartY + 8,
+                    head: [totalesData[0]],
+                    body: [totalesData[1]],
+                    theme: 'grid',
+                    headStyles: {
+                        fillColor: [44, 62, 80],
+                        textColor: 255,
+                        fontStyle: 'bold',
+                        fontSize: 9,
+                        halign: 'center'
+                    },
+                    bodyStyles: {
+                        fontSize: 9,
+                        textColor: 0,
+                        halign: 'center'
+                    },
+                    margin: { left: margin, right: margin },
+                    tableWidth: totalTableWidth,
+                    styles: {
+                        cellPadding: 3,
+                        fontSize: 9,
+                        halign: 'center'
+                    }
+                });
+
+                // DETALLE DE REGISTROS - CENTRADA Y QUE OCUPE TODO EL ANCHO
+                if (datosFiltrados.length > 0) {
+                    const detalleStartY = doc.lastAutoTable.finalY + 15;
+
+                    doc.setFontSize(12);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setTextColor(44, 62, 80);
+                    doc.text('DETALLE DE REGISTROS', pageWidth / 2, detalleStartY, { align: 'center' });
+
+                    // Preparar datos para la nueva estructura de tabla
+                    const datosTabla = datosFiltrados.map(registro => {
+                        // Determinar X para clasificación (ORGÁNICO/INORGÁNICO)
+                        const clasificacionOrganico = registro.clasificacion.toLowerCase().includes('orgánico') ? 'X' : '';
+                        const clasificacionInorganico = registro.clasificacion.toLowerCase().includes('inorgánico') ? 'X' : '';
+                        
+                        // Determinar X para estado físico (SÓLIDO/LÍQUIDO/GASEOSO)
+                        const estadoSolido = registro.estadoFisico.toLowerCase().includes('sólido') ? 'X' : '';
+                        const estadoLiquido = registro.estadoFisico.toLowerCase().includes('líquido') ? 'X' : '';
+                        const estadoGaseoso = registro.estadoFisico.toLowerCase().includes('gaseoso') ? 'X' : '';
+                        
+                        // Determinar cantidad por tipo de residuo
+                        const cantidadComun = registro.tipoResiduo.toLowerCase().includes('común') ? registro.cantidad : '';
+                        const cantidadPlastico = registro.tipoResiduo.toLowerCase().includes('plástico') ? registro.cantidad : '';
+                        const cantidadAluminio = registro.tipoResiduo.toLowerCase().includes('aluminio') ? registro.cantidad : '';
+                        const cantidadCarton = registro.tipoResiduo.toLowerCase().includes('cartón') ? registro.cantidad : '';
+                        const cantidadVidrio = registro.tipoResiduo.toLowerCase().includes('vidrio') ? registro.cantidad : '';
+                        const cantidadRPBI = registro.tipoResiduo.toLowerCase().includes('rpbi') ? registro.cantidad : '';
+                        
+                        return [
+                            formatearFecha(registro.fecha),
+                            cantidadComun,
+                            cantidadPlastico,
+                            cantidadAluminio,
+                            cantidadCarton,
+                            cantidadVidrio,
+                            cantidadRPBI,
+                            clasificacionOrganico,
+                            clasificacionInorganico,
+                            estadoSolido,
+                            estadoLiquido,
+                            estadoGaseoso
+                        ];
+                    });
+
+                    // Configuración para CENTRAR la tabla y que ocupe todo el ancho
+                    const availableWidth = pageWidth - (2 * margin);
+                    
+                    // Calcular anchos de columna proporcionales para ocupar todo el ancho
+                    const columnWidths = {
+                        0: availableWidth * 0.12, // Fecha
+                        1: availableWidth * 0.07, // Común
+                        2: availableWidth * 0.07, // Plástico
+                        3: availableWidth * 0.07, // Aluminio
+                        4: availableWidth * 0.07, // Cartón
+                        5: availableWidth * 0.07, // Vidrio
+                        6: availableWidth * 0.07, // RPBI
+                        7: availableWidth * 0.07, // Orgánico
+                        8: availableWidth * 0.07, // Inorgánico
+                        9: availableWidth * 0.07, // Sólido
+                        10: availableWidth * 0.07, // Líquido
+                        11: availableWidth * 0.07  // Gaseoso
+                    };
+
+                    // Crear estructura de cabecera con columnas combinadas
+                    const head = [
+                        [
+                            { content: 'Fecha', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+                            { content: 'Tipo de Residuo (Lbs)', colSpan: 6, styles: { halign: 'center' } },
+                            { content: 'Clasificación', colSpan: 2, styles: { halign: 'center' } },
+                            { content: 'Estado Físico', colSpan: 3, styles: { halign: 'center' } }
+                        ],
+                        [
+                            'Común',
+                            'Plástico',
+                            'Aluminio',
+                            'Cartón',
+                            'Vidrio',
+                            'RPBI',
+                            'Orgánico',
+                            'Inorgánico',
+                            'Sólido',
+                            'Líquido',
+                            'Gaseoso'
+                        ]
+                    ];
+
+                    // Crear tabla centrada con estructura de cabecera combinada
+                    doc.autoTable({
+                        startY: detalleStartY + 8,
+                        head: head,
+                        body: datosTabla,
+                        theme: 'grid',
+                        headStyles: {
+                            fillColor: [52, 152, 219],
+                            textColor: 255,
+                            fontStyle: 'bold',
+                            fontSize: 6,
+                            halign: 'center',
+                            valign: 'middle',
+                            cellPadding: 2
+                        },
+                        bodyStyles: {
+                            fontSize: 6,
+                            textColor: 0,
+                            halign: 'center',
+                            valign: 'middle',
+                            cellPadding: 1
+                        },
+                        margin: { left: margin, right: margin },
+                        tableWidth: availableWidth,
+                        styles: {
+                            cellPadding: 1,
+                            fontSize: 6,
+                            lineColor: [0, 0, 0],
+                            lineWidth: 0.1
+                        },
+                        columnStyles: columnWidths,
+                        didDrawPage: function(data) {
+                            // Agregar pie de página en cada página
+                            const pageCount = doc.internal.getNumberOfPages();
+                            for (let i = 1; i <= pageCount; i++) {
+                                doc.setPage(i);
+                                doc.setFontSize(8);
+                                doc.setFont('helvetica', 'normal');
+                                doc.setTextColor(100, 100, 100);
+                                doc.text(
+                                    `Página ${i} de ${pageCount} - Generado el ${new Date().toLocaleDateString('es-ES')}`,
+                                    pageWidth / 2,
+                                    pageHeight - 10,
+                                    { align: 'center' }
+                                );
+                            }
+                        }
+                    });
+                }
+
+                // Generar el PDF como Blob y File
+                const pdfBlob = doc.output('blob');
+                const pdfName = `${edificioSeleccionado} - ${mesSeleccionado}-${anioSeleccionado} - Registro de Trazabilidad & Volumen de Residuos.pdf`;
+                const pdfFile = new File([pdfBlob], pdfName, { type: 'application/pdf' });
+
+                // Ocultar overlay
+                $('#overlay').hide();
+
+                // Mostrar SweetAlert con opciones de compartir y descargar
+                Swal.fire({
+                    html: `
+                        <div style="text-align: center;">
+                            <p style="font-size: 1.1em; margin-bottom: 15px;">Reporte generado correctamente</p>
+                            <div style="color: #28a745; font-size: 2em; margin-bottom: 15px;">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <p style="font-size: 0.9em; color: #666; margin-bottom: 10px;">
+                                <strong>Edificio:</strong> ${edificioSeleccionado}<br>
+                                <strong>Período:</strong> ${obtenerNombreMes(mesSeleccionado)} ${anioSeleccionado}<br>
+                            </p>
+                            <p style="font-size: 0.9em; color: #666; margin-bottom: 20px;">¿Qué deseas hacer con el PDF?</p>
+                            <div style="display: flex; justify-content: center; gap: 10px;">
+                                <button id="sharePdfBtn" class="swal2-confirm swal2-styled" style="background-color: #007bff;">
+                                    <i class="fas fa-share-alt"></i> Compartir
+                                </button>
+                                <button id="downloadPdfBtn" class="swal2-cancel swal2-styled" style="background-color: #6c757d;">
+                                    <i class="fas fa-download"></i> Descargar
+                                </button>
+                            </div>
+                        </div>
+                    `,
+                    icon: 'success',
+                    showConfirmButton: false,
+                    showCloseButton: true,
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        // Asignar los event listeners directamente a los botones
+                        document.getElementById('sharePdfBtn').addEventListener('click', async function() {
+                            try {
+                                // Verificar si el navegador soporta la API de compartir
+                                if (navigator.share) {
+                                    await navigator.share({
+                                        files: [pdfFile],
+                                        title: pdfName,
+                                        text: `Comparto el reporte de residuos para el edificio ${edificioSeleccionado} del período ${obtenerNombreMes(mesSeleccionado)} ${anioSeleccionado}.`
+                                    });
+                                } else {
+                                    // Si no soporta compartir, descargar directamente
+                                    doc.save(pdfName);
+                                }
+                            } catch (error) {
+                                console.error('Error al compartir el archivo:', error);
+                                if (error.name !== 'AbortError') {
+                                    // Si hay error, descargar el archivo
+                                    doc.save(pdfName);
+                                }
+                            }
+                        });
+                        
+                        document.getElementById('downloadPdfBtn').addEventListener('click', function() {
+                            doc.save(pdfName);
+                        });
+                    }
+                }).then((result) => {
+                    // Este código se ejecuta cuando se cierra el SweetAlert
+                    if (result.dismiss === Swal.DismissReason.close) {
+                        // Recargar la página cuando se hace clic en la X
+                        console.log('Recargando página...');
+
+                    }
+                });
+
+            }, 500);
+        }
+
+        // Función auxiliar para obtener el nombre del mes
+        function obtenerNombreMes(numeroMes) {
+            const meses = [
+                'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+            ];
+            return meses[parseInt(numeroMes) - 1];
+        }
+    </script>
+</body>
+</html>

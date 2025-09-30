@@ -3,27 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2c3e50">
     <title>Pisos Brillantes - Registro de Residuos</title>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Service Worker para funcionalidad offline -->
-    <script>
-        // Registrar Service Worker para funcionalidad offline
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(function(registration) {
-                        console.log('Service Worker registrado con éxito:', registration.scope);
-                    })
-                    .catch(function(error) {
-                        console.log('Error al registrar Service Worker:', error);
-                    });
-            });
-        }
-    </script>
-    
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -514,71 +499,6 @@
             margin: 0 5px;
         }
 
-        /* INDICADOR DE ESTADO OFFLINE MEJORADO */
-        .offline-indicator {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            background: linear-gradient(135deg, #e74c3c, #c0392b);
-            color: white;
-            text-align: center;
-            padding: 12px 20px;
-            font-size: 0.95em;
-            z-index: 1001;
-            display: none;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-            animation: slideDown 0.5s ease-out;
-        }
-
-        .offline-indicator.online {
-            background: linear-gradient(135deg, #2ecc71, #27ae60);
-            animation: slideUp 0.5s ease-out forwards;
-        }
-
-        @keyframes slideDown {
-            from { transform: translateY(-100%); }
-            to { transform: translateY(0); }
-        }
-
-        @keyframes slideUp {
-            from { transform: translateY(0); }
-            to { transform: translateY(-100%); }
-        }
-
-        .offline-content {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .offline-icon {
-            font-size: 1.2em;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-            100% { transform: scale(1); }
-        }
-
-        .offline-text {
-            flex-grow: 1;
-            text-align: center;
-        }
-
-        .offline-count {
-            background-color: rgba(255, 255, 255, 0.2);
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-weight: bold;
-            font-size: 0.9em;
-        }
-
         /* MEDIA QUERIES MEJORADAS */
         @media (max-width: 768px) {
             .form-container {
@@ -653,25 +573,6 @@
             .scroll-indicator {
                 display: block;
             }
-            
-            /* Ajustes para el indicador offline en móviles */
-            .offline-indicator {
-                padding: 10px 15px;
-                font-size: 0.85em;
-            }
-            
-            .offline-content {
-                gap: 8px;
-            }
-            
-            .offline-icon {
-                font-size: 1.1em;
-            }
-            
-            .offline-count {
-                padding: 3px 8px;
-                font-size: 0.8em;
-            }
         }
 
         @media (max-width: 480px) {
@@ -702,18 +603,6 @@
             
             .modal-body {
                 padding: 15px;
-            }
-            
-            /* Ajustes para el indicador offline en pantallas pequeñas */
-            .offline-content {
-                flex-wrap: wrap;
-                gap: 5px;
-            }
-            
-            .offline-text {
-                order: 2;
-                flex-basis: 100%;
-                margin-top: 5px;
             }
         }
 
@@ -746,21 +635,6 @@
     </style>
 </head>
 <body>
-    <!-- Indicador de estado offline mejorado -->
-    <div class="offline-indicator" id="offline-indicator">
-        <div class="offline-content">
-            <div class="offline-icon">
-                <i class="fas fa-wifi-slash"></i>
-            </div>
-            <div class="offline-text">
-                <strong>Modo sin conexión</strong> - Los datos se guardarán localmente hasta que se restaure la conexión
-            </div>
-            <div class="offline-count" id="offline-count">
-                <span id="pending-count">0</span> pendientes
-            </div>
-        </div>
-    </div>
-    
     <div class="header">Pisos Brillantes</div>
     
     <button class="sync-button" id="sync-button" onclick="mostrarModalRegistros()" title="Revisar y sincronizar datos">
@@ -887,20 +761,6 @@
             
             // Configurar eventos
             configurarEventos();
-            
-            // Verificar estado de conexión
-            verificarConexion();
-            
-            // Configurar eventos de conexión
-            window.addEventListener('online', function() {
-                mostrarEstadoOnline();
-                console.log('Conexión restaurada');
-            });
-            
-            window.addEventListener('offline', function() {
-                mostrarEstadoOffline();
-                console.log('Sin conexión a internet');
-            });
 
             // Desactivar el menú contextual (clic derecho) en todo el documento
             document.addEventListener('contextmenu', function(e) {
@@ -912,44 +772,6 @@
                 e.preventDefault();
             });
         });
-
-        // Función para verificar el estado de conexión
-        function verificarConexion() {
-            if (!navigator.onLine) {
-                mostrarEstadoOffline();
-            }
-        }
-
-        // Función para mostrar estado offline
-        function mostrarEstadoOffline() {
-            const indicator = document.getElementById('offline-indicator');
-            indicator.style.display = 'block';
-            indicator.classList.remove('online');
-            document.getElementById('pending-count').textContent = datosLocales.length;
-            
-            // Actualizar el botón de sincronizar si el modal está abierto
-            const btnSincronizar = document.getElementById('btn-sincronizar');
-            if (btnSincronizar) {
-                btnSincronizar.disabled = true;
-            }
-        }
-
-        // Función para mostrar estado online
-        function mostrarEstadoOnline() {
-            const indicator = document.getElementById('offline-indicator');
-            indicator.classList.add('online');
-            
-            // Ocultar después de la animación
-            setTimeout(() => {
-                indicator.style.display = 'none';
-            }, 500);
-            
-            // Actualizar el botón de sincronizar si el modal está abierto
-            const btnSincronizar = document.getElementById('btn-sincronizar');
-            if (btnSincronizar && datosLocales.length > 0) {
-                btnSincronizar.disabled = false;
-            }
-        }
 
         // Función para cargar la última selección de edificio
         function cargarUltimaSeleccion() {
@@ -1117,21 +939,11 @@
         // Función para actualizar el contador del botón
         function actualizarContador() {
             const badge = document.getElementById('notification-badge');
-            const pendingCount = document.getElementById('pending-count');
-            
             if (datosLocales.length > 0) {
                 badge.style.display = 'flex';
                 badge.textContent = datosLocales.length > 99 ? '99+' : datosLocales.length;
-                
-                // Actualizar contador en el indicador offline si está visible
-                if (pendingCount) {
-                    pendingCount.textContent = datosLocales.length;
-                }
             } else {
                 badge.style.display = 'none';
-                if (pendingCount) {
-                    pendingCount.textContent = '0';
-                }
             }
         }
 
@@ -1146,7 +958,7 @@
             contador.textContent = `${datosLocales.length} registro${datosLocales.length !== 1 ? 's' : ''} pendiente${datosLocales.length !== 1 ? 's' : ''}`;
             
             // Habilitar o deshabilitar botón de sincronizar
-            btnSincronizar.disabled = datosLocales.length === 0 || !navigator.onLine;
+            btnSincronizar.disabled = datosLocales.length === 0;
             
             if (datosLocales.length === 0) {
                 modalBody.innerHTML = `
@@ -1185,12 +997,21 @@
                             <td>${registro.clasificacion}</td>
                             <td>${registro.estadoFisico}</td>
                             <td class="acciones-cell">
-                                ${estaEnConfirmacion ? 
-                                    `<button class="btn-confirmar" onclick="confirmarEliminacion(${index})"><i class="fas fa-check"></i></button>
-                                     <button class="btn-cancelar" onclick="cancelarEliminacion(${index})"><i class="fas fa-times"></i></button>` :
-                                    `<button class="btn-editar" onclick="editarRegistro(${index})"><i class="fas fa-edit"></i></button>
-                                     <button class="btn-eliminar" onclick="solicitarEliminacion(${index})"><i class="fas fa-trash"></i></button>`
-                                }
+                                ${estaEnConfirmacion ? `
+                                    <button class="btn-confirmar" onclick="confirmarEliminacion(${index})" title="Confirmar eliminación">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    <button class="btn-cancelar" onclick="cancelarEliminacion(${index})" title="Cancelar eliminación">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                ` : `
+                                    <button class="btn-editar" onclick="editarRegistro(${index})" title="Editar registro">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn-eliminar" onclick="solicitarEliminacion(${index})" title="Eliminar registro">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                `}
                             </td>
                         </tr>
                     `;
@@ -1201,7 +1022,7 @@
                         </table>
                     </div>
                     <div class="scroll-indicator">
-                        <i class="fas fa-arrow-left"></i> Desliza para ver más columnas <i class="fas fa-arrow-right"></i>
+                        <i class="fas fa-arrows-alt-h"></i> Desliza horizontalmente para ver más información
                     </div>
                 `;
                 
@@ -1220,55 +1041,42 @@
         function editarRegistro(index) {
             const registro = datosLocales[index];
             
-            // Establecer los valores en el formulario
-            $('#fecha').val(registro.fecha);
-            
-            // Seleccionar el edificio
-            $('#edificio-group button').removeClass('active');
-            $(`#edificio-group button[data-value="${registro.edificio}"]`).addClass('active');
-            edificioSeleccionado = registro.edificio;
-            
-            // Seleccionar tipo de residuo
-            $('#tipo-residuo button').removeClass('active');
-            $(`#tipo-residuo button[data-value="${registro.tipoResiduo}"]`).addClass('active');
-            tipoResiduoSeleccionado = registro.tipoResiduo;
-            
-            // Establecer cantidad
-            $('#cantidad').val(registro.cantidad);
-            
-            // Seleccionar clasificación
-            $('#clasificacion button').removeClass('active');
-            $(`#clasificacion button[data-value="${registro.clasificacion}"]`).addClass('active');
-            clasificacionSeleccionada = registro.clasificacion;
-            
-            // Seleccionar estado físico
-            $('#estado-fisico button').removeClass('active');
-            $(`#estado-fisico button[data-value="${registro.estadoFisico}"]`).addClass('active');
-            estadoFisicoSeleccionado = registro.estadoFisico;
-            
-            // Guardar el registro que se está editando
+            // Guardar el registro en edición
             registroEnEdicion = registro;
             localStorage.setItem('registroEditando', JSON.stringify(registro));
             
-            // Cambiar el texto del botón
-            $('#registrar').text('Actualizar Registro');
-            
-            // Verificar formulario
-            verificarFormulario();
+            // Cargar el registro en el formulario
+            cargarRegistroEnFormulario(registro);
             
             // Cerrar el modal
             cerrarModal();
             
-            // Mostrar mensaje informativo
             Swal.fire({
-                title: 'Editando Registro',
-                text: 'Ahora puedes modificar los datos del registro seleccionado.',
+                title: 'Registro cargado para edición',
+                text: 'El registro se ha cargado en el formulario. Realiza los cambios necesarios y guarda el registro actualizado.',
                 icon: 'info',
-                confirmButtonText: 'Entendido'
+                confirmButtonText: 'Entendido',
+                confirmButtonColor: '#3498db'
             });
         }
 
-        // Función para solicitar eliminación de un registro
+        // Función para cargar un registro en el formulario
+        function cargarRegistroEnFormulario(registro) {
+            document.getElementById('fecha').value = registro.fecha;
+            
+            // Actualizar botones de selección
+            $(`#edificio-group button[data-value="${registro.edificio}"]`).click();
+            $(`#tipo-residuo button[data-value="${registro.tipoResiduo}"]`).click();
+            $(`#clasificacion button[data-value="${registro.clasificacion}"]`).click();
+            $(`#estado-fisico button[data-value="${registro.estadoFisico}"]`).click();
+            
+            document.getElementById('cantidad').value = registro.cantidad;
+            
+            // Poner el foco en el campo de cantidad
+            $('#cantidad').focus();
+        }
+
+        // Función para solicitar eliminación (mostrar botones de confirmación)
         function solicitarEliminacion(index) {
             // Marcar el registro para confirmación de eliminación
             datosLocales[index].enConfirmacion = true;
@@ -1278,23 +1086,15 @@
             mostrarModalRegistros();
         }
 
-        // Función para confirmar eliminación
+        // Función para confirmar eliminación (SIN mensaje de confirmación)
         function confirmarEliminacion(index) {
             // Eliminar el registro
             datosLocales.splice(index, 1);
             guardarDatosLocales();
             actualizarContador();
             
-            // Actualizar la vista del modal
+            // Actualizar la vista del modal (sin mostrar mensaje)
             mostrarModalRegistros();
-            
-            // Mostrar confirmación
-            Swal.fire({
-                title: 'Registro Eliminado',
-                text: 'El registro ha sido eliminado correctamente.',
-                icon: 'success',
-                confirmButtonText: 'Aceptar'
-            });
         }
 
         // Función para cancelar eliminación
@@ -1309,121 +1109,209 @@
 
         // Función para sincronizar datos con Google Sheets
         function sincronizarDatos() {
-            if (!navigator.onLine) {
-                Swal.fire({
-                    title: 'Sin Conexión',
-                    text: 'No hay conexión a internet. Conéctate para sincronizar los datos.',
-                    icon: 'error',
-                    confirmButtonText: 'Aceptar'
-                });
-                return;
-            }
-
             if (datosLocales.length === 0) {
                 Swal.fire({
-                    title: 'Sin Datos',
+                    title: 'Sin datos',
                     text: 'No hay registros pendientes para sincronizar.',
                     icon: 'info',
-                    confirmButtonText: 'Aceptar'
+                    confirmButtonText: 'Entendido',
+                    confirmButtonColor: '#3498db'
                 });
                 return;
             }
 
-            // Mostrar overlay de carga
-            mostrarOverlay('Sincronizando datos con el servidor...');
+            // Crear copia de seguridad de los datos antes de enviar
+            const datosBackup = [...datosLocales];
+            const timestampBackup = new Date().getTime();
 
-            // Crear una copia de los datos para procesar
-            let datosParaEnviar = [...datosLocales];
-            let registrosExitosos = 0;
-            let registrosFallidos = 0;
+            // Cerrar el modal
+            cerrarModal();
 
-            // Función recursiva para enviar datos uno por uno
-            function enviarSiguienteRegistro(indice) {
-                if (indice >= datosParaEnviar.length) {
-                    // Todos los registros han sido procesados
-                    ocultarOverlay();
+            // Mostrar animación de sincronización
+            $('#sync-button').addClass('syncing');
+            $('#overlay').css('display', 'flex');
+            $('#loading-detail').text('Sincronizando datos...');
+
+            // Configurar timeout para detectar problemas de red
+            const timeoutDuration = 30000; // 30 segundos
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Timeout: La sincronización está tomando demasiado tiempo')), timeoutDuration);
+            });
+
+            // Promesa para la solicitud AJAX
+            const ajaxPromise = new Promise((resolve, reject) => {
+                $.ajax({
+                    url: scriptURL,
+                    type: "POST",
+                    data: {
+                        registros: JSON.stringify(datosLocales)
+                    },
+                    success: resolve,
+                    error: reject
+                });
+            });
+
+            // Ejecutar con timeout
+            Promise.race([ajaxPromise, timeoutPromise])
+                .then(function(response) {
+                    $('#overlay').hide();
+                    $('#sync-button').removeClass('syncing');
                     
-                    // Mostrar resumen
-                    let mensaje = '';
-                    if (registrosExitosos > 0 && registrosFallidos === 0) {
-                        mensaje = `Todos los ${registrosExitosos} registros se sincronizaron correctamente.`;
-                    } else if (registrosExitosos > 0 && registrosFallidos > 0) {
-                        mensaje = `${registrosExitosos} registros sincronizados, ${registrosFallidos} fallaron.`;
+                    // Intentar parsear la respuesta
+                    let responseData;
+                    try {
+                        responseData = typeof response === 'string' ? JSON.parse(response) : response;
+                    } catch (e) {
+                        responseData = {success: false, message: 'Respuesta no válida del servidor'};
+                    }
+                    
+                    if (responseData.success && responseData.registrosProcesados === datosLocales.length) {
+                        // Sincronización completamente exitosa
+                        datosLocales = [];
+                        guardarDatosLocales();
+                        actualizarContador();
+                        
+                        let mensajeHTML = `
+                            <div style="text-align: center;">
+                                <p style="font-size: 1.1em; margin-bottom: 15px;">${responseData.message}</p>
+                                <p style="font-size: 0.9em; color: #28a745;">
+                                    <i class="fas fa-check-circle"></i> Todos los registros fueron procesados correctamente
+                                </p>
+                                <div style="color: #28a745; font-size: 2em; margin-top: 15px;">
+                                    <i class="fas fa-cloud-upload-alt"></i>
+                                </div>
+                        `;
+                        
+                        Swal.fire({
+                            title: 'Sincronización Exitosa',
+                            html: mensajeHTML,
+                            icon: 'success',
+                            confirmButtonText: 'Aceptar',
+                            confirmButtonColor: '#28a745',
+                            width: '500px'
+                        });
+                    } else if (responseData.success && responseData.registrosProcesados > 0) {
+                        // Sincronización parcialmente exitosa
+                        let mensajeHTML = `
+                            <div style="text-align: center;">
+                                <p style="font-size: 1.1em; margin-bottom: 15px;">${responseData.message}</p>
+                                <p style="font-size: 0.9em; color: #f39c12;">
+                                    <i class="fas fa-exclamation-triangle"></i> Sincronización parcial
+                                </p>
+                        `;
+                        
+                        if (responseData.detalles && responseData.detalles.length > 0) {
+                            mensajeHTML += `
+                                <div style="margin-top: 15px; text-align: left;">
+                                    <p style="font-size: 0.9em; color: #e74c3c; margin-bottom: 8px;"><strong>Errores:</strong></p>
+                                    <ul style="font-size: 0.8em; color: #7f8c8d; text-align: left; padding-left: 20px;">
+                            `;
+                            responseData.detalles.forEach(detalle => {
+                                mensajeHTML += `<li>${detalle}</li>`;
+                            });
+                            mensajeHTML += `</ul></div>`;
+                        }
+                        
+                        mensajeHTML += `</div>`;
+                        
+                        Swal.fire({
+                            title: 'Sincronización Parcial',
+                            html: mensajeHTML,
+                            icon: 'warning',
+                            confirmButtonText: 'Entendido',
+                            confirmButtonColor: '#f39c12',
+                            width: '600px'
+                        }).then(() => {
+                            // Actualizar la vista del modal
+                            mostrarModalRegistros();
+                        });
                     } else {
-                        mensaje = 'No se pudo sincronizar ningún registro.';
+                        // Error en la sincronización
+                        Swal.fire({
+                            title: 'Error en Sincronización',
+                            text: responseData.message || 'Error desconocido al sincronizar',
+                            icon: 'error',
+                            confirmButtonText: 'Entendido',
+                            confirmButtonColor: '#e74c3c'
+                        });
+                    }
+                })
+                .catch(function(error) {
+                    $('#overlay').hide();
+                    $('#sync-button').removeClass('syncing');
+                    
+                    // Restaurar datos desde el backup en caso de error
+                    datosLocales = datosBackup;
+                    guardarDatosLocales();
+                    actualizarContador();
+                    
+                    let errorMessage = 'Error de conexión: ';
+                    
+                    if (error.message.includes('Timeout')) {
+                        errorMessage = 'La sincronización está tomando demasiado tiempo. ';
+                        errorMessage += 'Verifica tu conexión a internet e intenta nuevamente.';
+                    } else {
+                        errorMessage += 'No se pudo conectar al servidor. ';
+                        if (error.status === 0) {
+                            errorMessage += 'Verifica tu conexión a internet.';
+                        } else {
+                            errorMessage += `Error ${error.status}: ${error.statusText || error.message}`;
+                        }
                     }
                     
                     Swal.fire({
-                        title: registrosFallidos === 0 ? 'Sincronización Exitosa' : 'Sincronización Parcial',
+                        title: 'Error de Conexión',
                         html: `
                             <div style="text-align: center;">
-                                <p style="font-size: 1.1em; margin-bottom: 15px;">${mensaje}</p>
-                                <div style="color: ${registrosFallidos === 0 ? '#28a745' : '#ffc107'}; font-size: 2em;">
-                                    <i class="fas ${registrosFallidos === 0 ? 'fa-check-circle' : 'fa-exclamation-triangle'}"></i>
+                                <p style="font-size: 1.1em; margin-bottom: 15px;">${errorMessage}</p>
+                                <p style="font-size: 0.9em; color: #7f8c8d; margin-top: 15px;">
+                                    <i class="fas fa-info-circle"></i> Los registros se mantienen guardados localmente para reintentar más tarde.
+                                </p>
+                                <div style="color: #e74c3c; font-size: 2em; margin-top: 15px;">
+                                    <i class="fas fa-wifi-slash"></i>
                                 </div>
                             </div>
                         `,
-                        icon: registrosFallidos === 0 ? 'success' : 'warning',
-                        confirmButtonText: 'Aceptar'
-                    }).then(() => {
-                        // Actualizar la vista del modal
-                        mostrarModalRegistros();
+                        icon: 'error',
+                        confirmButtonText: 'Entendido',
+                        confirmButtonColor: '#e74c3c',
+                        width: '500px'
                     });
-                    
-                    return;
-                }
-
-                let registro = datosParaEnviar[indice];
-                
-                // Actualizar mensaje de carga
-                document.getElementById('loading-detail').textContent = 
-                    `Enviando registro ${indice + 1} de ${datosParaEnviar.length}...`;
-
-                // Enviar registro a Google Sheets
-                fetch(scriptURL, {
-                    method: 'POST',
-                    body: JSON.stringify(registro),
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                })
-                .then(response => {
-                    if (response.ok) {
-                        // Eliminar el registro de datosLocales si se envió correctamente
-                        const indexEnLocal = datosLocales.findIndex(r => r.timestamp === registro.timestamp);
-                        if (indexEnLocal !== -1) {
-                            datosLocales.splice(indexEnLocal, 1);
-                            registrosExitosos++;
-                        }
-                    } else {
-                        registrosFallidos++;
-                    }
-                    
-                    // Procesar siguiente registro
-                    enviarSiguienteRegistro(indice + 1);
-                })
-                .catch(error => {
-                    console.error('Error al enviar registro:', error);
-                    registrosFallidos++;
-                    // Procesar siguiente registro
-                    enviarSiguienteRegistro(indice + 1);
                 });
+        }
+
+        // Cerrar modal al hacer clic fuera de él
+        window.onclick = function(event) {
+            const modal = document.getElementById('modal-registros');
+            if (event.target === modal) {
+                cerrarModal();
             }
-
-            // Iniciar el proceso de envío
-            enviarSiguienteRegistro(0);
         }
 
-        // Función para mostrar overlay de carga
-        function mostrarOverlay(mensaje) {
-            document.getElementById('loading-detail').textContent = mensaje || 'Por favor espera un momento...';
-            document.getElementById('overlay').style.display = 'flex';
-        }
+    // Registrar Service Worker para funcionalidad offline
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+            navigator.serviceWorker.register('sw.js')
+                .then(function(registration) {
+                    console.log('Service Worker registrado con éxito:', registration.scope);
+                })
+                .catch(function(error) {
+                    console.log('Error al registrar Service Worker:', error);
+                });
+        });
+    }
 
-        // Función para ocultar overlay de carga
-        function ocultarOverlay() {
-            document.getElementById('overlay').style.display = 'none';
-        }
+    // Detectar cambios en la conexión
+    window.addEventListener('online', function() {
+        console.log('Conexión restaurada');
+        // Opcional: mostrar notificación de conexión restaurada
+    });
+
+    window.addEventListener('offline', function() {
+        console.log('Sin conexión a internet - Modo offline activado');
+        // Opcional: mostrar notificación de modo offline
+    });
+
     </script>
 </body>
 </html>

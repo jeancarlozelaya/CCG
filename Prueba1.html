@@ -435,11 +435,13 @@
             justify-content: space-between;
             align-items: center;
             border-top: 1px solid var(--border-color);
+            gap: 15px;
         }
 
         .modal-footer-buttons {
             display: flex;
             gap: 10px;
+            flex-shrink: 0;
         }
 
         .btn-sincronizar {
@@ -451,11 +453,19 @@
             font-weight: 600;
             cursor: pointer;
             transition: var(--transition);
+            white-space: nowrap;
         }
 
-        .btn-sincronizar:hover {
+        .btn-sincronizar:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-sincronizar:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
 
         .btn-cerrar {
@@ -467,6 +477,7 @@
             font-weight: 600;
             cursor: pointer;
             transition: var(--transition);
+            white-space: nowrap;
         }
 
         .btn-cerrar:hover {
@@ -563,6 +574,7 @@
             border-radius: 6px;
             font-size: 0.85em;
             font-weight: 600;
+            white-space: nowrap;
         }
 
         .conexion-status.online {
@@ -576,38 +588,6 @@
             color: var(--accent-color);
             border: 1px solid var(--accent-color);
             animation: pulse 2s infinite;
-        }
-
-        /* Mensaje de no conexión en el modal - MÁS COMPACTO */
-        .no-connection-message {
-            background: linear-gradient(135deg, #ff6b6b, #ee5a52);
-            color: white;
-            padding: 12px 15px;
-            border-radius: 8px;
-            text-align: center;
-            margin-bottom: 15px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            border-left: 4px solid #c0392b;
-            font-size: 0.8em;
-            line-height: 1.3;
-        }
-
-        .no-connection-message .icon {
-            font-size: 1.2em;
-            margin-bottom: 5px;
-        }
-
-        .no-connection-message h3 {
-            margin: 0 0 5px 0;
-            font-size: 0.9em;
-            font-weight: 600;
-        }
-
-        .no-connection-message p {
-            margin: 0;
-            opacity: 0.9;
-            font-size: 0.75em;
-            line-height: 1.3;
         }
 
         /* MEDIA QUERIES MEJORADAS */
@@ -698,43 +678,18 @@
 
             .modal-footer {
                 padding: 15px;
-                flex-direction: row;
-                gap: 15px;
-                align-items: center;
+                flex-wrap: wrap;
+                gap: 10px;
             }
 
             .modal-footer-buttons {
-                display: flex;
-                gap: 10px;
-                flex: 1;
-                justify-content: flex-end;
+                width: 100%;
+                justify-content: stretch;
             }
 
             .btn-cerrar, .btn-sincronizar {
+                flex: 1;
                 min-width: 120px;
-                text-align: center;
-                padding: 12px 10px;
-                font-size: 0.9em;
-                flex: 0 1 auto;
-            }
-
-            .no-connection-message {
-                padding: 10px 12px;
-                margin-bottom: 12px;
-            }
-            
-            .no-connection-message .icon {
-                font-size: 1em;
-                margin-bottom: 4px;
-            }
-            
-            .no-connection-message h3 {
-                font-size: 0.85em;
-                margin-bottom: 4px;
-            }
-            
-            .no-connection-message p {
-                font-size: 0.7em;
             }
         }
 
@@ -769,22 +724,17 @@
 
             .modal-footer {
                 padding: 12px;
-                gap: 10px;
-                flex-wrap: nowrap;
-            }
-
-            .modal-footer-buttons {
                 gap: 8px;
             }
 
-            .btn-cerrar, .btn-sincronizar {
-                min-width: 100px;
-                padding: 10px 8px;
-                font-size: 0.85em;
+            .conexion-status {
+                font-size: 0.8em;
+                padding: 4px 8px;
             }
 
-            .conexion-status {
-                justify-content: center;
+            .btn-cerrar, .btn-sincronizar {
+                padding: 8px 12px;
+                font-size: 0.9em;
             }
         }
 
@@ -799,17 +749,11 @@
 
             .modal-footer {
                 flex-direction: column;
-                gap: 10px;
+                align-items: stretch;
             }
 
             .modal-footer-buttons {
-                width: 100%;
-                justify-content: space-between;
-            }
-
-            .btn-cerrar, .btn-sincronizar {
-                min-width: 45%;
-                flex: 1;
+                order: -1;
             }
         }
 
@@ -914,7 +858,7 @@
                 <!-- Aquí se cargarán los registros -->
             </div>
             <div class="modal-footer">
-                <div style="display: flex; align-items: center; gap: 15px;">
+                <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
                     <span id="contador-registros">0 registros pendientes</span>
                     <div class="conexion-status online" id="conexion-status">
                         <i class="fas fa-wifi"></i>
@@ -960,6 +904,7 @@
             const icon = document.getElementById('conexion-icon');
             const tooltip = document.getElementById('conexion-tooltip');
             const status = document.getElementById('conexion-status');
+            const btnSincronizar = document.getElementById('btn-sincronizar');
             
             if (isOnline) {
                 if (indicator) {
@@ -972,6 +917,11 @@
                 if (status) {
                     status.className = 'conexion-status online';
                     status.innerHTML = '<i class="fas fa-wifi"></i><span>Conectado</span>';
+                }
+
+                // Habilitar botón de sincronizar si hay registros
+                if (btnSincronizar && datosLocales.length > 0) {
+                    btnSincronizar.disabled = false;
                 }
                 
                 console.log('✅ Conexión restaurada - Modo online');
@@ -986,6 +936,11 @@
                 if (status) {
                     status.className = 'conexion-status offline';
                     status.innerHTML = '<i class="fas fa-wifi-slash"></i><span>Sin conexión</span>';
+                }
+
+                // Deshabilitar botón de sincronizar
+                if (btnSincronizar) {
+                    btnSincronizar.disabled = true;
                 }
                 
                 console.log('❌ Sin conexión a internet - Modo offline activado');
@@ -1159,20 +1114,25 @@
 
         function actualizarContador() {
             const badge = document.getElementById('notification-badge');
+            const btnSincronizar = document.getElementById('btn-sincronizar');
+            
             if (datosLocales.length > 0) {
                 badge.style.display = 'flex';
                 badge.textContent = datosLocales.length > 99 ? '99+' : datosLocales.length;
+                
+                // Habilitar botón de sincronizar solo si hay conexión
+                if (btnSincronizar && isOnline) {
+                    btnSincronizar.disabled = false;
+                }
             } else {
                 badge.style.display = 'none';
+                if (btnSincronizar) {
+                    btnSincronizar.disabled = true;
+                }
             }
         }
 
         function mostrarModalRegistros() {
-            const existingMessage = document.getElementById('no-connection-message');
-            if (existingMessage) {
-                existingMessage.remove();
-            }
-            
             const modal = document.getElementById('modal-registros');
             const modalBody = document.getElementById('modal-body');
             const contador = document.getElementById('contador-registros');
@@ -1180,7 +1140,10 @@
             
             contador.textContent = `${datosLocales.length} registro${datosLocales.length !== 1 ? 's' : ''} pendiente${datosLocales.length !== 1 ? 's' : ''}`;
             
-            btnSincronizar.disabled = datosLocales.length === 0;
+            // Actualizar estado del botón de sincronizar
+            if (btnSincronizar) {
+                btnSincronizar.disabled = datosLocales.length === 0 || !isOnline;
+            }
             
             if (datosLocales.length === 0) {
                 modalBody.innerHTML = `
@@ -1312,32 +1275,9 @@
         function sincronizarDatos() {
             console.log('🔄 Intentando sincronizar... Estado de conexión:', isOnline ? 'ONLINE' : 'OFFLINE');
             
+            // Verificar conexión antes de intentar sincronizar
             if (!isOnline) {
-                console.log('❌ Sin conexión - Mostrando mensaje en el modal');
-                
-                const modalBody = document.getElementById('modal-body');
-                const existingMessage = document.getElementById('no-connection-message');
-                
-                if (!existingMessage) {
-                    const noConnectionHTML = `
-                        <div id="no-connection-message" class="no-connection-message">
-                            <div class="icon">
-                                <i class="fas fa-wifi-slash"></i>
-                            </div>
-                            <h3>Sin conexión</h3>
-                            <p>Se necesita internet para sincronizar. Los datos se guardan localmente.</p>
-                        </div>
-                    `;
-                    
-                    if (modalBody) {
-                        modalBody.insertAdjacentHTML('afterbegin', noConnectionHTML);
-                    }
-                }
-                
-                if (modalBody) {
-                    modalBody.scrollTo({ top: 0, behavior: 'smooth' });
-                }
-                
+                console.log('❌ Sin conexión - Botón ya está deshabilitado');
                 return;
             }
 

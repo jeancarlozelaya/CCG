@@ -1,0 +1,1373 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pisos Brillantes - Registro de Residuos</title>
+    <!-- Agregar manifest para aplicación web -->
+    <link rel="manifest" id="app-manifest">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --success-color: #2ecc71;
+            --warning-color: #f39c12;
+            --light-color: #ecf0f1;
+            --dark-color: #34495e;
+            --text-color: #333;
+            --border-color: #ddd;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            color: var(--text-color);
+            line-height: 1.6;
+            /* Desactivar selección de texto para todo el cuerpo */
+            -webkit-touch-callout: none; /* iOS Safari */
+            -webkit-user-select: none;   /* Safari */
+            -khtml-user-select: none;    /* Konqueror HTML */
+            -moz-user-select: none;      /* Old versions of Firefox */
+            -ms-user-select: none;       /* Internet Explorer/Edge */
+            user-select: none;           /* Non-prefixed version, currently supported by Chrome, Edge, Opera and Firefox */
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+            color: white;
+            text-align: center;
+            padding: 18px 0;
+            font-size: 1.5rem;
+            font-weight: bold;
+            box-shadow: var(--shadow);
+            position: relative;
+        }
+
+        .form-container {
+            width: 90%;
+            max-width: 800px;
+            margin: 25px auto;
+            padding: 25px;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 25px;
+            font-size: 1.8rem;
+            position: relative;
+            padding-bottom: 10px;
+        }
+
+        h1:after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 4px;
+            background-color: var(--secondary-color);
+            border-radius: 2px;
+        }
+
+        .question-container {
+            margin-bottom: 25px;
+            padding: 20px;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+            border-left: 4px solid var(--secondary-color);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .question-container label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--dark-color);
+        }
+
+        .question-container input,
+        .question-container select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 16px;
+            transition: var(--transition);
+            background-color: white;
+        }
+
+        /* Campo de fecha bloqueado */
+        .question-container input[readonly] {
+            background-color: #f8f9fa;
+            color: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .question-container input:focus,
+        .question-container select:focus {
+            border-color: var(--secondary-color);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+        }
+
+        .button-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .button-group button {
+            padding: 12px 8px;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            background-color: white;
+            color: var(--dark-color);
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 0.9em;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .button-group button.active {
+            background-color: var(--secondary-color);
+            color: white;
+            border-color: var(--secondary-color);
+        }
+
+        .button-group button:hover:not(.active) {
+            background-color: var(--light-color);
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        #registrar {
+            background: linear-gradient(to right, var(--success-color), #27ae60);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 14px 30px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 300px;
+        }
+
+        #registrar:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        #registrar:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Overlay de carga corregido - igual que en Requisiciones */
+        #overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.95);
+            z-index: 9999;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid rgba(52, 152, 219, 0.2);
+            border-radius: 50%;
+            border-top-color: var(--secondary-color);
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        #loadingMessage {
+            text-align: center;
+            color: var(--dark-color);
+        }
+
+        #loadingMessage h4 {
+            margin: 0 0 10px;
+            font-size: 1.3rem;
+        }
+
+        #loadingMessage p {
+            margin: 0;
+            color: #7f8c8d;
+        }
+
+        .sync-button {
+            background-color: var(--warning-color);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2em;
+            cursor: pointer;
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+            position: fixed;
+            left: 25px;
+            top: 25px;
+            z-index: 1000;
+        }
+
+        .sync-button:hover {
+            background-color: #e67e22;
+            transform: scale(1.1);
+        }
+
+        .sync-button.syncing {
+            animation: spin 1s linear infinite;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background-color: var(--accent-color);
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+
+        /* Modal para revisar registros */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            width: 95%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .modal-body {
+            padding: 20px;
+            overflow: auto;
+            flex-grow: 1;
+        }
+
+        /* TABLA MEJORADA PARA MÓVILES CON SCROLL HORIZONTAL */
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .registros-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            min-width: 700px; /* Ancho mínimo para evitar compresión */
+        }
+
+        .registros-table th,
+        .registros-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+
+        .registros-table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: var(--dark-color);
+            position: sticky;
+            top: 0;
+        }
+
+        .registros-table tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        /* CORRECCIÓN: Botones de acciones alineados correctamente */
+        .acciones-cell {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            min-height: 50px;
+        }
+
+        .btn-editar, .btn-eliminar, .btn-confirmar, .btn-cancelar {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: var(--transition);
+            white-space: nowrap;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 40px;
+            height: 32px;
+        }
+
+        .btn-editar {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+
+        .btn-eliminar {
+            background-color: var(--accent-color);
+            color: white;
+        }
+
+        .btn-confirmar {
+            background-color: var(--success-color);
+            color: white;
+        }
+
+        .btn-cancelar {
+            background-color: #6c757d;
+            color: white;
+        }
+
+        .btn-editar:hover {
+            background-color: #2980b9;
+        }
+
+        .btn-eliminar:hover {
+            background-color: #c0392b;
+        }
+
+        .btn-confirmar:hover {
+            background-color: #27ae60;
+        }
+
+        .btn-cancelar:hover {
+            background-color: #5a6268;
+        }
+
+        .modal-footer {
+            padding: 20px;
+            background-color: #f8f9fa;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .btn-sincronizar {
+            background: linear-gradient(to right, var(--success-color), #27ae60);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 20px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .btn-sincronizar:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-cerrar {
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 20px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .btn-cerrar:hover {
+            background-color: #5a6268;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #6c757d;
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            color: #bdc3c7;
+        }
+
+        /* Indicador de scroll para móviles */
+        .scroll-indicator {
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 0.8em;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .scroll-indicator i {
+            margin: 0 5px;
+        }
+
+        /* Indicador de estado offline */
+        .offline-indicator {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: var(--warning-color);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 6px;
+            box-shadow: var(--shadow);
+            display: none;
+            z-index: 1001;
+            font-weight: 600;
+        }
+
+        /* MEDIA QUERIES MEJORADAS */
+        @media (max-width: 768px) {
+            .form-container {
+                width: 95%;
+                padding: 15px;
+                margin: 15px auto;
+            }
+            
+            /* CAMBIO PRINCIPAL: 3 columnas en móviles */
+            .button-group {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 8px;
+            }
+            
+            .button-group button {
+                padding: 10px 6px;
+                font-size: 0.85em;
+                min-height: 45px;
+            }
+            
+            .sync-button {
+                width: 50px;
+                height: 50px;
+                font-size: 1em;
+                left: 15px;
+                top: 15px;
+            }
+            
+            .notification-badge {
+                width: 20px;
+                height: 20px;
+                font-size: 0.7em;
+            }
+            
+            h1 {
+                font-size: 1.5rem;
+            }
+            
+            .modal-content {
+                width: 98%;
+                max-height: 85vh;
+                margin: 10px;
+            }
+            
+            .modal-header h2 {
+                font-size: 1.3rem;
+            }
+            
+            .registros-table {
+                font-size: 0.85em;
+                min-width: 650px;
+            }
+            
+            .registros-table th,
+            .registros-table td {
+                padding: 10px 8px;
+            }
+            
+            .acciones-cell {
+                flex-direction: row;
+                gap: 5px;
+            }
+            
+            .btn-editar, .btn-eliminar, .btn-confirmar, .btn-cancelar {
+                padding: 5px 8px;
+                font-size: 0.8em;
+                min-width: 35px;
+                height: 28px;
+            }
+            
+            /* Mostrar indicador de scroll en móviles */
+            .scroll-indicator {
+                display: block;
+            }
+        }
+
+        @media (max-width: 480px) {
+            /* Para pantallas muy pequeñas, mantener 3 columnas pero ajustar tamaño */
+            .button-group {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 6px;
+            }
+            
+            .button-group button {
+                padding: 8px 4px;
+                font-size: 0.8em;
+                min-height: 40px;
+            }
+            
+            .question-container {
+                padding: 15px;
+            }
+            
+            .modal-content {
+                width: 98%;
+                max-height: 90vh;
+            }
+            
+            .modal-header {
+                padding: 15px;
+            }
+            
+            .modal-body {
+                padding: 15px;
+            }
+        }
+
+        @media (max-width: 360px) {
+            /* Para pantallas extra pequeñas, 2 columnas */
+            .button-group {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            #tipo-residuo.button-group {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        /* Para escritorio - diseño responsive normal */
+        @media (min-width: 769px) {
+            .button-group {
+                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            }
+            
+            .table-container {
+                overflow-x: visible;
+            }
+            
+            .registros-table {
+                min-width: auto;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">Pisos Brillantes</div>
+    
+    <!-- Indicador de estado offline -->
+    <div class="offline-indicator" id="offline-indicator">
+        <i class="fas fa-wifi-slash"></i> Modo sin conexión
+    </div>
+    
+    <button class="sync-button" id="sync-button" onclick="mostrarModalRegistros()" title="Revisar y sincronizar datos">
+        <i class="fas fa-sync-alt"></i>
+        <div class="notification-badge" id="notification-badge" style="display: none;">0</div>
+    </button>
+    
+    <div class="form-container">
+        <h1>Registro de Residuos</h1>
+
+        <form id="formulario">
+            <div class="question-container">
+                <label for="fecha"><strong>Fecha:</strong></label>
+                <input type="text" id="fecha" name="fecha" placeholder="DD/MM/AAAA" readonly>
+            </div>
+
+            <div class="question-container">
+                <label><strong>Edificio:</strong></label>
+                <div class="button-group" id="edificio-group">
+                    <button type="button" data-value="CBA">CBA</button>
+                    <button type="button" data-value="CBB">CBB</button>
+                    <button type="button" data-value="CBC">CBC</button>
+                    <button type="button" data-value="Torre #1">Torre #1</button>
+                    <button type="button" data-value="Torre #2">Torre #2</button>
+                </div>
+            </div>
+
+            <div class="question-container">
+                <label><strong>Tipo de Residuo:</strong></label>
+                <div class="button-group" id="tipo-residuo">
+                    <button type="button" class="active" data-value="Común">Común</button>
+                    <button type="button" data-value="Plástico">Plástico</button>
+                    <button type="button" data-value="Aluminio">Aluminio</button>
+                    <button type="button" data-value="Cartón">Cartón</button>
+                    <button type="button" data-value="Vidrio">Vidrio</button>
+                    <button type="button" data-value="RPBI">RPBI</button>
+                </div>
+            </div>
+
+            <div class="question-container">
+                <label for="cantidad"><strong>Cantidad (Lbs):</strong></label>
+                <input type="number" id="cantidad" name="cantidad" min="0" step="0.1" placeholder="Ingrese la cantidad en libras">
+            </div>
+
+            <div class="question-container">
+                <label><strong>Clasificación:</strong></label>
+                <div class="button-group" id="clasificacion">
+                    <button type="button" class="active" data-value="Orgánico">Orgánico</button>
+                    <button type="button" data-value="Inorgánico">Inorgánico</button>
+                </div>
+            </div>
+
+            <div class="question-container">
+                <label><strong>Estado Físico:</strong></label>
+                <div class="button-group" id="estado-fisico">
+                    <button type="button" class="active" data-value="Sólido">Sólido</button>
+                    <button type="button" data-value="Líquido">Líquido</button>
+                    <button type="button" data-value="Gaseoso">Gaseoso</button>
+                </div>
+            </div>
+
+            <div class="button-container">
+                <button type="button" id="registrar" disabled onclick="registrarEntrada()">Registrar Entrada</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Modal para revisar registros -->
+    <div class="modal" id="modal-registros">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Registros Pendientes de Sincronizar</h2>
+                <button class="close-modal" onclick="cerrarModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <!-- Aquí se cargarán los registros -->
+            </div>
+            <div class="modal-footer">
+                <span id="contador-registros">0 registros pendientes</span>
+                <div>
+                    <button class="btn-cerrar" onclick="cerrarModal()">Cerrar</button>
+                    <button class="btn-sincronizar" id="btn-sincronizar" onclick="sincronizarDatos()" disabled>Sincronizar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overlay de carga corregido -->
+    <div id="overlay">
+        <div class="spinner"></div>
+        <div id="loadingMessage">
+            <h4>Por favor espera un momento...</h4>
+            <p id="loading-detail"></p>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        let datosLocales = [];
+        let tipoResiduoSeleccionado = "Común";
+        let clasificacionSeleccionada = "Orgánico";
+        let estadoFisicoSeleccionado = "Sólido";
+        let edificioSeleccionado = "";
+        let registroEnEdicion = null; // Para controlar el registro en edición
+        const scriptURL = "https://script.google.com/macros/s/AKfycbyEonibd5OZnnSMJidnlAWTcFjKJvH6TehqaYVdxGsIVi59z3W96qX9-OUEEKOuHeg7Xg/exec";
+
+        // Configuración inicial al cargar la página
+        document.addEventListener('DOMContentLoaded', function() {
+            // Establecer fecha actual en formato DD/MM/AAAA
+            var today = new Date();
+            var dd = String(today.getDate()).padStart(2, '0');
+            var mm = String(today.getMonth() + 1).padStart(2, '0');
+            var yyyy = today.getFullYear();
+            document.getElementById("fecha").value = dd + '/' + mm + '/' + yyyy;
+            
+            // Cargar datos locales si existen
+            cargarDatosLocales();
+            
+            // Cargar última selección de edificio
+            cargarUltimaSeleccion();
+            
+            // Actualizar contador
+            actualizarContador();
+            
+            // Configurar eventos
+            configurarEventos();
+
+            // Desactivar el menú contextual (clic derecho) en todo el documento
+            document.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+            });
+
+            // Desactivar la selección de texto en todo el documento
+            document.addEventListener('selectstart', function(e) {
+                e.preventDefault();
+            });
+
+            // Configurar funcionalidad offline
+            configurarOffline();
+        });
+
+        // Función para configurar la funcionalidad offline
+        function configurarOffline() {
+            // Crear y configurar el Service Worker para caché
+            if ('serviceWorker' in navigator) {
+                // Crear un Service Worker en línea
+                const swContent = `
+                    const CACHE_NAME = 'pisos-brillantes-v1';
+                    const urlsToCache = [
+                        '.',
+                        'https://cdn.jsdelivr.net/npm/sweetalert2@11',
+                        'https://code.jquery.com/jquery-3.6.0.min.js',
+                        'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
+                    ];
+
+                    self.addEventListener('install', function(event) {
+                        event.waitUntil(
+                            caches.open(CACHE_NAME)
+                                .then(function(cache) {
+                                    return cache.addAll(urlsToCache);
+                                })
+                        );
+                    });
+
+                    self.addEventListener('fetch', function(event) {
+                        event.respondWith(
+                            caches.match(event.request)
+                                .then(function(response) {
+                                    if (response) {
+                                        return response;
+                                    }
+                                    return fetch(event.request);
+                                }
+                            )
+                        );
+                    });
+                `;
+
+                // Crear un blob con el contenido del Service Worker
+                const blob = new Blob([swContent], { type: 'application/javascript' });
+                const swURL = URL.createObjectURL(blob);
+
+                // Registrar el Service Worker
+                navigator.serviceWorker.register(swURL)
+                    .then(function(registration) {
+                        console.log('Service Worker registrado con éxito:', registration);
+                    })
+                    .catch(function(error) {
+                        console.log('Error al registrar el Service Worker:', error);
+                    });
+            }
+
+            // Crear el manifest para aplicación web
+            const manifest = {
+                "name": "Pisos Brillantes - Registro de Residuos",
+                "short_name": "Pisos Brillantes",
+                "description": "Sistema de registro de residuos para Pisos Brillantes",
+                "start_url": ".",
+                "display": "standalone",
+                "background_color": "#2c3e50",
+                "theme_color": "#3498db",
+                "icons": [
+                    {
+                        "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiByeD0iMjQiIGZpbGw9IiMzNDk4REIiLz4KPHBhdGggZD0iTTk2IDU2TDEzNiAxMDRIMTUyVjE2MEg0MFYxMDRINTZMOTYgNTZaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K",
+                        "sizes": "192x192",
+                        "type": "image/svg+xml"
+                    }
+                ]
+            };
+
+            // Crear un blob con el manifest y establecerlo como href del enlace
+            const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+            const manifestURL = URL.createObjectURL(manifestBlob);
+            document.getElementById('app-manifest').href = manifestURL;
+
+            // Detectar cambios en la conectividad
+            window.addEventListener('online', function() {
+                document.getElementById('offline-indicator').style.display = 'none';
+                console.log('Conexión restaurada');
+            });
+
+            window.addEventListener('offline', function() {
+                document.getElementById('offline-indicator').style.display = 'block';
+                console.log('Sin conexión a internet - Modo offline activado');
+            });
+
+            // Verificar estado inicial de la conexión
+            if (!navigator.onLine) {
+                document.getElementById('offline-indicator').style.display = 'block';
+            }
+        }
+
+        // Función para cargar la última selección de edificio
+        function cargarUltimaSeleccion() {
+            let ultimoEdificio = localStorage.getItem('ultimoEdificio');
+            if (ultimoEdificio) {
+                // Buscar el botón correspondiente y activarlo
+                const botonEdificio = $(`#edificio-group button[data-value="${ultimoEdificio}"]`);
+                if (botonEdificio.length) {
+                    botonEdificio.addClass('active');
+                    edificioSeleccionado = ultimoEdificio;
+                }
+            }
+            verificarFormulario();
+        }
+
+        // Función para guardar la última selección de edificio
+        function guardarUltimaSeleccion() {
+            if (edificioSeleccionado) {
+                localStorage.setItem('ultimoEdificio', edificioSeleccionado);
+            }
+        }
+
+        // Función para resetear selecciones a valores por defecto (excepto edificio)
+        function resetearSelecciones() {
+            // Resetear tipo de residuo a "Común"
+            $('#tipo-residuo button').removeClass('active');
+            $('#tipo-residuo button[data-value="Común"]').addClass('active');
+            tipoResiduoSeleccionado = "Común";
+            
+            // Resetear clasificación a "Orgánico"
+            $('#clasificacion button').removeClass('active');
+            $('#clasificacion button[data-value="Orgánico"]').addClass('active');
+            clasificacionSeleccionada = "Orgánico";
+            
+            // Resetear estado físico a "Sólido"
+            $('#estado-fisico button').removeClass('active');
+            $('#estado-fisico button[data-value="Sólido"]').addClass('active');
+            estadoFisicoSeleccionado = "Sólido";
+        }
+
+        // Función para configurar eventos
+        function configurarEventos() {
+            // Botones de edificio
+            $('#edificio-group button').on('click', function() {
+                $('#edificio-group button').removeClass('active');
+                $(this).addClass('active');
+                edificioSeleccionado = $(this).data('value');
+                guardarUltimaSeleccion();
+                verificarFormulario();
+            });
+
+            // Botones de tipo de residuo
+            $('#tipo-residuo button').on('click', function() {
+                $('#tipo-residuo button').removeClass('active');
+                $(this).addClass('active');
+                tipoResiduoSeleccionado = $(this).data('value');
+                verificarFormulario();
+            });
+
+            // Botones de clasificación
+            $('#clasificacion button').on('click', function() {
+                $('#clasificacion button').removeClass('active');
+                $(this).addClass('active');
+                clasificacionSeleccionada = $(this).data('value');
+                verificarFormulario();
+            });
+
+            // Botones de estado físico
+            $('#estado-fisico button').on('click', function() {
+                $('#estado-fisico button').removeClass('active');
+                $(this).addClass('active');
+                estadoFisicoSeleccionado = $(this).data('value');
+                verificarFormulario();
+            });
+
+            // Validación de formulario
+            $("#cantidad").on("change input", verificarFormulario);
+        }
+
+        // Función para verificar si el formulario está completo
+        function verificarFormulario() {
+            let cantidad = $("#cantidad").val();
+
+            if (edificioSeleccionado !== "" && cantidad.trim() !== "" && parseFloat(cantidad) > 0) {
+                $("#registrar").prop("disabled", false);
+            } else {
+                $("#registrar").prop("disabled", true);
+            }
+        }
+
+        // Función para registrar entrada
+        function registrarEntrada() {
+            let fecha = $('#fecha').val();
+            let cantidad = parseFloat($('#cantidad').val());
+
+            // Crear objeto con los datos
+            let registro = {
+                fecha: fecha,
+                edificio: edificioSeleccionado,
+                tipoResiduo: tipoResiduoSeleccionado,
+                cantidad: cantidad,
+                clasificacion: clasificacionSeleccionada,
+                estadoFisico: estadoFisicoSeleccionado,
+                timestamp: new Date().getTime()
+            };
+
+            // Si hay un registro en edición, reemplazarlo
+            if (registroEnEdicion !== null) {
+                // Buscar y reemplazar el registro en edición
+                const index = datosLocales.findIndex(r => r.timestamp === registroEnEdicion.timestamp);
+                if (index !== -1) {
+                    datosLocales[index] = registro;
+                    // Limpiar el registro en edición
+                    registroEnEdicion = null;
+                    localStorage.removeItem('registroEditando');
+                }
+            } else {
+                // Agregar nuevo registro
+                datosLocales.push(registro);
+            }
+
+            guardarDatosLocales();
+            actualizarContador();
+
+            // Mostrar confirmación
+            Swal.fire({
+                title: registroEnEdicion !== null ? 'Registro Actualizado' : 'Registro Exitoso',
+                html: `
+                    <div style="text-align: center;">
+                        <p style="font-size: 1.1em; margin-bottom: 15px;">El registro se ha ${registroEnEdicion !== null ? 'actualizado' : 'guardado'} correctamente.</p>
+                        <p style="font-size: 0.9em; color: #7f8c8d;">Registros pendientes de sincronizar: ${datosLocales.length}</p>
+                        <div style="color: #28a745; font-size: 2em;">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                    </div>
+                `,
+                icon: 'success',
+                confirmButtonText: 'Aceptar',
+                confirmButtonColor: '#28a745'
+            }).then(() => {
+                // Resetear selecciones a valores por defecto (excepto edificio)
+                resetearSelecciones();
+                
+                // Limpiar solo el campo de cantidad y poner el foco ahí
+                $('#cantidad').val('');
+                $('#cantidad').focus();
+                verificarFormulario();
+            });
+        }
+
+        // Función para guardar datos en localStorage
+        function guardarDatosLocales() {
+            localStorage.setItem('datosRegistro', JSON.stringify(datosLocales));
+        }
+
+        // Función para cargar datos desde localStorage
+        function cargarDatosLocales() {
+            const datosGuardados = localStorage.getItem('datosRegistro');
+            if (datosGuardados) {
+                datosLocales = JSON.parse(datosGuardados);
+            }
+        }
+
+        // Función para actualizar el contador de registros pendientes
+        function actualizarContador() {
+            const badge = document.getElementById('notification-badge');
+            if (datosLocales.length > 0) {
+                badge.textContent = datosLocales.length;
+                badge.style.display = 'flex';
+            } else {
+                badge.style.display = 'none';
+            }
+            document.getElementById('contador-registros').textContent = `${datosLocales.length} registros pendientes`;
+        }
+
+        // Función para mostrar el modal con los registros
+        function mostrarModalRegistros() {
+            const modal = document.getElementById('modal-registros');
+            const modalBody = document.getElementById('modal-body');
+            
+            if (datosLocales.length === 0) {
+                modalBody.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <h3>No hay registros pendientes</h3>
+                        <p>Todos los registros han sido sincronizados</p>
+                    </div>
+                `;
+                document.getElementById('btn-sincronizar').disabled = true;
+            } else {
+                let html = `
+                    <div class="scroll-indicator">
+                        <i class="fas fa-arrow-left"></i>
+                        Desliza para ver más información
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div class="table-container">
+                        <table class="registros-table">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Edificio</th>
+                                    <th>Tipo</th>
+                                    <th>Cantidad (Lbs)</th>
+                                    <th>Clasificación</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                datosLocales.forEach((registro, index) => {
+                    html += `
+                        <tr data-index="${index}">
+                            <td>${registro.fecha}</td>
+                            <td>${registro.edificio}</td>
+                            <td>${registro.tipoResiduo}</td>
+                            <td>${registro.cantidad}</td>
+                            <td>${registro.clasificacion}</td>
+                            <td>${registro.estadoFisico}</td>
+                            <td class="acciones-cell">
+                                <button class="btn-editar" onclick="editarRegistro(${index})" title="Editar">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn-eliminar" onclick="eliminarRegistro(${index})" title="Eliminar">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                
+                modalBody.innerHTML = html;
+                document.getElementById('btn-sincronizar').disabled = false;
+            }
+            
+            modal.style.display = 'flex';
+        }
+
+        // Función para cerrar el modal
+        function cerrarModal() {
+            document.getElementById('modal-registros').style.display = 'none';
+            // Limpiar el registro en edición si se estaba editando
+            if (registroEnEdicion !== null) {
+                registroEnEdicion = null;
+                localStorage.removeItem('registroEditando');
+                resetearSelecciones();
+            }
+        }
+
+        // Función para editar un registro
+        function editarRegistro(index) {
+            const registro = datosLocales[index];
+            
+            // Guardar el registro que se está editando
+            registroEnEdicion = registro;
+            localStorage.setItem('registroEditando', JSON.stringify(registro));
+            
+            // Cargar los datos en el formulario
+            $('#fecha').val(registro.fecha);
+            
+            // Seleccionar el edificio
+            $('#edificio-group button').removeClass('active');
+            $(`#edificio-group button[data-value="${registro.edificio}"]`).addClass('active');
+            edificioSeleccionado = registro.edificio;
+            
+            // Seleccionar tipo de residuo
+            $('#tipo-residuo button').removeClass('active');
+            $(`#tipo-residuo button[data-value="${registro.tipoResiduo}"]`).addClass('active');
+            tipoResiduoSeleccionado = registro.tipoResiduo;
+            
+            // Seleccionar clasificación
+            $('#clasificacion button').removeClass('active');
+            $(`#clasificacion button[data-value="${registro.clasificacion}"]`).addClass('active');
+            clasificacionSeleccionada = registro.clasificacion;
+            
+            // Seleccionar estado físico
+            $('#estado-fisico button').removeClass('active');
+            $(`#estado-fisico button[data-value="${registro.estadoFisico}"]`).addClass('active');
+            estadoFisicoSeleccionado = registro.estadoFisico;
+            
+            // Establecer cantidad
+            $('#cantidad').val(registro.cantidad);
+            
+            // Cambiar texto del botón
+            $('#registrar').text('Actualizar Registro');
+            
+            // Verificar formulario
+            verificarFormulario();
+            
+            // Cerrar el modal
+            cerrarModal();
+            
+            // Mostrar mensaje informativo
+            Swal.fire({
+                title: 'Editando Registro',
+                html: `
+                    <div style="text-align: center;">
+                        <p style="font-size: 1.1em; margin-bottom: 15px;">Ahora estás editando un registro existente.</p>
+                        <p style="font-size: 0.9em; color: #7f8c8d;">Realiza los cambios necesarios y presiona "Actualizar Registro"</p>
+                        <div style="color: #3498db; font-size: 2em;">
+                            <i class="fas fa-edit"></i>
+                        </div>
+                    </div>
+                `,
+                icon: 'info',
+                confirmButtonText: 'Entendido',
+                confirmButtonColor: '#3498db'
+            });
+        }
+
+        // Función para eliminar un registro
+        function eliminarRegistro(index) {
+            Swal.fire({
+                title: '¿Eliminar registro?',
+                html: `
+                    <div style="text-align: center;">
+                        <p style="font-size: 1.1em; margin-bottom: 15px;">Esta acción no se puede deshacer</p>
+                        <div style="color: #e74c3c; font-size: 2em;">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                    </div>
+                `,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#e74c3c',
+                cancelButtonColor: '#6c757d'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Si se está editando este registro, cancelar la edición
+                    if (registroEnEdicion !== null && datosLocales[index].timestamp === registroEnEdicion.timestamp) {
+                        registroEnEdicion = null;
+                        localStorage.removeItem('registroEditando');
+                        resetearSelecciones();
+                        $('#registrar').text('Registrar Entrada');
+                    }
+                    
+                    // Eliminar el registro
+                    datosLocales.splice(index, 1);
+                    guardarDatosLocales();
+                    actualizarContador();
+                    
+                    // Actualizar la vista del modal
+                    mostrarModalRegistros();
+                    
+                    Swal.fire({
+                        title: 'Eliminado',
+                        text: 'El registro ha sido eliminado',
+                        icon: 'success',
+                        confirmButtonText: 'Aceptar',
+                        confirmButtonColor: '#28a745'
+                    });
+                }
+            });
+        }
+
+        // Función para sincronizar datos con Google Sheets
+        function sincronizarDatos() {
+            if (datosLocales.length === 0) {
+                Swal.fire({
+                    title: 'Sin datos',
+                    text: 'No hay registros para sincronizar',
+                    icon: 'info',
+                    confirmButtonText: 'Aceptar'
+                });
+                return;
+            }
+
+            // Mostrar overlay de carga
+            mostrarOverlay("Sincronizando datos...");
+
+            // Crear una copia de los datos para sincronizar
+            let datosParaSincronizar = [...datosLocales];
+            let sincronizadosExitosos = 0;
+            let errores = [];
+
+            // Función recursiva para sincronizar cada registro
+            function sincronizarRegistro(index) {
+                if (index >= datosParaSincronizar.length) {
+                    // Todos los registros han sido procesados
+                    ocultarOverlay();
+                    
+                    // Mostrar resultado
+                    if (errores.length === 0) {
+                        Swal.fire({
+                            title: 'Sincronización Exitosa',
+                            html: `
+                                <div style="text-align: center;">
+                                    <p style="font-size: 1.1em; margin-bottom: 15px;">Todos los registros se han sincronizado correctamente</p>
+                                    <p style="font-size: 0.9em; color: #7f8c8d;">Registros sincronizados: ${sincronizadosExitosos}</p>
+                                    <div style="color: #28a745; font-size: 2em;">
+                                        <i class="fas fa-check-circle"></i>
+                                    </div>
+                                </div>
+                            `,
+                            icon: 'success',
+                            confirmButtonText: 'Aceptar',
+                            confirmButtonColor: '#28a745'
+                        });
+                        
+                        // Limpiar datos locales
+                        datosLocales = [];
+                        guardarDatosLocales();
+                        actualizarContador();
+                        cerrarModal();
+                    } else {
+                        Swal.fire({
+                            title: 'Sincronización Parcial',
+                            html: `
+                                <div style="text-align: center;">
+                                    <p style="font-size: 1.1em; margin-bottom: 15px;">Se sincronizaron ${sincronizadosExitosos} de ${datosParaSincronizar.length} registros</p>
+                                    <p style="font-size: 0.9em; color: #e74c3c;">Errores: ${errores.length}</p>
+                                    <div style="color: #f39c12; font-size: 2em;">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                    </div>
+                                </div>
+                            `,
+                            icon: 'warning',
+                            confirmButtonText: 'Aceptar',
+                            confirmButtonColor: '#f39c12'
+                        });
+                    }
+                    return;
+                }
+
+                let registro = datosParaSincronizar[index];
+                let formData = new FormData();
+                formData.append('Fecha', registro.fecha);
+                formData.append('Edificio', registro.edificio);
+                formData.append('TipoResiduo', registro.tipoResiduo);
+                formData.append('Cantidad', registro.cantidad);
+                formData.append('Clasificacion', registro.clasificacion);
+                formData.append('EstadoFisico', registro.estadoFisico);
+
+                // Actualizar mensaje de carga
+                document.getElementById('loading-detail').textContent = `Enviando registro ${index + 1} de ${datosParaSincronizar.length}`;
+
+                fetch(scriptURL, { method: 'POST', body: formData })
+                    .then(response => {
+                        if (response.ok) {
+                            sincronizadosExitosos++;
+                            // Eliminar el registro sincronizado de datosLocales
+                            const registroIndex = datosLocales.findIndex(r => r.timestamp === registro.timestamp);
+                            if (registroIndex !== -1) {
+                                datosLocales.splice(registroIndex, 1);
+                            }
+                        } else {
+                            errores.push(`Registro ${index + 1}: Error ${response.status}`);
+                        }
+                        // Procesar siguiente registro
+                        sincronizarRegistro(index + 1);
+                    })
+                    .catch(error => {
+                        errores.push(`Registro ${index + 1}: ${error.message}`);
+                        // Procesar siguiente registro
+                        sincronizarRegistro(index + 1);
+                    });
+            }
+
+            // Iniciar la sincronización
+            sincronizarRegistro(0);
+        }
+
+        // Función para mostrar overlay de carga
+        function mostrarOverlay(mensaje) {
+            document.getElementById('loading-detail').textContent = mensaje;
+            document.getElementById('overlay').style.display = 'flex';
+        }
+
+        // Función para ocultar overlay de carga
+        function ocultarOverlay() {
+            document.getElementById('overlay').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

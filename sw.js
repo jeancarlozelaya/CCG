@@ -1,7 +1,7 @@
 const CACHE_NAME = 'registro-residuos-v1.0.0';
 const urlsToCache = [
     '/',
-    './Prueba1.html',
+    './Registro de Residuos.html',
     'https://cdn.jsdelivr.net/npm/sweetalert2@11',
     'https://code.jquery.com/jquery-3.6.0.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
@@ -84,3 +84,4 @@ self.addEventListener('fetch', function(event) {
             })
     );
 });
+

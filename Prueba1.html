@@ -4,11 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Pisos Brillantes - Registro de Residuos</title>
-    <!-- Agregar manifest para aplicación web -->
-    <link rel="manifest" id="app-manifest">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Service Worker para funcionalidad offline -->
+    <script>
+        // Registrar Service Worker para funcionalidad offline
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(function(registration) {
+                        console.log('Service Worker registrado con éxito:', registration.scope);
+                    })
+                    .catch(function(error) {
+                        console.log('Error al registrar Service Worker:', error);
+                    });
+            });
+        }
+    </script>
+    
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -502,16 +517,16 @@
         /* Indicador de estado offline */
         .offline-indicator {
             position: fixed;
-            bottom: 20px;
-            right: 20px;
+            top: 0;
+            left: 0;
+            width: 100%;
             background-color: var(--warning-color);
             color: white;
-            padding: 10px 15px;
-            border-radius: 6px;
-            box-shadow: var(--shadow);
-            display: none;
+            text-align: center;
+            padding: 8px;
+            font-size: 0.9em;
             z-index: 1001;
-            font-weight: 600;
+            display: none;
         }
 
         /* MEDIA QUERIES MEJORADAS */
@@ -650,12 +665,12 @@
     </style>
 </head>
 <body>
-    <div class="header">Pisos Brillantes</div>
-    
     <!-- Indicador de estado offline -->
     <div class="offline-indicator" id="offline-indicator">
-        <i class="fas fa-wifi-slash"></i> Modo sin conexión
+        <i class="fas fa-wifi-slash"></i> Estás trabajando sin conexión. Los datos se guardarán localmente.
     </div>
+    
+    <div class="header">Pisos Brillantes</div>
     
     <button class="sync-button" id="sync-button" onclick="mostrarModalRegistros()" title="Revisar y sincronizar datos">
         <i class="fas fa-sync-alt"></i>
@@ -781,6 +796,20 @@
             
             // Configurar eventos
             configurarEventos();
+            
+            // Verificar estado de conexión
+            verificarConexion();
+            
+            // Configurar eventos de conexión
+            window.addEventListener('online', function() {
+                document.getElementById('offline-indicator').style.display = 'none';
+                console.log('Conexión restaurada');
+            });
+            
+            window.addEventListener('offline', function() {
+                document.getElementById('offline-indicator').style.display = 'block';
+                console.log('Sin conexión a internet');
+            });
 
             // Desactivar el menú contextual (clic derecho) en todo el documento
             document.addEventListener('contextmenu', function(e) {
@@ -791,97 +820,10 @@
             document.addEventListener('selectstart', function(e) {
                 e.preventDefault();
             });
-
-            // Configurar funcionalidad offline
-            configurarOffline();
         });
 
-        // Función para configurar la funcionalidad offline
-        function configurarOffline() {
-            // Crear y configurar el Service Worker para caché
-            if ('serviceWorker' in navigator) {
-                // Crear un Service Worker en línea
-                const swContent = `
-                    const CACHE_NAME = 'pisos-brillantes-v1';
-                    const urlsToCache = [
-                        '.',
-                        'https://cdn.jsdelivr.net/npm/sweetalert2@11',
-                        'https://code.jquery.com/jquery-3.6.0.min.js',
-                        'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
-                    ];
-
-                    self.addEventListener('install', function(event) {
-                        event.waitUntil(
-                            caches.open(CACHE_NAME)
-                                .then(function(cache) {
-                                    return cache.addAll(urlsToCache);
-                                })
-                        );
-                    });
-
-                    self.addEventListener('fetch', function(event) {
-                        event.respondWith(
-                            caches.match(event.request)
-                                .then(function(response) {
-                                    if (response) {
-                                        return response;
-                                    }
-                                    return fetch(event.request);
-                                }
-                            )
-                        );
-                    });
-                `;
-
-                // Crear un blob con el contenido del Service Worker
-                const blob = new Blob([swContent], { type: 'application/javascript' });
-                const swURL = URL.createObjectURL(blob);
-
-                // Registrar el Service Worker
-                navigator.serviceWorker.register(swURL)
-                    .then(function(registration) {
-                        console.log('Service Worker registrado con éxito:', registration);
-                    })
-                    .catch(function(error) {
-                        console.log('Error al registrar el Service Worker:', error);
-                    });
-            }
-
-            // Crear el manifest para aplicación web
-            const manifest = {
-                "name": "Pisos Brillantes - Registro de Residuos",
-                "short_name": "Pisos Brillantes",
-                "description": "Sistema de registro de residuos para Pisos Brillantes",
-                "start_url": ".",
-                "display": "standalone",
-                "background_color": "#2c3e50",
-                "theme_color": "#3498db",
-                "icons": [
-                    {
-                        "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiByeD0iMjQiIGZpbGw9IiMzNDk4REIiLz4KPHBhdGggZD0iTTk2IDU2TDEzNiAxMDRIMTUyVjE2MEg0MFYxMDRINTZMOTYgNTZaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K",
-                        "sizes": "192x192",
-                        "type": "image/svg+xml"
-                    }
-                ]
-            };
-
-            // Crear un blob con el manifest y establecerlo como href del enlace
-            const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
-            const manifestURL = URL.createObjectURL(manifestBlob);
-            document.getElementById('app-manifest').href = manifestURL;
-
-            // Detectar cambios en la conectividad
-            window.addEventListener('online', function() {
-                document.getElementById('offline-indicator').style.display = 'none';
-                console.log('Conexión restaurada');
-            });
-
-            window.addEventListener('offline', function() {
-                document.getElementById('offline-indicator').style.display = 'block';
-                console.log('Sin conexión a internet - Modo offline activado');
-            });
-
-            // Verificar estado inicial de la conexión
+        // Función para verificar el estado de conexión
+        function verificarConexion() {
             if (!navigator.onLine) {
                 document.getElementById('offline-indicator').style.display = 'block';
             }
@@ -1036,62 +978,64 @@
             });
         }
 
-        // Función para guardar datos en localStorage
-        function guardarDatosLocales() {
-            localStorage.setItem('datosRegistro', JSON.stringify(datosLocales));
-        }
-
-        // Función para cargar datos desde localStorage
+        // Función para cargar datos locales
         function cargarDatosLocales() {
-            const datosGuardados = localStorage.getItem('datosRegistro');
+            let datosGuardados = localStorage.getItem('registrosResiduos');
             if (datosGuardados) {
                 datosLocales = JSON.parse(datosGuardados);
+                console.log(`Cargados ${datosLocales.length} registros locales`);
             }
         }
 
-        // Función para actualizar el contador de registros pendientes
+        // Función para guardar datos locales
+        function guardarDatosLocales() {
+            localStorage.setItem('registrosResiduos', JSON.stringify(datosLocales));
+        }
+
+        // Función para actualizar el contador del botón
         function actualizarContador() {
             const badge = document.getElementById('notification-badge');
             if (datosLocales.length > 0) {
-                badge.textContent = datosLocales.length;
                 badge.style.display = 'flex';
+                badge.textContent = datosLocales.length > 99 ? '99+' : datosLocales.length;
             } else {
                 badge.style.display = 'none';
             }
-            document.getElementById('contador-registros').textContent = `${datosLocales.length} registros pendientes`;
         }
 
         // Función para mostrar el modal con los registros
         function mostrarModalRegistros() {
             const modal = document.getElementById('modal-registros');
             const modalBody = document.getElementById('modal-body');
+            const contador = document.getElementById('contador-registros');
+            const btnSincronizar = document.getElementById('btn-sincronizar');
+            
+            // Actualizar contador en el modal
+            contador.textContent = `${datosLocales.length} registro${datosLocales.length !== 1 ? 's' : ''} pendiente${datosLocales.length !== 1 ? 's' : ''}`;
+            
+            // Habilitar o deshabilitar botón de sincronizar
+            btnSincronizar.disabled = datosLocales.length === 0 || !navigator.onLine;
             
             if (datosLocales.length === 0) {
                 modalBody.innerHTML = `
                     <div class="empty-state">
                         <i class="fas fa-inbox"></i>
                         <h3>No hay registros pendientes</h3>
-                        <p>Todos los registros han sido sincronizados</p>
+                        <p>Los registros que crees aparecerán aquí para revisión antes de sincronizar.</p>
                     </div>
                 `;
-                document.getElementById('btn-sincronizar').disabled = true;
             } else {
-                let html = `
-                    <div class="scroll-indicator">
-                        <i class="fas fa-arrow-left"></i>
-                        Desliza para ver más información
-                        <i class="fas fa-arrow-right"></i>
-                    </div>
+                let tablaHTML = `
                     <div class="table-container">
                         <table class="registros-table">
                             <thead>
                                 <tr>
                                     <th>Fecha</th>
                                     <th>Edificio</th>
-                                    <th>Tipo</th>
+                                    <th>Tipo Residuo</th>
                                     <th>Cantidad (Lbs)</th>
                                     <th>Clasificación</th>
-                                    <th>Estado</th>
+                                    <th>Estado Físico</th>
                                     <th>Acciones</th>
                                 </tr>
                             </thead>
@@ -1099,8 +1043,9 @@
                 `;
                 
                 datosLocales.forEach((registro, index) => {
-                    html += `
-                        <tr data-index="${index}">
+                    const estaEnConfirmacion = registro.enConfirmacion;
+                    tablaHTML += `
+                        <tr>
                             <td>${registro.fecha}</td>
                             <td>${registro.edificio}</td>
                             <td>${registro.tipoResiduo}</td>
@@ -1108,25 +1053,27 @@
                             <td>${registro.clasificacion}</td>
                             <td>${registro.estadoFisico}</td>
                             <td class="acciones-cell">
-                                <button class="btn-editar" onclick="editarRegistro(${index})" title="Editar">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <button class="btn-eliminar" onclick="eliminarRegistro(${index})" title="Eliminar">
-                                    <i class="fas fa-trash"></i>
-                                </button>
+                                ${estaEnConfirmacion ? 
+                                    `<button class="btn-confirmar" onclick="confirmarEliminacion(${index})"><i class="fas fa-check"></i></button>
+                                     <button class="btn-cancelar" onclick="cancelarEliminacion(${index})"><i class="fas fa-times"></i></button>` :
+                                    `<button class="btn-editar" onclick="editarRegistro(${index})"><i class="fas fa-edit"></i></button>
+                                     <button class="btn-eliminar" onclick="solicitarEliminacion(${index})"><i class="fas fa-trash"></i></button>`
+                                }
                             </td>
                         </tr>
                     `;
                 });
                 
-                html += `
+                tablaHTML += `
                             </tbody>
                         </table>
                     </div>
+                    <div class="scroll-indicator">
+                        <i class="fas fa-arrow-left"></i> Desliza para ver más columnas <i class="fas fa-arrow-right"></i>
+                    </div>
                 `;
                 
-                modalBody.innerHTML = html;
-                document.getElementById('btn-sincronizar').disabled = false;
+                modalBody.innerHTML = tablaHTML;
             }
             
             modal.style.display = 'flex';
@@ -1135,23 +1082,13 @@
         // Función para cerrar el modal
         function cerrarModal() {
             document.getElementById('modal-registros').style.display = 'none';
-            // Limpiar el registro en edición si se estaba editando
-            if (registroEnEdicion !== null) {
-                registroEnEdicion = null;
-                localStorage.removeItem('registroEditando');
-                resetearSelecciones();
-            }
         }
 
         // Función para editar un registro
         function editarRegistro(index) {
             const registro = datosLocales[index];
             
-            // Guardar el registro que se está editando
-            registroEnEdicion = registro;
-            localStorage.setItem('registroEditando', JSON.stringify(registro));
-            
-            // Cargar los datos en el formulario
+            // Establecer los valores en el formulario
             $('#fecha').val(registro.fecha);
             
             // Seleccionar el edificio
@@ -1164,6 +1101,9 @@
             $(`#tipo-residuo button[data-value="${registro.tipoResiduo}"]`).addClass('active');
             tipoResiduoSeleccionado = registro.tipoResiduo;
             
+            // Establecer cantidad
+            $('#cantidad').val(registro.cantidad);
+            
             // Seleccionar clasificación
             $('#clasificacion button').removeClass('active');
             $(`#clasificacion button[data-value="${registro.clasificacion}"]`).addClass('active');
@@ -1174,10 +1114,11 @@
             $(`#estado-fisico button[data-value="${registro.estadoFisico}"]`).addClass('active');
             estadoFisicoSeleccionado = registro.estadoFisico;
             
-            // Establecer cantidad
-            $('#cantidad').val(registro.cantidad);
+            // Guardar el registro que se está editando
+            registroEnEdicion = registro;
+            localStorage.setItem('registroEditando', JSON.stringify(registro));
             
-            // Cambiar texto del botón
+            // Cambiar el texto del botón
             $('#registrar').text('Actualizar Registro');
             
             // Verificar formulario
@@ -1189,74 +1130,67 @@
             // Mostrar mensaje informativo
             Swal.fire({
                 title: 'Editando Registro',
-                html: `
-                    <div style="text-align: center;">
-                        <p style="font-size: 1.1em; margin-bottom: 15px;">Ahora estás editando un registro existente.</p>
-                        <p style="font-size: 0.9em; color: #7f8c8d;">Realiza los cambios necesarios y presiona "Actualizar Registro"</p>
-                        <div style="color: #3498db; font-size: 2em;">
-                            <i class="fas fa-edit"></i>
-                        </div>
-                    </div>
-                `,
+                text: 'Ahora puedes modificar los datos del registro seleccionado.',
                 icon: 'info',
-                confirmButtonText: 'Entendido',
-                confirmButtonColor: '#3498db'
+                confirmButtonText: 'Entendido'
             });
         }
 
-        // Función para eliminar un registro
-        function eliminarRegistro(index) {
+        // Función para solicitar eliminación de un registro
+        function solicitarEliminacion(index) {
+            // Marcar el registro para confirmación de eliminación
+            datosLocales[index].enConfirmacion = true;
+            guardarDatosLocales();
+            
+            // Actualizar la vista del modal
+            mostrarModalRegistros();
+        }
+
+        // Función para confirmar eliminación
+        function confirmarEliminacion(index) {
+            // Eliminar el registro
+            datosLocales.splice(index, 1);
+            guardarDatosLocales();
+            actualizarContador();
+            
+            // Actualizar la vista del modal
+            mostrarModalRegistros();
+            
+            // Mostrar confirmación
             Swal.fire({
-                title: '¿Eliminar registro?',
-                html: `
-                    <div style="text-align: center;">
-                        <p style="font-size: 1.1em; margin-bottom: 15px;">Esta acción no se puede deshacer</p>
-                        <div style="color: #e74c3c; font-size: 2em;">
-                            <i class="fas fa-exclamation-triangle"></i>
-                        </div>
-                    </div>
-                `,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonText: 'Sí, eliminar',
-                cancelButtonText: 'Cancelar',
-                confirmButtonColor: '#e74c3c',
-                cancelButtonColor: '#6c757d'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    // Si se está editando este registro, cancelar la edición
-                    if (registroEnEdicion !== null && datosLocales[index].timestamp === registroEnEdicion.timestamp) {
-                        registroEnEdicion = null;
-                        localStorage.removeItem('registroEditando');
-                        resetearSelecciones();
-                        $('#registrar').text('Registrar Entrada');
-                    }
-                    
-                    // Eliminar el registro
-                    datosLocales.splice(index, 1);
-                    guardarDatosLocales();
-                    actualizarContador();
-                    
-                    // Actualizar la vista del modal
-                    mostrarModalRegistros();
-                    
-                    Swal.fire({
-                        title: 'Eliminado',
-                        text: 'El registro ha sido eliminado',
-                        icon: 'success',
-                        confirmButtonText: 'Aceptar',
-                        confirmButtonColor: '#28a745'
-                    });
-                }
+                title: 'Registro Eliminado',
+                text: 'El registro ha sido eliminado correctamente.',
+                icon: 'success',
+                confirmButtonText: 'Aceptar'
             });
+        }
+
+        // Función para cancelar eliminación
+        function cancelarEliminacion(index) {
+            // Quitar la marca de confirmación
+            delete datosLocales[index].enConfirmacion;
+            guardarDatosLocales();
+            
+            // Actualizar la vista del modal
+            mostrarModalRegistros();
         }
 
         // Función para sincronizar datos con Google Sheets
         function sincronizarDatos() {
+            if (!navigator.onLine) {
+                Swal.fire({
+                    title: 'Sin Conexión',
+                    text: 'No hay conexión a internet. Conéctate para sincronizar los datos.',
+                    icon: 'error',
+                    confirmButtonText: 'Aceptar'
+                });
+                return;
+            }
+
             if (datosLocales.length === 0) {
                 Swal.fire({
-                    title: 'Sin datos',
-                    text: 'No hay registros para sincronizar',
+                    title: 'Sin Datos',
+                    text: 'No hay registros pendientes para sincronizar.',
                     icon: 'info',
                     confirmButtonText: 'Aceptar'
                 });
@@ -1264,103 +1198,93 @@
             }
 
             // Mostrar overlay de carga
-            mostrarOverlay("Sincronizando datos...");
+            mostrarOverlay('Sincronizando datos con el servidor...');
 
-            // Crear una copia de los datos para sincronizar
-            let datosParaSincronizar = [...datosLocales];
-            let sincronizadosExitosos = 0;
-            let errores = [];
+            // Crear una copia de los datos para procesar
+            let datosParaEnviar = [...datosLocales];
+            let registrosExitosos = 0;
+            let registrosFallidos = 0;
 
-            // Función recursiva para sincronizar cada registro
-            function sincronizarRegistro(index) {
-                if (index >= datosParaSincronizar.length) {
+            // Función recursiva para enviar datos uno por uno
+            function enviarSiguienteRegistro(indice) {
+                if (indice >= datosParaEnviar.length) {
                     // Todos los registros han sido procesados
                     ocultarOverlay();
                     
-                    // Mostrar resultado
-                    if (errores.length === 0) {
-                        Swal.fire({
-                            title: 'Sincronización Exitosa',
-                            html: `
-                                <div style="text-align: center;">
-                                    <p style="font-size: 1.1em; margin-bottom: 15px;">Todos los registros se han sincronizado correctamente</p>
-                                    <p style="font-size: 0.9em; color: #7f8c8d;">Registros sincronizados: ${sincronizadosExitosos}</p>
-                                    <div style="color: #28a745; font-size: 2em;">
-                                        <i class="fas fa-check-circle"></i>
-                                    </div>
-                                </div>
-                            `,
-                            icon: 'success',
-                            confirmButtonText: 'Aceptar',
-                            confirmButtonColor: '#28a745'
-                        });
-                        
-                        // Limpiar datos locales
-                        datosLocales = [];
-                        guardarDatosLocales();
-                        actualizarContador();
-                        cerrarModal();
+                    // Mostrar resumen
+                    let mensaje = '';
+                    if (registrosExitosos > 0 && registrosFallidos === 0) {
+                        mensaje = `Todos los ${registrosExitosos} registros se sincronizaron correctamente.`;
+                    } else if (registrosExitosos > 0 && registrosFallidos > 0) {
+                        mensaje = `${registrosExitosos} registros sincronizados, ${registrosFallidos} fallaron.`;
                     } else {
-                        Swal.fire({
-                            title: 'Sincronización Parcial',
-                            html: `
-                                <div style="text-align: center;">
-                                    <p style="font-size: 1.1em; margin-bottom: 15px;">Se sincronizaron ${sincronizadosExitosos} de ${datosParaSincronizar.length} registros</p>
-                                    <p style="font-size: 0.9em; color: #e74c3c;">Errores: ${errores.length}</p>
-                                    <div style="color: #f39c12; font-size: 2em;">
-                                        <i class="fas fa-exclamation-triangle"></i>
-                                    </div>
-                                </div>
-                            `,
-                            icon: 'warning',
-                            confirmButtonText: 'Aceptar',
-                            confirmButtonColor: '#f39c12'
-                        });
+                        mensaje = 'No se pudo sincronizar ningún registro.';
                     }
+                    
+                    Swal.fire({
+                        title: registrosFallidos === 0 ? 'Sincronización Exitosa' : 'Sincronización Parcial',
+                        html: `
+                            <div style="text-align: center;">
+                                <p style="font-size: 1.1em; margin-bottom: 15px;">${mensaje}</p>
+                                <div style="color: ${registrosFallidos === 0 ? '#28a745' : '#ffc107'}; font-size: 2em;">
+                                    <i class="fas ${registrosFallidos === 0 ? 'fa-check-circle' : 'fa-exclamation-triangle'}"></i>
+                                </div>
+                            </div>
+                        `,
+                        icon: registrosFallidos === 0 ? 'success' : 'warning',
+                        confirmButtonText: 'Aceptar'
+                    }).then(() => {
+                        // Actualizar la vista del modal
+                        mostrarModalRegistros();
+                    });
+                    
                     return;
                 }
 
-                let registro = datosParaSincronizar[index];
-                let formData = new FormData();
-                formData.append('Fecha', registro.fecha);
-                formData.append('Edificio', registro.edificio);
-                formData.append('TipoResiduo', registro.tipoResiduo);
-                formData.append('Cantidad', registro.cantidad);
-                formData.append('Clasificacion', registro.clasificacion);
-                formData.append('EstadoFisico', registro.estadoFisico);
-
+                let registro = datosParaEnviar[indice];
+                
                 // Actualizar mensaje de carga
-                document.getElementById('loading-detail').textContent = `Enviando registro ${index + 1} de ${datosParaSincronizar.length}`;
+                document.getElementById('loading-detail').textContent = 
+                    `Enviando registro ${indice + 1} de ${datosParaEnviar.length}...`;
 
-                fetch(scriptURL, { method: 'POST', body: formData })
-                    .then(response => {
-                        if (response.ok) {
-                            sincronizadosExitosos++;
-                            // Eliminar el registro sincronizado de datosLocales
-                            const registroIndex = datosLocales.findIndex(r => r.timestamp === registro.timestamp);
-                            if (registroIndex !== -1) {
-                                datosLocales.splice(registroIndex, 1);
-                            }
-                        } else {
-                            errores.push(`Registro ${index + 1}: Error ${response.status}`);
+                // Enviar registro a Google Sheets
+                fetch(scriptURL, {
+                    method: 'POST',
+                    body: JSON.stringify(registro),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => {
+                    if (response.ok) {
+                        // Eliminar el registro de datosLocales si se envió correctamente
+                        const indexEnLocal = datosLocales.findIndex(r => r.timestamp === registro.timestamp);
+                        if (indexEnLocal !== -1) {
+                            datosLocales.splice(indexEnLocal, 1);
+                            registrosExitosos++;
                         }
-                        // Procesar siguiente registro
-                        sincronizarRegistro(index + 1);
-                    })
-                    .catch(error => {
-                        errores.push(`Registro ${index + 1}: ${error.message}`);
-                        // Procesar siguiente registro
-                        sincronizarRegistro(index + 1);
-                    });
+                    } else {
+                        registrosFallidos++;
+                    }
+                    
+                    // Procesar siguiente registro
+                    enviarSiguienteRegistro(indice + 1);
+                })
+                .catch(error => {
+                    console.error('Error al enviar registro:', error);
+                    registrosFallidos++;
+                    // Procesar siguiente registro
+                    enviarSiguienteRegistro(indice + 1);
+                });
             }
 
-            // Iniciar la sincronización
-            sincronizarRegistro(0);
+            // Iniciar el proceso de envío
+            enviarSiguienteRegistro(0);
         }
 
         // Función para mostrar overlay de carga
         function mostrarOverlay(mensaje) {
-            document.getElementById('loading-detail').textContent = mensaje;
+            document.getElementById('loading-detail').textContent = mensaje || 'Por favor espera un momento...';
             document.getElementById('overlay').style.display = 'flex';
         }
 

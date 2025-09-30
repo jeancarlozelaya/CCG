@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pisos Brillantes - Registro de Residuos</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2c3e50">
-    <title>Pisos Brillantes - Registro de Residuos</title>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -499,6 +499,85 @@
             margin: 0 5px;
         }
 
+        /* Indicador de conexión */
+        .conexion-indicator {
+            position: fixed;
+            right: 20px;
+            top: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2em;
+            cursor: pointer;
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+            z-index: 1000;
+        }
+
+        .conexion-indicator.online {
+            background-color: var(--success-color);
+            color: white;
+        }
+
+        .conexion-indicator.offline {
+            background-color: var(--accent-color);
+            color: white;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .conexion-tooltip {
+            position: absolute;
+            right: 60px;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: var(--dark-color);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.8em;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: var(--transition);
+        }
+
+        .conexion-indicator:hover .conexion-tooltip {
+            opacity: 1;
+        }
+
+        /* Estado de conexión en el modal */
+        .conexion-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.9em;
+            font-weight: 600;
+        }
+
+        .conexion-status.online {
+            background-color: rgba(46, 204, 113, 0.1);
+            color: var(--success-color);
+            border: 1px solid var(--success-color);
+        }
+
+        .conexion-status.offline {
+            background-color: rgba(231, 76, 60, 0.1);
+            color: var(--accent-color);
+            border: 1px solid var(--accent-color);
+            animation: pulse 2s infinite;
+        }
+
         /* MEDIA QUERIES MEJORADAS */
         @media (max-width: 768px) {
             .form-container {
@@ -573,6 +652,19 @@
             .scroll-indicator {
                 display: block;
             }
+
+            .conexion-indicator {
+                width: 45px;
+                height: 45px;
+                font-size: 1.1em;
+                right: 15px;
+                top: 15px;
+            }
+
+            .conexion-tooltip {
+                right: 55px;
+                font-size: 0.75em;
+            }
         }
 
         @media (max-width: 480px) {
@@ -603,6 +695,17 @@
             
             .modal-body {
                 padding: 15px;
+            }
+
+            .modal-footer {
+                padding: 15px;
+                flex-direction: column;
+                gap: 15px;
+                align-items: stretch;
+            }
+
+            .conexion-status {
+                justify-content: center;
             }
         }
 
@@ -641,6 +744,12 @@
         <i class="fas fa-sync-alt"></i>
         <div class="notification-badge" id="notification-badge" style="display: none;">0</div>
     </button>
+    
+    <!-- Indicador de conexión -->
+    <div class="conexion-indicator online" id="conexion-indicator">
+        <i class="fas fa-wifi" id="conexion-icon"></i>
+        <div class="conexion-tooltip" id="conexion-tooltip">Conectado</div>
+    </div>
     
     <div class="form-container">
         <h1>Registro de Residuos</h1>
@@ -713,7 +822,13 @@
                 <!-- Aquí se cargarán los registros -->
             </div>
             <div class="modal-footer">
-                <span id="contador-registros">0 registros pendientes</span>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <span id="contador-registros">0 registros pendientes</span>
+                    <div class="conexion-status online" id="conexion-status">
+                        <i class="fas fa-wifi"></i>
+                        <span>Conectado</span>
+                    </div>
+                </div>
                 <div>
                     <button class="btn-cerrar" onclick="cerrarModal()">Cerrar</button>
                     <button class="btn-sincronizar" id="btn-sincronizar" onclick="sincronizarDatos()" disabled>Sincronizar</button>
@@ -741,6 +856,44 @@
         let registroEnEdicion = null; // Para controlar el registro en edición
         const scriptURL = "https://script.google.com/macros/s/AKfycbyEonibd5OZnnSMJidnlAWTcFjKJvH6TehqaYVdxGsIVi59z3W96qX9-OUEEKOuHeg7Xg/exec";
 
+        // Variables para control de conexión
+        let isOnline = navigator.onLine;
+
+        // Función para actualizar el estado de conexión
+        function actualizarEstadoConexion() {
+            isOnline = navigator.onLine;
+            const indicator = document.getElementById('conexion-indicator');
+            const icon = document.getElementById('conexion-icon');
+            const tooltip = document.getElementById('conexion-tooltip');
+            const status = document.getElementById('conexion-status');
+            
+            if (isOnline) {
+                // Modo online
+                indicator.className = 'conexion-indicator online';
+                icon.className = 'fas fa-wifi';
+                tooltip.textContent = 'Conectado';
+                
+                if (status) {
+                    status.className = 'conexion-status online';
+                    status.innerHTML = '<i class="fas fa-wifi"></i><span>Conectado</span>';
+                }
+                
+                console.log('Conexión restaurada - Modo online');
+            } else {
+                // Modo offline
+                indicator.className = 'conexion-indicator offline';
+                icon.className = 'fas fa-wifi-slash';
+                tooltip.textContent = 'Sin conexión - Modo offline';
+                
+                if (status) {
+                    status.className = 'conexion-status offline';
+                    status.innerHTML = '<i class="fas fa-wifi-slash"></i><span>Sin conexión</span>';
+                }
+                
+                console.log('Sin conexión a internet - Modo offline activado');
+            }
+        }
+
         // Configuración inicial al cargar la página
         document.addEventListener('DOMContentLoaded', function() {
             // Establecer fecha actual en formato DD/MM/AAAA
@@ -761,6 +914,9 @@
             
             // Configurar eventos
             configurarEventos();
+
+            // Inicializar estado de conexión
+            actualizarEstadoConexion();
 
             // Desactivar el menú contextual (clic derecho) en todo el documento
             document.addEventListener('contextmenu', function(e) {
@@ -1109,6 +1265,29 @@
 
         // Función para sincronizar datos con Google Sheets
         function sincronizarDatos() {
+            // Verificar conexión antes de intentar sincronizar
+            if (!isOnline) {
+                Swal.fire({
+                    title: 'Sin Conexión',
+                    html: `
+                        <div style="text-align: center;">
+                            <p style="font-size: 1.1em; margin-bottom: 15px;">No hay conexión a internet disponible.</p>
+                            <p style="font-size: 0.9em; color: #7f8c8d;">
+                                Los registros se mantendrán guardados localmente hasta que se restablezca la conexión.
+                            </p>
+                            <div style="color: #e74c3c; font-size: 2em; margin-top: 15px;">
+                                <i class="fas fa-wifi-slash"></i>
+                            </div>
+                        </div>
+                    `,
+                    icon: 'warning',
+                    confirmButtonText: 'Entendido',
+                    confirmButtonColor: '#f39c12',
+                    width: '450px'
+                });
+                return;
+            }
+
             if (datosLocales.length === 0) {
                 Swal.fire({
                     title: 'Sin datos',
@@ -1197,7 +1376,6 @@
                                 <p style="font-size: 1.1em; margin-bottom: 15px;">${responseData.message}</p>
                                 <p style="font-size: 0.9em; color: #f39c12;">
                                     <i class="fas fa-exclamation-triangle"></i> Sincronización parcial
-                                </p>
                         `;
                         
                         if (responseData.detalles && responseData.detalles.length > 0) {
@@ -1280,6 +1458,15 @@
                 });
         }
 
+        // Event listeners para cambios de conexión
+        window.addEventListener('online', function() {
+            actualizarEstadoConexion();
+        });
+
+        window.addEventListener('offline', function() {
+            actualizarEstadoConexion();
+        });
+
         // Cerrar modal al hacer clic fuera de él
         window.onclick = function(event) {
             const modal = document.getElementById('modal-registros');
@@ -1288,30 +1475,18 @@
             }
         }
 
-    // Registrar Service Worker para funcionalidad offline
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', function() {
-            navigator.serviceWorker.register('sw.js')
-                .then(function(registration) {
-                    console.log('Service Worker registrado con éxito:', registration.scope);
-                })
-                .catch(function(error) {
-                    console.log('Error al registrar Service Worker:', error);
-                });
-        });
-    }
-
-    // Detectar cambios en la conexión
-    window.addEventListener('online', function() {
-        console.log('Conexión restaurada');
-        // Opcional: mostrar notificación de conexión restaurada
-    });
-
-    window.addEventListener('offline', function() {
-        console.log('Sin conexión a internet - Modo offline activado');
-        // Opcional: mostrar notificación de modo offline
-    });
-
+        // Registrar Service Worker para funcionalidad offline
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('sw.js')
+                    .then(function(registration) {
+                        console.log('Service Worker registrado con éxito:', registration.scope);
+                    })
+                    .catch(function(error) {
+                        console.log('Error al registrar Service Worker:', error);
+                    });
+            });
+        }
     </script>
 </body>
 </html>

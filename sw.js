@@ -51,7 +51,7 @@ self.addEventListener('activate', function(event) {
 // Interceptar peticiones y servir desde cache cuando esté offline
 self.addEventListener('fetch', function(event) {
     // Excluir la petición a Google Apps Script para sincronización
-    if (event.request.url.includes('script.google.com')) {
+    if (event.request.url.includes('script.google.com/macros/s/AKfycbyEonibd5OZnnSMJidnlAWTcFjKJvH6TehqaYVdxGsIVi59z3W96qX9-OUEEKOuHeg7Xg/exec')) {
         return;
     }
     
@@ -67,7 +67,7 @@ self.addEventListener('fetch', function(event) {
                 return fetch(event.request)
                     .then(function(networkResponse) {
                         // Si la petición es exitosa, cachear el recurso
-                        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+                        if (networkResponse && networkResponse.status === 200) {
                             var responseToCache = networkResponse.clone();
                             caches.open(CACHE_NAME)
                                 .then(function(cache) {

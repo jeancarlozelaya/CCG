@@ -1,46 +1,86 @@
-// sw.js - Service Worker para funcionalidad offline
-const CACHE_NAME = 'pisos-brillantes-v1';
+const CACHE_NAME = 'registro-residuos-v1.0.0';
 const urlsToCache = [
-  '/',
-  '/Prueba1.html',
-  // Agrega aquí otros recursos estáticos que quieras cachear
+    '/',
+    './Prueba1.html',
+    'https://cdn.jsdelivr.net/npm/sweetalert2@11',
+    'https://code.jquery.com/jquery-3.6.0.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
 ];
 
-// Instalar el Service Worker
+// Instalar Service Worker y cachear recursos
 self.addEventListener('install', function(event) {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(function(cache) {
-        console.log('Cache abierto');
-        return cache.addAll(urlsToCache);
-      })
-  );
+    console.log('Service Worker: Instalando...');
+    
+    event.waitUntil(
+        caches.open(CACHE_NAME)
+            .then(function(cache) {
+                console.log('Service Worker: Cacheando archivos');
+                return cache.addAll(urlsToCache);
+            })
+            .then(function() {
+                console.log('Service Worker: Instalación completada');
+                return self.skipWaiting();
+            })
+            .catch(function(error) {
+                console.log('Service Worker: Error en instalación', error);
+            })
+    );
 });
 
-// Interceptar solicitudes y servir desde cache cuando sea posible
-self.addEventListener('fetch', function(event) {
-  event.respondWith(
-    caches.match(event.request)
-      .then(function(response) {
-        // Devuelve la respuesta desde cache o realiza la solicitud
-        return response || fetch(event.request);
-      }
-    )
-  );
-});
-
-// Actualizar el Service Worker cuando haya cambios
+// Activar Service Worker y limpiar caches antiguos
 self.addEventListener('activate', function(event) {
-  event.waitUntil(
-    caches.keys().then(function(cacheNames) {
-      return Promise.all(
-        cacheNames.map(function(cacheName) {
-          if (cacheName !== CACHE_NAME) {
-            console.log('Eliminando cache antiguo:', cacheName);
-            return caches.delete(cacheName);
-          }
+    console.log('Service Worker: Activado');
+    
+    event.waitUntil(
+        caches.keys().then(function(cacheNames) {
+            return Promise.all(
+                cacheNames.map(function(cacheName) {
+                    if (cacheName !== CACHE_NAME) {
+                        console.log('Service Worker: Eliminando cache antiguo', cacheName);
+                        return caches.delete(cacheName);
+                    }
+                })
+            );
+        }).then(function() {
+            console.log('Service Worker: Ahora controla todos los clients');
+            return self.clients.claim();
         })
-      );
-    })
-  );
+    );
+});
+
+// Interceptar peticiones y servir desde cache cuando esté offline
+self.addEventListener('fetch', function(event) {
+    // Excluir la petición a Google Apps Script para sincronización
+    if (event.request.url.includes('script.google.com')) {
+        return;
+    }
+    
+    event.respondWith(
+        caches.match(event.request)
+            .then(function(response) {
+                // Si el recurso está en cache, devolverlo
+                if (response) {
+                    return response;
+                }
+                
+                // Si no está en cache, hacer la petición a la red
+                return fetch(event.request)
+                    .then(function(networkResponse) {
+                        // Si la petición es exitosa, cachear el recurso
+                        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+                            var responseToCache = networkResponse.clone();
+                            caches.open(CACHE_NAME)
+                                .then(function(cache) {
+                                    cache.put(event.request, responseToCache);
+                                });
+                        }
+                        return networkResponse;
+                    })
+                    .catch(function(error) {
+                        console.log('Fetch failed; returning offline page instead.', error);
+                        // Si estamos offline y no tenemos el recurso en cache,
+                        // podrías devolver una página offline personalizada aquí
+                    });
+            })
+    );
 });

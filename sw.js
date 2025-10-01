@@ -1,4 +1,4 @@
-const CACHE_NAME = 'registro-residuos-v1.0.2';
+const CACHE_NAME = 'registro-residuos-v1.0.3';
 const urlsToCache = [
     './Registro de Residuos.html',
     'https://cdn.jsdelivr.net/npm/sweetalert2@11',
@@ -100,3 +100,4 @@ self.addEventListener('fetch', function(event) {
             })
     );
 });
+

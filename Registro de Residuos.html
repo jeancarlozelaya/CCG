@@ -337,6 +337,7 @@
             width: 100%;
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
+            scroll-behavior: auto;
         }
 
         .registros-table {
@@ -1218,6 +1219,14 @@
         }
 
         function cerrarModal() {
+            // Limpiar todos los estados de confirmación antes de cerrar
+            datosLocales.forEach(registro => {
+                if (registro.enConfirmacion) {
+                    delete registro.enConfirmacion;
+                }
+            });
+            guardarDatosLocales();
+            
             document.getElementById('modal-registros').style.display = 'none';
         }
 
@@ -1254,22 +1263,55 @@
         }
 
         function solicitarEliminacion(index) {
+            // Obtener la posición actual del scroll antes de cambiar el estado
+            const tableContainer = document.querySelector('.table-container');
+            const scrollLeft = tableContainer ? tableContainer.scrollLeft : 0;
+            
             datosLocales[index].enConfirmacion = true;
             guardarDatosLocales();
             mostrarModalRegistros();
+            
+            // Restaurar la posición del scroll después de actualizar la tabla
+            if (tableContainer) {
+                setTimeout(() => {
+                    tableContainer.scrollLeft = scrollLeft;
+                }, 10);
+            }
         }
 
         function confirmarEliminacion(index) {
+            // Obtener la posición actual del scroll antes de eliminar
+            const tableContainer = document.querySelector('.table-container');
+            const scrollLeft = tableContainer ? tableContainer.scrollLeft : 0;
+            
             datosLocales.splice(index, 1);
             guardarDatosLocales();
             actualizarContador();
             mostrarModalRegistros();
+            
+            // Restaurar la posición del scroll después de actualizar la tabla
+            if (tableContainer) {
+                setTimeout(() => {
+                    tableContainer.scrollLeft = scrollLeft;
+                }, 10);
+            }
         }
 
         function cancelarEliminacion(index) {
+            // Obtener la posición actual del scroll antes de cancelar
+            const tableContainer = document.querySelector('.table-container');
+            const scrollLeft = tableContainer ? tableContainer.scrollLeft : 0;
+            
             delete datosLocales[index].enConfirmacion;
             guardarDatosLocales();
             mostrarModalRegistros();
+            
+            // Restaurar la posición del scroll después de actualizar la tabla
+            if (tableContainer) {
+                setTimeout(() => {
+                    tableContainer.scrollLeft = scrollLeft;
+                }, 10);
+            }
         }
 
         function sincronizarDatos() {

@@ -1,7 +1,6 @@
-const CACHE_NAME = 'registro-residuos-v1.0.0';
+const CACHE_NAME = 'registro-residuos-v1.0.1';
 const urlsToCache = [
-    '/',
-    './Registro de Residuos.html',
+    '/Registro%20de%20Residuos.html',
     'https://cdn.jsdelivr.net/npm/sweetalert2@11',
     'https://code.jquery.com/jquery-3.6.0.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
@@ -9,12 +8,12 @@ const urlsToCache = [
 
 // Instalar Service Worker y cachear recursos
 self.addEventListener('install', function(event) {
-    console.log('Service Worker: Instalando...');
+    console.log('Service Worker: Instalando para Registro de Residuos...');
     
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then(function(cache) {
-                console.log('Service Worker: Cacheando archivos');
+                console.log('Service Worker: Cacheando archivos específicos');
                 return cache.addAll(urlsToCache);
             })
             .then(function() {
@@ -29,7 +28,7 @@ self.addEventListener('install', function(event) {
 
 // Activar Service Worker y limpiar caches antiguos
 self.addEventListener('activate', function(event) {
-    console.log('Service Worker: Activado');
+    console.log('Service Worker: Activado para Registro de Residuos');
     
     event.waitUntil(
         caches.keys().then(function(cacheNames) {
@@ -42,16 +41,27 @@ self.addEventListener('activate', function(event) {
                 })
             );
         }).then(function() {
-            console.log('Service Worker: Ahora controla todos los clients');
+            console.log('Service Worker: Activación completada');
             return self.clients.claim();
         })
     );
 });
 
-// Interceptar peticiones y servir desde cache cuando esté offline
+// Interceptar peticiones SOLO para la página de residuos
 self.addEventListener('fetch', function(event) {
-    // Excluir la petición a Google Apps Script para sincronización
-    if (event.request.url.includes('script.google.com/macros/s/AKfycbyEonibd5OZnnSMJidnlAWTcFjKJvH6TehqaYVdxGsIVi59z3W96qX9-OUEEKOuHeg7Xg/exec')) {
+    const url = new URL(event.request.url);
+    
+    // Solo manejar peticiones de la página de residuos
+    if (!url.pathname.includes('Registro%20de%20Residuos') && 
+        !url.pathname.includes('Registro de Residuos')) {
+        return; // No interferir con otras páginas
+    }
+    
+    // Excluir peticiones a Google Apps Script y otras APIs
+    if (event.request.url.includes('script.google.com') ||
+        event.request.url.includes('macros/s/') ||
+        event.request.url.includes('/api/') ||
+        event.request.method !== 'GET') {
         return;
     }
     
@@ -66,22 +76,28 @@ self.addEventListener('fetch', function(event) {
                 // Si no está en cache, hacer la petición a la red
                 return fetch(event.request)
                     .then(function(networkResponse) {
-                        // Si la petición es exitosa, cachear el recurso
+                        // Solo cachear si la petición es exitosa y es de los recursos que queremos cachear
                         if (networkResponse && networkResponse.status === 200) {
-                            var responseToCache = networkResponse.clone();
-                            caches.open(CACHE_NAME)
-                                .then(function(cache) {
-                                    cache.put(event.request, responseToCache);
-                                });
+                            // Verificar si es un recurso que queremos cachear
+                            const shouldCache = urlsToCache.some(resource => 
+                                event.request.url.includes(resource) || 
+                                resource === event.request.url
+                            );
+                            
+                            if (shouldCache) {
+                                var responseToCache = networkResponse.clone();
+                                caches.open(CACHE_NAME)
+                                    .then(function(cache) {
+                                        cache.put(event.request, responseToCache);
+                                    });
+                            }
                         }
                         return networkResponse;
                     })
                     .catch(function(error) {
-                        console.log('Fetch failed; returning offline page instead.', error);
-                        // Si estamos offline y no tenemos el recurso en cache,
-                        // podrías devolver una página offline personalizada aquí
+                        console.log('Fetch failed for registro residuos', error);
+                        // Podrías devolver una página offline personalizada aquí si es la página principal
                     });
             })
     );
 });
-

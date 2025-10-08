@@ -1,0 +1,2226 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Evaluación de Desempeño</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --success-color: #2ecc71;
+            --warning-color: #f39c12;
+            --light-color: #ecf0f1;
+            --dark-color: #34495e;
+            --text-color: #333;
+            --border-color: #ddd;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            color: var(--text-color);
+            line-height: 1.6;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+            color: white;
+            text-align: center;
+            padding: 18px 0;
+            font-size: 1.5rem;
+            font-weight: bold;
+            box-shadow: var(--shadow);
+            position: relative;
+        }
+
+        .form-container {
+            width: 90%;
+            max-width: 1000px;
+            margin: 25px auto;
+            padding: 25px;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 25px;
+            font-size: 1.8rem;
+            position: relative;
+            padding-bottom: 10px;
+        }
+
+        h1:after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 4px;
+            background-color: var(--secondary-color);
+            border-radius: 2px;
+        }
+
+        .section-title {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 12px 15px;
+            border-radius: 6px;
+            margin: 25px 0 15px;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .question-container {
+            margin-bottom: 25px;
+            padding: 20px;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+            border-left: 4px solid var(--secondary-color);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+        }
+
+        .question-container label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--dark-color);
+        }
+
+        .question-container input,
+        .question-container select,
+        .question-container textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 16px;
+            transition: var(--transition);
+            background-color: white;
+            font-family: inherit;
+        }
+
+        .question-container input:focus,
+        .question-container select:focus,
+        .question-container textarea:focus {
+            border-color: var(--secondary-color);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+        }
+
+        .question-container textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .rating-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin: 15px 0;
+        }
+
+        .rating-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .rating-label {
+            flex: 1;
+            font-weight: 500;
+        }
+
+        .rating-stars {
+            display: flex;
+            gap: 5px;
+        }
+
+        .star {
+            font-size: 24px;
+            color: #ddd;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .star.active {
+            color: #f39c12;
+        }
+
+        .star:hover {
+            transform: scale(1.2);
+        }
+
+        .result-container {
+            background-color: #e8f4fd;
+            border-left: 4px solid var(--secondary-color);
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 6px;
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .result-value {
+            color: var(--primary-color);
+        }
+
+        .firma-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            background-color: #fff;
+            min-height: 200px;
+        }
+
+        .firma-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .icon-button {
+            background: #f8f9fa;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 16px;
+            color: #333;
+            transition: var(--transition);
+        }
+
+        .icon-button.active {
+            background: var(--secondary-color);
+            color: #fff;
+            border-color: var(--secondary-color);
+        }
+
+        .icon-button:hover {
+            background: #e2e6ea;
+        }
+
+        #toggleEraser, #undo, #redo {
+            display: none;
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 25px;
+            gap: 15px;
+        }
+
+        #generarPdf {
+            background: linear-gradient(to right, var(--secondary-color), var(--primary-color));
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 14px 30px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: var(--shadow);
+            width: 100%;
+            max-width: 300px;
+        }
+
+        #generarPdf:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        #generarPdf:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        #overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.95);
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            flex-direction: column;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid rgba(52, 152, 219, 0.2);
+            border-radius: 50%;
+            border-top-color: var(--secondary-color);
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        #loadingMessage {
+            text-align: center;
+            color: var(--dark-color);
+        }
+
+        #loadingMessage h4 {
+            margin: 0 0 10px;
+            font-size: 1.3rem;
+        }
+
+        #loadingMessage p {
+            margin: 0;
+            color: #7f8c8d;
+        }
+
+        .scroll-button {
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5em;
+            cursor: pointer;
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+            position: fixed;
+            right: 25px;
+            z-index: 1000;
+        }
+
+        .scroll-button:hover {
+            background-color: var(--primary-color);
+            transform: scale(1.1);
+        }
+
+        #scroll-top-button {
+            top: 25px;
+        }
+
+        #scroll-bottom-button {
+            bottom: 25px;
+        }
+
+        /* Mejoras para la firma en móviles */
+        #firmaCanvas, #firmaCanvasColaborador {
+            width: 100% !important;
+            height: 200px !important;
+            background: white;
+            border: 1px solid #ccc;
+            touch-action: none;
+            -ms-touch-action: none;
+        }
+
+        .firma-container {
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Prevenir selección de texto en el canvas */
+        #firmaCanvas, #firmaCanvasColaborador {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Botones de herramientas siempre visibles en móviles */
+        @media (max-width: 768px) {
+            #toggleEraser, #undo, #redo, #toggleEraserColaborador, #undoColaborador, #redoColaborador {
+                display: block !important;
+            }
+            
+            .firma-buttons {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            
+            .icon-button {
+                min-width: 44px; /* Tamaño mínimo para touch */
+                min-height: 44px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .form-container {
+                width: 95%;
+                padding: 15px;
+                margin: 15px auto;
+            }
+            
+            .scroll-button {
+                width: 40px;
+                height: 40px;
+                font-size: 1.2em;
+                right: 15px;
+            }
+            
+            #scroll-top-button {
+                top: 15px;
+            }
+            
+            #scroll-bottom-button {
+                bottom: 15px;
+            }
+            
+            h1 {
+                font-size: 1.5rem;
+            }
+            
+            .button-container {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            #generarPdf {
+                width: 100%;
+            }
+            
+            .rating-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            
+            .rating-stars {
+                align-self: center;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .question-container {
+                padding: 15px;
+            }
+            
+            .star {
+                font-size: 30px;
+            }
+        }
+
+        /* Botón flotante único para constancias pendientes */
+        #constancia-pendiente-button {
+            background-color: var(--warning-color);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5em;
+            cursor: pointer;
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+            position: fixed;
+            left: 25px;
+            top: 80px;
+            z-index: 1000;
+        }
+
+        #constancia-pendiente-button:hover {
+            background-color: #e67e22;
+            transform: scale(1.1);
+        }
+
+        #constancia-pendiente-button.pendiente {
+            display: flex;
+            animation: pulse 2s infinite;
+        }
+
+        #constancia-pendiente-button .badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background-color: var(--accent-color);
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 0.8em;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.1);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        /* Ajustes para móviles */
+        @media (max-width: 768px) {
+            #constancia-pendiente-button {
+                width: 55px;
+                height: 55px;
+                font-size: 1.3em;
+                left: 15px;
+                top: 70px;
+            }
+
+            #constancia-pendiente-button .badge {
+                width: 22px;
+                height: 22px;
+                font-size: 0.7em;
+            }
+
+            .star {
+                font-size: 30px; /* Tamaño para tablets */
+            }
+        }
+
+    </style>
+</head>
+<body>
+    <div class="header">Pisos Brillantes</div>
+    
+    <div class="form-container">
+        <h1>Evaluación de Desempeño y Conducta</h1>
+
+        <form id="formulario">
+            <div class="question-container">
+                <label for="nombreEmpleado"><strong>Nombre del Empleado:</strong></label>
+                <input type="text" id="nombreEmpleado" name="nombreEmpleado" placeholder="Ingrese el nombre completo del empleado">
+                
+                <label for="puesto"><strong>Puesto:</strong></label>
+                <input type="text" id="puesto" name="puesto" placeholder="Ej: Auxiliar de Higiene" value="AUXILIAR DE HIGIENE">
+                
+                <label for="fechaEvaluacion"><strong>Fecha de Evaluación:</strong></label>
+                <input type="date" id="fechaEvaluacion" name="fechaEvaluacion">
+                
+                <label for="nombreEvaluador"><strong>Nombre del Evaluador:</strong></label>
+                <input type="text" id="nombreEvaluador" name="nombreEvaluador" placeholder="Ingrese el nombre del evaluador">
+            </div>
+
+            <div class="section-title">I. Evaluación de Desempeño (Puntuar de 1 a 5)</div>
+            
+            <div class="question-container">
+                <div class="rating-container" id="desempenoContainer">
+                    <!-- Las calificaciones se generarán dinámicamente con JavaScript -->
+                </div>
+                
+                <label for="observacionesDesempeno"><strong>Observaciones Generales sobre Desempeño:</strong></label>
+                <textarea id="observacionesDesempeno" name="observacionesDesempeno" placeholder="Observaciones generales sobre el desempeño del empleado"></textarea>
+            </div>
+
+            <div class="section-title">II. Evaluación de Conducta (Puntuar de 1 a 5)</div>
+            
+            <div class="question-container">
+                <div class="rating-container" id="conductaContainer">
+                    <!-- Las calificaciones se generarán dinámicamente con JavaScript -->
+                </div>
+                
+                <label for="observacionesConducta"><strong>Observaciones Generales sobre Conducta:</strong></label>
+                <textarea id="observacionesConducta" name="observacionesConducta" placeholder="Observaciones generales sobre la conducta del empleado"></textarea>
+            </div>
+
+            <div class="section-title">III. Evaluación General</div>
+            
+            <div class="question-container">
+                <label for="fortalezas"><strong>Fortalezas del empleado:</strong></label>
+                <textarea id="fortalezas" name="fortalezas" placeholder="Describa las fortalezas del empleado"></textarea>
+                
+                <label for="areasMejora"><strong>Áreas de mejora:</strong></label>
+                <textarea id="areasMejora" name="areasMejora" placeholder="Describa las áreas de mejora del empleado"></textarea>
+                
+                <label for="recomendaciones"><strong>Recomendaciones del evaluador:</strong></label>
+                <textarea id="recomendaciones" name="recomendaciones" placeholder="Describa las recomendaciones para el empleado"></textarea>
+            </div>
+
+            <div class="section-title">IV. Resultado Final (Exclusivo para CH)</div>
+            
+            <div class="result-container">
+                <div class="result-item">
+                    <span>Promedio de Calificaciones:</span>
+                    <span id="promedioCalificaciones" class="result-value">0.0</span>
+                </div>
+                <div class="result-item">
+                    <span>Conclusión:</span>
+                    <span id="conclusion" class="result-value">-</span>
+                </div>
+            </div>
+
+            <div class="question-container">
+                <label for="firmaColaborador"><strong>Firma del Colaborador (Opcional):</strong></label>
+                <div id="firmaContainerColaborador" class="firma-container">
+                    <canvas id="firmaCanvasColaborador" width="400" height="200" style="border: 1px solid #ccc;"></canvas>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center; margin-top: 10px;">
+                    <button type="button" id="toggleEraserColaborador" title="Borrador" class="icon-button">
+                        <i class="fas fa-eraser"></i>
+                    </button>
+                    <button type="button" id="undoColaborador" title="Deshacer" class="icon-button">
+                        <i class="fas fa-undo"></i>
+                    </button>
+                    <button type="button" id="redoColaborador" title="Rehacer" class="icon-button">
+                        <i class="fas fa-redo"></i>
+                    </button>
+                    <button type="button" id="clearSignatureColaborador" title="Limpiar" class="icon-button">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="question-container">
+                <label for="firma"><strong>Firma del Evaluador:</strong></label>
+                <div id="firmaContainer" class="firma-container">
+                    <canvas id="firmaCanvas" width="400" height="200" style="border: 1px solid #ccc;"></canvas>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center; margin-top: 10px;">
+                    <button type="button" id="toggleEraser" title="Borrador" class="icon-button">
+                        <i class="fas fa-eraser"></i>
+                    </button>
+                    <button type="button" id="undo" title="Deshacer" class="icon-button">
+                        <i class="fas fa-undo"></i>
+                    </button>
+                    <button type="button" id="redo" title="Rehacer" class="icon-button">
+                        <i class="fas fa-redo"></i>
+                    </button>
+                    <button type="button" id="clearSignature" title="Limpiar" class="icon-button">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="button-container">
+                <button type="button" id="generarPdf" disabled onclick="generarPDF()">Generar PDF</button>
+            </div>
+        </form>
+    </div>
+
+    <div id="overlay">
+        <div class="spinner"></div>
+        <div id="loadingMessage">
+            <h4>Por favor espera un momento...</h4>
+        </div>
+    </div>
+
+    <button class="scroll-button" id="scroll-top-button" onclick="scrollToTop()" title="Ir arriba">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <button class="scroll-button" id="scroll-bottom-button" onclick="scrollToBottom()" title="Ir abajo">
+        <i class="fas fa-arrow-down"></i>
+    </button>
+
+    <button class="scroll-button" id="constancia-pendiente-button" onclick="mostrarTodasLasConstancias()" title="Evaluaciones pendientes">
+        <i class="fa-solid fa-download"></i>
+        <span class="badge">0</span>
+    </button>
+
+    <script>
+        // Constante para el número máximo de PDFs a guardar
+        const MAX_PDFS_ALMACENADOS = 5;
+
+        // ===== CÓDIGO PARA LA FIRMA =====
+        let isDrawing = false;
+        let isErasing = false;
+        let lastX = 0;
+        let lastY = 0;
+        const canvas = document.getElementById("firmaCanvas");
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        const undoStack = [];
+        const redoStack = [];
+
+        // Variables para la firma del colaborador
+        let isDrawingColaborador = false;
+        let isErasingColaborador = false;
+        let lastXColaborador = 0;
+        let lastYColaborador = 0;
+        const canvasColaborador = document.getElementById("firmaCanvasColaborador");
+        const ctxColaborador = canvasColaborador.getContext("2d", { willReadFrequently: true });
+        const undoStackColaborador = [];
+        const redoStackColaborador = [];
+
+        // Configuración inicial del canvas
+        function initializeCanvas() {
+            // Establecer tamaño fijo para mejor compatibilidad
+            canvas.width = 400;
+            canvas.height = 200;
+            ctx.strokeStyle = "#000000";
+            ctx.lineWidth = 4;
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
+            
+            // Limpiar canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Inicializar canvas del colaborador
+            canvasColaborador.width = 400;
+            canvasColaborador.height = 200;
+            ctxColaborador.strokeStyle = "#000000";
+            ctxColaborador.lineWidth = 4;
+            ctxColaborador.lineCap = "round";
+            ctxColaborador.lineJoin = "round";
+            
+            // Limpiar canvas del colaborador
+            ctxColaborador.clearRect(0, 0, canvasColaborador.width, canvasColaborador.height);
+            ctxColaborador.fillStyle = "#FFFFFF";
+            ctxColaborador.fillRect(0, 0, canvasColaborador.width, canvasColaborador.height);
+
+            // Verificar el formulario después de inicializar el canvas
+            setTimeout(() => {
+                verificarFormulario();
+            }, 100);
+        }
+
+        // Función mejorada para obtener coordenadas
+        function getCoordinates(e, canvasElement) {
+            const rect = canvasElement.getBoundingClientRect();
+            const scaleX = canvasElement.width / rect.width;
+            const scaleY = canvasElement.height / rect.height;
+            
+            if (e.touches && e.touches.length > 0) {
+                return {
+                    x: (e.touches[0].clientX - rect.left) * scaleX,
+                    y: (e.touches[0].clientY - rect.top) * scaleY
+                };
+            } else if (e.offsetX !== undefined) {
+                return {
+                    x: e.offsetX * scaleX,
+                    y: e.offsetY * scaleY
+                };
+            } else if (e.clientX !== undefined) {
+                return {
+                    x: (e.clientX - rect.left) * scaleX,
+                    y: (e.clientY - rect.top) * scaleY
+                };
+            }
+            
+            return { x: 0, y: 0 };
+        }
+
+        // Función para empezar a dibujar
+        function startDrawing(e, canvasElement, context, isDrawingFlag, lastX, lastY, undoStack) {
+            e.preventDefault();
+            saveToUndoStack(canvasElement, undoStack);
+            isDrawingFlag = true;
+            const { x, y } = getCoordinates(e, canvasElement);
+            lastX = x;
+            lastY = y;
+            
+            // Dibujar un punto inicial (importante para touch)
+            context.beginPath();
+            context.arc(x, y, context.lineWidth/2, 0, Math.PI * 2);
+            context.fill();
+            context.beginPath();
+            context.moveTo(x, y);
+            
+            return { isDrawing: isDrawingFlag, lastX: x, lastY: y };
+        }
+
+        // Función para dibujar
+        function draw(e, canvasElement, context, isDrawingFlag, lastX, lastY, isErasingFlag) {
+            if (!isDrawingFlag) return { lastX, lastY };
+            e.preventDefault();
+            
+            const { x, y } = getCoordinates(e, canvasElement);
+            
+            context.beginPath();
+            context.moveTo(lastX, lastY);
+            context.lineTo(x, y);
+            context.strokeStyle = isErasingFlag ? "#FFFFFF" : "#000000";
+            context.lineWidth = isErasingFlag ? 20 : 4;
+            context.stroke();
+            
+            return { lastX: x, lastY: y };
+        }
+
+        // Función para terminar de dibujar
+        function stopDrawing(isDrawingFlag) {
+            if (isDrawingFlag) {
+                isDrawingFlag = false;
+                // Pequeño delay para asegurar que el canvas se actualizó
+                setTimeout(() => {
+                    verificarFormulario();
+                }, 50);
+            }
+            return isDrawingFlag;
+        }
+
+        // Stack functions
+        function saveToUndoStack(canvasElement, undoStack) {
+            undoStack.push(canvasElement.toDataURL());
+            updateButtonStates();
+        }
+
+        function undo(canvasElement, context, undoStack, redoStack) {
+            if (undoStack.length > 0) {
+                redoStack.push(canvasElement.toDataURL());
+                const lastState = undoStack.pop();
+                const img = new Image();
+                img.src = lastState;
+                img.onload = () => {
+                    context.clearRect(0, 0, canvasElement.width, canvasElement.height);
+                    context.drawImage(img, 0, 0);
+                    verificarFormulario();
+                };
+                updateButtonStates();
+            }
+        }
+
+        function redo(canvasElement, context, undoStack, redoStack) {
+            if (redoStack.length > 0) {
+                undoStack.push(canvasElement.toDataURL());
+                const lastState = redoStack.pop();
+                const img = new Image();
+                img.src = lastState;
+                img.onload = () => {
+                    context.clearRect(0, 0, canvasElement.width, canvasElement.height);
+                    context.drawImage(img, 0, 0);
+                    verificarFormulario();
+                };
+                updateButtonStates();
+            }
+        }
+
+        function updateButtonStates() {
+            document.getElementById("undo").style.display = undoStack.length > 0 ? "block" : "none";
+            document.getElementById("redo").style.display = redoStack.length > 0 ? "block" : "none";
+            document.getElementById("undoColaborador").style.display = undoStackColaborador.length > 0 ? "block" : "none";
+            document.getElementById("redoColaborador").style.display = redoStackColaborador.length > 0 ? "block" : "none";
+        }
+
+        // Limpiar firma - MEJORADA
+        function clearSignature(canvasElement, context, undoStack) {
+            saveToUndoStack(canvasElement, undoStack);
+            context.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            context.fillStyle = "#FFFFFF";
+            context.fillRect(0, 0, canvasElement.width, canvasElement.height);
+            
+            // Asegurar que se verifique después de limpiar
+            setTimeout(() => {
+                verificarFormulario();
+            }, 100);
+            
+            updateButtonStates();
+        }
+
+        // ===== CONFIGURACIÓN DE EVENTOS MEJORADA =====
+        function setupSignatureEvents() {
+            // Eventos de mouse para firma del jefe
+            canvas.addEventListener("mousedown", function(e) {
+                const result = startDrawing(e, canvas, ctx, isDrawing, lastX, lastY, undoStack);
+                isDrawing = result.isDrawing;
+                lastX = result.lastX;
+                lastY = result.lastY;
+            });
+            canvas.addEventListener("mousemove", function(e) {
+                const result = draw(e, canvas, ctx, isDrawing, lastX, lastY, isErasing);
+                lastX = result.lastX;
+                lastY = result.lastY;
+            });
+            canvas.addEventListener("mouseup", function() {
+                isDrawing = stopDrawing(isDrawing);
+            });
+            canvas.addEventListener("mouseout", function() {
+                isDrawing = stopDrawing(isDrawing);
+            });
+            
+            // Eventos de touch para firma del jefe (mejorados)
+            canvas.addEventListener("touchstart", function(e) {
+                const result = startDrawing(e, canvas, ctx, isDrawing, lastX, lastY, undoStack);
+                isDrawing = result.isDrawing;
+                lastX = result.lastX;
+                lastY = result.lastY;
+                // Prevenir scroll y zoom
+                e.preventDefault();
+            }, { passive: false });
+            
+            canvas.addEventListener("touchmove", function(e) {
+                const result = draw(e, canvas, ctx, isDrawing, lastX, lastY, isErasing);
+                lastX = result.lastX;
+                lastY = result.lastY;
+                // Prevenir scroll durante el dibujo
+                e.preventDefault();
+            }, { passive: false });
+            
+            canvas.addEventListener("touchend", function() {
+                isDrawing = stopDrawing(isDrawing);
+            });
+            canvas.addEventListener("touchcancel", function() {
+                isDrawing = stopDrawing(isDrawing);
+            });
+            
+            // Eventos de mouse para firma del colaborador
+            canvasColaborador.addEventListener("mousedown", function(e) {
+                const result = startDrawing(e, canvasColaborador, ctxColaborador, isDrawingColaborador, lastXColaborador, lastYColaborador, undoStackColaborador);
+                isDrawingColaborador = result.isDrawing;
+                lastXColaborador = result.lastX;
+                lastYColaborador = result.lastY;
+            });
+            canvasColaborador.addEventListener("mousemove", function(e) {
+                const result = draw(e, canvasColaborador, ctxColaborador, isDrawingColaborador, lastXColaborador, lastYColaborador, isErasingColaborador);
+                lastXColaborador = result.lastX;
+                lastYColaborador = result.lastY;
+            });
+            canvasColaborador.addEventListener("mouseup", function() {
+                isDrawingColaborador = stopDrawing(isDrawingColaborador);
+            });
+            canvasColaborador.addEventListener("mouseout", function() {
+                isDrawingColaborador = stopDrawing(isDrawingColaborador);
+            });
+            
+            // Eventos de touch para firma del colaborador (mejorados)
+            canvasColaborador.addEventListener("touchstart", function(e) {
+                const result = startDrawing(e, canvasColaborador, ctxColaborador, isDrawingColaborador, lastXColaborador, lastYColaborador, undoStackColaborador);
+                isDrawingColaborador = result.isDrawing;
+                lastXColaborador = result.lastX;
+                lastYColaborador = result.lastY;
+                // Prevenir scroll y zoom
+                e.preventDefault();
+            }, { passive: false });
+            
+            canvasColaborador.addEventListener("touchmove", function(e) {
+                const result = draw(e, canvasColaborador, ctxColaborador, isDrawingColaborador, lastXColaborador, lastYColaborador, isErasingColaborador);
+                lastXColaborador = result.lastX;
+                lastYColaborador = result.lastY;
+                // Prevenir scroll durante el dibujo
+                e.preventDefault();
+            }, { passive: false });
+            
+            canvasColaborador.addEventListener("touchend", function() {
+                isDrawingColaborador = stopDrawing(isDrawingColaborador);
+            });
+            canvasColaborador.addEventListener("touchcancel", function() {
+                isDrawingColaborador = stopDrawing(isDrawingColaborador);
+            });
+            
+            // Botones de herramientas para firma del jefe
+            document.getElementById("toggleEraser").addEventListener("click", function() {
+                isErasing = !isErasing;
+                this.classList.toggle("active");
+                this.innerHTML = isErasing ? 
+                    '<i class="fas fa-pen"></i>' : 
+                    '<i class="fas fa-eraser"></i>';
+            });
+            
+            document.getElementById("undo").addEventListener("click", function() {
+                undo(canvas, ctx, undoStack, redoStack);
+            });
+            
+            document.getElementById("redo").addEventListener("click", function() {
+                redo(canvas, ctx, undoStack, redoStack);
+            });
+            
+            document.getElementById("clearSignature").addEventListener("click", function() {
+                clearSignature(canvas, ctx, undoStack);
+            });
+            
+            // Botones de herramientas para firma del colaborador
+            document.getElementById("toggleEraserColaborador").addEventListener("click", function() {
+                isErasingColaborador = !isErasingColaborador;
+                this.classList.toggle("active");
+                this.innerHTML = isErasingColaborador ? 
+                    '<i class="fas fa-pen"></i>' : 
+                    '<i class="fas fa-eraser"></i>';
+            });
+            
+            document.getElementById("undoColaborador").addEventListener("click", function() {
+                undo(canvasColaborador, ctxColaborador, undoStackColaborador, redoStackColaborador);
+            });
+            
+            document.getElementById("redoColaborador").addEventListener("click", function() {
+                redo(canvasColaborador, ctxColaborador, undoStackColaborador, redoStackColaborador);
+            });
+            
+            document.getElementById("clearSignatureColaborador").addEventListener("click", function() {
+                clearSignature(canvasColaborador, ctxColaborador, undoStackColaborador);
+            });
+            
+            // Prevenir acciones por defecto en el canvas
+            canvas.addEventListener("contextmenu", function(e) {
+                e.preventDefault();
+            });
+            
+            canvasColaborador.addEventListener("contextmenu", function(e) {
+                e.preventDefault();
+            });
+            
+            // Estilos CSS adicionales para mejorar la experiencia táctil
+            canvas.style.touchAction = "none";
+            canvas.style.msTouchAction = "none";
+            canvasColaborador.style.touchAction = "none";
+            canvasColaborador.style.msTouchAction = "none";
+        }
+
+        // ===== SISTEMA DE CALIFICACIÓN CON ESTRELLAS =====
+        function crearSistemaCalificaciones() {
+            const criteriosDesempeno = [
+                "Cumplimiento de tareas asignadas",
+                "Calidad en la limpieza",
+                "Cuidado y uso adecuado de materiales",
+                "Puntualidad en el horario de trabajo",
+                "Orden y presentación personal",
+                "Capacidad para seguir instrucciones",
+                "Agilidad y eficiencia en el trabajo"
+            ];
+            
+            const criteriosConducta = [
+                "Respeto hacia compañeros y superiores",
+                "Actitud positiva y disposición al trabajo",
+                "Responsabilidad y compromiso",
+                "Honestidad",
+                "Trabajo en equipo",
+                "Manejo de conflictos"
+            ];
+            
+            // Crear elementos para desempeño
+            const containerDesempeno = document.getElementById('desempenoContainer');
+            criteriosDesempeno.forEach((criterio, index) => {
+                const item = document.createElement('div');
+                item.className = 'rating-item';
+                item.innerHTML = `
+                    <div class="rating-label">${criterio}</div>
+                    <div class="rating-stars" data-criterio="desempeno-${index}">
+                        <span class="star" data-value="1">★</span>
+                        <span class="star" data-value="2">★</span>
+                        <span class="star" data-value="3">★</span>
+                        <span class="star" data-value="4">★</span>
+                        <span class="star" data-value="5">★</span>
+                    </div>
+                `;
+                containerDesempeno.appendChild(item);
+            });
+            
+            // Crear elementos para conducta
+            const containerConducta = document.getElementById('conductaContainer');
+            criteriosConducta.forEach((criterio, index) => {
+                const item = document.createElement('div');
+                item.className = 'rating-item';
+                item.innerHTML = `
+                    <div class="rating-label">${criterio}</div>
+                    <div class="rating-stars" data-criterio="conducta-${index}">
+                        <span class="star" data-value="1">★</span>
+                        <span class="star" data-value="2">★</span>
+                        <span class="star" data-value="3">★</span>
+                        <span class="star" data-value="4">★</span>
+                        <span class="star" data-value="5">★</span>
+                    </div>
+                `;
+                containerConducta.appendChild(item);
+            });
+            
+            // Configurar eventos para las estrellas
+            document.querySelectorAll('.star').forEach(star => {
+                star.addEventListener('click', function() {
+                    const container = this.parentElement;
+                    const value = parseInt(this.getAttribute('data-value'));
+                    
+                    // Actualizar estrellas
+                    container.querySelectorAll('.star').forEach(s => {
+                        if (parseInt(s.getAttribute('data-value')) <= value) {
+                            s.classList.add('active');
+                        } else {
+                            s.classList.remove('active');
+                        }
+                    });
+                    
+                    // Guardar valor
+                    container.setAttribute('data-rating', value);
+                    
+                    // Verificar formulario
+                    verificarFormulario();
+                });
+            });
+        }
+
+        // ===== CÁLCULO DE CALIFICACIONES =====
+        function calcularPromedio() {
+            const estrellas = document.querySelectorAll('.rating-stars[data-rating]');
+            let suma = 0;
+            let contador = 0;
+            
+            estrellas.forEach(container => {
+                const rating = parseInt(container.getAttribute('data-rating'));
+                if (rating) {
+                    suma += rating;
+                    contador++;
+                }
+            });
+            
+            const promedio = contador > 0 ? (suma / contador).toFixed(1) : 0.0;
+            document.getElementById('promedioCalificaciones').textContent = promedio;
+            
+            // Determinar la conclusión
+            let conclusion = '-';
+            if (contador > 0) {
+                if (promedio >= 4.5) {
+                    conclusion = 'Excelente desempeño';
+                } else if (promedio >= 3.5) {
+                    conclusion = 'Buen desempeño';
+                } else if (promedio >= 2.5) {
+                    conclusion = 'Desempeño aceptable (requiere seguimiento)';
+                } else {
+                    conclusion = 'Desempeño bajo (requiere capacitación)';
+                }
+            }
+            
+            document.getElementById('conclusion').textContent = conclusion;
+            
+            return promedio;
+        }
+
+        // ===== FUNCIÓN CORREGIDA PARA VERIFICAR SI EL CANVAS ESTÁ VACÍO =====
+        function isCanvasBlank(canvas) {
+            try {
+                const context = canvas.getContext('2d');
+                const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                const pixelBuffer = new Uint32Array(imageData.data.buffer);
+                
+                // Contar píxeles no blancos (diferentes de blanco puro o transparente)
+                let nonWhitePixels = 0;
+                for (let i = 0; i < pixelBuffer.length; i++) {
+                    // Un pixel es considerado "no blanco" si no es completamente blanco (0xFFFFFFFF) o transparente (0x00000000)
+                    if (pixelBuffer[i] !== 0xFFFFFFFF && pixelBuffer[i] !== 0x00000000) {
+                        nonWhitePixels++;
+                    }
+                }
+                
+                // Si hay más de 100 píxeles no blancos, considerar que tiene contenido
+                const hasContent = nonWhitePixels > 100;
+                
+                return !hasContent;
+                
+            } catch (error) {
+                console.error('Error al verificar canvas:', error);
+                return true; // En caso de error, considerar como vacío
+            }
+        }
+
+        // ===== VERIFICACIÓN DEL FORMULARIO =====
+        function verificarFormulario() {
+            let nombreEmpleado = $("#nombreEmpleado").val();
+            let puesto = $("#puesto").val();
+            let fechaEvaluacion = $("#fechaEvaluacion").val();
+            let nombreEvaluador = $("#nombreEvaluador").val();
+            
+            // Verificar si hay al menos una calificación seleccionada
+            let calificacionesSeleccionadas = document.querySelectorAll('.rating-stars[data-rating]').length > 0;
+            
+            // Verificar firma del evaluador (obligatoria)
+            const canvas = document.getElementById('firmaCanvas');
+            const hayFirmaEvaluador = !isCanvasBlank(canvas);
+            
+            // La firma del colaborador es opcional, no la verificamos
+            
+            console.log('Validación formulario:', {
+                nombreEmpleado: !!nombreEmpleado,
+                puesto: !!puesto,
+                fechaEvaluacion: !!fechaEvaluacion,
+                nombreEvaluador: !!nombreEvaluador,
+                calificacionesSeleccionadas: calificacionesSeleccionadas,
+                hayFirmaEvaluador: hayFirmaEvaluador
+            });
+            
+            // Validación CORREGIDA (firma del colaborador NO es obligatoria)
+            const formularioCompleto = nombreEmpleado && 
+                                      puesto && 
+                                      fechaEvaluacion && 
+                                      nombreEvaluador && 
+                                      calificacionesSeleccionadas && 
+                                      hayFirmaEvaluador;
+            
+            $("#generarPdf").prop("disabled", !formularioCompleto);
+            
+            // Estilo para el canvas de firma
+            if (hayFirmaEvaluador) {
+                canvas.style.borderColor = "#28a745";
+                canvas.style.borderWidth = "2px";
+            } else {
+                canvas.style.borderColor = "#ddd";
+                canvas.style.borderWidth = "1px";
+            }
+            
+            // Calcular el promedio si hay calificaciones
+            if (calificacionesSeleccionadas) {
+                calcularPromedio();
+            }
+        }
+
+        // ===== INICIALIZACIÓN =====
+        document.addEventListener('DOMContentLoaded', function() {
+            // Establecer fecha actual
+            var today = new Date();
+            var yyyy = today.getFullYear();
+            var mm = String(today.getMonth() + 1).padStart(2, '0');
+            var dd = String(today.getDate()).padStart(2, '0');
+            document.getElementById("fechaEvaluacion").value = yyyy + '-' + mm + '-' + dd;
+
+            // Inicializar canvas después de que todo esté cargado
+            setTimeout(() => {
+                initializeCanvas();
+                setupSignatureEvents();
+                
+                // Mostrar botones de herramientas
+                document.getElementById("toggleEraser").style.display = "block";
+                document.getElementById("undo").style.display = "none";
+                document.getElementById("redo").style.display = "none";
+                document.getElementById("toggleEraserColaborador").style.display = "block";
+                document.getElementById("undoColaborador").style.display = "none";
+                document.getElementById("redoColaborador").style.display = "none";
+            }, 100);
+
+            // Crear sistema de calificaciones con estrellas
+            crearSistemaCalificaciones();
+
+            // Configurar eventos para verificar formulario
+            configurarEventos();
+
+            // Prevenir acciones no deseadas
+            document.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+            });
+
+            document.addEventListener('selectstart', function(e) {
+                e.preventDefault();
+            });
+
+            // Verificar PDFs pendientes al cargar
+            setTimeout(() => {
+                console.log('🚀 INICIANDO APLICACIÓN - VERIFICANDO PDFs');
+                mostrarBotonesConstanciasPendientes();
+            }, 1000);
+        });
+
+        function configurarEventos() {
+            // Verificar formulario cuando cambien los campos
+            $("#nombreEmpleado, #puesto, #fechaEvaluacion, #nombreEvaluador, #observacionesDesempeno, #observacionesConducta, #fortalezas, #areasMejora, #recomendaciones").on("input change", verificarFormulario);
+        }
+
+        // Función para guardar múltiples PDFs
+        async function guardarPDFEnStorage(pdfBlob, pdfData) {
+            console.log('🔄 INICIANDO GUARDADO DE PDF MÚLTIPLE');
+            
+            try {
+                // 1. Obtener PDFs existentes o crear array vacío
+                let pdfsExistentes = JSON.parse(localStorage.getItem('pdfsEvaluacionesDesempeno') || '[]');
+                console.log('📊 PDFs existentes antes de agregar:', pdfsExistentes.length);
+
+                // 2. Crear nuevo PDF
+                const nuevoPDF = {
+                    id: 'pdf_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                    name: pdfData.name,
+                    empleado: pdfData.empleado,
+                    fecha: pdfData.fecha,
+                    timestamp: Date.now(),
+                    size: pdfBlob.size
+                };
+
+                // 3. Intentar guardar el PDF completo
+                try {
+                    const reader = new FileReader();
+                    nuevoPDF.data = await new Promise((resolve, reject) => {
+                        reader.onload = () => resolve(reader.result);
+                        reader.onerror = reject;
+                        reader.readAsDataURL(pdfBlob);
+                    });
+                    nuevoPDF.error = null;
+                    console.log('✅ PDF convertido a base64 exitosamente');
+                } catch (error) {
+                    console.warn('⚠️ No se pudo guardar el PDF completo, guardando solo metadatos');
+                    nuevoPDF.data = null;
+                    nuevoPDF.error = 'solo_metadatos';
+                }
+
+                // 4. Agregar nuevo PDF al inicio del array
+                pdfsExistentes.unshift(nuevoPDF);
+
+                // 5. Limitar a 5 PDFs máximo (eliminar los más antiguos)
+                if (pdfsExistentes.length > MAX_PDFS_ALMACENADOS) {
+                    const pdfsEliminados = pdfsExistentes.splice(MAX_PDFS_ALMACENADOS);
+                    console.log('🗑️ PDFs eliminados (exceden límite):', pdfsEliminados.length);
+                }
+
+                // 6. Guardar en localStorage
+                localStorage.setItem('pdfsEvaluacionesDesempeno', JSON.stringify(pdfsExistentes));
+                
+                console.log('💾 PDFs guardados en localStorage:', pdfsExistentes.length);
+                console.log('📋 Lista actual de PDFs:');
+                pdfsExistentes.forEach((pdf, i) => {
+                    console.log(`   ${i + 1}. ${pdf.name} (${new Date(pdf.timestamp).toLocaleTimeString()})`);
+                });
+
+                // 7. Actualizar interfaz inmediatamente
+                mostrarBotonesConstanciasPendientes();
+                return true;
+
+            } catch (error) {
+                console.error('❌ Error crítico al guardar PDF:', error);
+                return false;
+            }
+        }
+
+        // Función para obtener PDFs
+        function obtenerPDFsAlmacenados() {
+            try {
+                const pdfsGuardados = localStorage.getItem('pdfsEvaluacionesDesempeno');
+                if (!pdfsGuardados) {
+                    console.log('📭 No hay PDFs almacenados');
+                    return [];
+                }
+                
+                const pdfs = JSON.parse(pdfsGuardados);
+                console.log('📂 PDFs recuperados:', pdfs.length);
+                return pdfs;
+                
+            } catch (error) {
+                console.error('❌ Error al obtener PDFs:', error);
+                return [];
+            }
+        }
+
+        // Función para formatear fecha
+        function formatearFecha(fecha, paraArchivo = false) {
+            if (!fecha) return '';
+            
+            const date = new Date(fecha);
+            if (paraArchivo) {
+                return `${date.getDate()}-${date.getMonth() + 1}-${date.getFullYear()}`;
+            } else {
+                return date.toLocaleDateString('es-ES', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
+                });
+            }
+        }
+
+        // Función para generar el PDF - VERSIÓN FINAL CORREGIDA CON CONFIRMACIÓN
+        async function generarPDF() {
+            // Mostrar SweetAlert de confirmación antes de generar el PDF
+            const confirmacion = await Swal.fire({
+                title: '¿Generar Evaluación?',
+                html: `
+                    <div style="text-align: center;">
+                        <p style="font-size: 1.1em; margin-bottom: 15px;">¿Estás seguro de que quieres generar la evaluación de desempeño?</p>
+                        <div style="color: #f39c12; font-size: 2.5em; margin-bottom: 15px;">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <p style="font-size: 0.9em; color: #666; margin-bottom: 10px;">
+                            <strong>Empleado:</strong> ${$("#nombreEmpleado").val()}<br>
+                            <strong>Fecha de evaluación:</strong> ${formatearFecha($("#fechaEvaluacion").val())}
+                        </p>
+                        <p style="font-size: 0.85em; color: #e74c3c; font-style: italic;">
+                            Esta acción generará un documento formal que quedará registrado.
+                        </p>
+                    </div>
+                `,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Sí, generar PDF',
+                cancelButtonText: 'Cancelar',
+                reverseButtons: true,
+                focusCancel: true
+            });
+
+            // Si el usuario cancela, salir de la función
+            if (!confirmacion.isConfirmed) {
+                console.log('Usuario canceló la generación del PDF');
+                return;
+            }
+
+            // Si el usuario confirma, continuar con la generación del PDF
+            $('#overlay').css('display', 'flex');
+            
+            // Obtener datos del formulario
+            const nombreEmpleado = $("#nombreEmpleado").val();
+            const puesto = $("#puesto").val();
+            const fechaEvaluacion = $("#fechaEvaluacion").val();
+            const nombreEvaluador = $("#nombreEvaluador").val();
+            const observacionesDesempeno = $("#observacionesDesempeno").val();
+            const observacionesConducta = $("#observacionesConducta").val();
+            const fortalezas = $("#fortalezas").val();
+            const areasMejora = $("#areasMejora").val();
+            const recomendaciones = $("#recomendaciones").val();
+            const promedio = $("#promedioCalificaciones").text();
+            const conclusion = $("#conclusion").text();
+            
+            // Obtener calificaciones
+            const calificacionesDesempeno = [];
+            const criteriosDesempeno = [
+                "Cumplimiento de tareas asignadas",
+                "Calidad en la limpieza",
+                "Cuidado y uso adecuado de materiales",
+                "Puntualidad en el horario de trabajo",
+                "Orden y presentación personal",
+                "Capacidad para seguir instrucciones",
+                "Agilidad y eficiencia en el trabajo"
+            ];
+            
+            const calificacionesConducta = [];
+            const criteriosConducta = [
+                "Respeto hacia compañeros y superiores",
+                "Actitud positiva y disposición al trabajo",
+                "Responsabilidad y compromiso",
+                "Honestidad",
+                "Trabajo en equipo",
+                "Manejo de conflictos"
+            ];
+            
+            // Recopilar calificaciones de desempeño
+            document.querySelectorAll('#desempenoContainer .rating-stars').forEach((container, index) => {
+                const rating = container.getAttribute('data-rating') || 'No calificado';
+                calificacionesDesempeno.push({
+                    criterio: criteriosDesempeno[index],
+                    calificacion: rating
+                });
+            });
+            
+            // Recopilar calificaciones de conducta
+            document.querySelectorAll('#conductaContainer .rating-stars').forEach((container, index) => {
+                const rating = container.getAttribute('data-rating') || 'No calificado';
+                calificacionesConducta.push({
+                    criterio: criteriosConducta[index],
+                    calificacion: rating
+                });
+            });
+            
+            // Obtener las firmas
+            const canvasFirma = document.getElementById('firmaCanvas');
+            const firmaDataUrl = canvasFirma.toDataURL('image/png');
+            
+            const canvasFirmaColaborador = document.getElementById('firmaCanvasColaborador');
+            const firmaColaboradorDataUrl = canvasFirmaColaborador.toDataURL('image/png');
+            
+            // Crear PDF
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({
+                orientation: 'portrait',
+                format: 'letter',
+                unit: 'mm'
+            });
+            
+            doc.setFont("times", "normal");
+            
+            // Configuración de márgenes y dimensiones
+            const margin = 12;
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const textWidth = pageWidth - (2 * margin);
+            
+            let y = 15;
+            
+            // Título
+            doc.setFontSize(14);
+            doc.setTextColor(34, 49, 63);
+            doc.setFont("times", "bold");
+            doc.text("EVALUACIÓN DE DESEMPEÑO Y CONDUCTA", pageWidth / 2, y, { align: 'center' });
+            y += 8;
+            
+            // Línea separadora
+            doc.setDrawColor(100, 100, 100);
+            doc.setLineWidth(0.3);
+            doc.line(margin, y, pageWidth - margin, y);
+            y += 10;
+            
+            // Información del empleado
+            doc.setFontSize(10);
+            doc.setTextColor(0, 0, 0);
+            
+            // Fecha de evaluación
+            doc.setFont("times", "bold");
+            doc.text("Fecha de Evaluación:", margin, y);
+            doc.setFont("times", "normal");
+            doc.text(formatearFecha(fechaEvaluacion), margin + 35, y);
+            
+            // Evaluador en la misma línea
+            doc.setFont("times", "bold");
+            doc.text("Evaluador:", pageWidth / 2, y);
+            doc.setFont("times", "normal");
+            doc.text(nombreEvaluador, pageWidth / 2 + 20, y);
+            y += 6;
+            
+            // Nombre del empleado y puesto en la misma línea
+            doc.setFont("times", "bold");
+            doc.text("Empleado:", margin, y);
+            doc.setFont("times", "normal");
+            doc.text(nombreEmpleado, margin + 20, y);
+            
+            doc.setFont("times", "bold");
+            doc.text("Puesto:", pageWidth / 2, y);
+            doc.setFont("times", "normal");
+            doc.text(puesto, pageWidth / 2 + 15, y);
+            y += 12;
+            
+            // Evaluación de Desempeño
+            doc.setFont("times", "bold");
+            doc.setFontSize(11);
+            doc.text("I. EVALUACIÓN DE DESEMPEÑO (Puntuar de 1 a 5)", margin, y);
+            y += 7;
+            
+            // Tabla de desempeño
+            const tableColumnDesempeno = ["Criterio", "Calificación"];
+            const tableRowsDesempeno = [];
+            
+            calificacionesDesempeno.forEach(item => {
+                tableRowsDesempeno.push([item.criterio, item.calificacion]);
+            });
+            
+            doc.autoTable({
+                startY: y,
+                head: [tableColumnDesempeno],
+                body: tableRowsDesempeno,
+                theme: 'grid',
+                tableWidth: pageWidth - (2 * margin),
+                margin: { 
+                    left: margin, 
+                    right: margin,
+                    top: y
+                },
+                headStyles: {
+                    fillColor: [80, 80, 80],
+                    textColor: [255, 255, 255],
+                    fontStyle: 'bold',
+                    fontSize: 9,
+                    font: "times",
+                    cellPadding: 1.5,
+                    minCellHeight: 4,
+                    halign: 'center'
+                },
+                styles: {
+                    fontSize: 8,
+                    cellPadding: 1,
+                    textColor: [0, 0, 0],
+                    lineColor: [120, 120, 120],
+                    lineWidth: 0.1,
+                    font: "times",
+                    minCellHeight: 3.5
+                },
+                columnStyles: {
+                    0: {
+                        cellWidth: (pageWidth - (2 * margin)) * 0.7,
+                        halign: 'left'
+                    },
+                    1: {
+                        cellWidth: (pageWidth - (2 * margin)) * 0.3,
+                        halign: 'center'
+                    }
+                },
+                tableLineWidth: 0.1,
+                tableLineColor: [120, 120, 120],
+                pageBreak: 'avoid'
+            });
+            
+            // Obtener la posición Y después de la tabla
+            y = doc.autoTable.previous.finalY + 8;
+            
+            // Observaciones de desempeño
+            if (observacionesDesempeno && observacionesDesempeno.trim() !== '') {
+                doc.setFont("times", "bold");
+                doc.setFontSize(10);
+                doc.text("Observaciones sobre Desempeño:", margin, y);
+                y += 5;
+                
+                doc.setFont("times", "normal");
+                doc.setFontSize(9);
+                const observacionesLines = doc.splitTextToSize(observacionesDesempeno, textWidth - 5);
+                doc.text(observacionesLines, margin + 2, y);
+                y += (observacionesLines.length * 3.5) + 8;
+            } else {
+                y += 6;
+            }
+            
+            // Verificar si necesitamos una nueva página
+            if (y > pageHeight - 80) {
+                doc.addPage();
+                y = 15;
+            }
+            
+            // Evaluación de Conducta
+            doc.setFont("times", "bold");
+            doc.setFontSize(11);
+            doc.text("II. EVALUACIÓN DE CONDUCTA (Puntuar de 1 a 5)", margin, y);
+            y += 7;
+            
+            // Tabla de conducta
+            const tableColumnConducta = ["Criterio", "Calificación"];
+            const tableRowsConducta = [];
+            
+            calificacionesConducta.forEach(item => {
+                tableRowsConducta.push([item.criterio, item.calificacion]);
+            });
+            
+            doc.autoTable({
+                startY: y,
+                head: [tableColumnConducta],
+                body: tableRowsConducta,
+                theme: 'grid',
+                tableWidth: pageWidth - (2 * margin),
+                margin: { 
+                    left: margin, 
+                    right: margin,
+                    top: y
+                },
+                headStyles: {
+                    fillColor: [80, 80, 80],
+                    textColor: [255, 255, 255],
+                    fontStyle: 'bold',
+                    fontSize: 9,
+                    font: "times",
+                    cellPadding: 1.5,
+                    minCellHeight: 4,
+                    halign: 'center'
+                },
+                styles: {
+                    fontSize: 8,
+                    cellPadding: 1,
+                    textColor: [0, 0, 0],
+                    lineColor: [120, 120, 120],
+                    lineWidth: 0.1,
+                    font: "times",
+                    minCellHeight: 3.5
+                },
+                columnStyles: {
+                    0: {
+                        cellWidth: (pageWidth - (2 * margin)) * 0.7,
+                        halign: 'left'
+                    },
+                    1: {
+                        cellWidth: (pageWidth - (2 * margin)) * 0.3,
+                        halign: 'center'
+                    }
+                },
+                tableLineWidth: 0.1,
+                tableLineColor: [120, 120, 120],
+                pageBreak: 'avoid'
+            });
+            
+            // Obtener la posición Y después de la tabla
+            y = doc.autoTable.previous.finalY + 8;
+            
+            // Observaciones de conducta
+            if (observacionesConducta && observacionesConducta.trim() !== '') {
+                doc.setFont("times", "bold");
+                doc.setFontSize(10);
+                doc.text("Observaciones sobre Conducta:", margin, y);
+                y += 5;
+                
+                doc.setFont("times", "normal");
+                doc.setFontSize(9);
+                const observacionesLines = doc.splitTextToSize(observacionesConducta, textWidth - 5);
+                doc.text(observacionesLines, margin + 2, y);
+                y += (observacionesLines.length * 3.5) + 8;
+            } else {
+                y += 6;
+            }
+            
+            // Verificar si necesitamos una nueva página
+            if (y > pageHeight - 100) {
+                doc.addPage();
+                y = 15;
+            }
+            
+            // Evaluación General
+            doc.setFont("times", "bold");
+            doc.setFontSize(11);
+            doc.text("III. EVALUACIÓN GENERAL", margin, y);
+            y += 10;
+            
+            // Fortalezas
+            doc.setFont("times", "bold");
+            doc.setFontSize(10);
+            doc.text("Fortalezas del empleado:", margin, y);
+            y += 5;
+            
+            doc.setFont("times", "normal");
+            doc.setFontSize(9);
+            if (fortalezas && fortalezas.trim() !== '') {
+                const fortalezasLines = doc.splitTextToSize(fortalezas, textWidth - 5);
+                doc.text(fortalezasLines, margin + 2, y);
+                y += (fortalezasLines.length * 3.5) + 8;
+            } else {
+                doc.text("No especificado", margin + 2, y);
+                y += 8;
+            }
+            
+            // Áreas de mejora
+            doc.setFont("times", "bold");
+            doc.setFontSize(10);
+            doc.text("Áreas de mejora:", margin, y);
+            y += 5;
+            
+            doc.setFont("times", "normal");
+            doc.setFontSize(9);
+            if (areasMejora && areasMejora.trim() !== '') {
+                const areasMejoraLines = doc.splitTextToSize(areasMejora, textWidth - 5);
+                doc.text(areasMejoraLines, margin + 2, y);
+                y += (areasMejoraLines.length * 3.5) + 8;
+            } else {
+                doc.text("No especificado", margin + 2, y);
+                y += 8;
+            }
+            
+            // Recomendaciones
+            doc.setFont("times", "bold");
+            doc.setFontSize(10);
+            doc.text("Recomendaciones del evaluador:", margin, y);
+            y += 5;
+            
+            doc.setFont("times", "normal");
+            doc.setFontSize(9);
+            if (recomendaciones && recomendaciones.trim() !== '') {
+                const recomendacionesLines = doc.splitTextToSize(recomendaciones, textWidth - 5);
+                doc.text(recomendacionesLines, margin + 2, y);
+                y += (recomendacionesLines.length * 3.5) + 10;
+            } else {
+                doc.text("No especificado", margin + 2, y);
+                y += 10;
+            }
+            
+            // Resultado Final
+            doc.setFont("times", "bold");
+            doc.setFontSize(11);
+            doc.text("IV. RESULTADO FINAL (Exclusivo para CH)", margin, y);
+            y += 10;
+            
+            doc.setFont("times", "normal");
+            doc.setFontSize(10);
+            doc.text(`Promedio de Calificaciones: ${promedio}`, margin, y);
+            y += 6;
+            doc.text(`Conclusión: ${conclusion}`, margin, y);
+            y += 15;
+            
+            // Ajustar posición Y si es necesario para evitar nueva página
+            const espacioNecesarioFirmas = 35;
+            if (y + espacioNecesarioFirmas > pageHeight - margin) {
+                doc.addPage();
+                y = 15;
+            }
+            
+            // FIRMAS CORRECTAMENTE CENTRADAS
+            const firmaWidth = 45;
+            const firmaHeight = 18;
+            const espacioEntreFirmas = 15;
+            
+            // Calcular el ancho total que ocuparán las 3 firmas con sus espacios
+            const anchoTotalFirmas = (firmaWidth * 3) + (espacioEntreFirmas * 2);
+            
+            // Calcular el punto de inicio para centrar el grupo de firmas
+            const inicioFirmas = (pageWidth - anchoTotalFirmas) / 2;
+            
+            // Firma del colaborador (IZQUIERDA)
+            const firmaColaboradorX = inicioFirmas;
+            
+            // Añadir imagen de la firma del colaborador si existe
+            if (!isCanvasBlank(canvasFirmaColaborador)) {
+                doc.addImage(firmaColaboradorDataUrl, 'PNG', firmaColaboradorX, y, firmaWidth, firmaHeight);
+            }
+            
+            // Línea para firma del colaborador
+            doc.setDrawColor(0, 0, 0);
+            doc.setLineWidth(0.2);
+            doc.line(firmaColaboradorX, y + firmaHeight + 1, firmaColaboradorX + firmaWidth, y + firmaHeight + 1);
+            
+            // Texto "COLABORADOR" centrado
+            doc.setFont("times", "bold");
+            doc.setFontSize(9);
+            doc.text("COLABORADOR", firmaColaboradorX + firmaWidth/2, y + firmaHeight + 6, { align: 'center' });
+            
+            // Firma del evaluador (CENTRO)
+            const firmaEvaluadorX = inicioFirmas + firmaWidth + espacioEntreFirmas;
+            
+            // Añadir imagen de la firma del evaluador
+            doc.addImage(firmaDataUrl, 'PNG', firmaEvaluadorX, y, firmaWidth, firmaHeight);
+            
+            // Línea para firma del evaluador
+            doc.setDrawColor(0, 0, 0);
+            doc.setLineWidth(0.2);
+            doc.line(firmaEvaluadorX, y + firmaHeight + 1, firmaEvaluadorX + firmaWidth, y + firmaHeight + 1);
+            
+            // Texto "EVALUADOR" centrado
+            doc.setFont("times", "bold");
+            doc.setFontSize(9);
+            doc.text("EVALUADOR", firmaEvaluadorX + firmaWidth/2, y + firmaHeight + 6, { align: 'center' });
+            
+            // Espacio para firma del coordinador de CC.HH. (DERECHA)
+            const firmaCoordX = inicioFirmas + (firmaWidth * 2) + (espacioEntreFirmas * 2);
+            
+            // Línea para firma del coordinador
+            doc.setDrawColor(0, 0, 0);
+            doc.setLineWidth(0.2);
+            doc.line(firmaCoordX, y + firmaHeight + 1, firmaCoordX + firmaWidth, y + firmaHeight + 1);
+            
+            // Texto "COORDINADOR DE CC.HH." centrado en dos líneas
+            doc.setFont("times", "bold");
+            doc.setFontSize(9);
+            doc.text("COORDINADOR", firmaCoordX + firmaWidth/2, y + firmaHeight + 6, { align: 'center' });
+            doc.text("DE CC.HH.", firmaCoordX + firmaWidth/2, y + firmaHeight + 10, { align: 'center' });
+            
+            // Guardar PDF
+            const nombreArchivo = `${formatearFecha(fechaEvaluacion, true)} - Evaluación de Desempeño - ${nombreEmpleado}.pdf`;`;
+            const pdfBlob = doc.output('blob');
+            const pdfFile = new File([pdfBlob], nombreArchivo, { type: 'application/pdf' });
+            
+            // GUARDAR EL PDF CON LA NUEVA FUNCIÓN MEJORADA
+            const pdfData = {
+                name: nombreArchivo,
+                empleado: nombreEmpleado,
+                fecha: fechaEvaluacion
+            };
+            
+            console.log('=== INICIANDO GUARDADO EN STORAGE ===');
+            console.log('Datos del PDF:', pdfData);
+            
+            // GUARDAR CON LA NUEVA FUNCIÓN MEJORADA
+            const exito = await guardarPDFEnStorage(pdfBlob, pdfData);
+            
+            if (exito) {
+                console.log('✅ PDF guardado completamente en el sistema de múltiples archivos');
+            } else {
+                console.log('⚠️ PDF guardado con limitaciones (solo metadatos)');
+            }
+            
+            // Ocultar overlay después de un pequeño delay para que se vea el mensaje
+            setTimeout(() => {
+                $('#overlay').hide();
+                
+                // Mostrar SweetAlert con opciones de compartir y descargar
+                Swal.fire({
+                    title: '¡Éxito!',
+                    html: `
+                        <div style="text-align: center;">
+                            <p style="font-size: 1.1em; margin-bottom: 15px;">Evaluación de desempeño generada correctamente</p>
+                            <div style="color: #28a745; font-size: 2em; margin-bottom: 15px;">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <p style="font-size: 0.9em; color: #666; margin-bottom: 10px;">
+                                <strong>Empleado:</strong> ${nombreEmpleado}<br>
+                                <strong>Fecha:</strong> ${formatearFecha(fechaEvaluacion)}
+                            </p>
+                            <p style="font-size: 0.9em; color: #666; margin-bottom: 20px;">¿Qué deseas hacer con el PDF?</p>
+                            <div style="display: flex; justify-content: center; gap: 10px;">
+                                <button id="sharePdfBtn" class="swal2-confirm swal2-styled" style="background-color: #007bff;">
+                                    <i class="fas fa-share-alt"></i> Compartir
+                                </button>
+                                <button id="downloadPdfBtn" class="swal2-cancel swal2-styled" style="background-color: #6c757d;">
+                                    <i class="fas fa-download"></i> Descargar
+                                </button>
+                            </div>
+                            <p style="font-size: 0.8em; color: #888; margin-top: 15px;">
+                                <i class="fas fa-info-circle"></i> El PDF también se ha guardado localmente para acceso futuro
+                            </p>
+                        </div>
+                    `,
+                    icon: 'success',
+                    showConfirmButton: false,
+                    showCloseButton: true,
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        // Asignar los event listeners directamente a los botones
+                        document.getElementById('sharePdfBtn').addEventListener('click', async function() {
+                            try {
+                                if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+                                    await navigator.share({
+                                        files: [pdfFile],
+                                        title: nombreArchivo,
+                                        text: `Comparto la evaluación de desempeño para ${nombreEmpleado}.`
+                                    });
+                                } else {
+                                    doc.save(nombreArchivo);
+                                }
+                            } catch (error) {
+                                console.error('Error al compartir el archivo:', error);
+                                if (error.name !== 'AbortError') {
+                                    doc.save(nombreArchivo);
+                                }
+                            }
+                        });
+                        
+                        document.getElementById('downloadPdfBtn').addEventListener('click', function() {
+                            doc.save(nombreArchivo);
+                        });
+                    }
+                }).then((result) => {
+                    // Este código se ejecuta cuando se cierra el SweetAlert
+                    if (result.dismiss === Swal.DismissReason.close) {
+                        // Recargar la página cuando se hace clic en la X
+                        console.log('Recargando página...');
+                        location.reload();
+                    }
+                });
+            }, 1000);
+        }
+
+        // Funciones para scroll
+        function scrollToTop() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function scrollToBottom() {
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        }
+
+        // Mostrar/ocultar botones de scroll según la posición
+        window.addEventListener('scroll', function() {
+            const scrollTopBtn = document.getElementById('scroll-top-button');
+            const scrollBottomBtn = document.getElementById('scroll-bottom-button');
+            
+            if (window.scrollY > 300) {
+                scrollTopBtn.style.display = 'flex';
+            } else {
+                scrollTopBtn.style.display = 'none';
+            }
+            
+            if ((window.innerHeight + window.scrollY) < document.body.offsetHeight - 100) {
+                scrollBottomBtn.style.display = 'flex';
+            } else {
+                scrollBottomBtn.style.display = 'none';
+            }
+        });
+
+        // Función para actualizar el botón único
+        function mostrarBotonesConstanciasPendientes() {
+            console.log('🔄 ACTUALIZANDO BOTÓN DE EVALUACIONES');
+            
+            try {
+                const pdfsAlmacenados = JSON.parse(localStorage.getItem('pdfsEvaluacionesDesempeno') || '[]');
+                const boton = document.getElementById('constancia-pendiente-button');
+                const badge = boton.querySelector('.badge');
+                
+                if (pdfsAlmacenados.length > 0) {
+                    // Mostrar botón
+                    boton.classList.add('pendiente');
+                    boton.style.display = 'flex';
+                    
+                    // Actualizar badge con el número de evaluaciones
+                    badge.textContent = pdfsAlmacenados.length;
+                    
+                    // Actualizar tooltip
+                    boton.title = `Tienes ${pdfsAlmacenados.length} evaluación(es) pendiente(s)`;
+                    
+                    console.log(`✅ Botón activado con ${pdfsAlmacenados.length} evaluaciones`);
+                } else {
+                    // Ocultar botón
+                    boton.classList.remove('pendiente');
+                    boton.style.display = 'none';
+                    console.log('👻 Botón ocultado (no hay evaluaciones)');
+                }
+                
+            } catch (error) {
+                console.error('❌ Error al actualizar botón:', error);
+            }
+        }
+
+        // Función para mostrar todas las evaluaciones disponibles
+        function mostrarTodasLasConstancias() {
+            const pdfsAlmacenados = JSON.parse(localStorage.getItem('pdfsEvaluacionesDesempeno') || '[]');
+            
+            if (pdfsAlmacenados.length === 0) {
+                Swal.fire('Información', 'No hay evaluaciones pendientes por compartir', 'info');
+                return;
+            }
+            
+            console.log(`📋 Mostrando ${pdfsAlmacenados.length} evaluaciones disponibles`);
+            
+            let htmlContent = `
+                <div style="text-align: center;">
+                    <p style="font-size: 1.2em; margin-bottom: 15px; color: #28a745;">
+                        <i class="fas fa-files"></i> Evaluaciones Recientes (${pdfsAlmacenados.length})
+                    </p>
+                    <div style="max-height: 400px; overflow-y: auto; margin-bottom: 20px;">
+            `;
+            
+            pdfsAlmacenados.forEach((pdf, index) => {
+                const fecha = new Date(pdf.timestamp).toLocaleString();
+                const tienePDF = pdf.data && !pdf.error;
+                
+                htmlContent += `
+                    <div style="border: 2px solid #6c757d; border-radius: 10px; padding: 15px; margin-bottom: 12px; text-align: left; background-color: ${tienePDF ? '#f8fff8' : '#fff8f8'};">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                            <div style="flex: 1;">
+                                <strong style="font-size: 1.1em;">${pdf.empleado}</strong>
+                            </div>
+                            <span style="font-size: 0.8em; color: #6c757d;">#${index + 1}</span>
+                        </div>
+                        
+                        <div style="font-size: 0.9em; color: #555; margin-bottom: 8px;">
+                            <div><strong>Fecha:</strong> ${pdf.fecha}</div>
+                            <div><strong>Generado:</strong> ${fecha}</div>
+                        </div>
+                        
+                        ${!tienePDF ? 
+                            '<div style="color: #dc3545; font-size: 0.8em; margin-bottom: 10px;"><i class="fas fa-exclamation-triangle"></i> Archivo PDF no disponible (demasiado grande)</div>' 
+                            : ''
+                        }
+                        
+                        <div style="display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;">
+                            <button onclick="compartirConstancia(${index})" class="swal2-confirm swal2-styled" style="background-color: #007bff; font-size: 12px; padding: 8px 12px; min-width: 110px;">
+                                <i class="fas fa-share-alt"></i> Compartir
+                            </button>
+                            <button onclick="descargarConstancia(${index})" class="swal2-confirm swal2-styled" style="background-color: #28a745; font-size: 12px; padding: 8px 12px; min-width: 110px;">
+                                <i class="fas fa-download"></i> Descargar
+                            </button>
+
+                            <button onclick="eliminarConstancia(${index})" class="swal2-cancel swal2-styled" style="background-color: #dc3545; font-size: 12px; padding: 8px 12px; min-width: 110px;">
+                                <i class="fas fa-trash"></i> Eliminar
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            htmlContent += `
+                    </div>
+                    <div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
+                        <button id="eliminarTodasBtn" class="swal2-cancel swal2-styled" style="background-color: #dc3545; font-size: 12px; padding: 10px 15px;">
+                            <i class="fas fa-trash-alt"></i> Eliminar todas (${pdfsAlmacenados.length})
+                        </button>
+                        <button id="cerrarDialogoBtn" class="swal2-confirm swal2-styled" style="background-color: #6c757d; font-size: 12px; padding: 10px 15px;">
+                            <i class="fas fa-times"></i> Cerrar
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            Swal.fire({
+                html: htmlContent,
+                icon: 'info',
+                showConfirmButton: false,
+                showCloseButton: true,
+                allowOutsideClick: false,
+                width: '95%',
+                maxWidth: '700px',
+                didOpen: () => {
+                    // Eliminar todas las evaluaciones
+                    document.getElementById('eliminarTodasBtn').addEventListener('click', function() {
+                        Swal.fire({
+                            title: '¿Eliminar todas las evaluaciones?',
+                            html: `
+                                <div style="text-align: center;">
+                                    <p style="color: #dc3545; font-size: 3em; margin: 10px 0;">⚠️</p>
+                                    <p>Esta acción eliminará <strong>${pdfsAlmacenados.length} evaluaciones</strong> permanentemente.</p>
+                                    <p>¿Estás seguro de que quieres continuar?</p>
+                                </div>
+                            `,
+                            icon: 'warning',
+                            showCancelButton: true,
+                            confirmButtonColor: '#d33',
+                            cancelButtonColor: '#3085d6',
+                            confirmButtonText: 'Sí, eliminar todas',
+                            cancelButtonText: 'Cancelar'
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                localStorage.removeItem('pdfsEvaluacionesDesempeno');
+                                mostrarBotonesConstanciasPendientes();
+                                Swal.fire('Eliminadas', `Se eliminaron ${pdfsAlmacenados.length} evaluaciones`, 'success').then(() => {
+                                    Swal.close();
+                                });
+                            }
+                        });
+                    });
+                    
+                    // Cerrar diálogo
+                    document.getElementById('cerrarDialogoBtn').addEventListener('click', function() {
+                        Swal.close();
+                    });
+                }
+            });
+        }
+
+        // Función para descargar una evaluación específica
+        function descargarConstancia(indice) {
+            const pdfsAlmacenados = JSON.parse(localStorage.getItem('pdfsEvaluacionesDesempeno') || '[]');
+            
+            if (indice >= pdfsAlmacenados.length) {
+                Swal.fire('Error', 'No se encontró la evaluación solicitada', 'error');
+                return;
+            }
+            
+            const pdfData = pdfsAlmacenados[indice];
+            
+            if (!pdfData.data || pdfData.error) {
+                Swal.fire('Información', 'El archivo PDF no está disponible para descargar', 'info');
+                return;
+            }
+            
+            try {
+                const base64Data = pdfData.data.split(',')[1];
+                const byteString = atob(base64Data);
+                const mimeString = pdfData.data.split(',')[0].split(':')[1].split(';')[0];
+                
+                const ab = new ArrayBuffer(byteString.length);
+                const ia = new Uint8Array(ab);
+                
+                for (let i = 0; i < byteString.length; i++) {
+                    ia[i] = byteString.charCodeAt(i);
+                }
+                
+                const blob = new Blob([ab], { type: mimeString });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = pdfData.name;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                setTimeout(() => URL.revokeObjectURL(link.href), 100);
+                
+                Swal.fire('Éxito', 'Evaluación descargada correctamente', 'success');
+                
+            } catch (error) {
+                console.error('Error al descargar evaluación:', error);
+                Swal.fire('Error', 'No se pudo descargar la evaluación', 'error');
+            }
+        }
+
+        // Función para compartir una evaluación específica
+        async function compartirConstancia(indice) {
+            const pdfsAlmacenados = JSON.parse(localStorage.getItem('pdfsEvaluacionesDesempeno') || '[]');
+            
+            if (indice >= pdfsAlmacenados.length) {
+                Swal.fire('Error', 'No se encontró la evaluación solicitada', 'error');
+                return;
+            }
+            
+            const pdfData = pdfsAlmacenados[indice];
+            
+            if (!pdfData.data || pdfData.error) {
+                Swal.fire('Información', 'El archivo PDF no está disponible para compartir', 'info');
+                return;
+            }
+            
+            try {
+                const base64Data = pdfData.data.split(',')[1];
+                const byteString = atob(base64Data);
+                const mimeString = pdfData.data.split(',')[0].split(':')[1].split(';')[0];
+                
+                const ab = new ArrayBuffer(byteString.length);
+                const ia = new Uint8Array(ab);
+                
+                for (let i = 0; i < byteString.length; i++) {
+                    ia[i] = byteString.charCodeAt(i);
+                }
+                
+                const blob = new Blob([ab], { type: mimeString });
+                const pdfFile = new File([blob], pdfData.name, { type: 'application/pdf' });
+                
+                if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+                    await navigator.share({
+                        files: [pdfFile],
+                        title: pdfData.name,
+                        text: `Comparto la evaluación de desempeño para ${pdfData.empleado}.`
+                    });
+                    Swal.fire('Éxito', 'Evaluación compartida correctamente', 'success');
+                } else {
+                    // Fallback: descargar
+                    descargarConstancia(indice);
+                }
+                
+            } catch (error) {
+                if (error.name !== 'AbortError') {
+                    console.error('Error al compartir evaluación:', error);
+                    Swal.fire('Error', 'No se pudo compartir la evaluación', 'error');
+                }
+            }
+        }
+
+        // Función para eliminar una evaluación específica
+        function eliminarConstancia(indice) {
+            const pdfsAlmacenados = JSON.parse(localStorage.getItem('pdfsEvaluacionesDesempeno') || '[]');
+            
+            if (indice >= pdfsAlmacenados.length) {
+                Swal.fire('Error', 'No se encontró la evaluación solicitada', 'error');
+                return;
+            }
+            
+            const pdfData = pdfsAlmacenados[indice];
+            
+            Swal.fire({
+                title: '¿Eliminar esta evaluación?',
+                html: `
+                    <div style="text-align: left;">
+                        <p>¿Estás seguro de que quieres eliminar esta evaluación?</p>
+                        <p><strong>Empleado:</strong> ${pdfData.empleado}</p>
+                        <p><strong>Fecha:</strong> ${pdfData.fecha}</p>
+                    </div>
+                `,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    pdfsAlmacenados.splice(indice, 1);
+                    localStorage.setItem('pdfsEvaluacionesDesempeno', JSON.stringify(pdfsAlmacenados));
+                    mostrarBotonesConstanciasPendientes();
+                    Swal.fire('Eliminada', 'La evaluación ha sido eliminada', 'success').then(() => {
+                        // Recargar el diálogo si sigue abierto
+                        if (Swal.isVisible()) {
+                            Swal.close();
+                            setTimeout(() => {
+                                mostrarTodasLasConstancias();
+                            }, 300);
+                        }
+                    });
+                }
+            });
+        }
+    </script>
+</body>
+</html>

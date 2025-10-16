@@ -390,21 +390,33 @@
     }
 
     /* Estilos mejorados para botones principales */
-    .btn-primary {
-        background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
+    .btn-primary, .btn-success {
         border: none;
         font-weight: 600;
         padding: 12px 30px;
-        font-size: 1.1rem;
-        border-radius: 8px;
+        font-size: 1rem;
+        border-radius: 50px;
         min-width: 200px;
         transition: var(--transition);
+        color: white !important;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
     }
 
-    .btn-primary:hover {
-        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-        transform: translateY(-2px);
-        box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    .btn-primary {
+        background: linear-gradient(45deg, var(--secondary-color), #5dade2);
+    }
+
+    .btn-success {
+        background: linear-gradient(45deg, #2ecc71, #58d68d);
+    }
+
+    .btn-primary:hover, .btn-success:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+    }
+
+    #btn-agregar-colaborador, #btn-agregar-ausencia {
+        min-width: 150px;
     }
 
     .cumpleanero-card {
@@ -475,13 +487,31 @@
         .date-range-container .form-group {
             min-width: 100%;
         }
+        .date-range-container .btn {
+            width: 100%;
+        }
         .tab-title h2 {
             font-size: 1.3rem;
             padding: 0 18px;
         }
+        .nav-tabs {
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none; /* Firefox */
+        }
+        .nav-tabs::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, Opera */
+        }
+        .nav-item {
+            flex-shrink: 0;
+        }
     }
 
     @media (max-width: 576px) {
+        h1 {
+            font-size: 1.5rem;
+        }
         .dashboard-grid {
             grid-template-columns: 1fr;
         }
@@ -499,8 +529,8 @@
             font-size: 1.2rem;
             padding: 0 15px;
         }
-        .btn-primary {
-            min-width: 180px;
+        .btn-primary, .btn-success {
+            min-width: 100%;
             padding: 10px 25px;
             font-size: 1rem;
         }
@@ -654,8 +684,6 @@
                                 <p>Edad Promedio</p>
                             </div>
                             
-
-
                             <div class="stat-card" style="background-color: #fff3cd;">
                                 <div class="icon text-warning">
                                     <i class="fas fa-chart-line"></i>
@@ -666,10 +694,10 @@
 
                             <div class="stat-card" style="background-color: #d1ecf1;">
                                 <div class="icon text-info">
-                                    <i class="fas fa-calendar-times"></i>
+                                    <i class="fas fa-calendar-day"></i>
                                 </div>
-                                <h3 id="rotacion-general-dashboard">0</h3>
-                                <p>Ausencias del Mes</p>
+                                <h3 id="ausentismo-mes-dashboard">0%</h3>
+                                <p>% Ausentismo del Mes</p>
                             </div>
                         </div>
                         
@@ -759,10 +787,16 @@
                                             </select>
                                         </div>
                                         <div class="col-md-6 mb-3">
-                                            <label for="foto-colaborador" class="form-label">Foto (opcional)</label>
-                                            <input type="file" class="form-control foto-colaborador" accept="image/*" onchange="mostrarVistaPreviaFoto(this)">
-                                            <div class="form-text">Formatos: JPG, PNG, GIF. Tamaño máx: 5MB</div>
-                                            <div class="vista-previa-container mt-2"></div>
+                                            <div class="row align-items-center">
+                                                <div class="col-md-7">
+                                                    <label for="foto-colaborador" class="form-label">Foto (opcional)</label>
+                                                    <input type="file" class="form-control foto-colaborador" accept="image/*" onchange="mostrarVistaPreviaFoto(this)">
+                                                    <div class="form-text">JPG, PNG. Máx 5MB</div>
+                                                </div>
+                                                <div class="col-md-5">
+                                                    <div class="vista-previa-container mt-2 mt-md-0 text-center"></div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -838,11 +872,30 @@
                         
                         <div class="card mb-4">
                             <div class="card-header">
-                                Motivos de Egreso (General)
+                                Motivos de Egreso
                             </div>
                             <div class="card-body">
-                                <div class="chart-container" style="height: 350px;">
-                                    <canvas id="graficoMotivosRotacion"></canvas>
+                                <div class="d-flex flex-wrap gap-2 mb-3">
+                                    <select id="filtro-mes-egresos" class="form-select" style="width: auto;"></select>
+                                    <select id="filtro-ano-egresos" class="form-select" style="width: auto;"></select>
+                                    <button id="btn-filtrar-egresos" class="btn btn-primary btn-sm">Filtrar</button>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="chart-container" style="height: 350px;">
+                                            <canvas id="graficoEgresosMotivoActual"></canvas>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="chart-container" style="height: 350px;">
+                                            <canvas id="graficoEgresosMotivoHistorico"></canvas>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4" id="contenedorGraficoFiltradoEgresos" style="display: none;">
+                                        <div class="chart-container" style="height: 350px;">
+                                            <canvas id="graficoEgresosMotivoFiltrado"></canvas>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -945,40 +998,42 @@
                     
                     <div class="tab-pane fade" id="ausencias" role="tabpanel" aria-labelledby="ausencias-tab">
                         <div class="tab-title">
-                            <h2>Análisis de Ausencias</h2>
+                            <h2>Historial de Ausencias</h2>
                         </div>
                         
-                        <div class="ausencias-stats">
-                            <div class="stat-card" style="background-color: #e8f4fd;">
-                                <div class="icon text-primary">
-                                    <i class="fas fa-calendar-times"></i>
-                                </div>
-                                <h3 id="porcentaje-ausencias-mes">0%</h3>
-                                <p>Ausentismo del Mes</p>
+                        <div class="rotacion-periodos">
+                            <div class="periodo-card">
+                                <h4>Ausentismo Histórico</h4>
+                                <div class="porcentaje" id="ausentismo-historico">0%</div>
                             </div>
-                            
-                            <div class="stat-card" style="background-color: #fef9e7;">
-                                <div class="icon text-warning">
-                                    <i class="fas fa-exclamation-triangle"></i>
-                                </div>
-                                <h3 id="total-ausencias-mes">0</h3>
-                                <p>Total Días Ausente (Mes)</p>
+                            <div class="periodo-card">
+                                <h4>Ausentismo del Mes</h4>
+                                <div class="porcentaje" id="ausentismo-mes">0%</div>
                             </div>
-
-                            <div class="stat-card" style="background-color: #eaf2f8;">
-                                <div class="icon text-secondary">
-                                    <i class="fas fa-chart-pie"></i>
-                                </div>
-                                <h3 id="porcentaje-ausencias-general">0%</h3>
-                                <p>Ausentismo General (Anual)</p>
+                            <div class="periodo-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                                <h4>Últimos 3 Meses</h4>
+                                <div class="porcentaje" id="ausentismo-3meses">0%</div>
+                            </div>
+                            <div class="periodo-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                                <h4>Últimos 6 Meses</h4>
+                                <div class="porcentaje" id="ausentismo-6meses">0%</div>
+                            </div>
+                            <div class="periodo-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                                <h4>Últimos 12 Meses</h4>
+                                <div class="porcentaje" id="ausentismo-12meses">0%</div>
                             </div>
                         </div>
 
                         <div class="card mb-4">
                             <div class="card-header">
-                                Ausencias por Día (Mes Actual)
+                                Ausencias por Día
                             </div>
                             <div class="card-body">
+                                <div class="d-flex flex-wrap gap-2 mb-3">
+                                    <select id="filtro-mes-grafico" class="form-select" style="width: auto;"></select>
+                                    <select id="filtro-ano-grafico" class="form-select" style="width: auto;"></select>
+                                    <button id="btn-filtrar-grafico" class="btn btn-primary btn-sm">Filtrar</button>
+                                </div>
                                 <div class="chart-container">
                                     <canvas id="graficoAusencias"></canvas>
                                 </div>
@@ -991,14 +1046,19 @@
                             </div>
                             <div class="card-body">
                                 <div class="row">
-                                    <div class="col-md-6">
+                                    <div class="col-md-4">
                                         <div class="chart-container" style="height: 350px;">
-                                            <canvas id="graficoAusenciasMotivo"></canvas>
+                                            <canvas id="graficoAusenciasMotivoActual"></canvas>
                                         </div>
                                     </div>
-                                    <div class="col-md-6">
+                                    <div class="col-md-4">
                                         <div class="chart-container" style="height: 350px;">
-                                            <canvas id="graficoAusenciasMotivoGeneral"></canvas>
+                                            <canvas id="graficoAusenciasMotivoHistorico"></canvas>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4" id="contenedorGraficoFiltradoAusencias" style="display: none;">
+                                        <div class="chart-container" style="height: 350px;">
+                                            <canvas id="graficoAusenciasMotivoFiltrado"></canvas>
                                         </div>
                                     </div>
                                 </div>
@@ -1066,9 +1126,12 @@
         let ausencias = [];
         let nombresActivos = [];
         let graficoAusencias = null;
-        let graficoAusenciasMotivo = null;
-        let graficoAusenciasMotivoGeneral = null;
-        let graficoMotivosRotacion = null;
+        let graficoAusenciasMotivoActual = null;
+        let graficoAusenciasMotivoHistorico = null;
+        let graficoAusenciasMotivoFiltrado = null;
+        let graficoEgresosMotivoActual = null;
+        let graficoEgresosMotivoHistorico = null;
+        let graficoEgresosMotivoFiltrado = null;
 
         // URLs de los scripts de Google Apps Script
         const SCRIPT_URL_OBTENER = "https://script.google.com/macros/s/AKfycbwV6UwcNpiC5FAahk3YPuOS-JSm7Fta5bNW_UoOwvqywTiS-a8LSqAMT32PKM1ydQJs/exec";
@@ -1124,13 +1187,24 @@
                 mostrarColaboradoresActivos();
                 calcularRotacionGeneral();
                 calcularRotacionPeriodos();
-                mostrarEgresos(colaboradoresEgresos); // Mostrar todos los egresos por defecto
+                mostrarEgresos(colaboradoresEgresos);
                 mostrarAusencias();
                 calcularEstadisticasAusencias();
-                crearGraficoAusencias();
-                crearGraficoAusenciasPorMotivo();
-                crearGraficoGeneralAusenciasPorMotivo(); // Nuevo
-                crearGraficoRotacionPorMotivo();
+                
+                // --- Inicialización de Gráficos ---
+                const hoy = new Date();
+                
+                // Gráficos de Ausencias
+                popularFiltrosGrafico('#filtro-mes-grafico', '#filtro-ano-grafico', ausencias, 'fecha');
+                crearGraficoAusencias(hoy.getFullYear(), hoy.getMonth());
+                crearGraficoAusenciasMotivoActual();
+                crearGraficoAusenciasMotivoHistorico();
+
+                // Gráficos de Egresos
+                popularFiltrosGrafico('#filtro-mes-egresos', '#filtro-ano-egresos', colaboradoresEgresos, 'fechaEgreso');
+                crearGraficoEgresosMotivoActual();
+                crearGraficoEgresosMotivoHistorico();
+                
                 mostrarCumpleanerosDelMes();
                 
             }).fail(function(jqXHR, textStatus, errorThrown) {
@@ -1174,6 +1248,36 @@
             $('#buscador-ausencias').on('input', filtrarAusencias);
             
             $('#btn-calcular-rotacion-personalizado').on('click', calcularRotacionPersonalizado);
+
+            // Filtro para gráficos de Ausencias
+            $('#btn-filtrar-grafico').on('click', function() {
+                const ano = parseInt($('#filtro-ano-grafico').val());
+                const mes = parseInt($('#filtro-mes-grafico').val());
+                const hoy = new Date();
+
+                crearGraficoAusencias(ano, mes);
+                
+                if (ano === hoy.getFullYear() && mes === hoy.getMonth()) {
+                    $('#contenedorGraficoFiltradoAusencias').hide();
+                } else {
+                    $('#contenedorGraficoFiltradoAusencias').show();
+                    crearGraficoAusenciasMotivoFiltrado(ano, mes);
+                }
+            });
+
+            // Filtro para gráficos de Egresos
+            $('#btn-filtrar-egresos').on('click', function() {
+                const ano = parseInt($('#filtro-ano-egresos').val());
+                const mes = parseInt($('#filtro-mes-egresos').val());
+                const hoy = new Date();
+                
+                if (ano === hoy.getFullYear() && mes === hoy.getMonth()) {
+                    $('#contenedorGraficoFiltradoEgresos').hide();
+                } else {
+                    $('#contenedorGraficoFiltradoEgresos').show();
+                    crearGraficoEgresosMotivoFiltrado(ano, mes);
+                }
+            });
             
             $(document).on('input', '.colaborador-ausencia', function() {
                 const input = $(this);
@@ -1251,10 +1355,16 @@
                             </select>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Foto (opcional)</label>
-                            <input type="file" class="form-control foto-colaborador" accept="image/*" onchange="mostrarVistaPreviaFoto(this)">
-                            <div class="form-text">Formatos: JPG, PNG, GIF. Tamaño máx: 5MB</div>
-                            <div class="vista-previa-container mt-2"></div>
+                            <div class="row align-items-center">
+                                <div class="col-md-7">
+                                    <label class="form-label">Foto (opcional)</label>
+                                    <input type="file" class="form-control foto-colaborador" accept="image/*" onchange="mostrarVistaPreviaFoto(this)">
+                                    <div class="form-text">JPG, PNG. Máx 5MB</div>
+                                </div>
+                                <div class="col-md-5">
+                                    <div class="vista-previa-container mt-2 mt-md-0 text-center"></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>`;
@@ -1503,9 +1613,6 @@
             const egresosMes = colaboradoresEgresos.filter(e => new Date(e.fechaEgreso) >= inicioMes);
             const rotacionMes = calcularPorcentajeRotacion(egresosMes);
             $('#rotacion-mes-dashboard').text(rotacionMes.porcentaje + '%');
-
-            const ausenciasMes = ausencias.filter(a => new Date(a.fecha).getMonth() === new Date().getMonth()).length;
-            $('#rotacion-general-dashboard').text(ausenciasMes);
 
             // Tabla últimos 5 ingresos
             const ultimosIngresos = [...colaboradoresIngresos].sort((a, b) => new Date(b.fechaInicio) - new Date(a.fechaInicio)).slice(0, 5);
@@ -1828,74 +1935,141 @@
 
         function calcularEstadisticasAusencias() {
             const hoy = new Date();
-            const mesActual = hoy.getMonth();
-            const anoActual = hoy.getFullYear();
 
-            // --- Cálculo Mensual ---
-            let totalDiasAusenciasMes = 0;
-            ausencias.forEach(a => {
-                for (let d = new Date(a.fecha); d <= new Date(a.fechaFin || a.fecha); d.setDate(d.getDate() + 1)) {
-                    if (d.getMonth() === mesActual && d.getFullYear() === anoActual) {
-                         totalDiasAusenciasMes++;
+            const periodos = [
+                { id: 'mes', meses: 0 },
+                { id: '3meses', meses: 3 },
+                { id: '6meses', meses: 6 },
+                { id: '12meses', meses: 12 }
+            ];
+
+            // --- Cálculo por períodos (3, 6, 12 meses y mes actual) ---
+            periodos.forEach(p => {
+                const fechaFinPeriodo = new Date(hoy);
+                let fechaInicioPeriodo;
+
+                if (p.meses === 0) { // Mes actual
+                    fechaInicioPeriodo = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+                } else { // Últimos N meses
+                    fechaInicioPeriodo = new Date(hoy.getFullYear(), hoy.getMonth() - p.meses + 1, 1);
+                }
+                
+                let diasAusentePeriodo = 0;
+                ausencias.forEach(a => {
+                    for (let d = new Date(a.fecha); d <= new Date(a.fechaFin || a.fecha); d.setDate(d.getDate() + 1)) {
+                        if (d >= fechaInicioPeriodo && d <= fechaFinPeriodo) {
+                            diasAusentePeriodo++;
+                        }
                     }
+                });
+
+                // La base de empleados se simplifica usando el total de activos actual
+                const empleadosParaCalculo = colaboradoresActivos.length;
+                const mesesEnPeriodo = (p.meses === 0) ? 1 : p.meses;
+                const diasLaborablesPosibles = empleadosParaCalculo * 22 * mesesEnPeriodo;
+                
+                let porcentaje = '0.00';
+                if(diasLaborablesPosibles > 0) {
+                    porcentaje = ((diasAusentePeriodo / diasLaborablesPosibles) * 100).toFixed(2);
+                }
+                
+                $(`#ausentismo-${p.id}`).text(porcentaje + '%');
+
+                if(p.id === 'mes') {
+                    $('#ausentismo-mes-dashboard').text(porcentaje + '%');
                 }
             });
-            const posiblesDiasLaborablesMes = colaboradoresActivos.length * 22;
-            const porcentajeAusenciasMes = posiblesDiasLaborablesMes > 0 ? (totalDiasAusenciasMes / posiblesDiasLaborablesMes * 100).toFixed(2) : 0;
-            $('#porcentaje-ausencias-mes').text(porcentajeAusenciasMes + '%');
-            $('#total-ausencias-mes').text(totalDiasAusenciasMes);
-            $('#rotacion-general-dashboard').text(totalDiasAusenciasMes);
 
-            // --- Cálculo General (Anual) ---
-            let totalDiasAusenciasAno = 0;
-            const mesesTranscurridos = mesActual + 1;
+
+            // --- Cálculo Histórico ---
+            let totalDiasAusenciasHistorico = 0;
             ausencias.forEach(a => {
-                for (let d = new Date(a.fecha); d <= new Date(a.fechaFin || a.fecha); d.setDate(d.getDate() + 1)) {
-                    if (d.getFullYear() === anoActual) {
-                         totalDiasAusenciasAno++;
-                    }
+                totalDiasAusenciasHistorico += calcularDiasAusencia(a.fecha, a.fechaFin || a.fecha);
+            });
+
+            let totalDiasLaborablesPosiblesHistorico = 0;
+            const todosLosColaboradores = [...colaboradoresIngresos]; 
+
+            todosLosColaboradores.forEach(col => {
+                const fechaInicio = new Date(col.fechaInicio);
+                const egreso = colaboradoresEgresos.find(e => e.identidad === col.identidad);
+                let fechaFin = egreso ? new Date(egreso.fechaEgreso) : new Date(hoy);
+
+                if (fechaFin > hoy) fechaFin = new Date(hoy);
+
+                if (fechaFin >= fechaInicio) {
+                    let mesesDeTrabajo = (fechaFin.getFullYear() - fechaInicio.getFullYear()) * 12;
+                    mesesDeTrabajo -= fechaInicio.getMonth();
+                    mesesDeTrabajo += fechaFin.getMonth();
+                    mesesDeTrabajo = mesesDeTrabajo < 0 ? 0 : mesesDeTrabajo + 1;
+                    totalDiasLaborablesPosiblesHistorico += mesesDeTrabajo * 22;
                 }
             });
-            const posiblesDiasLaborablesAno = colaboradoresActivos.length * 22 * mesesTranscurridos;
-            const porcentajeAusenciasGeneral = posiblesDiasLaborablesAno > 0 ? (totalDiasAusenciasAno / posiblesDiasLaborablesAno * 100).toFixed(2) : 0;
-            $('#porcentaje-ausencias-general').text(porcentajeAusenciasGeneral + '%');
+
+            const porcentajeHistorico = totalDiasLaborablesPosiblesHistorico > 0 
+                ? ((totalDiasAusenciasHistorico / totalDiasLaborablesPosiblesHistorico) * 100).toFixed(2) 
+                : '0.00';
+            $('#ausentismo-historico').text(porcentajeHistorico + '%');
         }
 
-        function crearGraficoAusencias() {
+        function popularFiltrosGrafico(mesSelector, anoSelector, datos, fechaKey = 'fecha') {
+            const filtroMes = $(mesSelector);
+            const filtroAno = $(anoSelector);
+            filtroMes.empty();
+            filtroAno.empty();
+
+            const meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+            meses.forEach((mes, index) => {
+                filtroMes.append(`<option value="${index}">${mes}</option>`);
+            });
+
+            const anos = [...new Set(datos.map(d => new Date(d[fechaKey]).getFullYear()))];
+            if (!anos.includes(new Date().getFullYear())) {
+                anos.push(new Date().getFullYear());
+            }
+            anos.sort((a,b) => b-a).forEach(ano => {
+                filtroAno.append(`<option value="${ano}">${ano}</option>`);
+            });
+
+            const hoy = new Date();
+            filtroMes.val(hoy.getMonth());
+            filtroAno.val(hoy.getFullYear());
+        }
+
+        function crearGraficoAusencias(ano, mes) {
             if (graficoAusencias) graficoAusencias.destroy();
             const ctx = document.getElementById('graficoAusencias').getContext('2d');
-            const hoy = new Date();
-            const mesActual = hoy.getMonth();
-            const añoActual = hoy.getFullYear();
-            const diasEnMes = new Date(añoActual, mesActual + 1, 0).getDate();
-            const labels = Array.from({ length: diasEnMes }, (_, i) => `${i + 1}/${mesActual + 1}`);
+            
+            const diasEnMes = new Date(ano, mes + 1, 0).getDate();
+            const labels = Array.from({ length: diasEnMes }, (_, i) => `${i + 1}/${mes + 1}`);
             const datosAusentes = Array(diasEnMes).fill(0);
 
             ausencias.forEach(a => {
                 for (let d = new Date(a.fecha); d <= new Date(a.fechaFin || a.fecha); d.setDate(d.getDate() + 1)) {
-                    if (d.getMonth() === mesActual && d.getFullYear() === añoActual) {
+                    if (d.getMonth() === mes && d.getFullYear() === ano) {
                         datosAusentes[d.getDate() - 1]++;
                     }
                 }
             });
-
+            
+            const nombreMes = new Date(ano, mes).toLocaleString('es-ES', { month: 'long' });
             graficoAusencias = new Chart(ctx, {
                 type: 'line',
-                data: { labels, datasets: [{ label: 'Ausentes por día', data: datosAusentes, borderColor: '#e74c3c', backgroundColor: 'rgba(231, 76, 60, 0.1)', fill: true, tension: 0.4 }] },
+                data: { labels, datasets: [{ label: `Ausentes por día en ${nombreMes} ${ano}`, data: datosAusentes, borderColor: '#e74c3c', backgroundColor: 'rgba(231, 76, 60, 0.1)', fill: true, tension: 0.4 }] },
                 options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
             });
         }
         
-        function crearGraficoAusenciasPorMotivo() {
-            if (graficoAusenciasMotivo) graficoAusenciasMotivo.destroy();
+        function crearGraficoAusenciasMotivoActual() {
+            if (graficoAusenciasMotivoActual) graficoAusenciasMotivoActual.destroy();
             
             const hoy = new Date();
             const mesActual = hoy.getMonth();
-            const añoActual = hoy.getFullYear();
+            const anoActual = hoy.getFullYear();
 
             const ausenciasDelMes = ausencias.filter(a => {
                 const fechaAusencia = new Date(a.fecha);
-                return fechaAusencia.getMonth() === mesActual && fechaAusencia.getFullYear() === añoActual;
+                return fechaAusencia.getMonth() === mesActual && fechaAusencia.getFullYear() === anoActual;
             });
 
             const conteo = {};
@@ -1906,8 +2080,8 @@
             const labels = Object.keys(conteo);
             const data = Object.values(conteo);
             
-            const ctx = document.getElementById('graficoAusenciasMotivo').getContext('2d');
-            graficoAusenciasMotivo = new Chart(ctx, {
+            const ctx = document.getElementById('graficoAusenciasMotivoActual').getContext('2d');
+            graficoAusenciasMotivoActual = new Chart(ctx, {
                 type: 'pie',
                 data: {
                     labels: labels,
@@ -1915,8 +2089,6 @@
                         label: 'Número de Ausencias',
                         data: data,
                         backgroundColor: ['#3498db', '#f1c40f', '#e74c3c', '#9b59b6', '#2ecc71'],
-                        borderColor: '#fff',
-                        borderWidth: 2
                     }]
                 },
                 options: {
@@ -1924,14 +2096,14 @@
                     maintainAspectRatio: false,
                     plugins: {
                         legend: { position: 'top' },
-                        title: { display: true, text: 'Distribución Mensual' }
+                        title: { display: true, text: 'Distribución (Mes Actual)' }
                     }
                 }
             });
         }
-        
-        function crearGraficoGeneralAusenciasPorMotivo() {
-            if (graficoAusenciasMotivoGeneral) graficoAusenciasMotivoGeneral.destroy();
+
+        function crearGraficoAusenciasMotivoHistorico() {
+            if (graficoAusenciasMotivoHistorico) graficoAusenciasMotivoHistorico.destroy();
             
             const conteo = {};
             ausencias.forEach(a => {
@@ -1941,8 +2113,8 @@
             const labels = Object.keys(conteo);
             const data = Object.values(conteo);
             
-            const ctx = document.getElementById('graficoAusenciasMotivoGeneral').getContext('2d');
-            graficoAusenciasMotivoGeneral = new Chart(ctx, {
+            const ctx = document.getElementById('graficoAusenciasMotivoHistorico').getContext('2d');
+            graficoAusenciasMotivoHistorico = new Chart(ctx, {
                 type: 'pie',
                 data: {
                     labels: labels,
@@ -1950,8 +2122,6 @@
                         label: 'Número de Ausencias',
                         data: data,
                         backgroundColor: ['#3498db', '#f1c40f', '#e74c3c', '#9b59b6', '#2ecc71'],
-                        borderColor: '#fff',
-                        borderWidth: 2
                     }]
                 },
                 options: {
@@ -1959,39 +2129,39 @@
                     maintainAspectRatio: false,
                     plugins: {
                         legend: { position: 'top' },
-                        title: { display: true, text: 'Distribución General (Histórica)' }
+                        title: { display: true, text: 'Distribución (Histórica)' }
                     }
                 }
             });
         }
         
-        function crearGraficoRotacionPorMotivo() {
-            if (graficoMotivosRotacion) graficoMotivosRotacion.destroy();
-            
+        function crearGraficoAusenciasMotivoFiltrado(ano, mes) {
+            if (graficoAusenciasMotivoFiltrado) graficoAusenciasMotivoFiltrado.destroy();
+
+            const ausenciasFiltradas = ausencias.filter(a => {
+                const fechaAusencia = new Date(a.fecha);
+                return fechaAusencia.getMonth() === mes && fechaAusencia.getFullYear() === ano;
+            });
+
             const conteo = {};
-            colaboradoresEgresos.forEach(e => {
-                conteo[e.razon] = (conteo[e.razon] || 0) + 1;
+            ausenciasFiltradas.forEach(a => {
+                conteo[a.motivo] = (conteo[a.motivo] || 0) + 1;
             });
             
+            const nombreMes = new Date(ano, mes).toLocaleString('es-ES', { month: 'long' });
+
             const labels = Object.keys(conteo);
             const data = Object.values(conteo);
-            
-            const ctx = document.getElementById('graficoMotivosRotacion').getContext('2d');
-            graficoMotivosRotacion = new Chart(ctx, {
+
+            const ctx = document.getElementById('graficoAusenciasMotivoFiltrado').getContext('2d');
+            graficoAusenciasMotivoFiltrado = new Chart(ctx, {
                 type: 'pie',
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: 'Número de Egresos',
+                        label: 'Número de Ausencias',
                         data: data,
-                        backgroundColor: [
-                            'rgba(255, 99, 132, 0.7)',
-                            'rgba(54, 162, 235, 0.7)',
-                            'rgba(255, 206, 86, 0.7)',
-                            'rgba(75, 192, 192, 0.7)'
-                        ],
-                        borderColor: '#fff',
-                        borderWidth: 2
+                        backgroundColor: ['#3498db', '#f1c40f', '#e74c3c', '#9b59b6', '#2ecc71'],
                     }]
                 },
                 options: {
@@ -1999,9 +2169,69 @@
                     maintainAspectRatio: false,
                     plugins: {
                         legend: { position: 'top' },
-                         title: { display: true, text: 'Distribución de Egresos por Motivo' }
+                        title: { display: true, text: `Distribución (${nombreMes} ${ano})` }
                     }
                 }
+            });
+        }
+        
+        function crearGraficoEgresosMotivoActual() {
+            if(graficoEgresosMotivoActual) graficoEgresosMotivoActual.destroy();
+            const hoy = new Date();
+            const mesActual = hoy.getMonth();
+            const anoActual = hoy.getFullYear();
+            const egresosMes = colaboradoresEgresos.filter(e => {
+                const fechaEgreso = new Date(e.fechaEgreso);
+                return fechaEgreso.getMonth() === mesActual && fechaEgreso.getFullYear() === anoActual;
+            });
+            const conteo = {};
+            egresosMes.forEach(e => { conteo[e.razon] = (conteo[e.razon] || 0) + 1; });
+            
+            const ctx = document.getElementById('graficoEgresosMotivoActual').getContext('2d');
+            graficoEgresosMotivoActual = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(conteo),
+                    datasets: [{ data: Object.values(conteo), backgroundColor: ['#2980b9', '#c0392b', '#f39c12', '#8e44ad', '#27ae60'] }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, title: { display: true, text: 'Egresos (Mes Actual)' } } }
+            });
+        }
+
+        function crearGraficoEgresosMotivoHistorico() {
+            if (graficoEgresosMotivoHistorico) graficoEgresosMotivoHistorico.destroy();
+            const conteo = {};
+            colaboradoresEgresos.forEach(e => { conteo[e.razon] = (conteo[e.razon] || 0) + 1; });
+            
+            const ctx = document.getElementById('graficoEgresosMotivoHistorico').getContext('2d');
+            graficoEgresosMotivoHistorico = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(conteo),
+                    datasets: [{ data: Object.values(conteo), backgroundColor: ['#2980b9', '#c0392b', '#f39c12', '#8e44ad', '#27ae60'] }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, title: { display: true, text: 'Egresos (Histórico)' } } }
+            });
+        }
+
+        function crearGraficoEgresosMotivoFiltrado(ano, mes) {
+            if(graficoEgresosMotivoFiltrado) graficoEgresosMotivoFiltrado.destroy();
+            const egresosFiltrados = colaboradoresEgresos.filter(e => {
+                const fechaEgreso = new Date(e.fechaEgreso);
+                return fechaEgreso.getMonth() === mes && fechaEgreso.getFullYear() === ano;
+            });
+            const conteo = {};
+            egresosFiltrados.forEach(e => { conteo[e.razon] = (conteo[e.razon] || 0) + 1; });
+            const nombreMes = new Date(ano, mes).toLocaleString('es-ES', { month: 'long' });
+
+            const ctx = document.getElementById('graficoEgresosMotivoFiltrado').getContext('2d');
+            graficoEgresosMotivoFiltrado = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(conteo),
+                    datasets: [{ data: Object.values(conteo), backgroundColor: ['#2980b9', '#c0392b', '#f39c12', '#8e44ad', '#27ae60'] }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, title: { display: true, text: `Egresos (${nombreMes} ${ano})` } } }
             });
         }
         
@@ -2096,16 +2326,17 @@
         }
 
         function mostrarVistaPreviaFoto(input) {
-            const container = $(input).siblings('.vista-previa-container');
+            const container = $(input).closest('.row').find('.vista-previa-container');
             container.empty();
             if (input.files && input.files[0]) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     container.html(`
-                        <div style="border: 2px dashed #ddd; border-radius: 10px; padding: 10px; display: inline-block;">
-                            <img src="${e.target.result}" style="max-width: 150px; max-height: 150px; border-radius: 5px;">
-                            <p style="margin-top: 5px; font-size: 12px; color: #666;">Vista previa</p>
-                            <button type="button" class="btn btn-sm btn-outline-danger mt-1" onclick="quitarVistaPrevia(this)"><i class="fas fa-times"></i> Quitar</button>
+                        <div style="position: relative; display: inline-block;">
+                            <img src="${e.target.result}" style="max-width: 100px; max-height: 100px; border-radius: 5px; display: block;">
+                            <button type="button" class="btn btn-danger btn-sm" onclick="quitarVistaPrevia(this)" style="position: absolute; top: -5px; right: -5px; width: 25px; height: 25px; border-radius: 50%; padding: 0; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-times"></i>
+                            </button>
                         </div>`);
                 };
                 reader.readAsDataURL(input.files[0]);
@@ -2113,7 +2344,7 @@
         }
         function quitarVistaPrevia(button) {
             const container = $(button).closest('.vista-previa-container');
-            const fileInput = container.siblings('.foto-colaborador');
+            const fileInput = container.closest('.row').find('.foto-colaborador');
             container.empty();
             fileInput.val('');
         }

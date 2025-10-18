@@ -207,6 +207,11 @@
     .table td {
         vertical-align: middle;
     }
+    
+    .table td ul {
+        padding-left: 18px;
+        margin-bottom: 0;
+    }
 
     .btn-action {
         padding: 5px 10px;
@@ -471,6 +476,37 @@
         background-color: var(--secondary-color) !important;
     }
 
+    .resumen-disciplina-item {
+        display: flex;
+        align-items: center;
+        padding: 10px;
+        border-bottom: 1px solid #eee;
+        transition: background-color 0.2s ease;
+    }
+    .resumen-disciplina-item:hover {
+        background-color: #f5f5f5;
+    }
+    .resumen-disciplina-item:last-child {
+        border-bottom: none;
+    }
+    .resumen-disciplina-img {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        margin-right: 15px;
+        object-fit: cover;
+        border: 2px solid #fff;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .resumen-disciplina-info {
+        flex-grow: 1;
+    }
+    .resumen-disciplina-info h6 {
+        margin-bottom: 2px;
+        font-weight: bold;
+    }
+
+
     @media (max-width: 768px) {
         .dashboard-grid {
             grid-template-columns: 1fr 1fr;
@@ -621,6 +657,11 @@
                         <li class="nav-item" role="presentation">
                             <button class="nav-link" id="ausencias-tab" data-bs-toggle="tab" data-bs-target="#ausencias" type="button" role="tab" aria-controls="ausencias" aria-selected="false">
                                 <i class="fas fa-clock me-2"></i>Historial Ausencias
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="disciplina-tab" data-bs-toggle="tab" data-bs-target="#disciplina" type="button" role="tab" aria-controls="disciplina" aria-selected="false">
+                                <i class="fas fa-gavel me-2"></i>Historial de Disciplina
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
@@ -1097,6 +1138,103 @@
                             </div>
                         </div>
                         
+                        <div class="tab-pane fade" id="disciplina" role="tabpanel" aria-labelledby="disciplina-tab">
+                            <div class="tab-title">
+                                <h2>Historial de Disciplina</h2>
+                            </div>
+                            
+                            <div class="rotacion-periodos">
+                                <div class="periodo-card">
+                                    <h4>% Histórico</h4>
+                                    <div class="porcentaje" id="disciplina-historico">0%</div>
+                                </div>
+                                <div class="periodo-card">
+                                    <h4>% del Mes</h4>
+                                    <div class="porcentaje" id="disciplina-mes">0%</div>
+                                </div>
+                                <div class="periodo-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                                    <h4>% Últimos 3 Meses</h4>
+                                    <div class="porcentaje" id="disciplina-3meses">0%</div>
+                                </div>
+                                <div class="periodo-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                                    <h4>% Últimos 6 Meses</h4>
+                                    <div class="porcentaje" id="disciplina-6meses">0%</div>
+                                </div>
+                                <div class="periodo-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                                    <h4>% Últimos 12 Meses</h4>
+                                    <div class="porcentaje" id="disciplina-12meses">0%</div>
+                                </div>
+                            </div>
+                            
+                            <div class="card mb-4">
+                                <div class="card-header">Acciones Disciplinarias por Día</div>
+                                <div class="card-body">
+                                    <div class="d-flex flex-wrap gap-2 mb-3">
+                                        <select id="filtro-mes-disciplina" class="form-select" style="width: auto;"></select>
+                                        <select id="filtro-ano-disciplina" class="form-select" style="width: auto;"></select>
+                                        <button id="btn-filtrar-disciplina-grafico" class="btn btn-primary btn-sm">Filtrar</button>
+                                    </div>
+                                    <div class="chart-container">
+                                        <canvas id="graficoDisciplinaPorDia"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card mb-4">
+                                <div class="card-header">Distribución de Faltas por Motivo</div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="chart-container" style="height: 350px;">
+                                                <canvas id="graficoDisciplinaMotivoActual"></canvas>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="chart-container" style="height: 350px;">
+                                                <canvas id="graficoDisciplinaMotivoHistorico"></canvas>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4" id="contenedorGraficoFiltradoDisciplina" style="display: none;">
+                                            <div class="chart-container" style="height: 350px;">
+                                                <canvas id="graficoDisciplinaMotivoFiltrado"></canvas>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <span>Historial de Acciones Disciplinarias</span>
+                                    <button class="btn btn-primary btn-sm" id="btn-resumen-disciplina">
+                                        <i class="fas fa-users-cog me-2"></i>Ver Resumen por Colaborador
+                                    </button>
+                                </div>
+                                <div class="card-body">
+                                    <div class="search-container">
+                                        <i class="fas fa-search"></i>
+                                        <input type="text" class="form-control" id="buscador-disciplina" placeholder="Buscar por nombre o identidad...">
+                                    </div>
+                                    <div class="table-responsive mt-3">
+                                        <table class="table table-striped table-hover" id="tabla-disciplina">
+                                            <thead>
+                                                <tr>
+                                                    <th>Fecha de la Falta</th>
+                                                    <th>Nombre</th>
+                                                    <th>Identidad</th>
+                                                    <th>Faltas Cometidas</th>
+                                                    <th>Observaciones</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+
                         <div class="tab-pane fade" id="cumpleaneros" role="tabpanel" aria-labelledby="cumpleaneros-tab">
                             <div class="tab-title">
                                 <h2>Cumpleañeros del Mes</h2>
@@ -1127,6 +1265,7 @@
         let colaboradoresIngresos = [];
         let colaboradoresEgresos = [];
         let ausencias = [];
+        let disciplina = [];
         let nombresActivos = [];
         let graficoAusencias = null;
         let graficoAusenciasMotivoActual = null;
@@ -1135,12 +1274,16 @@
         let graficoEgresosMotivoActual = null;
         let graficoEgresosMotivoHistorico = null;
         let graficoEgresosMotivoFiltrado = null;
+        
+        let graficoDisciplinaPorDia = null;
+        let graficoDisciplinaMotivoActual = null;
+        let graficoDisciplinaMotivoHistorico = null;
+        let graficoDisciplinaMotivoFiltrado = null;
 
         // URLs de los scripts de Google Apps Script
         const SCRIPT_URL_OBTENER = "https://script.google.com/macros/s/AKfycbwV6UwcNpiC5FAahk3YPuOS-JSm7Fta5bNW_UoOwvqywTiS-a8LSqAMT32PKM1ydQJs/exec";
         const SCRIPT_URL_ENVIAR = "https://script.google.com/macros/s/AKfycbwP81lGExHp4d9tPRhNNgJ5rlcgXIXj2AsNDNTFcd8Gzdhujy_2UEO0x016YrccFMxU/exec";
 
-        // --- INICIO LÓGICA DE CONTRASEÑA Y SESIÓN ---
         document.addEventListener('DOMContentLoaded', function() {
             checkSession();
         });
@@ -1171,9 +1314,7 @@
                 confirmButtonText: 'Ingresar',
                 allowOutsideClick: false,
                 allowEscapeKey: false,
-                backdrop: `
-                    rgba(43, 62, 80, 0.8)
-                `,
+                backdrop: `rgba(43, 62, 80, 0.8)`,
                 preConfirm: (password) => {
                     if (password !== 'macdel1') {
                         Swal.showValidationMessage('Contraseña incorrecta');
@@ -1189,11 +1330,8 @@
                 }
             });
         }
-        // --- FIN LÓGICA DE CONTRASEÑA Y SESIÓN ---
-
-        // Función de inicialización principal de la aplicación
+        
         function initializeApp() {
-            // Establecer fechas actuales de forma correcta
             const today = new Date();
             const yyyy = today.getFullYear();
             const mm = String(today.getMonth() + 1).padStart(2, '0');
@@ -1203,74 +1341,66 @@
             document.querySelector(".fecha-inicio").value = todayStr;
             document.querySelector(".fecha-ausencia").value = todayStr;
             
-            // Cargar todos los datos desde Google Sheets
             cargarTodosLosDatos();
-            
-            // Configurar eventos
             configurarEventos();
         }
 
-        // Función para cargar todos los datos desde Google Sheets
         function cargarTodosLosDatos() {
-            $('#overlay').css('display', 'flex'); // Usar flex para centrar contenido
+            $('#overlay').css('display', 'flex'); 
             
             $.get(SCRIPT_URL_OBTENER, function(data) {
                 $('#overlay').hide();
-                
                 if (data.error) {
                     Swal.fire('Error', 'No se pudieron cargar los datos: ' + data.mensaje, 'error');
                     return;
                 }
                 
-                colaboradoresActivos = data.activos || [];
-                colaboradoresIngresos = data.ingresos || [];
-                colaboradoresEgresos = data.egresos || [];
-                ausencias = data.ausencias || [];
+                colaboradoresActivos = (data.activos || []).map(corregirFecha);
+                colaboradoresIngresos = (data.ingresos || []).map(corregirFecha);
+                colaboradoresEgresos = (data.egresos || []).map(corregirFecha);
+                ausencias = (data.ausencias || []).map(corregirFecha);
+                disciplina = (data.disciplina || []).map(corregirFecha);
                 
-                // Corregir formato de fechas
-                colaboradoresActivos = colaboradoresActivos.map(corregirFecha);
-                colaboradoresIngresos = colaboradoresIngresos.map(corregirFecha);
-                colaboradoresEgresos = colaboradoresEgresos.map(corregirFecha);
-                ausencias = ausencias.map(corregirFecha);
-                
-                // Extraer nombres de colaboradores activos para autocompletado
                 nombresActivos = colaboradoresActivos.map(col => col.nombre);
                 
-                // Actualizar la interfaz
                 actualizarDashboard();
                 mostrarColaboradoresActivos();
                 calcularRotacionGeneral();
                 calcularRotacionPeriodos();
                 mostrarEgresos(colaboradoresEgresos);
-                mostrarAusencias();
-                calcularEstadisticasAusencias();
                 
-                // --- Inicialización de Gráficos ---
                 const hoy = new Date();
                 
-                // Gráficos de Ausencias
+                // Pestaña Ausencias
+                mostrarAusencias();
+                calcularEstadisticasAusencias();
                 popularFiltrosGrafico('#filtro-mes-grafico', '#filtro-ano-grafico', ausencias, 'fecha');
                 crearGraficoAusencias(hoy.getFullYear(), hoy.getMonth());
                 crearGraficoAusenciasMotivoActual();
                 crearGraficoAusenciasMotivoHistorico();
 
-                // Gráficos de Egresos
+                // Pestaña Disciplina
+                mostrarHistorialDisciplina();
+                calcularEstadisticasDisciplina();
+                popularFiltrosGrafico('#filtro-mes-disciplina', '#filtro-ano-disciplina', disciplina, 'fechaFalta');
+                crearGraficoDisciplinaPorDia(hoy.getFullYear(), hoy.getMonth());
+                crearGraficoDisciplinaMotivoActual();
+                crearGraficoDisciplinaMotivoHistorico();
+                
+                // Otros
                 popularFiltrosGrafico('#filtro-mes-egresos', '#filtro-ano-egresos', colaboradoresEgresos, 'fechaEgreso');
                 crearGraficoEgresosMotivoActual();
                 crearGraficoEgresosMotivoHistorico();
-                
                 mostrarCumpleanerosDelMes();
                 
             }).fail(function(jqXHR, textStatus, errorThrown) {
                 $('#overlay').hide();
                 Swal.fire('Error', 'No se pudo conectar al servidor o hubo un error de red. ' + textStatus + ': ' + errorThrown, 'error');
-                console.error("Error en la solicitud AJAX:", jqXHR, textStatus, errorThrown);
             });
         }
 
-        // Función para corregir formato de fechas
         function corregirFecha(item) {
-            const propiedadesFecha = ['fechaInicio', 'fechaNacimiento', 'fechaEgreso', 'fecha', 'fechaFin'];
+            const propiedadesFecha = ['fechaInicio', 'fechaNacimiento', 'fechaEgreso', 'fecha', 'fechaFin', 'fechaFalta', 'fechaLlamadoAtencion'];
             propiedadesFecha.forEach(prop => {
                 if (item[prop] && typeof item[prop] === 'string' && item[prop].includes('T')) {
                     const fecha = new Date(item[prop]);
@@ -1280,78 +1410,58 @@
             return item;
         }
         
-        // Función para configurar eventos
         function configurarEventos() {
             $('#btn-registrar-colaborador').on('click', registrarColaborador);
             $('#btn-agregar-colaborador').on('click', agregarFormularioColaborador);
-            $(document).on('click', '.btn-quitar-item-colaborador', function() {
-                $(this).closest('.formulario-item').remove();
-            });
-            $(document).on('input', '.identidad', function() {
-                formatearIdentidad(this);
-            });
-
+            $(document).on('click', '.btn-quitar-item-colaborador', function() { $(this).closest('.formulario-item').remove(); });
+            $(document).on('input', '.identidad', function() { formatearIdentidad(this); });
             $('#btn-registrar-ausencia').on('click', registrarAusencia);
             $('#btn-agregar-ausencia').on('click', agregarFormularioAusencia);
-            $(document).on('click', '.btn-quitar-item-ausencia', function() {
-                $(this).closest('.formulario-item').remove();
-            });
+            $(document).on('click', '.btn-quitar-item-ausencia', function() { $(this).closest('.formulario-item').remove(); });
 
             $('#buscador-activos').on('input', filtrarActivos);
             $('#buscador-egresos').on('input', filtrarEgresos);
             $('#buscador-ausencias').on('input', filtrarAusencias);
+            $('#buscador-disciplina').on('input', filtrarDisciplina); 
             
             $('#btn-calcular-rotacion-personalizado').on('click', calcularRotacionPersonalizado);
+            $('#btn-resumen-disciplina').on('click', mostrarResumenDisciplina);
 
-            // Filtro para gráficos de Ausencias
             $('#btn-filtrar-grafico').on('click', function() {
                 const ano = parseInt($('#filtro-ano-grafico').val());
                 const mes = parseInt($('#filtro-mes-grafico').val());
-                const hoy = new Date();
-
                 crearGraficoAusencias(ano, mes);
-                
-                if (ano === hoy.getFullYear() && mes === hoy.getMonth()) {
-                    $('#contenedorGraficoFiltradoAusencias').hide();
-                } else {
-                    $('#contenedorGraficoFiltradoAusencias').show();
+                $('#contenedorGraficoFiltradoAusencias').toggle(ano !== new Date().getFullYear() || mes !== new Date().getMonth());
+                if ($('#contenedorGraficoFiltradoAusencias').is(':visible')) {
                     crearGraficoAusenciasMotivoFiltrado(ano, mes);
                 }
             });
 
-            // Filtro para gráficos de Egresos
+            $('#btn-filtrar-disciplina-grafico').on('click', function() {
+                const ano = parseInt($('#filtro-ano-disciplina').val());
+                const mes = parseInt($('#filtro-mes-disciplina').val());
+                crearGraficoDisciplinaPorDia(ano, mes);
+                $('#contenedorGraficoFiltradoDisciplina').toggle(ano !== new Date().getFullYear() || mes !== new Date().getMonth());
+                if ($('#contenedorGraficoFiltradoDisciplina').is(':visible')) {
+                    crearGraficoDisciplinaMotivoFiltrado(ano, mes);
+                }
+            });
+
             $('#btn-filtrar-egresos').on('click', function() {
                 const ano = parseInt($('#filtro-ano-egresos').val());
                 const mes = parseInt($('#filtro-mes-egresos').val());
-                const hoy = new Date();
-                
-                if (ano === hoy.getFullYear() && mes === hoy.getMonth()) {
-                    $('#contenedorGraficoFiltradoEgresos').hide();
-                } else {
-                    $('#contenedorGraficoFiltradoEgresos').show();
+                $('#contenedorGraficoFiltradoEgresos').toggle(ano !== new Date().getFullYear() || mes !== new Date().getMonth());
+                 if ($('#contenedorGraficoFiltradoEgresos').is(':visible')) {
                     crearGraficoEgresosMotivoFiltrado(ano, mes);
                 }
             });
             
             $(document).on('input', '.colaborador-ausencia', function() {
-                const input = $(this);
-                const valor = input.val().toLowerCase();
-                const autocompleteList = input.next('.autocomplete-list');
-                
-                if (valor.length < 2) {
-                    autocompleteList.hide();
-                    return;
-                }
+                const input = $(this), valor = input.val().toLowerCase(), autocompleteList = input.next('.autocomplete-list');
+                if (valor.length < 2) { autocompleteList.hide(); return; }
                 const sugerencias = nombresActivos.filter(nombre => nombre.toLowerCase().includes(valor));
-                if (sugerencias.length === 0) {
-                    autocompleteList.hide();
-                    return;
-                }
-                autocompleteList.empty();
-                sugerencias.forEach(sugerencia => {
-                    autocompleteList.append(`<div class="autocomplete-item">${sugerencia}</div>`);
-                });
-                autocompleteList.show();
+                autocompleteList.empty().toggle(sugerencias.length > 0);
+                sugerencias.forEach(sug => autocompleteList.append(`<div class="autocomplete-item">${sug}</div>`));
             });
 
             $(document).on('click', '.autocomplete-item', function() {
@@ -1360,15 +1470,9 @@
                 item.closest('.autocomplete-list').hide();
             });
 
-            $(document).on('click', function(e) {
-                if (!$(e.target).closest('.autocomplete-container').length) {
-                    $('.autocomplete-list').hide();
-                }
-            });
+            $(document).on('click', (e) => { if (!$(e.target).closest('.autocomplete-container').length) $('.autocomplete-list').hide(); });
         }
         
-        // --- INICIO Funciones para Colaboradores Múltiples ---
-
         function agregarFormularioColaborador() {
             const today = new Date();
             const yyyy = today.getFullYear();
@@ -1436,11 +1540,11 @@
                 const fechaInicio = item.find('.fecha-inicio').val();
                 const nombre = item.find('.nombre-completo').val();
                 const identidad = item.find('.identidad').val();
-                const fechaNacimiento = item.find('.fecha-nacimiento').val() || ''; // Campo opcional
+                const fechaNacimiento = item.find('.fecha-nacimiento').val() || ''; 
                 const sexo = item.find('.sexo').val();
                 const fotoInput = item.find('.foto-colaborador')[0];
 
-                if (!fechaInicio || !nombre || !identidad || !sexo) { // Se quita fechaNacimiento de la validación
+                if (!fechaInicio || !nombre || !identidad || !sexo) {
                     Swal.fire('Error', `Por favor complete todos los campos obligatorios para el colaborador #${index + 1}.`, 'error');
                     esValido = false;
                     return false;
@@ -1459,9 +1563,7 @@
                 colaboradoresParaRegistrar.push({ fechaInicio, nombre, identidad, fechaNacimiento, sexo, fotoInput });
             });
 
-            if (!esValido || colaboradoresParaRegistrar.length === 0) {
-                return;
-            }
+            if (!esValido || colaboradoresParaRegistrar.length === 0) return;
 
             Swal.fire({
                 title: '¿Está seguro?',
@@ -1503,7 +1605,7 @@
                             $('#overlay').hide();
                             Swal.fire('Error', 'Hubo un problema al registrar: ' + response, 'error');
                         }
-                    }).fail(function() {
+                    }).fail(() => {
                         $('#overlay').hide();
                         Swal.fire('Error', 'Error de conexión al registrar.', 'error');
                     });
@@ -1511,10 +1613,6 @@
             });
         }
         
-        // --- FIN Funciones para Colaboradores Múltiples ---
-
-        // --- INICIO Funciones para Ausencias Múltiples ---
-
         function agregarFormularioAusencia() {
             const today = new Date();
             const yyyy = today.getFullYear();
@@ -1526,14 +1624,8 @@
                 <div class="formulario-item">
                     <button type="button" class="btn btn-danger btn-quitar-item btn-quitar-item-ausencia" title="Quitar registro"><i class="fas fa-times"></i></button>
                     <div class="row">
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Fecha de Ausencia</label>
-                            <input type="date" class="form-control fecha-ausencia" value="${todayStr}" required>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Días de Ausencia</label>
-                            <input type="number" class="form-control dias-incapacidad" value="1" min="1" required>
-                        </div>
+                        <div class="col-md-4 mb-3"><label class="form-label">Fecha de Ausencia</label><input type="date" class="form-control fecha-ausencia" value="${todayStr}" required></div>
+                        <div class="col-md-4 mb-3"><label class="form-label">Días de Ausencia</label><input type="number" class="form-control dias-incapacidad" value="1" min="1" required></div>
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Colaborador</label>
                             <div class="autocomplete-container">
@@ -1546,104 +1638,47 @@
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Motivo</label>
                             <select class="form-select motivo-ausencia" required>
-                                <option value="">Seleccionar...</option>
-                                <option value="Incapacidad">Incapacidad</option>
-                                <option value="Permiso">Permiso</option>
-                                <option value="Falta Injustificada">Falta Injustificada</option>
+                                <option value="">Seleccionar...</option><option value="Incapacidad">Incapacidad</option><option value="Permiso">Permiso</option><option value="Falta Injustificada">Falta Injustificada</option>
                             </select>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Observaciones</label>
-                            <textarea class="form-control observaciones-ausencia" rows="1"></textarea>
-                        </div>
+                        <div class="col-md-6 mb-3"><label class="form-label">Observaciones</label><textarea class="form-control observaciones-ausencia" rows="1"></textarea></div>
                     </div>
                 </div>`;
             $('#contenedor-formularios-ausencia').append(nuevoFormulario);
         }
 
         function registrarAusencia() {
-            let ausenciasParaRegistrar = [];
-            let esValido = true;
-
+            let ausenciasParaRegistrar = [], esValido = true;
             $('#contenedor-formularios-ausencia .formulario-item').each(function(index) {
-                const item = $(this);
-                const fecha = item.find('.fecha-ausencia').val();
-                const diasIncapacidad = parseInt(item.find('.dias-incapacidad').val());
-                const colaborador = item.find('.colaborador-ausencia').val();
-                const motivo = item.find('.motivo-ausencia').val();
-                const observaciones = item.find('.observaciones-ausencia').val();
-
-                if (!fecha || !diasIncapacidad || !colaborador || !motivo) {
-                    Swal.fire('Error', `Por favor complete todos los campos obligatorios para la ausencia #${index + 1}.`, 'error');
-                    esValido = false; return false;
-                }
-                if (!colaboradoresActivos.some(col => col.nombre.toLowerCase() === colaborador.toLowerCase())) {
-                    Swal.fire('Error', `El colaborador '${colaborador}' (ausencia #${index + 1}) no se encuentra en la lista de activos.`, 'error');
-                    esValido = false; return false;
-                }
-                
-                const fechaInicio = new Date(fecha);
-                const fechaFin = new Date(fechaInicio);
+                const item = $(this), fecha = item.find('.fecha-ausencia').val(), diasIncapacidad = parseInt(item.find('.dias-incapacidad').val()), colaborador = item.find('.colaborador-ausencia').val(), motivo = item.find('.motivo-ausencia').val(), observaciones = item.find('.observaciones-ausencia').val();
+                if (!fecha || !diasIncapacidad || !colaborador || !motivo) { Swal.fire('Error', `Complete campos obligatorios para ausencia #${index + 1}.`, 'error'); esValido = false; return false; }
+                if (!colaboradoresActivos.some(col => col.nombre.toLowerCase() === colaborador.toLowerCase())) { Swal.fire('Error', `Colaborador '${colaborador}' (ausencia #${index + 1}) no es activo.`, 'error'); esValido = false; return false; }
+                const fechaInicio = new Date(fecha), fechaFin = new Date(fechaInicio);
                 fechaFin.setDate(fechaFin.getDate() + diasIncapacidad - 1);
-
-                ausenciasParaRegistrar.push({
-                    fecha,
-                    fechaFin: fechaFin.toISOString().split('T')[0],
-                    diasIncapacidad,
-                    colaborador,
-                    motivo,
-                    observaciones
-                });
+                ausenciasParaRegistrar.push({ fecha, fechaFin: fechaFin.toISOString().split('T')[0], diasIncapacidad, colaborador, motivo, observaciones });
             });
-
             if (!esValido || ausenciasParaRegistrar.length === 0) return;
-
-            Swal.fire({
-                title: '¿Está seguro?',
-                html: `Se registrarán <strong>${ausenciasParaRegistrar.length}</strong> ausencias.`,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonText: 'Sí, registrar',
-                cancelButtonText: 'No, cancelar'
-            }).then((result) => {
+            Swal.fire({ title: '¿Está seguro?', html: `Se registrarán <strong>${ausenciasParaRegistrar.length}</strong> ausencias.`, icon: 'question', showCancelButton: true, confirmButtonText: 'Sí, registrar', cancelButtonText: 'No, cancelar' }).then((result) => {
                 if (result.isConfirmed) {
                     $('#overlay').css('display', 'flex');
-                    $.post(SCRIPT_URL_ENVIAR, {
-                        accion: 'registrar_ausencias_masivo',
-                        datos: JSON.stringify(ausenciasParaRegistrar)
-                    }, function(response) {
+                    $.post(SCRIPT_URL_ENVIAR, { accion: 'registrar_ausencias_masivo', datos: JSON.stringify(ausenciasParaRegistrar) }, (response) => {
                         $('#overlay').hide();
-                        if (response === 'Éxito') {
-                            Swal.fire('Éxito', 'Ausencias registradas correctamente.', 'success').then(() => {
-                                $('#contenedor-formularios-ausencia').empty();
-                                agregarFormularioAusencia();
-                                cargarTodosLosDatos();
-                            });
-                        } else {
-                            Swal.fire('Error', 'Hubo un problema al registrar las ausencias: ' + response, 'error');
-                        }
-                    }).fail(function() {
-                        $('#overlay').hide();
-                        Swal.fire('Error', 'Error de conexión al registrar las ausencias.', 'error');
-                    });
+                        if (response === 'Éxito') Swal.fire('Éxito', 'Ausencias registradas.', 'success').then(() => { $('#contenedor-formularios-ausencia').empty(); agregarFormularioAusencia(); cargarTodosLosDatos(); });
+                        else Swal.fire('Error', `Error al registrar ausencias: ${response}`, 'error');
+                    }).fail(() => { $('#overlay').hide(); Swal.fire('Error', 'Error de conexión.', 'error'); });
                 }
             });
         }
         
-        // --- FIN Funciones para Ausencias Múltiples ---
-
         function actualizarDashboard() {
             $('#total-activos').text(colaboradoresActivos.length);
             const hombres = colaboradoresActivos.filter(c => c.sexo === 'Masculino').length;
             $('#total-hombres').text(hombres);
             $('#total-mujeres').text(colaboradoresActivos.length - hombres);
-
-            let sumaEdades = 0;
-            let colaboradoresConEdad = 0;
+            let sumaEdades = 0, colaboradoresConEdad = 0;
             colaboradoresActivos.forEach(col => {
                 if (col.fechaNacimiento) {
-                    const hoy = new Date();
-                    const fechaNac = new Date(col.fechaNacimiento);
+                    const hoy = new Date(), fechaNac = new Date(col.fechaNacimiento);
                     let edad = hoy.getFullYear() - fechaNac.getFullYear();
                     const m = hoy.getMonth() - fechaNac.getMonth();
                     if (m < 0 || (m === 0 && hoy.getDate() < fechaNac.getDate())) edad--;
@@ -1651,51 +1686,20 @@
                     colaboradoresConEdad++;
                 }
             });
-            const edadPromedio = colaboradoresConEdad > 0 ? Math.round(sumaEdades / colaboradoresConEdad) : 0;
-            $('#edad-promedio').text(edadPromedio);
-
+            $('#edad-promedio').text(colaboradoresConEdad > 0 ? Math.round(sumaEdades / colaboradoresConEdad) : 0);
             const hoyStr = new Date().toISOString().split('T')[0];
-            const ausenciasHoy = ausencias.filter(a => {
-                const inicio = a.fecha;
-                const fin = a.fechaFin || a.fecha;
-                return hoyStr >= inicio && hoyStr <= fin;
-            }).length;
+            const ausenciasHoy = ausencias.filter(a => hoyStr >= a.fecha && hoyStr <= (a.fechaFin || a.fecha)).length;
             $('#ausencias-hoy').text(ausenciasHoy);
             $('#presentes-hoy').text(colaboradoresActivos.length - ausenciasHoy);
-
             const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
             const egresosMes = colaboradoresEgresos.filter(e => new Date(e.fechaEgreso) >= inicioMes);
-            const rotacionMes = calcularPorcentajeRotacion(egresosMes);
-            $('#rotacion-mes-dashboard').text(rotacionMes.porcentaje + '%');
-
-            // Tabla últimos 5 ingresos
+            $('#rotacion-mes-dashboard').text(calcularPorcentajeRotacion(egresosMes).porcentaje + '%');
             const ultimosIngresos = [...colaboradoresIngresos].sort((a, b) => new Date(b.fechaInicio) - new Date(a.fechaInicio)).slice(0, 5);
             const tablaUltimosIngresos = $('#tabla-ultimos-ingresos tbody').empty();
-            ultimosIngresos.forEach(ingreso => {
-                tablaUltimosIngresos.append(`
-                    <tr>
-                        <td>${formatearFecha(ingreso.fechaInicio)}</td>
-                        <td>${ingreso.nombre}</td>
-                        <td>${ingreso.identidad}</td>
-                        <td>${formatearFecha(ingreso.fechaNacimiento)}</td>
-                        <td>${ingreso.sexo}</td>
-                    </tr>
-                `);
-            });
-            
-            // Tabla últimos 5 egresos
+            ultimosIngresos.forEach(ing => tablaUltimosIngresos.append(`<tr><td>${formatearFecha(ing.fechaInicio)}</td><td>${ing.nombre}</td><td>${ing.identidad}</td><td>${formatearFecha(ing.fechaNacimiento)}</td><td>${ing.sexo}</td></tr>`));
             const ultimosEgresos = [...colaboradoresEgresos].sort((a, b) => new Date(b.fechaEgreso) - new Date(a.fechaEgreso)).slice(0, 5);
             const tablaUltimosEgresos = $('#tabla-ultimos-egresos tbody').empty();
-            ultimosEgresos.forEach(egreso => {
-                tablaUltimosEgresos.append(`
-                    <tr>
-                        <td>${formatearFecha(egreso.fechaEgreso)}</td>
-                        <td>${egreso.nombre}</td>
-                        <td>${egreso.identidad}</td>
-                        <td>${egreso.razon}</td>
-                    </tr>
-                `);
-            });
+            ultimosEgresos.forEach(eg => tablaUltimosEgresos.append(`<tr><td>${formatearFecha(eg.fechaEgreso)}</td><td>${eg.nombre}</td><td>${eg.identidad}</td><td>${eg.razon}</td></tr>`));
         }
 
         function mostrarColaboradoresActivos() {
@@ -1703,18 +1707,13 @@
             colaboradoresActivos.forEach((col, index) => {
                 tablaActivos.append(`
                     <tr>
-                        <td>${formatearFecha(col.fechaInicio)}</td>
-                        <td>${col.nombre}</td>
-                        <td>${col.identidad}</td>
-                        <td>${formatearFecha(col.fechaNacimiento)}</td>
-                        <td>${col.sexo}</td>
+                        <td>${formatearFecha(col.fechaInicio)}</td><td>${col.nombre}</td><td>${col.identidad}</td><td>${formatearFecha(col.fechaNacimiento)}</td><td>${col.sexo}</td>
                         <td>
                             <button class="btn btn-info btn-sm btn-action btn-photo" data-index="${index}" title="Ver Foto"><i class="fas fa-camera"></i></button>
                             <button class="btn btn-warning btn-sm btn-action btn-edit" data-index="${index}" title="Editar"><i class="fas fa-edit"></i></button>
                             <button class="btn btn-danger btn-sm btn-action btn-delete" data-index="${index}" title="Eliminar"><i class="fas fa-trash"></i></button>
                         </td>
-                    </tr>
-                `);
+                    </tr>`);
             });
             $('.btn-photo').on('click', function() { mostrarFoto(colaboradoresActivos[$(this).data('index')]); });
             $('.btn-edit').on('click', function() { editarColaborador($(this).data('index')); });
@@ -1724,8 +1723,7 @@
         function filtrarActivos() {
             const texto = $('#buscador-activos').val().toLowerCase();
             $('#tabla-activos tbody tr').each(function() {
-                const nombre = $(this).find('td:eq(1)').text().toLowerCase();
-                const identidad = $(this).find('td:eq(2)').text().toLowerCase();
+                const nombre = $(this).find('td:eq(1)').text().toLowerCase(), identidad = $(this).find('td:eq(2)').text().toLowerCase();
                 $(this).toggle(nombre.includes(texto) || identidad.includes(texto));
             });
         }
@@ -1734,120 +1732,58 @@
             const colaborador = colaboradoresActivos[index];
             Swal.fire({
                 title: 'Editar Colaborador',
-                html: `
-                    <form id="form-editar-colaborador">
+                html: `<form id="form-editar-colaborador">
                         <div class="mb-3 text-start"><label class="form-label">Fecha de Inicio</label><input type="date" class="form-control" id="editar-fecha-inicio" value="${colaborador.fechaInicio}" required></div>
-                        <div class="mb-3 text-start"><label class="form-label">Nombre Completo</label><input type="text" class="form-control" id="editar-nombre" value="${colaborador.nombre}" required></div>
+                        <div class="mb-3 text-start"><label class="form-label">Nombre</label><input type="text" class="form-control" id="editar-nombre" value="${colaborador.nombre}" required></div>
                         <div class="mb-3 text-start"><label class="form-label">Identidad</label><input type="text" class="form-control" id="editar-identidad" value="${colaborador.identidad}" pattern="\\d{4}-\\d{4}-\\d{5}" required></div>
-                        <div class="mb-3 text-start"><label class="form-label">Fecha de Nacimiento</label><input type="date" class="form-control" id="editar-fecha-nacimiento" value="${colaborador.fechaNacimiento || ''}"></div>
+                        <div class="mb-3 text-start"><label class="form-label">Nacimiento</label><input type="date" class="form-control" id="editar-fecha-nacimiento" value="${colaborador.fechaNacimiento || ''}"></div>
                         <div class="mb-3 text-start"><label class="form-label">Sexo</label><select class="form-select" id="editar-sexo" required><option value="Masculino" ${colaborador.sexo === 'Masculino' ? 'selected' : ''}>Masculino</option><option value="Femenino" ${colaborador.sexo === 'Femenino' ? 'selected' : ''}>Femenino</option></select></div>
-                        <div class="mb-3 text-start"><label class="form-label">Foto (opcional)</label><input type="file" class="form-control" id="editar-foto" accept="image/*" onchange="mostrarVistaPreviaEdicion(this)"><div class="form-text">Seleccione una nueva foto para actualizar</div>${colaborador.fotoUrl ? `<div class="mt-2"><strong>Foto actual:</strong><br><img src="${colaborador.fotoUrl}" style="max-width: 100px; max-height: 100px; border-radius: 5px; margin-top: 5px;" onerror="this.style.display='none'"></div>` : ''}</div>
+                        <div class="mb-3 text-start"><label class="form-label">Foto</label><input type="file" class="form-control" id="editar-foto" accept="image/*" onchange="mostrarVistaPreviaEdicion(this)">${colaborador.fotoUrl ? `<div class="mt-2"><img src="${colaborador.fotoUrl}" style="max-width: 100px; border-radius: 5px;" onerror="this.style.display='none'"></div>` : ''}</div>
                     </form>`,
-                showCancelButton: true,
-                confirmButtonText: 'Guardar Cambios',
-                cancelButtonText: 'Cancelar',
-                width: '600px',
+                showCancelButton: true, confirmButtonText: 'Guardar', cancelButtonText: 'Cancelar', width: '600px',
                 preConfirm: () => {
-                    const datos = {
-                        fechaInicio: $('#editar-fecha-inicio').val(),
-                        nombre: $('#editar-nombre').val(),
-                        identidad: $('#editar-identidad').val(),
-                        fechaNacimiento: $('#editar-fecha-nacimiento').val() || '',
-                        sexo: $('#editar-sexo').val(),
-                        foto: $('#editar-foto')[0].files[0]
-                    };
-                    if (!datos.fechaInicio || !datos.nombre || !datos.identidad || !datos.sexo) {
-                        Swal.showValidationMessage('Por favor complete todos los campos obligatorios'); return false;
-                    }
-                    if (!/^\d{4}-\d{4}-\d{5}$/.test(datos.identidad)) {
-                        Swal.showValidationMessage('El formato de identidad debe ser 0000-0000-00000'); return false;
-                    }
+                    const datos = { fechaInicio: $('#editar-fecha-inicio').val(), nombre: $('#editar-nombre').val(), identidad: $('#editar-identidad').val(), fechaNacimiento: $('#editar-fecha-nacimiento').val() || '', sexo: $('#editar-sexo').val(), foto: $('#editar-foto')[0].files[0] };
+                    if (!datos.fechaInicio || !datos.nombre || !datos.identidad || !datos.sexo) { Swal.showValidationMessage('Complete campos obligatorios'); return false; }
+                    if (!/^\d{4}-\d{4}-\d{5}$/.test(datos.identidad)) { Swal.showValidationMessage('Formato de identidad incorrecto'); return false; }
                     return datos;
                 }
             }).then((result) => {
                 if (result.isConfirmed) {
                     $('#overlay').css('display', 'flex');
                     const { foto, ...datosNuevos } = result.value;
-                    $.post(SCRIPT_URL_ENVIAR, {
-                        accion: 'editar_colaborador',
-                        colaboradorOriginal: JSON.stringify(colaborador),
-                        datosNuevos: JSON.stringify(datosNuevos)
-                    }, function(response) {
+                    $.post(SCRIPT_URL_ENVIAR, { accion: 'editar_colaborador', colaboradorOriginal: JSON.stringify(colaborador), datosNuevos: JSON.stringify(datosNuevos) }, (response) => {
                         if (response === 'Éxito') {
                             if (foto) {
-                                subirFoto(datosNuevos, foto, true)
-                                    .then(() => {
-                                        $('#overlay').hide();
-                                        Swal.fire('Éxito', 'Colaborador actualizado con nueva foto.', 'success').then(() => cargarTodosLosDatos());
-                                    })
-                                    .catch(error => {
-                                        $('#overlay').hide();
-                                        Swal.fire('Advertencia', 'Colaborador actualizado pero hubo un error al subir la nueva foto: ' + error, 'warning').then(() => cargarTodosLosDatos());
-                                    });
-                            } else {
-                                $('#overlay').hide();
-                                Swal.fire('Éxito', 'Colaborador actualizado correctamente.', 'success').then(() => cargarTodosLosDatos());
-                            }
-                        } else {
-                            $('#overlay').hide();
-                            Swal.fire('Error', 'Hubo un problema al actualizar: ' + response, 'error');
-                        }
-                    }).fail(() => {
-                        $('#overlay').hide();
-                        Swal.fire('Error', 'Error de conexión al actualizar.', 'error');
-                    });
+                                subirFoto(datosNuevos, foto, true).then(() => { $('#overlay').hide(); Swal.fire('Éxito', 'Colaborador actualizado.', 'success').then(cargarTodosLosDatos); }).catch(error => { $('#overlay').hide(); Swal.fire('Advertencia', 'Datos actualizados, pero error al subir foto: ' + error, 'warning').then(cargarTodosLosDatos); });
+                            } else { $('#overlay').hide(); Swal.fire('Éxito', 'Colaborador actualizado.', 'success').then(cargarTodosLosDatos); }
+                        } else { $('#overlay').hide(); Swal.fire('Error', 'Error al actualizar: ' + response, 'error'); }
+                    }).fail(() => { $('#overlay').hide(); Swal.fire('Error', 'Error de conexión.', 'error'); });
                 }
             });
         }
         
         function eliminarColaborador(index) {
             const colaborador = colaboradoresActivos[index];
-            Swal.fire({
-                title: '¿Está seguro?',
-                text: `¿Desea eliminar a ${colaborador.nombre}?`,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonText: 'Sí, eliminar',
-                cancelButtonText: 'No, cancelar'
-            }).then((result) => {
+            Swal.fire({ title: '¿Está seguro?', text: `¿Desea eliminar a ${colaborador.nombre}?`, icon: 'warning', showCancelButton: true, confirmButtonText: 'Sí, eliminar', cancelButtonText: 'No, cancelar' }).then((result) => {
                 if (result.isConfirmed) {
                     Swal.fire({
                         title: 'Fecha y Razón de Egreso',
-                        html: `
-                            <input type="date" class="form-control mb-3" id="fecha-egreso" value="${new Date().toISOString().split('T')[0]}" required>
-                            <select id="razon-egreso" class="form-select">
-                                <option value="" selected disabled>Seleccione un motivo...</option>
-                                <option>Denegación de Período de Prueba</option>
-                                <option>Abandono</option>
-                                <option>Renuncia</option>
-                                <option>Despido</option>
-                            </select>`,
-                        showCancelButton: true,
-                        confirmButtonText: 'Confirmar Egreso',
+                        html: `<input type="date" class="form-control mb-3" id="fecha-egreso" value="${new Date().toISOString().split('T')[0]}" required>
+                            <select id="razon-egreso" class="form-select"><option value="" selected disabled>Seleccione motivo...</option><option>Denegación de Período de Prueba</option><option>Abandono</option><option>Renuncia</option><option>Despido</option></select>`,
+                        showCancelButton: true, confirmButtonText: 'Confirmar Egreso',
                         preConfirm: () => {
-                            const fechaEgreso = $('#fecha-egreso').val();
-                            const razon = $('#razon-egreso').val();
+                            const fechaEgreso = $('#fecha-egreso').val(), razon = $('#razon-egreso').val();
                             if (!fechaEgreso || !razon) { Swal.showValidationMessage('Complete todos los campos'); return false; }
                             return { fechaEgreso, razon };
                         }
                     }).then((egresoResult) => {
                         if (egresoResult.isConfirmed) {
                             $('#overlay').css('display', 'flex');
-                            $.post(SCRIPT_URL_ENVIAR, {
-                                accion: 'eliminar_colaborador',
-                                colaborador: JSON.stringify(colaborador),
-                                ...egresoResult.value
-                            }, function(response) {
+                            $.post(SCRIPT_URL_ENVIAR, { accion: 'eliminar_colaborador', colaborador: JSON.stringify(colaborador), ...egresoResult.value }, (response) => {
                                 $('#overlay').hide();
-                                if (response === 'Éxito') {
-                                    Swal.fire('Éxito', 'Colaborador eliminado.', 'success').then(() => cargarTodosLosDatos());
-                                } else {
-                                    Swal.fire('Error', `Error al eliminar: ${response}`, 'error');
-                                }
-                            }).fail(() => {
-                                $('#overlay').hide();
-                                Swal.fire('Error', 'Error de conexión.', 'error');
-                            });
+                                if (response === 'Éxito') Swal.fire('Éxito', 'Colaborador eliminado.', 'success').then(cargarTodosLosDatos);
+                                else Swal.fire('Error', `Error al eliminar: ${response}`, 'error');
+                            }).fail(() => { $('#overlay').hide(); Swal.fire('Error', 'Error de conexión.', 'error'); });
                         }
                     });
                 }
@@ -1862,13 +1798,7 @@
 
         function calcularRotacionPeriodos() {
             const hoy = new Date();
-            const periodos = [
-                { id: 'mes', meses: 0 },
-                { id: '3meses', meses: 3 },
-                { id: '6meses', meses: 6 },
-                { id: '12meses', meses: 12 }
-            ];
-            periodos.forEach(p => {
+            [{ id: 'mes', meses: 0 }, { id: '3meses', meses: 3 }, { id: '6meses', meses: 6 }, { id: '12meses', meses: 12 }].forEach(p => {
                 const fechaInicio = new Date(hoy.getFullYear(), hoy.getMonth() - p.meses, 1);
                 const egresosPeriodo = colaboradoresEgresos.filter(e => new Date(e.fechaEgreso) >= fechaInicio);
                 const { porcentaje, egresos } = calcularPorcentajeRotacion(egresosPeriodo);
@@ -1878,213 +1808,356 @@
         }
 
         function calcularPorcentajeRotacion(egresosPeriodo) {
-            const totalActivos = colaboradoresActivos.length;
-            const totalEgresosPeriodo = egresosPeriodo.length;
-            let porcentaje = 0;
-            if (totalActivos + totalEgresosPeriodo > 0) {
-                porcentaje = (totalEgresosPeriodo / (totalActivos + totalEgresosPeriodo)) * 100;
-            }
-            return { porcentaje: porcentaje.toFixed(2), egresos: totalEgresosPeriodo };
+            const totalActivos = colaboradoresActivos.length, totalEgresos = egresosPeriodo.length;
+            const porcentaje = (totalActivos + totalEgresos > 0) ? (totalEgresos / (totalActivos + totalEgresos)) * 100 : 0;
+            return { porcentaje: porcentaje.toFixed(2), egresos: totalEgresos };
         }
 
         function calcularRotacionPersonalizado() {
-            const fechaInicio = $('#fecha-inicio-personalizado').val();
-            const fechaFin = $('#fecha-fin-personalizado').val();
-            
+            const inicio = $('#fecha-inicio-personalizado').val(), fin = $('#fecha-fin-personalizado').val();
             let egresosPeriodo = colaboradoresEgresos;
-
-            if (fechaInicio && fechaFin) {
-                 egresosPeriodo = colaboradoresEgresos.filter(e => {
-                    const fechaEgreso = e.fechaEgreso;
-                    return fechaEgreso >= fechaInicio && fechaEgreso <= fechaFin;
-                });
-            } else if (fechaInicio) {
-                 egresosPeriodo = colaboradoresEgresos.filter(e => e.fechaEgreso >= fechaInicio);
-            } else if (fechaFin) {
-                 egresosPeriodo = colaboradoresEgresos.filter(e => e.fechaEgreso <= fechaFin);
-            }
-           
+            if (inicio && fin) egresosPeriodo = egresosPeriodo.filter(e => e.fechaEgreso >= inicio && e.fechaEgreso <= fin);
+            else if (inicio) egresosPeriodo = egresosPeriodo.filter(e => e.fechaEgreso >= inicio);
+            else if (fin) egresosPeriodo = egresosPeriodo.filter(e => e.fechaEgreso <= fin);
             mostrarEgresos(egresosPeriodo);
         }
 
         function mostrarEgresos(egresos) {
             const tablaEgresos = $('#tabla-egresos tbody').empty();
-            if (egresos.length === 0) {
-                tablaEgresos.append('<tr><td colspan="5" class="text-center">No hay egresos que mostrar.</td></tr>');
-                return;
-            }
-            
-            const egresosOrdenados = [...egresos].sort((a, b) => new Date(b.fechaEgreso) - new Date(a.fechaEgreso));
-
-            egresosOrdenados.forEach((e) => {
-                tablaEgresos.append(`
-                    <tr data-identidad="${e.identidad}" data-fechaegreso="${e.fechaEgreso}">
-                        <td>${formatearFecha(e.fechaEgreso)}</td>
-                        <td>${e.nombre}</td>
-                        <td>${e.identidad}</td>
-                        <td>${e.razon}</td>
-                        <td>
-                            ${e.fotoUrl ? `<button class="btn btn-info btn-sm btn-action btn-photo-egreso" title="Ver Foto"><i class="fas fa-camera"></i></button>` : ''}
-                        </td>
-                    </tr>`);
+            if (egresos.length === 0) { tablaEgresos.append('<tr><td colspan="5" class="text-center">No hay egresos que mostrar.</td></tr>'); return; }
+            [...egresos].sort((a, b) => new Date(b.fechaEgreso) - new Date(a.fechaEgreso)).forEach(e => {
+                tablaEgresos.append(`<tr data-identidad="${e.identidad}" data-fechaegreso="${e.fechaEgreso}"><td>${formatearFecha(e.fechaEgreso)}</td><td>${e.nombre}</td><td>${e.identidad}</td><td>${e.razon}</td><td>${e.fotoUrl ? `<button class="btn btn-info btn-sm btn-action btn-photo-egreso" title="Ver Foto"><i class="fas fa-camera"></i></button>` : ''}</td></tr>`);
             });
-
             $('.btn-photo-egreso').off('click').on('click', function() {
-                const row = $(this).closest('tr');
-                const identidad = row.data('identidad');
-                const fechaEgreso = row.data('fechaegreso');
-                const egresoData = colaboradoresEgresos.find(e => e.identidad === identidad && e.fechaEgreso === fechaEgreso);
+                const row = $(this).closest('tr'), id = row.data('identidad'), fecha = row.data('fechaegreso');
+                const egresoData = colaboradoresEgresos.find(e => e.identidad === id && e.fechaEgreso === fecha);
                 if(egresoData) mostrarFoto(egresoData);
             });
         }
 
-
         function filtrarEgresos() {
             const texto = $('#buscador-egresos').val().toLowerCase();
             $('#tabla-egresos tbody tr').each(function() {
-                const nombre = $(this).find('td:eq(1)').text().toLowerCase();
-                const identidad = $(this).find('td:eq(2)').text().toLowerCase();
-                const motivo = $(this).find('td:eq(3)').text().toLowerCase();
-                $(this).toggle(nombre.includes(texto) || identidad.includes(texto) || motivo.includes(texto));
+                const nombre = $(this).find('td:eq(1)').text().toLowerCase(), id = $(this).find('td:eq(2)').text().toLowerCase(), motivo = $(this).find('td:eq(3)').text().toLowerCase();
+                $(this).toggle(nombre.includes(texto) || id.includes(texto) || motivo.includes(texto));
             });
         }
 
         function mostrarAusencias() {
             const tablaAusencias = $('#tabla-ausencias tbody').empty();
-            if (ausencias.length === 0) {
-                tablaAusencias.append('<tr><td colspan="7" class="text-center">No hay ausencias registradas</td></tr>');
-                return;
-            }
+            if (ausencias.length === 0) { tablaAusencias.append('<tr><td colspan="7" class="text-center">No hay ausencias</td></tr>'); return; }
             [...ausencias].reverse().forEach(a => {
-                const dias = calcularDiasAusencia(a.fecha, a.fechaFin || a.fecha);
-                tablaAusencias.append(`
-                    <tr>
-                        <td>${formatearFecha(a.fecha)}</td>
-                        <td>${formatearFecha(a.fechaFin || a.fecha)}</td>
-                        <td>${a.nombre}</td>
-                        <td>${a.identidad}</td>
-                        <td>${a.motivo}</td>
-                        <td>${dias}</td>
-                        <td>${a.observaciones || ''}</td>
-                    </tr>`);
+                tablaAusencias.append(`<tr><td>${formatearFecha(a.fecha)}</td><td>${formatearFecha(a.fechaFin || a.fecha)}</td><td>${a.nombre}</td><td>${a.identidad}</td><td>${a.motivo}</td><td>${calcularDiasAusencia(a.fecha, a.fechaFin || a.fecha)}</td><td>${a.observaciones || ''}</td></tr>`);
             });
         }
 
-        function calcularDiasAusencia(fechaInicio, fechaFin) {
-            const inicio = new Date(fechaInicio);
-            const fin = new Date(fechaFin);
-            return Math.round((fin - inicio) / (1000 * 60 * 60 * 24)) + 1;
-        }
+        function calcularDiasAusencia(inicio, fin) { return Math.round((new Date(fin) - new Date(inicio)) / 864e5) + 1; }
 
         function filtrarAusencias() {
             const texto = $('#buscador-ausencias').val().toLowerCase();
             $('#tabla-ausencias tbody tr').each(function() {
-                const nombre = $(this).find('td:eq(2)').text().toLowerCase();
-                const identidad = $(this).find('td:eq(3)').text().toLowerCase();
-                const motivo = $(this).find('td:eq(4)').text().toLowerCase();
-                const observaciones = $(this).find('td:eq(6)').text().toLowerCase();
-                $(this).toggle(nombre.includes(texto) || identidad.includes(texto) || motivo.includes(texto) || observaciones.includes(texto));
+                const nombre = $(this).find('td:eq(2)').text().toLowerCase(), id = $(this).find('td:eq(3)').text().toLowerCase(), motivo = $(this).find('td:eq(4)').text().toLowerCase(), obs = $(this).find('td:eq(6)').text().toLowerCase();
+                $(this).toggle(nombre.includes(texto) || id.includes(texto) || motivo.includes(texto) || obs.includes(texto));
             });
         }
 
+        // --- INICIO FUNCIONES PARA DISCIPLINA ---
+
+        function mostrarHistorialDisciplina() {
+            const tablaDisciplina = $('#tabla-disciplina tbody').empty();
+            if (disciplina.length === 0) {
+                tablaDisciplina.append('<tr><td colspan="5" class="text-center">No hay registros de disciplina.</td></tr>');
+                return;
+            }
+            const disciplinaOrdenada = [...disciplina].sort((a, b) => new Date(b.fechaFalta) - new Date(a.fechaFalta));
+
+            disciplinaOrdenada.forEach((registro) => {
+                const faltasLista = registro.descripcionFaltas.split('; ').map(falta => `<li>${falta}</li>`).join('');
+                tablaDisciplina.append(`
+                    <tr>
+                        <td>${formatearFecha(registro.fechaFalta)}</td>
+                        <td>${registro.nombre}</td>
+                        <td>${registro.identidad}</td>
+                        <td><ul>${faltasLista}</ul></td>
+                        <td>${registro.observaciones}</td>
+                    </tr>`);
+            });
+        }
+        
+        function mostrarResumenDisciplina() {
+            if (disciplina.length === 0) {
+                Swal.fire('Sin Datos', 'No hay acciones disciplinarias registradas para mostrar un resumen.', 'info');
+                return;
+            }
+
+            const conteo = {};
+            disciplina.forEach(reg => {
+                if (!conteo[reg.identidad]) {
+                    const colaboradorInfo = colaboradoresIngresos.find(c => c.identidad === reg.identidad) || { nombre: reg.nombre, identidad: reg.identidad, fotoUrl: '' };
+                    conteo[reg.identidad] = {
+                        nombre: colaboradorInfo.nombre,
+                        identidad: colaboradorInfo.identidad,
+                        fotoUrl: colaboradorInfo.fotoUrl,
+                        count: 0
+                    };
+                }
+                conteo[reg.identidad].count++;
+            });
+
+            const sorted = Object.values(conteo).sort((a, b) => b.count - a.count);
+            
+            const modalHtml = `
+                <div class="mb-3 px-2">
+                    <input type="text" id="filtro-resumen-disciplina" class="form-control" placeholder="Buscar por nombre o identidad...">
+                </div>
+                <div id="resumen-lista-colaboradores" style="max-height: 400px; overflow-y: auto; text-align: left;">
+                </div>`;
+
+            function renderResumenList(items) {
+                const container = $('#resumen-lista-colaboradores');
+                container.empty();
+                if (items.length === 0) {
+                    container.html('<p class="text-center text-muted mt-3">No se encontraron colaboradores.</p>');
+                    return;
+                }
+                let listHtml = '';
+                items.forEach(item => {
+                    let color;
+                    if (item.count === 1) color = "info";
+                    else if (item.count === 2) color = "warning";
+                    else if (item.count === 3) color = "danger";
+                    else color = "dark";
+                    
+                    const fotoSrc = item.fotoUrl || `https://ui-avatars.com/api/?name=${item.nombre.replace(/\s/g, "+")}&background=random`;
+                    listHtml += `
+                        <div class="resumen-disciplina-item" data-identidad="${item.identidad}" style="cursor: pointer;">
+                            <img src="${fotoSrc}" class="resumen-disciplina-img" onerror="this.src='https://ui-avatars.com/api/?name=${item.nombre.replace(/\s/g, "+")}&background=random'">
+                            <div class="resumen-disciplina-info">
+                                <h6>${item.nombre}</h6>
+                                <span class="badge bg-${color}">${item.count} Acción(es)</span>
+                            </div>
+                        </div>`;
+                });
+                container.html(listHtml);
+            }
+
+            Swal.fire({
+                title: 'Resumen por Colaborador',
+                html: modalHtml,
+                width: '700px',
+                showCloseButton: true,
+                showConfirmButton: false,
+                didOpen: () => {
+                    renderResumenList(sorted);
+                    $('#filtro-resumen-disciplina').on('input', function() {
+                        const query = $(this).val().toLowerCase();
+                        const filtered = sorted.filter(item =>
+                            item.nombre.toLowerCase().includes(query) || item.identidad.toLowerCase().includes(query)
+                        );
+                        renderResumenList(filtered);
+                    });
+
+                    $(document).on('click', '.resumen-disciplina-item', function() {
+                        const identidad = $(this).data('identidad');
+                        mostrarDetalleDisciplinaColaborador(identidad);
+                    });
+                },
+                willClose: () => {
+                    $(document).off('click', '.resumen-disciplina-item');
+                }
+            });
+        }
+
+        function mostrarDetalleDisciplinaColaborador(identidad) {
+            const historial = disciplina.filter(d => d.identidad === identidad).sort((a,b) => new Date(b.fechaFalta) - new Date(a.fechaFalta));
+            const colaborador = colaboradoresIngresos.find(c => c.identidad === identidad) || { nombre: 'N/A', identidad: identidad, fotoUrl: '' };
+
+            let historialHtml = '<div style="max-height: 300px; overflow-y: auto; text-align: left; padding: 10px; background-color: #f8f9fa; border-radius: 5px;">';
+            if (historial.length > 0) {
+                historial.forEach((reg, index) => {
+                    historialHtml += `
+                        <div class="mb-2">
+                            <strong>${formatearFecha(reg.fechaFalta)}:</strong>
+                            <ul class="mb-1 mt-1">
+                                ${reg.descripcionFaltas.split('; ').map(f => `<li>${f}</li>`).join('')}
+                            </ul>
+                            ${reg.observaciones ? `<small class="d-block text-muted"><em>Observación: ${reg.observaciones}</em></small>` : ''}
+                        </div>
+                        ${index < historial.length - 1 ? '<hr class="my-2">' : ''}
+                    `;
+                });
+            } else {
+                historialHtml += '<p class="text-center text-muted">No se encontraron registros.</p>';
+            }
+            historialHtml += '</div>';
+            
+            const fotoSrc = colaborador.fotoUrl || `https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=random`;
+            const detailModalHtml = `
+                <div class="d-flex justify-content-start mb-3">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-volver-resumen">
+                        <i class="fas fa-arrow-left me-1"></i> Volver al Resumen
+                    </button>
+                </div>
+                <div class="text-center mb-3">
+                    <img src="${fotoSrc}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid #dee2e6;" onerror="this.src='https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=random'">
+                    <h5 class="mt-2 mb-0">${colaborador.nombre}</h5>
+                    <span class="badge bg-secondary">${colaborador.identidad}</span>
+                    <p class="mt-2">Total de acciones: <strong>${historial.length}</strong></p>
+                </div>
+                ${historialHtml}
+            `;
+
+            Swal.fire({
+                title: 'Detalle de Faltas',
+                html: detailModalHtml,
+                width: '600px',
+                showCloseButton: true,
+                showConfirmButton: false,
+                didOpen: () => {
+                    document.getElementById('btn-volver-resumen').addEventListener('click', () => {
+                        Swal.close();
+                        mostrarResumenDisciplina();
+                    });
+                }
+            });
+        }
+
+
+        function filtrarDisciplina() {
+            const texto = $('#buscador-disciplina').val().toLowerCase();
+            $('#tabla-disciplina tbody tr').each(function() {
+                const nombre = $(this).find('td:eq(1)').text().toLowerCase(), identidad = $(this).find('td:eq(2)').text().toLowerCase();
+                $(this).toggle(nombre.includes(texto) || identidad.includes(texto));
+            });
+        }
+        
+        function calcularEstadisticasDisciplina() {
+            const totalActivos = colaboradoresActivos.length;
+            if (totalActivos === 0 && disciplina.length === 0) {
+                 $('.rotacion-periodos .porcentaje').text('0%');
+                 return;
+            }
+
+            const hoy = new Date();
+            const periodos = [{ id: 'mes', meses: 0 }, { id: '3meses', meses: 3 }, { id: '6meses', meses: 6 }, { id: '12meses', meses: 12 }];
+            periodos.forEach(p => {
+                const fechaInicio = p.meses === 0 ? new Date(hoy.getFullYear(), hoy.getMonth(), 1) : new Date(hoy.getFullYear(), hoy.getMonth() - p.meses, 1);
+                const accionesPeriodo = disciplina.filter(d => new Date(d.fechaFalta) >= fechaInicio).length;
+                const porcentaje = totalActivos > 0 ? ((accionesPeriodo / totalActivos) * 100).toFixed(2) : '0.00';
+                $(`#disciplina-${p.id}`).text(porcentaje + '%');
+            });
+            
+            const totalAccionesHistorico = disciplina.length;
+            const porcentajeHistorico = totalActivos > 0 ? ((totalAccionesHistorico / totalActivos) * 100).toFixed(2) : '0.00';
+            $('#disciplina-historico').text(porcentajeHistorico + '%');
+        }
+
+        function crearGraficoDisciplinaPorDia(ano, mes) {
+            if (graficoDisciplinaPorDia) graficoDisciplinaPorDia.destroy();
+            const ctx = document.getElementById('graficoDisciplinaPorDia').getContext('2d');
+            const diasEnMes = new Date(ano, mes + 1, 0).getDate();
+            const labels = Array.from({ length: diasEnMes }, (_, i) => `${i + 1}/${mes + 1}`);
+            const datos = Array(diasEnMes).fill(0);
+
+            disciplina.forEach(d => {
+                const fechaFalta = new Date(d.fechaFalta + 'T00:00:00');
+                if (fechaFalta.getMonth() === mes && fechaFalta.getFullYear() === ano) {
+                    datos[fechaFalta.getDate() - 1]++;
+                }
+            });
+            
+            const nombreMes = new Date(ano, mes).toLocaleString('es-ES', { month: 'long' });
+            graficoDisciplinaPorDia = new Chart(ctx, {
+                type: 'line',
+                data: { labels, datasets: [{ label: `Acciones por día en ${nombreMes} ${ano}`, data: datos, borderColor: '#c0392b', backgroundColor: 'rgba(192, 57, 43, 0.1)', fill: true, tension: 0.4 }] },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+            });
+        }
+        
+        function crearGraficoDisciplinaMotivo(canvasId, targetData) {
+             const conteo = {};
+             targetData.forEach(reg => {
+                reg.descripcionFaltas.split('; ').forEach(falta => {
+                    if(falta) conteo[falta] = (conteo[falta] || 0) + 1;
+                });
+             });
+             const labels = Object.keys(conteo);
+             const data = Object.values(conteo);
+             
+             const ctx = document.getElementById(canvasId).getContext('2d');
+             return new Chart(ctx, {
+                type: 'pie',
+                data: { labels, datasets: [{ data, backgroundColor: ['#e74c3c', '#f1c40f', '#3498db', '#9b59b6', '#2ecc71', '#e67e22', '#1abc9c', '#2c3e50', '#7f8c8d'] }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, title: { display: true, text: 'Distribución por Motivo' } } }
+            });
+        }
+
+        function crearGraficoDisciplinaMotivoActual() {
+            if (graficoDisciplinaMotivoActual) graficoDisciplinaMotivoActual.destroy();
+            const hoy = new Date(), mesActual = hoy.getMonth(), anoActual = hoy.getFullYear();
+            const datosMes = disciplina.filter(d => {
+                const fecha = new Date(d.fechaFalta + 'T00:00:00');
+                return fecha.getMonth() === mesActual && fecha.getFullYear() === anoActual;
+            });
+            graficoDisciplinaMotivoActual = crearGraficoDisciplinaMotivo('graficoDisciplinaMotivoActual', datosMes);
+            graficoDisciplinaMotivoActual.options.plugins.title.text = 'Distribución (Mes Actual)';
+            graficoDisciplinaMotivoActual.update();
+        }
+
+        function crearGraficoDisciplinaMotivoHistorico() {
+            if (graficoDisciplinaMotivoHistorico) graficoDisciplinaMotivoHistorico.destroy();
+            graficoDisciplinaMotivoHistorico = crearGraficoDisciplinaMotivo('graficoDisciplinaMotivoHistorico', disciplina);
+            graficoDisciplinaMotivoHistorico.options.plugins.title.text = 'Distribución (Histórica)';
+            graficoDisciplinaMotivoHistorico.update();
+        }
+
+        function crearGraficoDisciplinaMotivoFiltrado(ano, mes) {
+            if (graficoDisciplinaMotivoFiltrado) graficoDisciplinaMotivoFiltrado.destroy();
+            const datosFiltrados = disciplina.filter(d => {
+                const fecha = new Date(d.fechaFalta + 'T00:00:00');
+                return fecha.getMonth() === mes && fecha.getFullYear() === ano;
+            });
+            graficoDisciplinaMotivoFiltrado = crearGraficoDisciplinaMotivo('graficoDisciplinaMotivoFiltrado', datosFiltrados);
+            const nombreMes = new Date(ano, mes).toLocaleString('es-ES', { month: 'long' });
+            graficoDisciplinaMotivoFiltrado.options.plugins.title.text = `Distribución (${nombreMes} ${ano})`;
+            graficoDisciplinaMotivoFiltrado.update();
+        }
+        
         function calcularEstadisticasAusencias() {
             const hoy = new Date();
-
-            const periodos = [
-                { id: 'mes', meses: 0 },
-                { id: '3meses', meses: 3 },
-                { id: '6meses', meses: 6 },
-                { id: '12meses', meses: 12 }
-            ];
-
-            // --- Cálculo por períodos (3, 6, 12 meses y mes actual) ---
+            const periodos = [{ id: 'mes', meses: 0 }, { id: '3meses', meses: 3 }, { id: '6meses', meses: 6 }, { id: '12meses', meses: 12 }];
             periodos.forEach(p => {
-                const fechaFinPeriodo = new Date(hoy);
-                let fechaInicioPeriodo;
-
-                if (p.meses === 0) { // Mes actual
-                    fechaInicioPeriodo = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-                } else { // Últimos N meses
-                    fechaInicioPeriodo = new Date(hoy.getFullYear(), hoy.getMonth() - p.meses + 1, 1);
-                }
-                
+                const fechaFinPeriodo = new Date(hoy), fechaInicioPeriodo = (p.meses === 0) ? new Date(hoy.getFullYear(), hoy.getMonth(), 1) : new Date(hoy.getFullYear(), hoy.getMonth() - p.meses + 1, 1);
                 let diasAusentePeriodo = 0;
-                ausencias.forEach(a => {
-                    for (let d = new Date(a.fecha); d <= new Date(a.fechaFin || a.fecha); d.setDate(d.getDate() + 1)) {
-                        if (d >= fechaInicioPeriodo && d <= fechaFinPeriodo) {
-                            diasAusentePeriodo++;
-                        }
-                    }
-                });
-
-                // La base de empleados se simplifica usando el total de activos actual
-                const empleadosParaCalculo = colaboradoresActivos.length;
-                const mesesEnPeriodo = (p.meses === 0) ? 1 : p.meses;
-                const diasLaborablesPosibles = empleadosParaCalculo * 22 * mesesEnPeriodo;
-                
-                let porcentaje = '0.00';
-                if(diasLaborablesPosibles > 0) {
-                    porcentaje = ((diasAusentePeriodo / diasLaborablesPosibles) * 100).toFixed(2);
-                }
-                
+                ausencias.forEach(a => { for (let d = new Date(a.fecha); d <= new Date(a.fechaFin || a.fecha); d.setDate(d.getDate() + 1)) if (d >= fechaInicioPeriodo && d <= fechaFinPeriodo) diasAusentePeriodo++; });
+                const diasLaborablesPosibles = colaboradoresActivos.length * 22 * (p.meses === 0 ? 1 : p.meses);
+                const porcentaje = diasLaborablesPosibles > 0 ? ((diasAusentePeriodo / diasLaborablesPosibles) * 100).toFixed(2) : '0.00';
                 $(`#ausentismo-${p.id}`).text(porcentaje + '%');
-
-                if(p.id === 'mes') {
-                    $('#ausentismo-mes-dashboard').text(porcentaje + '%');
-                }
+                if(p.id === 'mes') $('#ausentismo-mes-dashboard').text(porcentaje + '%');
             });
-
-
-            // --- Cálculo Histórico ---
             let totalDiasAusenciasHistorico = 0;
-            ausencias.forEach(a => {
-                totalDiasAusenciasHistorico += calcularDiasAusencia(a.fecha, a.fechaFin || a.fecha);
-            });
-
+            ausencias.forEach(a => { totalDiasAusenciasHistorico += calcularDiasAusencia(a.fecha, a.fechaFin || a.fecha); });
             let totalDiasLaborablesPosiblesHistorico = 0;
-            const todosLosColaboradores = [...colaboradoresIngresos]; 
-
-            todosLosColaboradores.forEach(col => {
-                const fechaInicio = new Date(col.fechaInicio);
-                const egreso = colaboradoresEgresos.find(e => e.identidad === col.identidad);
+            [...colaboradoresIngresos].forEach(col => {
+                const fechaInicio = new Date(col.fechaInicio), egreso = colaboradoresEgresos.find(e => e.identidad === col.identidad);
                 let fechaFin = egreso ? new Date(egreso.fechaEgreso) : new Date(hoy);
-
                 if (fechaFin > hoy) fechaFin = new Date(hoy);
-
                 if (fechaFin >= fechaInicio) {
-                    let mesesDeTrabajo = (fechaFin.getFullYear() - fechaInicio.getFullYear()) * 12;
-                    mesesDeTrabajo -= fechaInicio.getMonth();
-                    mesesDeTrabajo += fechaFin.getMonth();
-                    mesesDeTrabajo = mesesDeTrabajo < 0 ? 0 : mesesDeTrabajo + 1;
-                    totalDiasLaborablesPosiblesHistorico += mesesDeTrabajo * 22;
+                    let mesesDeTrabajo = (fechaFin.getFullYear() - fechaInicio.getFullYear()) * 12 - fechaInicio.getMonth() + fechaFin.getMonth();
+                    totalDiasLaborablesPosiblesHistorico += (mesesDeTrabajo < 0 ? 0 : mesesDeTrabajo + 1) * 22;
                 }
             });
-
-            const porcentajeHistorico = totalDiasLaborablesPosiblesHistorico > 0 
-                ? ((totalDiasAusenciasHistorico / totalDiasLaborablesPosiblesHistorico) * 100).toFixed(2) 
-                : '0.00';
-            $('#ausentismo-historico').text(porcentajeHistorico + '%');
+            $('#ausentismo-historico').text(totalDiasLaborablesPosiblesHistorico > 0 ? ((totalDiasAusenciasHistorico / totalDiasLaborablesPosiblesHistorico) * 100).toFixed(2) + '%' : '0.00%');
         }
 
         function popularFiltrosGrafico(mesSelector, anoSelector, datos, fechaKey = 'fecha') {
-            const filtroMes = $(mesSelector);
-            const filtroAno = $(anoSelector);
-            filtroMes.empty();
-            filtroAno.empty();
-
+            const filtroMes = $(mesSelector), filtroAno = $(anoSelector);
+            filtroMes.empty(); filtroAno.empty();
             const meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-            meses.forEach((mes, index) => {
-                filtroMes.append(`<option value="${index}">${mes}</option>`);
-            });
-
-            const anos = [...new Set(datos.map(d => new Date(d[fechaKey]).getFullYear()))];
-            if (!anos.includes(new Date().getFullYear())) {
-                anos.push(new Date().getFullYear());
-            }
-            anos.sort((a,b) => b-a).forEach(ano => {
-                filtroAno.append(`<option value="${ano}">${ano}</option>`);
-            });
-
+            meses.forEach((mes, i) => filtroMes.append(`<option value="${i}">${mes}</option>`));
+            const anos = [...new Set(datos.map(d => d[fechaKey] ? new Date(d[fechaKey]).getFullYear() : null).filter(Boolean))];
+            if (!anos.includes(new Date().getFullYear())) anos.push(new Date().getFullYear());
+            anos.sort((a,b) => b-a).forEach(ano => filtroAno.append(`<option value="${ano}">${ano}</option>`));
             const hoy = new Date();
             filtroMes.val(hoy.getMonth());
             filtroAno.val(hoy.getFullYear());
@@ -2092,256 +2165,92 @@
 
         function crearGraficoAusencias(ano, mes) {
             if (graficoAusencias) graficoAusencias.destroy();
-            const ctx = document.getElementById('graficoAusencias').getContext('2d');
-            
-            const diasEnMes = new Date(ano, mes + 1, 0).getDate();
-            const labels = Array.from({ length: diasEnMes }, (_, i) => `${i + 1}/${mes + 1}`);
-            const datosAusentes = Array(diasEnMes).fill(0);
-
-            ausencias.forEach(a => {
-                for (let d = new Date(a.fecha); d <= new Date(a.fechaFin || a.fecha); d.setDate(d.getDate() + 1)) {
-                    if (d.getMonth() === mes && d.getFullYear() === ano) {
-                        datosAusentes[d.getDate() - 1]++;
-                    }
-                }
-            });
-            
+            const ctx = document.getElementById('graficoAusencias').getContext('2d'), diasEnMes = new Date(ano, mes + 1, 0).getDate();
+            const labels = Array.from({ length: diasEnMes }, (_, i) => `${i + 1}/${mes + 1}`), datosAusentes = Array(diasEnMes).fill(0);
+            ausencias.forEach(a => { for (let d = new Date(a.fecha); d <= new Date(a.fechaFin || a.fecha); d.setDate(d.getDate() + 1)) if (d.getMonth() === mes && d.getFullYear() === ano) datosAusentes[d.getDate() - 1]++; });
             const nombreMes = new Date(ano, mes).toLocaleString('es-ES', { month: 'long' });
-            graficoAusencias = new Chart(ctx, {
-                type: 'line',
-                data: { labels, datasets: [{ label: `Ausentes por día en ${nombreMes} ${ano}`, data: datosAusentes, borderColor: '#e74c3c', backgroundColor: 'rgba(231, 76, 60, 0.1)', fill: true, tension: 0.4 }] },
-                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
-            });
+            graficoAusencias = new Chart(ctx, { type: 'line', data: { labels, datasets: [{ label: `Ausentes por día en ${nombreMes} ${ano}`, data: datosAusentes, borderColor: '#e74c3c', backgroundColor: 'rgba(231, 76, 60, 0.1)', fill: true, tension: 0.4 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } } });
         }
         
+        function crearGraficoAusenciasMotivo(canvasId, targetData) {
+            const conteo = {};
+            targetData.forEach(a => { conteo[a.motivo] = (conteo[a.motivo] || 0) + 1; });
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            return new Chart(ctx, { type: 'pie', data: { labels: Object.keys(conteo), datasets: [{ data: Object.values(conteo), backgroundColor: ['#3498db', '#f1c40f', '#e74c3c', '#9b59b6', '#2ecc71'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, title: { display: true, text: 'Distribución' } } } });
+        }
+
         function crearGraficoAusenciasMotivoActual() {
             if (graficoAusenciasMotivoActual) graficoAusenciasMotivoActual.destroy();
-            
-            const hoy = new Date();
-            const mesActual = hoy.getMonth();
-            const anoActual = hoy.getFullYear();
-
-            const ausenciasDelMes = ausencias.filter(a => {
-                const fechaAusencia = new Date(a.fecha);
-                return fechaAusencia.getMonth() === mesActual && fechaAusencia.getFullYear() === anoActual;
-            });
-
-            const conteo = {};
-            ausenciasDelMes.forEach(a => {
-                conteo[a.motivo] = (conteo[a.motivo] || 0) + 1;
-            });
-
-            const labels = Object.keys(conteo);
-            const data = Object.values(conteo);
-            
-            const ctx = document.getElementById('graficoAusenciasMotivoActual').getContext('2d');
-            graficoAusenciasMotivoActual = new Chart(ctx, {
-                type: 'pie',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Número de Ausencias',
-                        data: data,
-                        backgroundColor: ['#3498db', '#f1c40f', '#e74c3c', '#9b59b6', '#2ecc71'],
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'top' },
-                        title: { display: true, text: 'Distribución (Mes Actual)' }
-                    }
-                }
-            });
+            const hoy = new Date(), mesActual = hoy.getMonth(), anoActual = hoy.getFullYear();
+            const datosMes = ausencias.filter(a => { const fecha = new Date(a.fecha); return fecha.getMonth() === mesActual && fecha.getFullYear() === anoActual; });
+            graficoAusenciasMotivoActual = crearGraficoAusenciasMotivo('graficoAusenciasMotivoActual', datosMes);
+            graficoAusenciasMotivoActual.options.plugins.title.text = 'Distribución (Mes Actual)';
+            graficoAusenciasMotivoActual.update();
         }
 
         function crearGraficoAusenciasMotivoHistorico() {
             if (graficoAusenciasMotivoHistorico) graficoAusenciasMotivoHistorico.destroy();
-            
-            const conteo = {};
-            ausencias.forEach(a => {
-                conteo[a.motivo] = (conteo[a.motivo] || 0) + 1;
-            });
-
-            const labels = Object.keys(conteo);
-            const data = Object.values(conteo);
-            
-            const ctx = document.getElementById('graficoAusenciasMotivoHistorico').getContext('2d');
-            graficoAusenciasMotivoHistorico = new Chart(ctx, {
-                type: 'pie',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Número de Ausencias',
-                        data: data,
-                        backgroundColor: ['#3498db', '#f1c40f', '#e74c3c', '#9b59b6', '#2ecc71'],
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'top' },
-                        title: { display: true, text: 'Distribución (Histórica)' }
-                    }
-                }
-            });
+            graficoAusenciasMotivoHistorico = crearGraficoAusenciasMotivo('graficoAusenciasMotivoHistorico', ausencias);
+            graficoAusenciasMotivoHistorico.options.plugins.title.text = 'Distribución (Histórica)';
+            graficoAusenciasMotivoHistorico.update();
         }
         
         function crearGraficoAusenciasMotivoFiltrado(ano, mes) {
             if (graficoAusenciasMotivoFiltrado) graficoAusenciasMotivoFiltrado.destroy();
-
-            const ausenciasFiltradas = ausencias.filter(a => {
-                const fechaAusencia = new Date(a.fecha);
-                return fechaAusencia.getMonth() === mes && fechaAusencia.getFullYear() === ano;
-            });
-
-            const conteo = {};
-            ausenciasFiltradas.forEach(a => {
-                conteo[a.motivo] = (conteo[a.motivo] || 0) + 1;
-            });
-            
-            const nombreMes = new Date(ano, mes).toLocaleString('es-ES', { month: 'long' });
-
-            const labels = Object.keys(conteo);
-            const data = Object.values(conteo);
-
-            const ctx = document.getElementById('graficoAusenciasMotivoFiltrado').getContext('2d');
-            graficoAusenciasMotivoFiltrado = new Chart(ctx, {
-                type: 'pie',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Número de Ausencias',
-                        data: data,
-                        backgroundColor: ['#3498db', '#f1c40f', '#e74c3c', '#9b59b6', '#2ecc71'],
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'top' },
-                        title: { display: true, text: `Distribución (${nombreMes} ${ano})` }
-                    }
-                }
-            });
+            const datosFiltrados = ausencias.filter(a => { const fecha = new Date(a.fecha); return fecha.getMonth() === mes && fecha.getFullYear() === ano; });
+            graficoAusenciasMotivoFiltrado = crearGraficoAusenciasMotivo('graficoAusenciasMotivoFiltrado', datosFiltrados);
+            graficoAusenciasMotivoFiltrado.options.plugins.title.text = `Distribución (${new Date(ano, mes).toLocaleString('es-ES', { month: 'long' })} ${ano})`;
+            graficoAusenciasMotivoFiltrado.update();
         }
         
         function crearGraficoEgresosMotivoActual() {
             if(graficoEgresosMotivoActual) graficoEgresosMotivoActual.destroy();
-            const hoy = new Date();
-            const mesActual = hoy.getMonth();
-            const anoActual = hoy.getFullYear();
-            const egresosMes = colaboradoresEgresos.filter(e => {
-                const fechaEgreso = new Date(e.fechaEgreso);
-                return fechaEgreso.getMonth() === mesActual && fechaEgreso.getFullYear() === anoActual;
-            });
-            const conteo = {};
-            egresosMes.forEach(e => { conteo[e.razon] = (conteo[e.razon] || 0) + 1; });
-            
+            const hoy = new Date(), mesActual = hoy.getMonth(), anoActual = hoy.getFullYear();
+            const egresosMes = colaboradoresEgresos.filter(e => { const fecha = new Date(e.fechaEgreso); return fecha.getMonth() === mesActual && fecha.getFullYear() === anoActual; });
+            const conteo = {}; egresosMes.forEach(e => { conteo[e.razon] = (conteo[e.razon] || 0) + 1; });
             const ctx = document.getElementById('graficoEgresosMotivoActual').getContext('2d');
-            graficoEgresosMotivoActual = new Chart(ctx, {
-                type: 'pie',
-                data: {
-                    labels: Object.keys(conteo),
-                    datasets: [{ data: Object.values(conteo), backgroundColor: ['#2980b9', '#c0392b', '#f39c12', '#8e44ad', '#27ae60'] }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, title: { display: true, text: 'Egresos (Mes Actual)' } } }
-            });
+            graficoEgresosMotivoActual = new Chart(ctx, { type: 'pie', data: { labels: Object.keys(conteo), datasets: [{ data: Object.values(conteo), backgroundColor: ['#2980b9', '#c0392b', '#f39c12', '#8e44ad', '#27ae60'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, title: { display: true, text: 'Egresos (Mes Actual)' } } } });
         }
 
         function crearGraficoEgresosMotivoHistorico() {
             if (graficoEgresosMotivoHistorico) graficoEgresosMotivoHistorico.destroy();
-            const conteo = {};
-            colaboradoresEgresos.forEach(e => { conteo[e.razon] = (conteo[e.razon] || 0) + 1; });
-            
+            const conteo = {}; colaboradoresEgresos.forEach(e => { conteo[e.razon] = (conteo[e.razon] || 0) + 1; });
             const ctx = document.getElementById('graficoEgresosMotivoHistorico').getContext('2d');
-            graficoEgresosMotivoHistorico = new Chart(ctx, {
-                type: 'pie',
-                data: {
-                    labels: Object.keys(conteo),
-                    datasets: [{ data: Object.values(conteo), backgroundColor: ['#2980b9', '#c0392b', '#f39c12', '#8e44ad', '#27ae60'] }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, title: { display: true, text: 'Egresos (Histórico)' } } }
-            });
+            graficoEgresosMotivoHistorico = new Chart(ctx, { type: 'pie', data: { labels: Object.keys(conteo), datasets: [{ data: Object.values(conteo), backgroundColor: ['#2980b9', '#c0392b', '#f39c12', '#8e44ad', '#27ae60'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, title: { display: true, text: 'Egresos (Histórico)' } } } });
         }
 
         function crearGraficoEgresosMotivoFiltrado(ano, mes) {
             if(graficoEgresosMotivoFiltrado) graficoEgresosMotivoFiltrado.destroy();
-            const egresosFiltrados = colaboradoresEgresos.filter(e => {
-                const fechaEgreso = new Date(e.fechaEgreso);
-                return fechaEgreso.getMonth() === mes && fechaEgreso.getFullYear() === ano;
-            });
-            const conteo = {};
-            egresosFiltrados.forEach(e => { conteo[e.razon] = (conteo[e.razon] || 0) + 1; });
-            const nombreMes = new Date(ano, mes).toLocaleString('es-ES', { month: 'long' });
-
+            const egresosFiltrados = colaboradoresEgresos.filter(e => { const fecha = new Date(e.fechaEgreso); return fecha.getMonth() === mes && fecha.getFullYear() === ano; });
+            const conteo = {}; egresosFiltrados.forEach(e => { conteo[e.razon] = (conteo[e.razon] || 0) + 1; });
             const ctx = document.getElementById('graficoEgresosMotivoFiltrado').getContext('2d');
-            graficoEgresosMotivoFiltrado = new Chart(ctx, {
-                type: 'pie',
-                data: {
-                    labels: Object.keys(conteo),
-                    datasets: [{ data: Object.values(conteo), backgroundColor: ['#2980b9', '#c0392b', '#f39c12', '#8e44ad', '#27ae60'] }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, title: { display: true, text: `Egresos (${nombreMes} ${ano})` } } }
-            });
+            graficoEgresosMotivoFiltrado = new Chart(ctx, { type: 'pie', data: { labels: Object.keys(conteo), datasets: [{ data: Object.values(conteo), backgroundColor: ['#2980b9', '#c0392b', '#f39c12', '#8e44ad', '#27ae60'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, title: { display: true, text: `Egresos (${new Date(ano, mes).toLocaleString('es-ES', { month: 'long' })} ${ano})` } } } });
         }
         
         function mostrarCumpleanerosDelMes() {
             const mesActual = new Date().getMonth();
-            const cumpleaneros = colaboradoresActivos.filter(col => {
-                if (!col.fechaNacimiento) return false;
-                const fechaNac = new Date(col.fechaNacimiento + 'T00:00:00');
-                return fechaNac.getMonth() === mesActual;
-            });
-            
-            cumpleaneros.sort((a, b) => {
-                const diaA = new Date(a.fechaNacimiento + 'T00:00:00').getDate();
-                const diaB = new Date(b.fechaNacimiento + 'T00:00:00').getDate();
-                return diaA - diaB;
-            });
-
+            const cumpleaneros = colaboradoresActivos.filter(col => col.fechaNacimiento && new Date(col.fechaNacimiento + 'T00:00:00').getMonth() === mesActual)
+                .sort((a, b) => new Date(a.fechaNacimiento + 'T00:00:00').getDate() - new Date(b.fechaNacimiento + 'T00:00:00').getDate());
             const contenedor = $('#contenedor-cumpleaneros').empty();
             if (cumpleaneros.length > 0) {
                  cumpleaneros.forEach(col => {
                     const dia = new Date(col.fechaNacimiento + 'T00:00:00').getDate();
-                    const fotoHtml = col.fotoUrl 
-                        ? `<img src="${col.fotoUrl}" class="cumpleanero-img" alt="${col.nombre}">` 
-                        : `<i class="fas fa-user-circle cumpleanero-img-icon"></i>`;
-
-                    const tarjetaHtml = `
-                        <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
-                            <div class="cumpleanero-card">
-                                <div class="cumpleanero-img-container">
-                                    ${fotoHtml}
-                                </div>
-                                <div class="cumpleanero-info">
-                                    <h5>${col.nombre}</h5>
-                                    <p><span class="badge">${dia} de ${new Date(2000, mesActual).toLocaleString('es-ES', { month: 'long' })}</span></p>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                    contenedor.append(tarjetaHtml);
+                    const fotoHtml = col.fotoUrl ? `<img src="${col.fotoUrl}" class="cumpleanero-img" alt="${col.nombre}">` : `<i class="fas fa-user-circle cumpleanero-img-icon"></i>`;
+                    contenedor.append(`<div class="col-lg-3 col-md-4 col-sm-6 mb-4"><div class="cumpleanero-card"><div class="cumpleanero-img-container">${fotoHtml}</div><div class="cumpleanero-info"><h5>${col.nombre}</h5><p><span class="badge">${dia} de ${new Date(2000, mesActual).toLocaleString('es-ES', { month: 'long' })}</span></p></div></div></div>`);
                  });
-            } else {
-                contenedor.append('<div class="col-12"><p class="text-center text-muted">No hay cumpleaños este mes.</p></div>');
-            }
+            } else { contenedor.append('<div class="col-12"><p class="text-center text-muted">No hay cumpleaños este mes.</p></div>'); }
         }
 
         function formatearFecha(fechaStr) {
             if (!fechaStr) return '';
             const fecha = new Date(fechaStr + 'T00:00:00');
-            if (isNaN(fecha.getTime())) return fechaStr;
-            return `${String(fecha.getUTCDate()).padStart(2, '0')}/${String(fecha.getUTCMonth() + 1).padStart(2, '0')}/${fecha.getUTCFullYear()}`;
+            return isNaN(fecha.getTime()) ? fechaStr : `${String(fecha.getUTCDate()).padStart(2, '0')}/${String(fecha.getUTCMonth() + 1).padStart(2, '0')}/${fecha.getUTCFullYear()}`;
         }
 
         function formatearIdentidad(input) {
             let valor = input.value.replace(/\D/g, '').substring(0, 13);
-            if (valor.length > 8) valor = valor.substring(0, 8) + '-' + valor.substring(8);
-            if (valor.length > 4) valor = valor.substring(0, 4) + '-' + valor.substring(4);
+            if (valor.length > 8) valor = `${valor.substring(0, 8)}-${valor.substring(8)}`;
+            if (valor.length > 4) valor = `${valor.substring(0, 4)}-${valor.substring(4)}`;
             input.value = valor;
         }
         
@@ -2349,101 +2258,48 @@
             return new Promise((resolve, reject) => {
                 if (!archivo) resolve(null);
                 if (archivo.size > 5 * 1024 * 1024) reject('El archivo es demasiado grande (máx 5MB).');
-                
                 const reader = new FileReader();
-                reader.onload = e => {
-                    $.post(SCRIPT_URL_ENVIAR, {
-                        accion: 'subir_foto',
-                        colaborador: JSON.stringify(colaborador),
-                        archivo: e.target.result.split(',')[1],
-                        esEdicion: esEdicion
-                    }, response => (response === 'Éxito') ? resolve('Éxito') : reject('Error en script: ' + response))
-                    .fail((jqXHR, text) => reject('Error de conexión: ' + text));
-                };
-                reader.onerror = () => reject('Error al leer el archivo');
+                reader.onload = e => { $.post(SCRIPT_URL_ENVIAR, { accion: 'subir_foto', colaborador: JSON.stringify(colaborador), archivo: e.target.result.split(',')[1], esEdicion }, r => (r === 'Éxito') ? resolve('Éxito') : reject('Error: ' + r)).fail((j, t) => reject('Error: ' + t)); };
+                reader.onerror = () => reject('Error al leer archivo');
                 reader.readAsDataURL(archivo);
             });
         }
         
         function mostrarFoto(colaborador) {
-            let content = `<div class="text-center"><i class="fas fa-user-circle" style="font-size: 120px; color: #ccc;"></i><p class="mt-3">No hay foto disponible</p></div>`;
-            if (colaborador.fotoUrl) {
-                content = `<img src="${colaborador.fotoUrl}" style="width: 200px; height: 200px; border-radius: 50%; object-fit: cover; border: 4px solid #fff; box-shadow: 0 4px 8px rgba(0,0,0,0.1);" onerror="this.alt='Error al cargar la foto'; this.parentElement.innerHTML = '<div class=\'text-center\'><i class=\'fas fa-user-circle\' style=\'font-size: 120px; color: #ccc;\'></i><p class=\'mt-3\'>No se pudo cargar la foto.</p></div>';">`;
-            }
-            Swal.fire({
-                title: colaborador.nombre,
-                html: `<div class="text-center">${content}<p class="mt-3"><strong>Identidad:</strong> ${colaborador.identidad}</p></div>`,
-                confirmButtonText: 'Cerrar',
-                width: 'auto',
-                background: '#f9f9f9'
-            });
+            const content = colaborador.fotoUrl ? `<img src="${colaborador.fotoUrl}" style="width: 200px; height: 200px; border-radius: 50%; object-fit: cover;" onerror="this.parentElement.innerHTML = '<div class=\\'text-center\\'><i class=\\'fas fa-user-circle\\' style=\\'font-size: 120px;\\'></i><p>Error al cargar.</p></div>';">` : `<i class="fas fa-user-circle" style="font-size: 120px;"></i><p>No hay foto.</p>`;
+            Swal.fire({ title: colaborador.nombre, html: `<div class="text-center">${content}<p class="mt-3"><strong>ID:</strong> ${colaborador.identidad}</p></div>`, confirmButtonText: 'Cerrar', width: 'auto' });
         }
 
         function mostrarVistaPreviaFoto(input) {
-            const container = $(input).closest('.row').find('.vista-previa-container');
-            container.empty();
+            const container = $(input).closest('.row').find('.vista-previa-container').empty();
             if (input.files && input.files[0]) {
                 const reader = new FileReader();
-                reader.onload = function(e) {
-                    container.html(`
-                        <div style="position: relative; display: inline-block;">
-                            <img src="${e.target.result}" style="max-width: 100px; max-height: 100px; border-radius: 5px; display: block;">
-                            <button type="button" class="btn btn-danger btn-sm" onclick="quitarVistaPrevia(this)" style="position: absolute; top: -5px; right: -5px; width: 25px; height: 25px; border-radius: 50%; padding: 0; display: flex; align-items: center; justify-content: center;">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>`);
-                };
+                reader.onload = e => { container.html(`<div style="position: relative; display: inline-block;"><img src="${e.target.result}" style="max-width: 100px; max-height: 100px; border-radius: 5px;"><button type="button" class="btn btn-danger btn-sm" onclick="quitarVistaPrevia(this)" style="position: absolute; top: -5px; right: -5px; width: 25px; height: 25px; border-radius: 50%; padding: 0; display: flex; align-items: center; justify-content: center;"><i class="fas fa-times"></i></button></div>`); };
                 reader.readAsDataURL(input.files[0]);
             }
         }
         function quitarVistaPrevia(button) {
             const container = $(button).closest('.vista-previa-container');
-            const fileInput = container.closest('.row').find('.foto-colaborador');
+            container.closest('.row').find('.foto-colaborador').val('');
             container.empty();
-            fileInput.val('');
         }
 
         function mostrarVistaPreviaEdicion(input) {
             if (input.files && input.files[0]) {
                 const reader = new FileReader();
-                
-                reader.onload = function(e) {
+                reader.onload = e => {
                     let vistaPrevia = document.getElementById('vista-previa-foto-editar');
-                    if (!vistaPrevia) {
-                        vistaPrevia = document.createElement('div');
-                        vistaPrevia.id = 'vista-previa-foto-editar';
-                        vistaPrevia.style.marginTop = '10px';
-                        vistaPrevia.style.textAlign = 'center';
-                        input.parentNode.appendChild(vistaPrevia);
-                    }
-                    
-                    vistaPrevia.innerHTML = `
-                        <div style="border: 2px dashed #007bff; border-radius: 10px; padding: 10px; display: inline-block; background-color: #f8f9fa;">
-                            <p style="margin: 0; font-size: 12px; color: #007bff; font-weight: bold;">Nueva foto seleccionada:</p>
-                            <img src="${e.target.result}" alt="Vista previa nueva foto" 
-                                 style="max-width: 120px; max-height: 120px; border-radius: 5px; margin-top: 5px;">
-                            <p style="margin-top: 5px; font-size: 11px; color: #666;">Reemplazará la foto actual</p>
-                            <button type="button" class="btn btn-sm btn-outline-danger mt-1" onclick="quitarVistaPreviaEdicion()">
-                                <i class="fas fa-times"></i> Cancelar
-                            </button>
-                        </div>
-                    `;
+                    if (!vistaPrevia) { vistaPrevia = document.createElement('div'); vistaPrevia.id = 'vista-previa-foto-editar'; vistaPrevia.style.marginTop = '10px'; input.parentNode.appendChild(vistaPrevia); }
+                    vistaPrevia.innerHTML = `<p>Nueva foto:</p><img src="${e.target.result}" style="max-width: 120px; border-radius: 5px;"><button type="button" class="btn btn-sm btn-outline-danger mt-1" onclick="quitarVistaPreviaEdicion()">Cancelar</button>`;
                 };
-                
                 reader.readAsDataURL(input.files[0]);
             }
         }
 
         function quitarVistaPreviaEdicion() {
-            const vistaPrevia = document.getElementById('vista-previa-foto-editar');
-            const inputFoto = document.getElementById('editar-foto');
-            
-            if (vistaPrevia) {
-                vistaPrevia.remove();
-            }
-            if (inputFoto) {
-                inputFoto.value = '';
-            }
+            const vistaPrevia = document.getElementById('vista-previa-foto-editar'), inputFoto = document.getElementById('editar-foto');
+            if (vistaPrevia) vistaPrevia.remove();
+            if (inputFoto) inputFoto.value = '';
         }
 
     </script>

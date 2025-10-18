@@ -95,6 +95,35 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             transition: all 0.3s ease;
         }
+        
+        .autocomplete-container {
+            position: relative;
+        }
+
+        .autocomplete-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-top: none;
+            border-radius: 0 0 5px 5px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+
+        .autocomplete-item {
+            padding: 10px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .autocomplete-item:hover {
+            background-color: #f5f5f5;
+        }
 
         .question-container label {
             display: block;
@@ -482,7 +511,11 @@
         <form id="formulario">
             <div class="question-container">
                 <label for="nombreEmpleado"><strong>Nombre del Empleado:</strong></label>
-                <input type="text" id="nombreEmpleado" name="nombreEmpleado" placeholder="Ingrese el nombre completo del empleado">
+                <div class="autocomplete-container">
+                    <input type="text" id="nombreEmpleado" name="nombreEmpleado" placeholder="Escriba para buscar el nombre del empleado..." autocomplete="off">
+                    <div class="autocomplete-list"></div>
+                </div>
+                <input type="hidden" id="identidadEmpleado" name="identidadEmpleado">
                 
                 <label for="posicion"><strong>Posición:</strong></label>
                 <input type="text" id="posicion" name="posicion" placeholder="Ej: Auxiliar de Higiene" value="AUXILIAR DE HIGIENE">
@@ -647,6 +680,13 @@
     </button>
 
     <script>
+        // URLs de los scripts de Google
+        const SCRIPT_URL_OBTENER = "https://script.google.com/macros/s/AKfycbwV6UwcNpiC5FAahk3YPuOS-JSm7Fta5bNW_UoOwvqywTiS-a8LSqAMT32PKM1ydQJs/exec";
+        const SCRIPT_URL_ENVIAR_LLAMADO = "https://script.google.com/macros/s/AKfycbwCn4XEj6DkD3Mf-MDqix8MF7t3BzQJCVvlHn-FiOOOwOkgYj8F5PWzPFFuWr9B1YRS/exec"; // Reemplaza con la URL real de tu nuevo script
+        
+        // Variables globales
+        let colaboradoresActivos = [];
+
         // Constante para el número máximo de PDFs a guardar
         const MAX_PDFS_ALMACENADOS = 5;
 
@@ -984,6 +1024,60 @@
             canvasColaborador.style.msTouchAction = "none";
         }
 
+        // ===== INICIO: LÓGICA DE AUTOCOMPLETADO =====
+        function cargarColaboradores() {
+            $.get(SCRIPT_URL_OBTENER, function(data) {
+                if (data && data.activos) {
+                    colaboradoresActivos = data.activos;
+                }
+            }).fail(function() {
+                console.error("No se pudieron cargar los colaboradores para el autocompletado.");
+            });
+        }
+
+        function setupAutocomplete() {
+            const input = $('#nombreEmpleado');
+            const list = $('.autocomplete-list');
+            const hiddenId = $('#identidadEmpleado');
+
+            input.on('input', function() {
+                const valor = input.val().toLowerCase();
+                if (valor.length < 2) {
+                    list.hide();
+                    hiddenId.val('');
+                    verificarFormulario();
+                    return;
+                }
+                const sugerencias = colaboradoresActivos.filter(col => col.nombre.toLowerCase().includes(valor));
+                list.empty();
+                if (sugerencias.length > 0) {
+                    sugerencias.forEach(sug => {
+                        list.append(`<div class="autocomplete-item" data-id="${sug.identidad}">${sug.nombre}</div>`);
+                    });
+                    list.show();
+                } else {
+                    list.hide();
+                }
+            });
+
+            $(document).on('click', '.autocomplete-item', function() {
+                const nombre = $(this).text();
+                const id = $(this).data('id');
+                input.val(nombre);
+                hiddenId.val(id);
+                list.hide();
+                verificarFormulario();
+            });
+
+            $(document).on('click', function(e) {
+                if (!$(e.target).closest('.autocomplete-container').length) {
+                    list.hide();
+                }
+            });
+        }
+        // ===== FIN: LÓGICA DE AUTOCOMPLETADO =====
+
+
         // ===== INICIALIZACIÓN =====
         document.addEventListener('DOMContentLoaded', function() {
             // Establecer fecha actual
@@ -993,6 +1087,10 @@
             var dd = String(today.getDate()).padStart(2, '0');
             document.getElementById("fechaFalta").value = yyyy + '-' + mm + '-' + dd;
             document.getElementById("fechaLlamado").value = yyyy + '-' + mm + '-' + dd;
+
+            // Cargar colaboradores y configurar autocompletado
+            cargarColaboradores();
+            setupAutocomplete();
 
             // Inicializar canvas después de que todo esté cargado
             setTimeout(() => {
@@ -1034,19 +1132,14 @@
                 const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
                 const pixelBuffer = new Uint32Array(imageData.data.buffer);
                 
-                // Contar píxeles no blancos (diferentes de blanco puro o transparente)
                 let nonWhitePixels = 0;
                 for (let i = 0; i < pixelBuffer.length; i++) {
-                    // Un pixel es considerado "no blanco" si no es completamente blanco (0xFFFFFFFF) o transparente (0x00000000)
                     if (pixelBuffer[i] !== 0xFFFFFFFF && pixelBuffer[i] !== 0x00000000) {
                         nonWhitePixels++;
                     }
                 }
                 
-                // Si hay más de 100 píxeles no blancos, considerar que tiene contenido
-                const hasContent = nonWhitePixels > 100;
-                
-                return !hasContent;
+                return nonWhitePixels <= 100;
                 
             } catch (error) {
                 console.error('Error al verificar canvas:', error);
@@ -1056,13 +1149,12 @@
 
         function configurarEventos() {
             // Verificar formulario cuando cambien los campos
-            $("#nombreEmpleado, #posicion, #fechaFalta, #fechaLlamado, #observaciones").on("input change", verificarFormulario);
+            $("#nombreEmpleado, #posicion, #fechaFalta, #fechaLlamado, #observaciones, #identidadEmpleado").on("input change", verificarFormulario);
             
             // Verificar cuando se seleccionen/deseleccionen checkboxes
             $("input[name='faltas']").on("change", function() {
                 verificarFormulario();
                 
-                // Mostrar/ocultar campo para "otros" si está seleccionado
                 if (this.id === 'falta17' && this.checked) {
                     $("#otrosContainer").show();
                 } else if (this.id === 'falta17' && !this.checked) {
@@ -1076,39 +1168,23 @@
 
         function verificarFormulario() {
             let nombreEmpleado = $("#nombreEmpleado").val();
+            let identidadEmpleado = $("#identidadEmpleado").val();
             let posicion = $("#posicion").val();
             let fechaFalta = $("#fechaFalta").val();
             let fechaLlamado = $("#fechaLlamado").val();
             
-            // Verificar si hay al menos una falta seleccionada
             let faltasSeleccionadas = $("input[name='faltas']:checked").length > 0;
             
-            // Si se seleccionó "otros", verificar que se haya especificado
             let otrosValido = true;
             if ($("#falta17").is(":checked")) {
                 otrosValido = $("#otrosFaltas").val().trim() !== "";
             }
             
-            // Verificar firmas de manera más precisa (ambas son obligatorias)
-            const canvas = document.getElementById('firmaCanvas');
-            const hayFirmaJefe = !isCanvasBlank(canvas);
+            const hayFirmaJefe = !isCanvasBlank(document.getElementById('firmaCanvas'));
+            const hayFirmaColaborador = !isCanvasBlank(document.getElementById('firmaCanvasColaborador'));
             
-            const canvasColaborador = document.getElementById('firmaCanvasColaborador');
-            const hayFirmaColaborador = !isCanvasBlank(canvasColaborador);
-            
-            console.log('Validación formulario:', {
-                nombreEmpleado: !!nombreEmpleado,
-                posicion: !!posicion,
-                fechaFalta: !!fechaFalta,
-                fechaLlamado: !!fechaLlamado,
-                faltasSeleccionadas: faltasSeleccionadas,
-                otrosValido: otrosValido,
-                hayFirmaJefe: hayFirmaJefe,
-                hayFirmaColaborador: hayFirmaColaborador
-            });
-            
-            // Validación CORREGIDA (ambas firmas son obligatorias)
             const formularioCompleto = nombreEmpleado && 
+                                      identidadEmpleado && // VALIDACIÓN CLAVE
                                       posicion && 
                                       fechaFalta && 
                                       fechaLlamado && 
@@ -1118,36 +1194,16 @@
                                       hayFirmaColaborador;
             
             $("#generarPdf").prop("disabled", !formularioCompleto);
-            
-            // Estilo para el canvas de firma
-            if (hayFirmaJefe) {
-                canvas.style.borderColor = "#28a745";
-                canvas.style.borderWidth = "2px";
-            } else {
-                canvas.style.borderColor = "#ddd";
-                canvas.style.borderWidth = "1px";
-            }
-            
-            // Estilo para el canvas de firma del colaborador
-            if (hayFirmaColaborador) {
-                canvasColaborador.style.borderColor = "#28a745";
-                canvasColaborador.style.borderWidth = "2px";
-            } else {
-                canvasColaborador.style.borderColor = "#ddd";
-                canvasColaborador.style.borderWidth = "1px";
-            }
         }
-
+        
         // Función para guardar múltiples PDFs
         async function guardarPDFEnStorage(pdfBlob, pdfData) {
             console.log('🔄 INICIANDO GUARDADO DE PDF MÚLTIPLE');
             
             try {
-                // 1. Obtener PDFs existentes o crear array vacío
                 let pdfsExistentes = JSON.parse(localStorage.getItem('pdfsLlamadosAtencion') || '[]');
                 console.log('📊 PDFs existentes antes de agregar:', pdfsExistentes.length);
 
-                // 2. Crear nuevo PDF
                 const nuevoPDF = {
                     id: 'pdf_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
                     name: pdfData.name,
@@ -1157,7 +1213,6 @@
                     size: pdfBlob.size
                 };
 
-                // 3. Intentar guardar el PDF completo
                 try {
                     const reader = new FileReader();
                     nuevoPDF.data = await new Promise((resolve, reject) => {
@@ -1173,25 +1228,13 @@
                     nuevoPDF.error = 'solo_metadatos';
                 }
 
-                // 4. Agregar nuevo PDF al inicio del array
                 pdfsExistentes.unshift(nuevoPDF);
 
-                // 5. Limitar a 5 PDFs máximo (eliminar los más antiguos)
                 if (pdfsExistentes.length > MAX_PDFS_ALMACENADOS) {
-                    const pdfsEliminados = pdfsExistentes.splice(MAX_PDFS_ALMACENADOS);
-                    console.log('🗑️ PDFs eliminados (exceden límite):', pdfsEliminados.length);
+                    pdfsExistentes.splice(MAX_PDFS_ALMACENADOS);
                 }
 
-                // 6. Guardar en localStorage
                 localStorage.setItem('pdfsLlamadosAtencion', JSON.stringify(pdfsExistentes));
-                
-                console.log('💾 PDFs guardados en localStorage:', pdfsExistentes.length);
-                console.log('📋 Lista actual de PDFs:');
-                pdfsExistentes.forEach((pdf, i) => {
-                    console.log(`   ${i + 1}. ${pdf.name} (${new Date(pdf.timestamp).toLocaleTimeString()})`);
-                });
-
-                // 7. Actualizar interfaz inmediatamente
                 mostrarBotonesConstanciasPendientes();
                 return true;
 
@@ -1205,427 +1248,219 @@
         function obtenerPDFsAlmacenados() {
             try {
                 const pdfsGuardados = localStorage.getItem('pdfsLlamadosAtencion');
-                if (!pdfsGuardados) {
-                    console.log('📭 No hay PDFs almacenados');
-                    return [];
-                }
-                
-                const pdfs = JSON.parse(pdfsGuardados);
-                console.log('📂 PDFs recuperados:', pdfs.length);
-                return pdfs;
-                
+                return pdfsGuardados ? JSON.parse(pdfsGuardados) : [];
             } catch (error) {
                 console.error('❌ Error al obtener PDFs:', error);
                 return [];
             }
         }
 
-// Función para generar el PDF - VERSIÓN FINAL CORREGIDA CON CONFIRMACIÓN
+// ===== FUNCIÓN generarPDF ACTUALIZADA CON ENVÍO DE DATOS =====
 async function generarPDF() {
-    // Mostrar SweetAlert de confirmación antes de generar el PDF
     const confirmacion = await Swal.fire({
-        title: '¿Generar Constancia?',
+        title: '¿Generar y Enviar Registro?',
         html: `
             <div style="text-align: center;">
-                <p style="font-size: 1.1em; margin-bottom: 15px;">¿Estás seguro de que quieres generar la constancia de llamado de atención?</p>
-                <div style="color: #f39c12; font-size: 2.5em; margin-bottom: 15px;">
-                    <i class="fas fa-exclamation-triangle"></i>
-                </div>
-                <p style="font-size: 0.9em; color: #666; margin-bottom: 10px;">
-                    <strong>Empleado:</strong> ${$("#nombreEmpleado").val()}<br>
-                    <strong>Fecha del llamado:</strong> ${formatearFecha($("#fechaLlamado").val())}
-                </p>
-                <p style="font-size: 0.85em; color: #e74c3c; font-style: italic;">
-                    Esta acción generará un documento formal que quedará registrado.
-                </p>
+                <p>Se enviará el registro a la hoja de cálculo y se generará la constancia.</p>
+                <p><strong>Empleado:</strong> ${$("#nombreEmpleado").val()}<br>
+                <strong>Fecha:</strong> ${formatearFecha($("#fechaLlamado").val())}</p>
             </div>
         `,
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#3085d6',
         cancelButtonColor: '#d33',
-        confirmButtonText: 'Sí, generar PDF',
-        cancelButtonText: 'Cancelar',
-        reverseButtons: true,
-        focusCancel: true
+        confirmButtonText: 'Sí, continuar',
+        cancelButtonText: 'Cancelar'
     });
 
-    // Si el usuario cancela, salir de la función
-    if (!confirmacion.isConfirmed) {
-        console.log('Usuario canceló la generación del PDF');
-        return;
-    }
+    if (!confirmacion.isConfirmed) return;
 
-    // Si el usuario confirma, continuar con la generación del PDF
     $('#overlay').css('display', 'flex');
-    
-    // Obtener datos del formulario
+    $('#loadingMessage h4').text('Enviando registro a Google Sheets...');
+
+    // Recopilar datos para enviar
     const nombreEmpleado = $("#nombreEmpleado").val();
-    const posicion = $("#posicion").val();
+    const identidadEmpleado = $("#identidadEmpleado").val();
     const fechaFalta = $("#fechaFalta").val();
     const fechaLlamado = $("#fechaLlamado").val();
     const observaciones = $("#observaciones").val();
     
-    // Obtener faltas seleccionadas
     const faltasSeleccionadas = [];
     $("input[name='faltas']:checked").each(function() {
-        if (this.id !== 'falta17') {
-            faltasSeleccionadas.push(this.value);
-        }
+        faltasSeleccionadas.push(this.value);
     });
     
-    // Si se seleccionó "otros", agregar la descripción
-    let otrosFaltas = "";
-    if ($("#falta17").is(":checked")) {
-        otrosFaltas = $("#otrosFaltas").val();
-        faltasSeleccionadas.push(otrosFaltas);
-    }
-    
-    // Obtener las firmas
-    const canvasFirma = document.getElementById('firmaCanvas');
-    const firmaDataUrl = canvasFirma.toDataURL('image/png');
-    
-    const canvasFirmaColaborador = document.getElementById('firmaCanvasColaborador');
-    const firmaColaboradorDataUrl = canvasFirmaColaborador.toDataURL('image/png');
-    
-    // Crear PDF
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({
-        orientation: 'portrait',
-        format: 'letter',
-        unit: 'mm'
-    });
-    
-    doc.setFont("times", "normal");
-    
-    // Configuración de márgenes y dimensiones - OPTIMIZADO PARA UNA PÁGINA
-    const margin = 12;
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const textWidth = pageWidth - (2 * margin);
-    
-    let y = 15; // Posición inicial optimizada
-    
-    // Título - COMPACTO PERO LEGIBLE
-    doc.setFontSize(14);
-    doc.setTextColor(34, 49, 63);
-    doc.setFont("times", "bold");
-    doc.text("CONSTANCIA DE LLAMADO DE ATENCIÓN", pageWidth / 2, y, { align: 'center' });
-    y += 8;
-    
-    // Línea separadora - DELGADA
-    doc.setDrawColor(100, 100, 100);
-    doc.setLineWidth(0.3);
-    doc.line(margin, y, pageWidth - margin, y);
-    y += 10;
-    
-    // Información del empleado - COMPACTA
-    doc.setFontSize(10);
-    doc.setTextColor(0, 0, 0);
-    
-    // Fecha del llamado - EN UNA SOLA LÍNEA
-    doc.setFont("times", "bold");
-    doc.text("Fecha:", margin, y);
-    doc.setFont("times", "normal");
-    doc.text(formatearFecha(fechaLlamado), margin + 15, y);
-    
-    // Fecha de la falta en la misma línea
-    doc.setFont("times", "bold");
-    doc.text("Falta:", pageWidth / 2, y);
-    doc.setFont("times", "normal");
-    doc.text(formatearFecha(fechaFalta), pageWidth / 2 + 12, y);
-    y += 6;
-    
-    // Nombre del empleado y posición en la misma línea
-    doc.setFont("times", "bold");
-    doc.text("Empleado:", margin, y);
-    doc.setFont("times", "normal");
-    doc.text(nombreEmpleado, margin + 20, y);
-    
-    doc.setFont("times", "bold");
-    doc.text("Posición:", pageWidth / 2, y);
-    doc.setFont("times", "normal");
-    doc.text(posicion, pageWidth / 2 + 18, y);
-    y += 12;
-    
-    // Descripción de faltas - TABLA ULTRA COMPACTA
-    doc.setFont("times", "bold");
-    doc.setFontSize(11);
-    doc.text("DESCRIPCIÓN DE FALTAS:", margin, y);
-    y += 7;
-    
-    // LISTA COMPLETA DE TODAS LAS FALTAS POSIBLES
-    const todasLasFaltas = [
-        "Llegada Tardía",
-        "No enviar aviso en tiempo oportuno cuando no asistió al trabajo por motivos justificados",
-        "Descuido en el trabajo de limpieza de su área y conservación del material o Útiles de trabajo",
-        "Falta de limpieza personal",
-        "Conversación en el trabajo que pueda distraer al personal",
-        "Entrar a otra sección de trabajo sin autorización y sin justificación",
-        "Mala ejecución (sin consecuencias graves) de sus labores por distracción o falta de atención",
-        "Descuido o abandono de las herramientas o útiles de trabajo (Que no implique pérdidas)",
-        "No portar el uniforme total o parcial",
-        "Leer revistas, libros o periódicos en horas laborales",
-        "Ingerir alimentos en áreas de atención al cliente en horas de trabajo",
-        "Desobediencia (sin consecuencias y sin faltar al respeto) ante una orden de su superior",
-        "Faltas de respeto a sus jefes inmediatos (Verbal, telefónica, electrónicamente)",
-        "Incumplimiento a los procedimientos establecidos por la Empresa",
-        "Incumplimiento a las laborales asignadas en su puesto de trabajo",
-        "Perder tiempo al inicio de la jornada de trabajo"
-    ];
-    
-    // Crear tabla para las faltas - CON COLUMNA "CAUSA"
-    const tableColumn = ["Causa", "Descripción de la Falta"];
-    const tableRows = [];
-    
-    // Agregar TODAS las faltas a la tabla, con "X" solo en las seleccionadas
-    todasLasFaltas.forEach((falta) => {
-        const tieneMarca = faltasSeleccionadas.includes(falta);
-        tableRows.push([tieneMarca ? "X" : "", falta]);
-    });
-    
-    // Agregar "Otros" si fue seleccionado
-    if ($("#falta17").is(":checked")) {
-        tableRows.push(["X", `Otros: ${otrosFaltas}`]);
-    }
-    
-    // Configurar la tabla CON COLUMNA "CAUSA" MÁS ANCHA
-    doc.autoTable({
-        startY: y,
-        head: [tableColumn],
-        body: tableRows,
-        theme: 'grid',
-        tableWidth: pageWidth - (2 * margin),
-        margin: { 
-            left: margin, 
-            right: margin,
-            top: y
-        },
-        headStyles: {
-            fillColor: [80, 80, 80],
-            textColor: [255, 255, 255],
-            fontStyle: 'bold',
-            fontSize: 9,
-            font: "times",
-            cellPadding: 1.5,
-            minCellHeight: 4,
-            halign: 'center'
-        },
-        styles: {
-            fontSize: 8,
-            cellPadding: 1,
-            textColor: [0, 0, 0],
-            lineColor: [120, 120, 120],
-            lineWidth: 0.1,
-            font: "times",
-            minCellHeight: 3.5
-        },
-        columnStyles: {
-            0: { // Columna "CAUSA" - MÁS ANCHA
-                cellWidth: 12,
-                halign: 'center',
-                cellPadding: {left: 1, right: 1, top: 1, bottom: 1},
-                fontStyle: 'bold'
-            },
-            1: { // Columna "Descripción" - AJUSTADA
-                cellWidth: pageWidth - (2 * margin) - 12,
-                halign: 'left',
-                cellPadding: {left: 2, right: 2, top: 1, bottom: 1}
-            }
-        },
-        tableLineWidth: 0.1,
-        tableLineColor: [120, 120, 120],
-        pageBreak: 'avoid'
-    });
-    
-    // Obtener la posición Y después de la tabla
-    y = doc.autoTable.previous.finalY + 8;
-    
-    // Observaciones - COMPACTA
-    if (observaciones && observaciones.trim() !== '') {
-        doc.setFont("times", "bold");
-        doc.setFontSize(10);
-        doc.text("OBSERVACIONES:", margin, y);
-        y += 5;
-        
-        doc.setFont("times", "normal");
-        doc.setFontSize(9);
-        const observacionesLines = doc.splitTextToSize(observaciones, textWidth - 5);
-        
-        // Limitar observaciones a máximo 3 líneas
-        const lineasObservaciones = observacionesLines.slice(0, 3);
-        doc.text(lineasObservaciones, margin + 2, y);
-        y += (lineasObservaciones.length * 3.5) + 8;
-    } else {
-        y += 6;
-    }
-    
-    // Base legal - COMPACTA
-    const baseLegal = "Este llamado de atención verbal está basado en los artículos N° 97, numerales 1), 2) y 13) del Código de Trabajo.";
-    doc.setFont("times", "bold");
-    doc.setFontSize(8);
-    const baseLegalLines = doc.splitTextToSize(baseLegal, textWidth);
-    doc.text(baseLegalLines, margin, y);
-    y += (baseLegalLines.length * 3) + 15;
-    
-    // Ajustar posición Y si es necesario para evitar nueva página
-    const espacioNecesarioFirmas = 35;
-    if (y + espacioNecesarioFirmas > pageHeight - margin) {
-        y = pageHeight - margin - espacioNecesarioFirmas - 10;
-    }
-    
-    // FIRMAS CORRECTAMENTE CENTRADAS
-    const firmaWidth = 45;
-    const firmaHeight = 18;
-    const espacioEntreFirmas = 15;
-    
-    // Calcular el ancho total que ocuparán las 3 firmas con sus espacios
-    const anchoTotalFirmas = (firmaWidth * 3) + (espacioEntreFirmas * 2);
-    
-    // Calcular el punto de inicio para centrar el grupo de firmas
-    const inicioFirmas = (pageWidth - anchoTotalFirmas) / 2;
-    
-    // Firma del colaborador (IZQUIERDA)
-    const firmaColaboradorX = inicioFirmas;
-    
-    // Añadir imagen de la firma del colaborador
-    doc.addImage(firmaColaboradorDataUrl, 'PNG', firmaColaboradorX, y, firmaWidth, firmaHeight);
-    
-    // Línea para firma del colaborador
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.2);
-    doc.line(firmaColaboradorX, y + firmaHeight + 1, firmaColaboradorX + firmaWidth, y + firmaHeight + 1);
-    
-    // Texto "COLABORADOR" centrado
-    doc.setFont("times", "bold");
-    doc.setFontSize(9);
-    doc.text("COLABORADOR", firmaColaboradorX + firmaWidth/2, y + firmaHeight + 6, { align: 'center' });
-    
-    // Firma del jefe inmediato (CENTRO)
-    const firmaJefeX = inicioFirmas + firmaWidth + espacioEntreFirmas;
-    
-    // Añadir imagen de la firma del jefe
-    doc.addImage(firmaDataUrl, 'PNG', firmaJefeX, y, firmaWidth, firmaHeight);
-    
-    // Línea para firma del jefe
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.2);
-    doc.line(firmaJefeX, y + firmaHeight + 1, firmaJefeX + firmaWidth, y + firmaHeight + 1);
-    
-    // Texto "JEFE INMEDIATO" centrado
-    doc.setFont("times", "bold");
-    doc.setFontSize(9);
-    doc.text("JEFE INMEDIATO", firmaJefeX + firmaWidth/2, y + firmaHeight + 6, { align: 'center' });
-    
-    // Espacio para firma del coordinador de CC.HH. (DERECHA)
-    const firmaCoordX = inicioFirmas + (firmaWidth * 2) + (espacioEntreFirmas * 2);
-    
-    // Línea para firma del coordinador
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.2);
-    doc.line(firmaCoordX, y + firmaHeight + 1, firmaCoordX + firmaWidth, y + firmaHeight + 1);
-    
-    // Texto "COORDINADOR DE CC.HH." centrado en dos líneas
-    doc.setFont("times", "bold");
-    doc.setFontSize(9);
-    doc.text("COORDINADOR", firmaCoordX + firmaWidth/2, y + firmaHeight + 6, { align: 'center' });
-    doc.text("DE CC.HH.", firmaCoordX + firmaWidth/2, y + firmaHeight + 10, { align: 'center' });
-    
-    // Guardar PDF
-    const nombreArchivo = `${formatearFecha(fechaLlamado, true)} - Registro Disciplinario Formal - ${nombreEmpleado}.pdf`;
-    const pdfBlob = doc.output('blob');
-    const pdfFile = new File([pdfBlob], nombreArchivo, { type: 'application/pdf' });
-    
-    // GUARDAR EL PDF CON LA NUEVA FUNCIÓN MEJORADA
-    const pdfData = {
-        name: nombreArchivo,
-        empleado: nombreEmpleado,
-        fecha: fechaLlamado
+    let otrosFaltas = $("#falta17").is(":checked") ? $("#otrosFaltas").val() : "";
+
+    const payload = {
+        nombreEmpleado,
+        identidadEmpleado,
+        fechaFalta,
+        fechaLlamado,
+        faltasSeleccionadas: JSON.stringify(faltasSeleccionadas),
+        otrosFaltas,
+        observaciones
     };
-    
-    console.log('=== INICIANDO GUARDADO EN STORAGE ===');
-    console.log('Datos del PDF:', pdfData);
-    
-    // GUARDAR CON LA NUEVA FUNCIÓN MEJORADA
-    const exito = await guardarPDFEnStorage(pdfBlob, pdfData);
-    
-    if (exito) {
-        console.log('✅ PDF guardado completamente en el sistema de múltiples archivos');
-    } else {
-        console.log('⚠️ PDF guardado con limitaciones (solo metadatos)');
-    }
-    
-    // Ocultar overlay después de un pequeño delay para que se vea el mensaje
-    setTimeout(() => {
-        $('#overlay').hide();
-        
-        // Mostrar SweetAlert con opciones de compartir y descargar
-        Swal.fire({
-            title: '¡Éxito!',
-            html: `
-                <div style="text-align: center;">
-                    <p style="font-size: 1.1em; margin-bottom: 15px;">Constancia de llamado de atención generada correctamente</p>
-                    <div style="color: #28a745; font-size: 2em; margin-bottom: 15px;">
-                        <i class="fas fa-check-circle"></i>
-                    </div>
-                    <p style="font-size: 0.9em; color: #666; margin-bottom: 10px;">
-                        <strong>Empleado:</strong> ${nombreEmpleado}<br>
-                        <strong>Fecha:</strong> ${formatearFecha(fechaLlamado)}
-                    </p>
-                    <p style="font-size: 0.9em; color: #666; margin-bottom: 20px;">¿Qué deseas hacer con el PDF?</p>
-                    <div style="display: flex; justify-content: center; gap: 10px;">
-                        <button id="sharePdfBtn" class="swal2-confirm swal2-styled" style="background-color: #007bff;">
-                            <i class="fas fa-share-alt"></i> Compartir
-                        </button>
-                        <button id="downloadPdfBtn" class="swal2-cancel swal2-styled" style="background-color: #6c757d;">
-                            <i class="fas fa-download"></i> Descargar
-                        </button>
-                    </div>
-                    <p style="font-size: 0.8em; color: #888; margin-top: 15px;">
-                        <i class="fas fa-info-circle"></i> El PDF también se ha guardado localmente para acceso futuro
-                    </p>
-                </div>
-            `,
-            icon: 'success',
-            showConfirmButton: false,
-            showCloseButton: true,
-            allowOutsideClick: false,
-            didOpen: () => {
-                // Asignar los event listeners directamente a los botones
-                document.getElementById('sharePdfBtn').addEventListener('click', async function() {
-                    try {
+
+    // Enviar datos a Google Apps Script
+    $.post(SCRIPT_URL_ENVIAR_LLAMADO, payload)
+        .done(async function(response) {
+            if (response === 'Éxito') {
+                $('#loadingMessage h4').text('Registro enviado. Generando PDF...');
+                
+                // Si el envío fue exitoso, proceder a generar el PDF
+                const posicion = $("#posicion").val();
+                const firmaDataUrl = document.getElementById('firmaCanvas').toDataURL('image/png');
+                const firmaColaboradorDataUrl = document.getElementById('firmaCanvasColaborador').toDataURL('image/png');
+                
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({ orientation: 'portrait', format: 'letter', unit: 'mm' });
+                
+                doc.setFont("times", "normal");
+                const margin = 12;
+                const pageWidth = doc.internal.pageSize.getWidth();
+                const pageHeight = doc.internal.pageSize.getHeight();
+                let y = 15;
+                
+                doc.setFontSize(14);
+                doc.setFont("times", "bold");
+                doc.text("CONSTANCIA DE LLAMADO DE ATENCIÓN", pageWidth / 2, y, { align: 'center' });
+                y += 8;
+                doc.setDrawColor(100, 100, 100);
+                doc.setLineWidth(0.3);
+                doc.line(margin, y, pageWidth - margin, y);
+                y += 10;
+                
+                doc.setFontSize(10);
+                doc.setTextColor(0, 0, 0);
+                doc.setFont("times", "bold");
+                doc.text("Fecha:", margin, y);
+                doc.setFont("times", "normal");
+                doc.text(formatearFecha(fechaLlamado), margin + 15, y);
+                doc.setFont("times", "bold");
+                doc.text("Falta:", pageWidth / 2, y);
+                doc.setFont("times", "normal");
+                doc.text(formatearFecha(fechaFalta), pageWidth / 2 + 12, y);
+                y += 6;
+                doc.setFont("times", "bold");
+                doc.text("Empleado:", margin, y);
+                doc.setFont("times", "normal");
+                doc.text(nombreEmpleado, margin + 20, y);
+                doc.setFont("times", "bold");
+                doc.text("Posición:", pageWidth / 2, y);
+                doc.setFont("times", "normal");
+                doc.text(posicion, pageWidth / 2 + 18, y);
+                y += 12;
+                
+                doc.setFont("times", "bold");
+                doc.setFontSize(11);
+                doc.text("DESCRIPCIÓN DE FALTAS:", margin, y);
+                y += 7;
+                
+                const todasLasFaltas = [
+                    "Llegada Tardía", "No enviar aviso en tiempo oportuno cuando no asistió al trabajo por motivos justificados",
+                    "Descuido en el trabajo de limpieza de su área y conservación del material o Útiles de trabajo", "Falta de limpieza personal",
+                    "Conversación en el trabajo que pueda distraer al personal", "Entrar a otra sección de trabajo sin autorización y sin justificación",
+                    "Mala ejecución (sin consecuencias graves) de sus labores por distracción o falta de atención", "Descuido o abandono de las herramientas o útiles de trabajo (Que no implique pérdidas)",
+                    "No portar el uniforme total o parcial", "Leer revistas, libros o periódicos en horas laborales",
+                    "Ingerir alimentos en áreas de atención al cliente en horas de trabajo", "Desobediencia (sin consecuencias y sin faltar al respeto) ante una orden de su superior",
+                    "Faltas de respeto a sus jefes inmediatos (Verbal, telefónica, electrónicamente)", "Incumplimiento a los procedimientos establecidos por la Empresa",
+                    "Incumplimiento a las laborales asignadas en su puesto de trabajo", "Perder tiempo al inicio de la jornada de trabajo"
+                ];
+                
+                const tableColumn = ["Causa", "Descripción de la Falta"];
+                const tableRows = todasLasFaltas.map(falta => [faltasSeleccionadas.includes(falta) ? "X" : "", falta]);
+                if (otrosFaltas) tableRows.push(["X", `Otros: ${otrosFaltas}`]);
+                
+                doc.autoTable({
+                    startY: y, head: [tableColumn], body: tableRows, theme: 'grid',
+                    tableWidth: pageWidth - (2 * margin), margin: { left: margin, right: margin, top: y },
+                    headStyles: { fillColor: [80, 80, 80], textColor: 255, fontStyle: 'bold', fontSize: 9, font: "times", cellPadding: 1.5, halign: 'center' },
+                    styles: { fontSize: 8, cellPadding: 1, textColor: 0, lineColor: 120, lineWidth: 0.1, font: "times" },
+                    columnStyles: { 0: { cellWidth: 12, halign: 'center', fontStyle: 'bold' }, 1: { cellWidth: pageWidth - (2 * margin) - 12, halign: 'left' } }
+                });
+                
+                y = doc.autoTable.previous.finalY + 8;
+                
+                if (observaciones.trim()) {
+                    doc.setFont("times", "bold");
+                    doc.setFontSize(10);
+                    doc.text("OBSERVACIONES:", margin, y);
+                    y += 5;
+                    doc.setFont("times", "normal");
+                    doc.setFontSize(9);
+                    const obsLines = doc.splitTextToSize(observaciones, pageWidth - (2 * margin) - 7).slice(0, 3);
+                    doc.text(obsLines, margin + 2, y);
+                    y += (obsLines.length * 3.5) + 8;
+                } else { y += 6; }
+                
+                const baseLegal = "Este llamado de atención verbal está basado en los artículos N° 97, numerales 1), 2) y 13) del Código de Trabajo.";
+                doc.setFont("times", "bold");
+                doc.setFontSize(8);
+                const baseLegalLines = doc.splitTextToSize(baseLegal, pageWidth - (2 * margin));
+                doc.text(baseLegalLines, margin, y);
+                y += (baseLegalLines.length * 3) + 15;
+                
+                if (y + 35 > pageHeight - margin) y = pageHeight - margin - 45;
+                
+                const firmaWidth = 45, firmaHeight = 18, espacio = 15;
+                const anchoTotalFirmas = (firmaWidth * 3) + (espacio * 2);
+                const inicioFirmas = (pageWidth - anchoTotalFirmas) / 2;
+                
+                const firmaColaboradorX = inicioFirmas;
+                doc.addImage(firmaColaboradorDataUrl, 'PNG', firmaColaboradorX, y, firmaWidth, firmaHeight);
+                doc.setDrawColor(0).setLineWidth(0.2).line(firmaColaboradorX, y + firmaHeight + 1, firmaColaboradorX + firmaWidth, y + firmaHeight + 1);
+                doc.setFont("times", "bold").setFontSize(9).text("COLABORADOR", firmaColaboradorX + firmaWidth / 2, y + firmaHeight + 6, { align: 'center' });
+                
+                const firmaJefeX = inicioFirmas + firmaWidth + espacio;
+                doc.addImage(firmaDataUrl, 'PNG', firmaJefeX, y, firmaWidth, firmaHeight);
+                doc.line(firmaJefeX, y + firmaHeight + 1, firmaJefeX + firmaWidth, y + firmaHeight + 1);
+                doc.text("JEFE INMEDIATO", firmaJefeX + firmaWidth / 2, y + firmaHeight + 6, { align: 'center' });
+                
+                const firmaCoordX = inicioFirmas + (firmaWidth * 2) + (espacio * 2);
+                doc.line(firmaCoordX, y + firmaHeight + 1, firmaCoordX + firmaWidth, y + firmaHeight + 1);
+                doc.text("COORDINADOR", firmaCoordX + firmaWidth / 2, y + firmaHeight + 6, { align: 'center' });
+                doc.text("DE CC.HH.", firmaCoordX + firmaWidth / 2, y + firmaHeight + 10, { align: 'center' });
+                
+                const nombreArchivo = `${formatearFecha(fechaLlamado, true)} - Registro Disciplinario Formal - ${nombreEmpleado}.pdf`;
+                const pdfBlob = doc.output('blob');
+                const pdfFile = new File([pdfBlob], nombreArchivo, { type: 'application/pdf' });
+                
+                await guardarPDFEnStorage(pdfBlob, { name: nombreArchivo, empleado: nombreEmpleado, fecha: fechaLlamado });
+                
+                $('#overlay').hide();
+                
+                Swal.fire({
+                    title: '¡Éxito!',
+                    html: `<p>Registro enviado y constancia generada para <strong>${nombreEmpleado}</strong>.</p>`,
+                    icon: 'success',
+                    showCloseButton: true,
+                    showCancelButton: true,
+                    confirmButtonText: '<i class="fas fa-share-alt"></i> Compartir',
+                    cancelButtonText: '<i class="fas fa-download"></i> Descargar',
+                }).then((result) => {
+                    if (result.isConfirmed) {
                         if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
-                            await navigator.share({
-                                files: [pdfFile],
-                                title: nombreArchivo,
-                                text: `Comparto la constancia de llamado de atención para ${nombreEmpleado}.`
-                            });
+                            navigator.share({ files: [pdfFile], title: nombreArchivo, text: `Constancia para ${nombreEmpleado}` });
                         } else {
                             doc.save(nombreArchivo);
                         }
-                    } catch (error) {
-                        console.error('Error al compartir el archivo:', error);
-                        if (error.name !== 'AbortError') {
-                            doc.save(nombreArchivo);
-                        }
+                    } else if (result.dismiss === Swal.DismissReason.cancel) {
+                        doc.save(nombreArchivo);
                     }
-                });
-                
-                document.getElementById('downloadPdfBtn').addEventListener('click', function() {
-                    doc.save(nombreArchivo);
-                });
-            }
-        }).then((result) => {
-            // Este código se ejecuta cuando se cierra el SweetAlert
-            if (result.dismiss === Swal.DismissReason.close) {
-                // Recargar la página cuando se hace clic en la X
-                console.log('Recargando página...');
-                location.reload();
-            }
-        });
-    }, 1000);
-}
+                }).finally(() => location.reload());
 
+            } else {
+                $('#overlay').hide();
+                Swal.fire('Error', 'No se pudo enviar el registro a Google Sheets: ' + response, 'error');
+            }
+        })
+        .fail(function() {
+            $('#overlay').hide();
+            Swal.fire('Error de Conexión', 'No se pudo comunicar con el servidor para enviar el registro.', 'error');
+        });
+}
 
 
         // Función para formatear fecha
@@ -1673,30 +1508,19 @@ async function generarPDF() {
 
         // Función para actualizar el botón único
         function mostrarBotonesConstanciasPendientes() {
-            console.log('🔄 ACTUALIZANDO BOTÓN DE CONSTANCIAS');
-            
             try {
                 const pdfsAlmacenados = JSON.parse(localStorage.getItem('pdfsLlamadosAtencion') || '[]');
                 const boton = document.getElementById('constancia-pendiente-button');
                 const badge = boton.querySelector('.badge');
                 
                 if (pdfsAlmacenados.length > 0) {
-                    // Mostrar botón
                     boton.classList.add('pendiente');
                     boton.style.display = 'flex';
-                    
-                    // Actualizar badge con el número de constancias
                     badge.textContent = pdfsAlmacenados.length;
-                    
-                    // Actualizar tooltip
                     boton.title = `Tienes ${pdfsAlmacenados.length} constancia(s) pendiente(s)`;
-                    
-                    console.log(`✅ Botón activado con ${pdfsAlmacenados.length} constancias`);
                 } else {
-                    // Ocultar botón
                     boton.classList.remove('pendiente');
                     boton.style.display = 'none';
-                    console.log('👻 Botón ocultado (no hay constancias)');
                 }
                 
             } catch (error) {
@@ -1712,8 +1536,6 @@ async function generarPDF() {
                 Swal.fire('Información', 'No hay constancias pendientes por compartir', 'info');
                 return;
             }
-            
-            console.log(`📋 Mostrando ${pdfsAlmacenados.length} constancias disponibles`);
             
             let htmlContent = `
                 <div style="text-align: center;">
@@ -1788,13 +1610,7 @@ async function generarPDF() {
                     document.getElementById('eliminarTodasBtn').addEventListener('click', function() {
                         Swal.fire({
                             title: '¿Eliminar todas las constancias?',
-                            html: `
-                                <div style="text-align: center;">
-                                    <p style="color: #dc3545; font-size: 3em; margin: 10px 0;">⚠️</p>
-                                    <p>Esta acción eliminará <strong>${pdfsAlmacenados.length} constancias</strong> permanentemente.</p>
-                                    <p>¿Estás seguro de que quieres continuar?</p>
-                                </div>
-                            `,
+                            html: `<div style="text-align: center;"><p style="color: #dc3545; font-size: 3em; margin: 10px 0;">⚠️</p><p>Esta acción eliminará <strong>${pdfsAlmacenados.length} constancias</strong> permanentemente.</p><p>¿Estás seguro de que quieres continuar?</p></div>`,
                             icon: 'warning',
                             showCancelButton: true,
                             confirmButtonColor: '#d33',
@@ -1840,14 +1656,11 @@ async function generarPDF() {
                 const base64Data = pdfData.data.split(',')[1];
                 const byteString = atob(base64Data);
                 const mimeString = pdfData.data.split(',')[0].split(':')[1].split(';')[0];
-                
                 const ab = new ArrayBuffer(byteString.length);
                 const ia = new Uint8Array(ab);
-                
                 for (let i = 0; i < byteString.length; i++) {
                     ia[i] = byteString.charCodeAt(i);
                 }
-                
                 const blob = new Blob([ab], { type: mimeString });
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(blob);
@@ -1856,9 +1669,7 @@ async function generarPDF() {
                 link.click();
                 document.body.removeChild(link);
                 setTimeout(() => URL.revokeObjectURL(link.href), 100);
-                
                 Swal.fire('Éxito', 'Constancia descargada correctamente', 'success');
-                
             } catch (error) {
                 console.error('Error al descargar constancia:', error);
                 Swal.fire('Error', 'No se pudo descargar la constancia', 'error');
@@ -1885,14 +1696,9 @@ async function generarPDF() {
                 const base64Data = pdfData.data.split(',')[1];
                 const byteString = atob(base64Data);
                 const mimeString = pdfData.data.split(',')[0].split(':')[1].split(';')[0];
-                
                 const ab = new ArrayBuffer(byteString.length);
                 const ia = new Uint8Array(ab);
-                
-                for (let i = 0; i < byteString.length; i++) {
-                    ia[i] = byteString.charCodeAt(i);
-                }
-                
+                for (let i = 0; i < byteString.length; i++) { ia[i] = byteString.charCodeAt(i); }
                 const blob = new Blob([ab], { type: mimeString });
                 const pdfFile = new File([blob], pdfData.name, { type: 'application/pdf' });
                 
@@ -1904,7 +1710,6 @@ async function generarPDF() {
                     });
                     Swal.fire('Éxito', 'Constancia compartida correctamente', 'success');
                 } else {
-                    // Fallback: descargar
                     descargarConstancia(indice);
                 }
                 
@@ -1929,13 +1734,7 @@ async function generarPDF() {
             
             Swal.fire({
                 title: '¿Eliminar esta constancia?',
-                html: `
-                    <div style="text-align: left;">
-                        <p>¿Estás seguro de que quieres eliminar esta constancia?</p>
-                        <p><strong>Empleado:</strong> ${pdfData.empleado}</p>
-                        <p><strong>Fecha:</strong> ${pdfData.fecha}</p>
-                    </div>
-                `,
+                html: `<div style="text-align: left;"><p>¿Estás seguro de que quieres eliminar esta constancia?</p><p><strong>Empleado:</strong> ${pdfData.empleado}</p><p><strong>Fecha:</strong> ${pdfData.fecha}</p></div>`,
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#d33',
@@ -1948,12 +1747,9 @@ async function generarPDF() {
                     localStorage.setItem('pdfsLlamadosAtencion', JSON.stringify(pdfsAlmacenados));
                     mostrarBotonesConstanciasPendientes();
                     Swal.fire('Eliminada', 'La constancia ha sido eliminada', 'success').then(() => {
-                        // Recargar el diálogo si sigue abierto
                         if (Swal.isVisible()) {
                             Swal.close();
-                            setTimeout(() => {
-                                mostrarTodasLasConstancias();
-                            }, 300);
+                            setTimeout(() => { mostrarTodasLasConstancias(); }, 300);
                         }
                     });
                 }

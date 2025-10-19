@@ -688,6 +688,7 @@
                             <ul class="dropdown-menu">
                                 <li><a class="dropdown-item" id="registrar-tab-dd" data-bs-toggle="tab" href="#registrar" role="tab" aria-controls="registrar"><i class="fas fa-user-plus me-2"></i>Registrar Colaborador</a></li>
                                 <li><a class="dropdown-item" id="activos-tab-dd" data-bs-toggle="tab" href="#activos" role="tab" aria-controls="activos"><i class="fas fa-address-book me-2"></i>Personal Activo</a></li>
+                                <li><a class="dropdown-item" id="vencimientos-tab-dd" data-bs-toggle="tab" href="#vencimientos" role="tab" aria-controls="vencimientos"><i class="fas fa-file-signature me-2"></i>Vencimiento de Contratos</a></li>
                                 <li><a class="dropdown-item" id="rotacion-tab-dd" data-bs-toggle="tab" href="#rotacion" role="tab" aria-controls="rotacion"><i class="fas fa-chart-line me-2"></i>Tasa de Rotación</a></li>
                             </ul>
                         </li>
@@ -941,6 +942,28 @@
                                     <tbody>
                                         </tbody>
                                 </table>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane fade" id="vencimientos" role="tabpanel" aria-labelledby="vencimientos-tab-dd">
+                             <div class="tab-title">
+                                <h2>Vencimiento de Contratos</h2>
+                            </div>
+                            <p class="text-center text-muted mb-4">A continuación se muestran los colaboradores cuyo contrato vence en los próximos 30 días.</p>
+                            
+                            <div class="search-container">
+                                <i class="fas fa-search"></i>
+                                <input type="text" class="form-control" id="buscador-vencimientos" placeholder="Buscar por nombre o identidad...">
+                            </div>
+                            
+                            <div class="card">
+                                <div class="card-header card-header-warning">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>Contratos por Vencer
+                                </div>
+                                <div class="card-body">
+                                    <div id="contenedor-vencimientos">
+                                        </div>
+                                </div>
                             </div>
                         </div>
                         
@@ -1549,6 +1572,7 @@
                 calcularRotacionGeneral();
                 calcularRotacionPeriodos();
                 mostrarEgresos(colaboradoresEgresos);
+                actualizarVencimientosContrato();
                 
                 const hoy = new Date();
                 
@@ -1614,6 +1638,7 @@
             $('#buscador-ausencias').on('input', filtrarAusencias);
             $('#buscador-disciplina').on('input', filtrarDisciplina); 
             $('#buscador-evaluaciones').on('input', filtrarEvaluaciones);
+            $('#buscador-vencimientos').on('input', filtrarVencimientos);
             
             $('#btn-calcular-rotacion-personalizado').on('click', calcularRotacionPersonalizado);
             $('#btn-resumen-disciplina').on('click', mostrarResumenDisciplina);
@@ -2077,6 +2102,67 @@
             $('#tabla-egresos tbody tr').each(function() {
                 const nombre = $(this).find('td:eq(1)').text().toLowerCase(), id = $(this).find('td:eq(2)').text().toLowerCase(), motivo = $(this).find('td:eq(3)').text().toLowerCase();
                 $(this).toggle(nombre.includes(texto) || id.includes(texto) || motivo.includes(texto));
+            });
+        }
+        
+        function actualizarVencimientosContrato() {
+            const container = $('#contenedor-vencimientos');
+            container.empty();
+
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+
+            const limite30Dias = new Date();
+            limite30Dias.setDate(hoy.getDate() + 30);
+
+            const empleadosPorVencer = colaboradoresActivos.map(col => {
+                const fechaInicio = new Date(col.fechaInicio + 'T00:00:00');
+                const fechaVencimiento = new Date(fechaInicio);
+                fechaVencimiento.setMonth(fechaInicio.getMonth() + 6);
+
+                const diasRestantes = Math.ceil((fechaVencimiento - hoy) / (1000 * 60 * 60 * 24));
+
+                return { ...col, fechaVencimiento, diasRestantes };
+            }).filter(col => col.fechaVencimiento >= hoy && col.fechaVencimiento <= limite30Dias)
+              .sort((a, b) => a.diasRestantes - b.diasRestantes);
+
+            if (empleadosPorVencer.length === 0) {
+                container.html('<div class="text-center p-3 text-success"><i class="fas fa-check-circle fa-2x mb-2"></i><p class="mb-0">¡Todo en orden! Ningún contrato vence en los próximos 30 días.</p></div>');
+                return;
+            }
+
+            let listHtml = '';
+            empleadosPorVencer.forEach(item => {
+                let color = 'bg-info text-dark';
+                if (item.diasRestantes <= 7) {
+                    color = 'bg-danger';
+                } else if (item.diasRestantes <= 15) {
+                    color = 'bg-warning text-dark';
+                }
+
+                const fotoSrc = item.fotoUrl || `https://ui-avatars.com/api/?name=${item.nombre.replace(/\s/g, "+")}&background=random`;
+                listHtml += `
+                    <div class="resumen-disciplina-item" data-nombre="${item.nombre}" data-identidad="${item.identidad}">
+                        <img src="${fotoSrc}" class="resumen-disciplina-img" onerror="this.src='https://ui-avatars.com/api/?name=${item.nombre.replace(/\s/g, "+")}&background=random'">
+                        <div class="resumen-disciplina-info">
+                            <h6>${item.nombre}</h6>
+                            <p class="mb-0 small">
+                                <strong>Inicio:</strong> ${formatearFecha(item.fechaInicio)} | 
+                                <strong>Vence:</strong> ${formatearFecha(item.fechaVencimiento.toISOString().split('T')[0])}
+                            </p>
+                        </div>
+                        <span class="badge ${color}">${item.diasRestantes} día(s) restante(s)</span>
+                    </div>`;
+            });
+            container.html(listHtml);
+        }
+
+        function filtrarVencimientos() {
+            const texto = $('#buscador-vencimientos').val().toLowerCase();
+            $('#contenedor-vencimientos .resumen-disciplina-item').each(function() {
+                const nombre = $(this).data('nombre').toLowerCase();
+                const identidad = $(this).data('identidad').toLowerCase();
+                $(this).toggle(nombre.includes(texto) || identidad.includes(texto));
             });
         }
 

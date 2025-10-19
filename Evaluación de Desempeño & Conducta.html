@@ -105,6 +105,37 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             transition: all 0.3s ease;
         }
+        
+        /* INICIO: Estilos para el autocompletado */
+        .autocomplete-container {
+            position: relative;
+        }
+
+        .autocomplete-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-top: none;
+            border-radius: 0 0 5px 5px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+
+        .autocomplete-item {
+            padding: 10px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .autocomplete-item:hover {
+            background-color: #f5f5f5;
+        }
+        /* FIN: Estilos para el autocompletado */
 
         .question-container label {
             display: block;
@@ -532,16 +563,25 @@
         <form id="formulario">
             <div class="question-container">
                 <label for="nombreEmpleado"><strong>Nombre del Empleado:</strong></label>
-                <input type="text" id="nombreEmpleado" name="nombreEmpleado" placeholder="Ingrese el nombre completo del empleado">
-                
+                <div class="autocomplete-container">
+                    <input type="text" id="nombreEmpleado" name="nombreEmpleado" placeholder="Cargando empleados..." required autocomplete="off">
+                    <div class="autocomplete-list"></div>
+                </div>
+                <input type="hidden" id="identidadEmpleado" name="identidadEmpleado">
                 <label for="puesto"><strong>Puesto:</strong></label>
-                <input type="text" id="puesto" name="puesto" placeholder="Ej: Auxiliar de Higiene" value="AUXILIAR DE HIGIENE">
+                <input type="text" id="puesto" name="puesto" placeholder="Ej: Auxiliar de Higiene" value="AUXILIAR DE HIGIENENE">
                 
                 <label for="fechaEvaluacion"><strong>Fecha de Evaluación:</strong></label>
-                <input type="date" id="fechaEvaluacion" name="fechaEvaluacion">
+                <input type="date" id="fechaEvaluacion" name="fechaEvaluacion" required>
                 
                 <label for="nombreEvaluador"><strong>Nombre del Evaluador:</strong></label>
-                <input type="text" id="nombreEvaluador" name="nombreEvaluador" placeholder="Ingrese el nombre del evaluador">
+                <select id="nombreEvaluador" name="nombreEvaluador" required>
+                    <option value="" disabled selected>Seleccione un evaluador</option>
+                    <option value="Angela Flores">Angela Flores</option>
+                    <option value="Noe Izaguirre">Noe Izaguirre</option>
+                    <option value="Rommel Rodríguez">Rommel Rodríguez</option>
+                    <option value="Jeancarlo Zelaya">Jeancarlo Zelaya</option>
+                </select>
             </div>
 
             <div class="section-title">I. Productividad</div>
@@ -623,7 +663,7 @@
             </div>
 
             <div class="button-container">
-                <button type="button" id="generarPdf" disabled onclick="generarPDF()">Generar PDF</button>
+                <button type="button" id="generarPdf" disabled>Generar PDF</button>
             </div>
         </form>
     </div>
@@ -632,6 +672,7 @@
         <div class="spinner"></div>
         <div id="loadingMessage">
             <h4>Por favor espera un momento...</h4>
+            <p id="loadingStatus"></p>
         </div>
     </div>
 
@@ -645,6 +686,7 @@
     <script>
         const MAX_PDFS_ALMACENADOS = 5;
         let totalCriterios = 0;
+        let empleadosData = [];
 
         let isDrawing = false, isErasing = false, lastX = 0, lastY = 0;
         const canvas = document.getElementById("firmaCanvas");
@@ -806,6 +848,76 @@
             document.getElementById("redoColaborador").addEventListener("click", () => redo(canvasColaborador, ctxColaborador, stateColaborador));
             document.getElementById("clearSignatureColaborador").addEventListener("click", () => clearSignature(canvasColaborador, ctxColaborador, stateColaborador.undoStack));
         }
+        
+        // INICIO: Funciones de Autocompletado (Modificadas)
+        async function cargarEmpleados() {
+            const urlObtener = "https://script.google.com/macros/s/AKfycbwV6UwcNpiC5FAahk3YPuOS-JSm7Fta5bNW_UoOwvqywTiS-a8LSqAMT32PKM1ydQJs/exec";
+            const inputEmpleado = $('#nombreEmpleado');
+
+            try {
+                const response = await fetch(urlObtener);
+                const data = await response.json();
+
+                if (data && data.activos) {
+                    empleadosData = data.activos.sort((a, b) => a.nombre.localeCompare(b.nombre));
+                    inputEmpleado.attr('placeholder', 'Escriba para buscar un empleado...');
+                } else {
+                    throw new Error("No se encontraron datos de empleados activos.");
+                }
+            } catch (error) {
+                console.error("Error al cargar empleados:", error);
+                inputEmpleado.attr('placeholder', 'Error al cargar empleados');
+                Swal.fire('Error', 'No se pudo obtener la lista de empleados. Por favor, revise la conexión o la URL del script.', 'error');
+            }
+        }
+        
+        function setupAutocomplete() {
+            const input = $('#nombreEmpleado');
+            const list = $('.autocomplete-list');
+            const hiddenId = $('#identidadEmpleado');
+
+            input.on('input', function() {
+                const valor = input.val().trim().toLowerCase();
+                hiddenId.val(''); // Limpiar la identidad si el usuario modifica el campo
+                
+                if (valor.length < 2) { // Empezar a buscar después de 2 caracteres
+                    list.hide().empty();
+                    verificarFormulario();
+                    return;
+                }
+
+                const sugerencias = empleadosData.filter(col => col.nombre.toLowerCase().includes(valor));
+                list.empty();
+
+                if (sugerencias.length > 0) {
+                    sugerencias.forEach(sug => {
+                        list.append(`<div class="autocomplete-item" data-id="${sug.identidad}">${sug.nombre}</div>`);
+                    });
+                    list.show();
+                } else {
+                    list.hide();
+                }
+                verificarFormulario(); // Verificar en cada pulsación
+            });
+
+            // Usar delegación de eventos para los ítems creados dinámicamente
+            $(document).on('click', '.autocomplete-item', function() {
+                const nombre = $(this).text();
+                const id = $(this).data('id');
+                input.val(nombre);
+                hiddenId.val(id);
+                list.hide().empty();
+                verificarFormulario();
+            });
+
+            // Ocultar la lista si se hace clic fuera del contenedor
+            $(document).on('click', function(e) {
+                if (!$(e.target).closest('.autocomplete-container').length) {
+                    list.hide();
+                }
+            });
+        }
+        // FIN: Funciones de Autocompletado
 
         function crearCriteriosDeEvaluacion() {
             const criterios = {
@@ -870,11 +982,15 @@
         }
 
         function verificarFormulario() {
-            const campos = ["#nombreEmpleado", "#puesto", "#fechaEvaluacion", "#nombreEvaluador"];
-            const camposLlenos = campos.every(campo => $(campo).val());
+            const otrosCampos = ["#puesto", "#fechaEvaluacion", "#nombreEvaluador"];
+            const otrosCamposLlenos = otrosCampos.every(campo => $(campo).val() && $(campo).val().trim() !== "");
+            
+            const nombreEmpleadoValido = $('#nombreEmpleado').val().trim() !== '' && $('#identidadEmpleado').val().trim() !== '';
+            
             const calificacionesCompletas = document.querySelectorAll('input[type="radio"]:checked').length === totalCriterios;
             const hayFirmaEvaluador = !isCanvasBlank(document.getElementById('firmaCanvas'));
-            $("#generarPdf").prop("disabled", !(camposLlenos && calificacionesCompletas && hayFirmaEvaluador));
+            
+            $("#generarPdf").prop("disabled", !(otrosCamposLlenos && nombreEmpleadoValido && calificacionesCompletas && hayFirmaEvaluador));
         }
 
         document.addEventListener('DOMContentLoaded', function() {
@@ -882,13 +998,17 @@
             initializeCanvas();
             setupSignatureEvents();
             crearCriteriosDeEvaluacion();
+            cargarEmpleados();
+            setupAutocomplete(); // Llamar a la nueva función
             configurarEventos();
             setTimeout(mostrarBotonesConstanciasPendientes, 1000);
             updateButtonStates();
         });
 
         function configurarEventos() {
-            $("input, textarea").on("input change", verificarFormulario);
+            // Eventos para todos los campos, excepto el de nombre de empleado que ya es manejado
+            $("input:not(#nombreEmpleado), textarea, select").on("input change", verificarFormulario);
+            $('#generarPdf').on('click', generarPDF);
         }
 
         async function guardarPDFEnStorage(pdfBlob, pdfData) {
@@ -914,24 +1034,92 @@
             const date = new Date(fecha + 'T00:00:00');
             return paraArchivo ? `${date.getDate()}-${date.getMonth() + 1}-${date.getFullYear()}` : date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
         }
+        
+        async function enviarDatosAGoogleSheet() {
+            // =========================================================================
+            // ¡IMPORTANTE! Reemplaza esta URL con la URL de tu script implementado.
+            // =========================================================================
+            const URL_SCRIPT_SALIDA = "https://script.google.com/macros/s/AKfycbxz5VgXw2RnN7NO_IsBS1-ipfMcVbrL9GTTR4EGTxtWq6ljHs2NiBahlwn298bDYnfw/exec"; 
+
+            if (URL_SCRIPT_SALIDA === "URL_DE_TU_SCRIPT_SALIDA_AQUI") {
+                 Swal.fire({
+                    icon: 'error',
+                    title: 'Configuración Incompleta',
+                    text: 'Se debe configurar la URL del script "Salida" para poder guardar los datos.',
+                });
+                return false;
+            }
+
+            const getScores = (containerId) => {
+                return Array.from(document.querySelectorAll(`#${containerId} .rating-item`)).map(item => {
+                    return item.querySelector('input:checked')?.value || '0';
+                });
+            };
+
+            const payload = {
+                fecha: $('#fechaEvaluacion').val(),
+                nombre: $('#nombreEmpleado').val(),
+                identidad: $('#identidadEmpleado').val(),
+                productividad: getScores('productividadContainer'),
+                iniciativa: getScores('iniciativaContainer'),
+                conducta: getScores('conductaContainer'),
+                observaciones: $('#comentariosGenerales').val(),
+                compromiso: $('#compromisoMejora').val(),
+                recomendaciones: $('#recomendaciones').val()
+            };
+            
+            try {
+                const response = await fetch(URL_SCRIPT_SALIDA, {
+                    method: 'POST',
+                    mode: 'cors',
+                    cache: 'no-cache',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(payload),
+                    redirect: 'follow'
+                });
+                const result = await response.json();
+                if(result.status !== 'success'){
+                    throw new Error(result.message);
+                }
+                return true; 
+            } catch (error) {
+                console.error("Error al enviar datos a Google Sheet:", error);
+                Swal.fire('Error de Conexión', `No se pudieron registrar los datos en la hoja de cálculo. <br><small>Error: ${error.message}</small>`, 'error');
+                return false;
+            }
+        }
+
 
         async function generarPDF() {
             const confirmacion = await Swal.fire({
                 title: '¿Generar Evaluación?',
-                html: `<div style="text-align: center;"><p style="font-size: 1.1em; margin-bottom: 15px;">¿Estás seguro de que quieres generar la evaluación de desempeño?</p><div style="color: #f39c12; font-size: 2.5em; margin-bottom: 15px;"><i class="fas fa-exclamation-triangle"></i></div><p style="font-size: 0.9em; color: #666; margin-bottom: 10px;"><strong>Empleado:</strong> ${$("#nombreEmpleado").val()}<br><strong>Fecha de evaluación:</strong> ${formatearFecha($("#fechaEvaluacion").val())}</p><p style="font-size: 0.85em; color: #e74c3c; font-style: italic;">Esta acción generará un documento formal que quedará registrado.</p></div>`,
-                icon: 'warning', showCancelButton: true, confirmButtonColor: '#3085d6', cancelButtonColor: '#d33', confirmButtonText: 'Sí, generar PDF', cancelButtonText: 'Cancelar', reverseButtons: true, focusCancel: true
+                html: `<div style="text-align: center;"><p style="font-size: 1.1em; margin-bottom: 15px;">¿Estás seguro de que quieres generar la evaluación de desempeño?</p><div style="color: #f39c12; font-size: 2.5em; margin-bottom: 15px;"><i class="fas fa-exclamation-triangle"></i></div><p style="font-size: 0.9em; color: #666; margin-bottom: 10px;"><strong>Empleado:</strong> ${$("#nombreEmpleado").val()}<br><strong>Fecha de evaluación:</strong> ${formatearFecha($("#fechaEvaluacion").val())}</p><p style="font-size: 0.85em; color: #e74c3c; font-style: italic;">Esta acción registrará los datos y generará un documento formal.</p></div>`,
+                icon: 'warning', showCancelButton: true, confirmButtonColor: '#3085d6', cancelButtonColor: '#d33', confirmButtonText: 'Sí, generar', cancelButtonText: 'Cancelar', reverseButtons: true, focusCancel: true
             });
             if (!confirmacion.isConfirmed) return;
-
+            
             $('#overlay').css('display', 'flex');
+            $('#loadingStatus').text('Enviando datos a la hoja de cálculo...');
+
+            const datosEnviados = await enviarDatosAGoogleSheet();
+            if (!datosEnviados) {
+                $('#overlay').hide();
+                return;
+            }
+
+            $('#loadingStatus').text('Generando el documento PDF...');
+
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF({ orientation: 'portrait', format: 'letter', unit: 'mm' });
             
             const getCalificaciones = (containerId) => {
                 return Array.from(document.querySelectorAll(`#${containerId} .rating-item`)).map(item => {
                     const criterio = item.querySelector('.rating-label').textContent;
-                    const puntaje = item.querySelector('input:checked')?.value || 'N/A';
-                    return [criterio, puntaje];
+                    let puntajeTexto = 'No Cumple';
+                    const valor = item.querySelector('input:checked')?.value;
+                    if (valor === '1') puntajeTexto = 'Cumple Parcial';
+                    if (valor === '2') puntajeTexto = 'Cumple';
+                    return [criterio, puntajeTexto];
                 });
             };
 
@@ -1027,7 +1215,7 @@
             doc.setFont("times", "bold").setFontSize(16);
             const valueWidth = doc.getTextWidth(notaFinalValue);
             
-            doc.setFillColor(46, 204, 113); // Green color (#2ecc71)
+            doc.setFillColor(46, 204, 113);
             doc.roundedRect(valueX - 2, y - 5, valueWidth + 4, 10, 2, 2, 'F');
             doc.setTextColor(255, 255, 255);
             doc.text(notaFinalValue, valueX, y + 2);
@@ -1077,7 +1265,7 @@
                         $('#downloadPdfBtn').on('click', () => doc.save(nombreArchivo));
                     }
                 }).then(() => location.reload());
-            }, 1000);
+            }, 500);
         }
         
         function scrollToTop() { window.scrollTo({ top: 0, behavior: 'smooth' }); }

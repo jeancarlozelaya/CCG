@@ -415,8 +415,9 @@
         margin-bottom: 25px;
     }
 
-    /* Estilos mejorados para botones principales */
-    .btn-primary, .btn-success {
+    /* Estilos mejorados para botones principales DE REGISTRO */
+    #form-registrar-colaborador .btn-primary, #form-registrar-colaborador .btn-success,
+    #form-registrar-ausencia .btn-primary, #form-registrar-ausencia .btn-success {
         border: none;
         font-weight: 600;
         padding: 12px 30px;
@@ -436,7 +437,8 @@
         background: linear-gradient(45deg, #2ecc71, #58d68d);
     }
 
-    .btn-primary:hover, .btn-success:hover {
+    #form-registrar-colaborador .btn-primary:hover, #form-registrar-colaborador .btn-success:hover,
+    #form-registrar-ausencia .btn-primary:hover, #form-registrar-ausencia .btn-success:hover {
         transform: translateY(-3px);
         box-shadow: 0 6px 20px rgba(0,0,0,0.2);
     }
@@ -1007,6 +1009,19 @@
                                 </div>
                             </div>
                             
+                             <div class="card mb-4">
+                                <div class="card-header">Egresos por Mes</div>
+                                <div class="card-body">
+                                    <div class="d-flex flex-wrap gap-2 mb-3">
+                                        <select id="filtro-ano-rotacion" class="form-select" style="width: auto;"></select>
+                                        <button id="btn-filtrar-rotacion-grafico" class="btn btn-primary btn-sm">Filtrar</button>
+                                    </div>
+                                    <div class="chart-container">
+                                        <canvas id="graficoRotacionAnual"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="card mb-4">
                                 <div class="card-header">
                                     Motivos de Egreso
@@ -1052,7 +1067,7 @@
                                             <input type="date" class="form-control" id="fecha-fin-personalizado">
                                         </div>
                                         <div class="form-group d-flex align-items-end">
-                                            <button type="button" class="btn btn-primary" id="btn-calcular-rotacion-personalizado">Filtrar</button>
+                                            <button type="button" class="btn btn-primary btn-sm" id="btn-calcular-rotacion-personalizado">Filtrar</button>
                                         </div>
                                     </div>
                                     
@@ -1501,6 +1516,7 @@
         let graficoEgresosMotivoActual = null;
         let graficoEgresosMotivoHistorico = null;
         let graficoEgresosMotivoFiltrado = null;
+        let graficoRotacionAnual = null;
         
         // Gráficos Disciplina
         let graficoDisciplinaPorDia = null;
@@ -1636,6 +1652,8 @@
                 
                 // Otros
                 popularFiltrosGrafico('#filtro-mes-egresos', '#filtro-ano-egresos', colaboradoresEgresos, 'fechaEgreso');
+                popularFiltrosGraficoAnual('#filtro-ano-rotacion', colaboradoresEgresos, 'fechaEgreso');
+                crearGraficoRotacionAnual(hoy.getFullYear());
                 crearGraficoEgresosMotivoActual();
                 crearGraficoEgresosMotivoHistorico();
                 mostrarCumpleanerosDelMes();
@@ -1702,6 +1720,11 @@
             $('#btn-filtrar-evaluaciones-grafico').on('click', function() {
                 const ano = parseInt($('#filtro-ano-evaluaciones-grafico').val());
                 crearGraficoEvaluacionesAnual(ano);
+            });
+            
+            $('#btn-filtrar-rotacion-grafico').on('click', function() {
+                const ano = parseInt($('#filtro-ano-rotacion').val());
+                crearGraficoRotacionAnual(ano);
             });
 
             $('#btn-filtrar-egresos').on('click', function() {
@@ -1990,7 +2013,7 @@
             const tablaActivos = $('#tabla-activos tbody').empty();
             colaboradoresActivos.forEach((col, index) => {
                 tablaActivos.append(`
-                    <tr>
+                    <tr class="no-hover">
                         <td>${formatearFecha(col.fechaInicio)}</td><td>${col.nombre}</td><td>${col.identidad}</td><td>${formatearFecha(col.fechaNacimiento)}</td><td>${col.sexo}</td>
                         <td>
                             <button class="btn btn-info btn-sm btn-action btn-photo" data-index="${index}" title="Ver Foto"><i class="fas fa-camera"></i></button>
@@ -2222,7 +2245,7 @@
                         <td>${egreso.identidad}</td>
                         <td>${egreso.razon}</td>
                         <td>
-                            <button class="btn btn-primary btn-sm btn-action btn-historial-egresado" title="Ver Historial"><i class="fas fa-history"></i></button>
+                            <button class="btn btn-secondary btn-sm btn-action btn-historial-egresado" title="Ver Historial"><i class="fas fa-history"></i></button>
                             <button class="btn btn-success btn-sm btn-action btn-reingreso" title="Reingresar Colaborador"><i class="fas fa-user-plus"></i></button>
                         </td>
                     </tr>`;
@@ -2923,6 +2946,39 @@
             graficoEgresosMotivoFiltrado = new Chart(ctx, { type: 'pie', data: { labels: Object.keys(conteo), datasets: [{ data: Object.values(conteo), backgroundColor: ['#2980b9', '#c0392b', '#f39c12', '#8e44ad', '#27ae60'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, title: { display: true, text: `Egresos (${new Date(ano, mes).toLocaleString('es-ES', { month: 'long' })} ${ano})` } } } });
         }
         
+        function crearGraficoRotacionAnual(ano) {
+            if (graficoRotacionAnual) graficoRotacionAnual.destroy();
+            const ctx = document.getElementById('graficoRotacionAnual').getContext('2d');
+            const labels = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+            const datos = Array(12).fill(0);
+
+            colaboradoresEgresos.forEach(e => {
+                const fechaEgreso = new Date(e.fechaEgreso + 'T00:00:00');
+                if (fechaEgreso.getFullYear() === ano) {
+                    datos[fechaEgreso.getMonth()]++;
+                }
+            });
+
+            graficoRotacionAnual = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: `Egresos por Mes en ${ano}`,
+                        data: datos,
+                        borderColor: '#e74c3c',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                }
+            });
+        }
+        
         // --- INICIO FUNCIONES PARA EVALUACIONES ---
         const CRITERIOS_EVALUACION = {
             productividad: ["Capacidad del empleado para completar las tareas de limpieza asignadas en el tiempo estipulado.", "Medición de la eficiencia en la realización de las labores diarias.", "Revisión de la calidad de la limpieza realizada en las áreas asignadas.", "Observación de la atención al detalle y la capacidad para mantener los estándares de limpieza requeridos.", "Evaluación del uso adecuado de productos de limpieza y equipos.", "Minimización del desperdicio y cuidado de los recursos proporcionados.", "Tiene la capacidad y autonomía para realizar las tareas asignadas de forma independiente sin necesidad de supervisión constante."],
@@ -2930,8 +2986,8 @@
             conducta: ["Registro de la puntualidad y asistencia del empleado.", "Manejo de ausencias y justificaciones en caso de retrasos.", "Observación de la actitud del empleado hacia el trabajo y sus compañeros.", "Colaboración con el equipo y disposición para realizar tareas adicionales cuando sea necesario.", "Respeto y seguimiento de las normas de seguridad, higiene y procedimientos establecidos.", "Adherencia a las políticas internas del proyecto.", "Evita los conflictos dentro del trabajo."]
         };
 
-        function popularFiltrosGraficoAnual(anoSelector, datos, fechaKey = 'fechaEvaluacion') {
-            const filtroAno = $(anoSelector);
+        function popularFiltrosGraficoAnual(selector, datos, fechaKey) {
+            const filtroAno = $(selector);
             filtroAno.empty();
             const anos = [...new Set(datos.map(d => d[fechaKey] ? new Date(d[fechaKey]).getFullYear() : null).filter(Boolean))];
             if (!anos.includes(new Date().getFullYear())) anos.push(new Date().getFullYear());

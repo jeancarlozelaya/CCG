@@ -216,7 +216,7 @@
 
     .table-responsive {
         border-radius: 8px;
-        overflow: hidden;
+        overflow-x: auto; /* CORRECCIÓN: Permitir scroll horizontal */
     }
 
     .table th {
@@ -416,7 +416,8 @@
     }
 
     /* Estilos mejorados para botones principales DE REGISTRO */
-    .d-grid .btn-primary, .d-grid .btn-success {
+    #form-registrar-colaborador .btn-primary, #form-registrar-colaborador .btn-success,
+    #form-registrar-ausencia .btn-primary, #form-registrar-ausencia .btn-success {
         border: none;
         font-weight: 600;
         padding: 12px 30px;
@@ -428,15 +429,16 @@
         box-shadow: 0 4px 15px rgba(0,0,0,0.1);
     }
 
-    .d-grid .btn-primary {
+    .btn-primary {
         background: linear-gradient(45deg, var(--secondary-color), #5dade2);
     }
 
-    .d-grid .btn-success {
+    .btn-success {
         background: linear-gradient(45deg, #2ecc71, #58d68d);
     }
 
-    .d-grid .btn-primary:hover, .d-grid .btn-success:hover {
+    #form-registrar-colaborador .btn-primary:hover, #form-registrar-colaborador .btn-success:hover,
+    #form-registrar-ausencia .btn-primary:hover, #form-registrar-ausencia .btn-success:hover {
         transform: translateY(-3px);
         box-shadow: 0 6px 20px rgba(0,0,0,0.2);
     }
@@ -529,11 +531,13 @@
 
 
     @media (max-width: 768px) {
-        .dashboard-grid {
-            grid-template-columns: 1fr 1fr;
+        .dashboard-grid { 
+            grid-template-columns: 1fr 1fr; 
+            gap: 10px;
         }
-        .rotacion-periodos {
-            grid-template-columns: 1fr 1fr;
+        .rotacion-periodos { 
+            grid-template-columns: 1fr 1fr; 
+            gap: 10px;
         }
         .ausencias-stats {
             grid-template-columns: 1fr;
@@ -552,16 +556,7 @@
             padding: 0 18px;
         }
         .nav-tabs {
-            flex-wrap: nowrap;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            scrollbar-width: none; /* Firefox */
-        }
-        .nav-tabs::-webkit-scrollbar {
-            display: none; /* Chrome, Safari, Opera */
-        }
-        .nav-item {
-            flex-shrink: 0;
+             flex-wrap: wrap; /* CORRECCIÓN: Permitir que las pestañas pasen a la siguiente línea */
         }
     }
 
@@ -569,12 +564,7 @@
         h1 {
             font-size: 1.5rem;
         }
-        .dashboard-grid {
-            grid-template-columns: 1fr;
-        }
-        .rotacion-periodos {
-            grid-template-columns: 1fr;
-        }
+        /* CORRECCIÓN: Se eliminaron las reglas de 1 columna para mantener 2 */
         .nav-tabs .nav-link {
             padding: 10px 15px;
             font-size: 0.9rem;
@@ -586,7 +576,8 @@
             font-size: 1.2rem;
             padding: 0 15px;
         }
-        .btn-primary, .btn-success {
+        #form-registrar-colaborador .btn-primary, #form-registrar-colaborador .btn-success,
+        #form-registrar-ausencia .btn-primary, #form-registrar-ausencia .btn-success {
             min-width: 100%;
             padding: 10px 25px;
             font-size: 1rem;
@@ -1652,7 +1643,7 @@
                 crearGraficoEvaluacionesDesempenoHistorico();
                 mostrarHistorialEvaluaciones();
                 
-                // Otros
+                // Pestaña Rotación
                 popularFiltrosGrafico('#filtro-mes-egresos', '#filtro-ano-egresos', colaboradoresEgresos, 'fechaEgreso');
                 popularFiltrosGraficoAnual('#filtro-ano-rotacion', colaboradoresEgresos, 'fechaEgreso');
                 crearGraficoRotacionAnual(hoy.getFullYear());
@@ -2156,7 +2147,8 @@
             [...egresos].sort((a, b) => new Date(b.fechaEgreso) - new Date(a.fechaEgreso)).forEach(e => {
                 tablaEgresos.append(`<tr data-identidad="${e.identidad}" data-fechaegreso="${e.fechaEgreso}"><td>${formatearFecha(e.fechaEgreso)}</td><td>${e.nombre}</td><td>${e.identidad}</td><td>${e.razon}</td><td>${e.fotoUrl ? `<button class="btn btn-info btn-sm btn-action btn-photo-egreso" title="Ver Foto"><i class="fas fa-camera"></i></button>` : ''}</td></tr>`);
             });
-            $('.btn-photo-egreso').off('click').on('click', function() {
+            $('.btn-photo-egreso').off('click').on('click', function(e) {
+                e.stopPropagation();
                 const row = $(this).closest('tr'), id = row.data('identidad'), fecha = row.data('fechaegreso');
                 const egresoData = colaboradoresEgresos.find(e => e.identidad === id && e.fechaEgreso === fecha);
                 if(egresoData) mostrarFoto(egresoData);

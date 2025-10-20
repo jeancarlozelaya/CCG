@@ -415,7 +415,7 @@
         margin-bottom: 25px;
     }
 
-    /* Estilos mejorados para botones principales DE REGISTRO */
+    /* CORRECCIÓN: Estilos para botones principales (SOLO en formularios) */
     #form-registrar-colaborador .btn-primary, #form-registrar-colaborador .btn-success,
     #form-registrar-ausencia .btn-primary, #form-registrar-ausencia .btn-success {
         border: none;
@@ -576,12 +576,7 @@
             font-size: 1.2rem;
             padding: 0 15px;
         }
-        #form-registrar-colaborador .btn-primary, #form-registrar-colaborador .btn-success,
-        #form-registrar-ausencia .btn-primary, #form-registrar-ausencia .btn-success {
-            min-width: 100%;
-            padding: 10px 25px;
-            font-size: 1rem;
-        }
+        /* CORRECCIÓN: Se eliminó la regla 'min-width: 100%' de los botones de registro */
     }
  
     .btn-photo {
@@ -912,7 +907,7 @@
                                     </div>
                                 </div>
                                 
-                                <div class="d-grid gap-2 d-md-flex justify-content-center mt-4">
+                                <div class="d-flex flex-wrap justify-content-center gap-2 mt-4">
                                     <button type="button" class="btn btn-success" id="btn-agregar-colaborador"><i class="fas fa-plus me-2"></i>Agregar</button>
                                     <button type="button" class="btn btn-primary" id="btn-registrar-colaborador">Registrar Colaboradores</button>
                                 </div>
@@ -962,10 +957,8 @@
                                 <div class="card-header card-header-warning">
                                     <i class="fas fa-exclamation-triangle me-2"></i>Contratos por Vencer
                                 </div>
-                                <div class="card-body">
-                                    <div id="contenedor-vencimientos">
-                                        </div>
-                                </div>
+                                <div id="contenedor-vencimientos" class="card-body">
+                                    </div>
                             </div>
                         </div>
                         
@@ -1157,7 +1150,7 @@
                                             </div>
                                         </div>
                                         
-                                        <div class="d-grid gap-2 d-md-flex justify-content-center mt-4">
+                                        <div class="d-flex flex-wrap justify-content-center gap-2 mt-4">
                                             <button type="button" class="btn btn-success" id="btn-agregar-ausencia"><i class="fas fa-plus me-2"></i>Agregar</button>
                                             <button type="button" class="btn btn-primary" id="btn-registrar-ausencia">Registrar Ausencias</button>
                                         </div>
@@ -1428,10 +1421,8 @@
                                 <div class="card-header card-header-warning">
                                     <i class="fas fa-exclamation-triangle me-2"></i>Alerta de Bajo Rendimiento
                                 </div>
-                                <div class="card-body">
-                                    <div id="contenedor-bajo-rendimiento">
-                                        </div>
-                                </div>
+                                <div id="contenedor-bajo-rendimiento" class="card-body">
+                                    </div>
                             </div>
 
                             <div class="card">
@@ -1750,6 +1741,12 @@
                 let targetId = $(e.target).attr("href");
                 $('.dropdown-item').removeClass('active');
                 $(`.dropdown-item[href="${targetId}"]`).addClass('active');
+            });
+            
+            // Evento click para Vencimiento de Contratos
+            $(document).on('click', '#contenedor-vencimientos .resumen-disciplina-item', function() {
+                const identidad = $(this).data('identidad');
+                mostrarDetalleColaboradorCompleto(identidad);
             });
         }
         
@@ -2177,6 +2174,7 @@
                 const fechaInicio = new Date(col.fechaInicio + 'T00:00:00');
                 const fechaVencimiento = new Date(fechaInicio);
                 fechaVencimiento.setMonth(fechaInicio.getMonth() + 6);
+                fechaVencimiento.setDate(fechaVencimiento.getDate() - 1); // Restar un día
 
                 const diasRestantes = Math.ceil((fechaVencimiento - hoy) / (1000 * 60 * 60 * 24));
 
@@ -2200,7 +2198,7 @@
 
                 const fotoSrc = item.fotoUrl || `https://ui-avatars.com/api/?name=${item.nombre.replace(/\s/g, "+")}&background=random`;
                 listHtml += `
-                    <div class="resumen-disciplina-item" data-nombre="${item.nombre}" data-identidad="${item.identidad}">
+                    <div class="resumen-disciplina-item" data-identidad="${item.identidad}" style="cursor: pointer;">
                         <img src="${fotoSrc}" class="resumen-disciplina-img" onerror="this.src='https://ui-avatars.com/api/?name=${item.nombre.replace(/\s/g, "+")}&background=random'">
                         <div class="resumen-disciplina-info">
                             <h6>${item.nombre}</h6>
@@ -2218,7 +2216,7 @@
         function filtrarVencimientos() {
             const texto = $('#buscador-vencimientos').val().toLowerCase();
             $('#contenedor-vencimientos .resumen-disciplina-item').each(function() {
-                const nombre = $(this).data('nombre').toLowerCase();
+                const nombre = $(this).find('h6').text().toLowerCase();
                 const identidad = $(this).data('identidad').toLowerCase();
                 $(this).toggle(nombre.includes(texto) || identidad.includes(texto));
             });
@@ -3332,6 +3330,104 @@
                             scales: { y: { beginAtZero: true, max: 100 } }
                         }
                     });
+                }
+            });
+        }
+        
+        function mostrarDetalleColaboradorCompleto(identidad) {
+            const colaborador = colaboradoresActivos.find(c => c.identidad === identidad);
+            if (!colaborador) return;
+
+            const historialAusencias = ausencias.filter(d => d.identidad === identidad);
+            const historialDisciplina = disciplina.filter(d => d.identidad === identidad);
+            const historialEvaluaciones = evaluaciones.filter(d => d.identidad === identidad).sort((a,b) => new Date(a.fechaEvaluacion) - new Date(b.fechaEvaluacion));
+
+            let historialHtml = '<div style="max-height: 400px; overflow-y: auto; text-align: left;">';
+
+            historialHtml += '<h5><i class="fas fa-clock me-2"></i>Historial de Ausencias</h5>';
+            if (historialAusencias.length > 0) {
+                historialHtml += '<ul>';
+                historialAusencias.forEach(a => {
+                    historialHtml += `<li>${formatearFecha(a.fecha)} (${a.diasIncapacidad || 1} día(s)): ${a.motivo}</li>`;
+                });
+                historialHtml += '</ul>';
+            } else {
+                historialHtml += '<p class="text-muted small">Sin ausencias registradas.</p>';
+            }
+
+            historialHtml += '<h5 class="mt-3"><i class="fas fa-gavel me-2"></i>Historial de Disciplina</h5>';
+            if (historialDisciplina.length > 0) {
+                historialHtml += '<ul>';
+                historialDisciplina.forEach(d => {
+                    historialHtml += `<li>${formatearFecha(d.fechaFalta)}: ${d.descripcionFaltas}</li>`;
+                });
+                historialHtml += '</ul>';
+            } else {
+                historialHtml += '<p class="text-muted small">Sin acciones disciplinarias registradas.</p>';
+            }
+
+            historialHtml += '<h5 class="mt-3"><i class="fas fa-chart-bar me-2"></i>Historial de Evaluaciones</h5>';
+            if (historialEvaluaciones.length > 0) {
+                 historialHtml += '<div class="chart-container" style="height: 250px;"><canvas id="graficoProgresoColaboradorCompleto"></canvas></div>';
+                 [...historialEvaluaciones].reverse().forEach(reg => { // Mostramos de la más reciente a la más antigua
+                    const hasInfo = reg.observaciones || reg.compromiso || reg.recomendaciones;
+                    const aspectosMejorarHtml = generarHtmlAspectosMejorar(reg);
+                    historialHtml += `
+                        <div class="evaluacion-detalle-item">
+                            <h6><i class="fas fa-calendar-alt me-2"></i>Evaluación del ${formatearFecha(reg.fechaEvaluacion)} (Nota: ${reg.notaFinal})</h6>`;
+                    if (hasInfo) {
+                        historialHtml += `
+                            ${reg.observaciones ? `<p><strong>Observaciones:</strong> ${reg.observaciones}</p>` : ''}
+                            ${reg.compromiso ? `<p><strong>Compromiso de Mejora:</strong> ${reg.compromiso}</p>` : ''}
+                            ${reg.recomendaciones ? `<p><strong>Recomendaciones:</strong> ${reg.recomendaciones}</p>` : ''}`;
+                    }
+                    historialHtml += aspectosMejorarHtml;
+                    if (!hasInfo && !aspectosMejorarHtml) {
+                        historialHtml += `<p class="no-info">No se especificó información adicional.</p>`;
+                    }
+                    historialHtml += '</div>';
+                });
+            } else {
+                historialHtml += '<p class="text-muted small">Sin evaluaciones registradas.</p>';
+            }
+            historialHtml += '</div>';
+            
+            const fotoSrc = colaborador.fotoUrl || `https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=random`;
+            const detailModalHtml = `
+                <div class="text-center mb-3">
+                    <img src="${fotoSrc}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid #dee2e6;" onerror="this.src='https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=random'">
+                    <h5 class="mt-2 mb-0">${colaborador.nombre}</h5>
+                    <span class="badge bg-secondary">${colaborador.identidad}</span>
+                    <p class="mt-2">Fecha de Inicio: <strong>${formatearFecha(colaborador.fechaInicio)}</strong></p>
+                </div>
+                ${historialHtml}
+            `;
+
+            Swal.fire({
+                title: 'Historial del Colaborador',
+                html: detailModalHtml,
+                width: '800px',
+                showCloseButton: true,
+                showConfirmButton: false,
+                didOpen: () => {
+                    if (historialEvaluaciones.length > 0) {
+                        const ctx = document.getElementById('graficoProgresoColaboradorCompleto').getContext('2d');
+                        new Chart(ctx, {
+                            type: 'line',
+                            data: {
+                                labels: historialEvaluaciones.map(e => formatearFecha(e.fechaEvaluacion)),
+                                datasets: [{
+                                    label: 'Nota Final',
+                                    data: historialEvaluaciones.map(e => e.notaFinal),
+                                    borderColor: '#3498db',
+                                    backgroundColor: 'rgba(52, 152, 219, 0.2)',
+                                    fill: true,
+                                    tension: 0.1
+                                }]
+                            },
+                            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100 } } }
+                        });
+                    }
                 }
             });
         }

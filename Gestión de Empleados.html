@@ -4166,15 +4166,38 @@ function filtrarAusenciasPersonalizado() {
     let ausenciasFiltradas = ausencias;
 
     if (inicio && fin) {
-        ausenciasFiltradas = ausencias.filter(a => a.fecha >= inicio && a.fecha <= fin);
+        // --- INICIO DE LÓGICA CORREGIDA ---
+        // Queremos ausencias (A) que se solapen con el rango del filtro (F).
+        // Un solapamiento ocurre si:
+        // (Inicio de A <= Fin de F) Y (Fin de A >= Inicio de F)
+        ausenciasFiltradas = ausencias.filter(a => {
+            const absenceStart = a.fecha;
+            // Usar 'fechaFin' si existe; si no, es una ausencia de un día (usar 'fecha')
+            const absenceEnd = a.fechaFin || a.fecha; 
+            
+            return absenceStart <= fin && absenceEnd >= inicio;
+        });
+        // --- FIN DE LÓGICA CORREGIDA ---
+
     } else if (inicio) {
-        ausenciasFiltradas = ausencias.filter(a => a.fecha >= inicio);
+        // Si solo hay fecha "Desde", queremos cualquier ausencia que
+        // termine (absenceEnd) en o después de esa fecha.
+        ausenciasFiltradas = ausencias.filter(a => {
+            const absenceEnd = a.fechaFin || a.fecha;
+            return absenceEnd >= inicio;
+        });
+
     } else if (fin) {
+        // Si solo hay fecha "Hasta", queremos cualquier ausencia que
+        // comience (absenceStart) en o antes de esa fecha.
         ausenciasFiltradas = ausencias.filter(a => a.fecha <= fin);
     }
-
+    
+    // Si no hay 'inicio' ni 'fin', 'ausenciasFiltradas' sigue siendo igual a 'ausencias' (muestra todo).
+    
     mostrarAusencias(ausenciasFiltradas);
 }
+
 
 function filtrarDisciplinaPersonalizado() {
     const inicio = $('#fecha-inicio-disciplina').val();

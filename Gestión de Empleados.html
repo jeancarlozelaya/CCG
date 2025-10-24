@@ -2368,23 +2368,39 @@ function registrarAusencia() {
             ultimosEgresos.forEach(eg => tablaUltimosEgresos.append(`<tr><td>${formatearFecha(eg.fechaEgreso)}</td><td>${eg.nombre}</td><td>${eg.identidad}</td><td>${eg.razon}</td></tr>`));
         }
 
-        function mostrarColaboradoresActivos() {
-            const tablaActivos = $('#tabla-activos tbody').empty();
-            colaboradoresActivos.forEach((col, index) => {
-                tablaActivos.append(`
-                    <tr class="no-hover">
-                        <td>${formatearFecha(col.fechaInicio)}</td><td>${col.nombre}</td><td>${col.identidad}</td><td>${formatearFecha(col.fechaNacimiento)}</td><td>${col.sexo}</td>
-                        <td>
-                            <button class="btn btn-info btn-sm btn-action btn-photo" data-index="${index}" title="Ver Foto"><i class="fas fa-camera"></i></button>
-                            <button class="btn btn-warning btn-sm btn-action btn-edit" data-index="${index}" title="Editar"><i class="fas fa-edit"></i></button>
-                            <button class="btn btn-danger btn-sm btn-action btn-delete" data-index="${index}" title="Eliminar"><i class="fas fa-trash"></i></button>
-                        </td>
-                    </tr>`);
-            });
-            $('.btn-photo').on('click', function() { mostrarFoto(colaboradoresActivos[$(this).data('index')]); });
-            $('.btn-edit').on('click', function() { editarColaborador($(this).data('index')); });
-            $('.btn-delete').on('click', function() { eliminarColaborador($(this).data('index')); });
-        }
+function mostrarColaboradoresActivos() {
+    const tablaActivos = $('#tabla-activos tbody').empty();
+    colaboradoresActivos.forEach((col, index) => {
+        // --- INICIO DE MODIFICACIÓN ---
+        // Se agregó el nuevo "btn-historial"
+        tablaActivos.append(`
+            <tr class="no-hover">
+                <td>${formatearFecha(col.fechaInicio)}</td><td>${col.nombre}</td><td>${col.identidad}</td><td>${formatearFecha(col.fechaNacimiento)}</td><td>${col.sexo}</td>
+                <td>
+                    <button class="btn btn-secondary btn-sm btn-action btn-historial" data-identidad="${col.identidad}" title="Ver Historial"><i class="fas fa-history"></i></button>
+                    <button class="btn btn-info btn-sm btn-action btn-photo" data-index="${index}" title="Ver Foto"><i class="fas fa-camera"></i></button>
+                    <button class="btn btn-warning btn-sm btn-action btn-edit" data-index="${index}" title="Editar"><i class="fas fa-edit"></i></button>
+                    <button class="btn btn-danger btn-sm btn-action btn-delete" data-index="${index}" title="Eliminar"><i class="fas fa-trash"></i></button>
+                </td>
+            </tr>`);
+        // --- FIN DE MODIFICACIÓN ---
+    });
+
+    // Asignar eventos
+    $('.btn-photo').on('click', function() { mostrarFoto(colaboradoresActivos[$(this).data('index')]); });
+    $('.btn-edit').on('click', function() { editarColaborador($(this).data('index')); });
+    $('.btn-delete').on('click', function() { eliminarColaborador($(this).data('index')); });
+    
+    // --- NUEVO EVENTO AGREGADO ---
+    // Añadimos el listener para el nuevo botón de historial
+    $('.btn-historial').on('click', function(e) {
+        e.stopPropagation();
+        const identidad = $(this).data('identidad');
+        // 'false' indica que no es un egresado
+        mostrarDetalleColaboradorCompleto(identidad, false); 
+    });
+}
+
 
         function filtrarActivos() {
             const texto = $('#buscador-activos').val().toLowerCase();

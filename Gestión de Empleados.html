@@ -1240,7 +1240,6 @@
                                                     <th>Nombre</th>
                                                     <th>Identidad</th>
                                                     <th>Razón</th>
-                                                    <th>Acciones</th>
                                                 </tr>
                                             </thead>
                                             <tbody id="tabla-egresos" class="no-hover">
@@ -2377,8 +2376,8 @@ function mostrarColaboradoresActivos() {
             <tr class="no-hover">
                 <td>${formatearFecha(col.fechaInicio)}</td><td>${col.nombre}</td><td>${col.identidad}</td><td>${formatearFecha(col.fechaNacimiento)}</td><td>${col.sexo}</td>
                 <td>
-                    <button class="btn btn-secondary btn-sm btn-action btn-historial" data-identidad="${col.identidad}" title="Ver Historial"><i class="fas fa-history"></i></button>
                     <button class="btn btn-info btn-sm btn-action btn-photo" data-index="${index}" title="Ver Foto"><i class="fas fa-camera"></i></button>
+                    <button class="btn btn-secondary btn-sm btn-action btn-historial" data-identidad="${col.identidad}" title="Ver Historial"><i class="fas fa-history"></i></button>
                     <button class="btn btn-warning btn-sm btn-action btn-edit" data-index="${index}" title="Editar"><i class="fas fa-edit"></i></button>
                     <button class="btn btn-danger btn-sm btn-action btn-delete" data-index="${index}" title="Eliminar"><i class="fas fa-trash"></i></button>
                 </td>
@@ -2523,19 +2522,25 @@ function mostrarColaboradoresActivos() {
             mostrarEgresos(egresosPeriodo);
         }
 
-        function mostrarEgresos(egresos) {
-            const tablaEgresos = $('#tabla-egresos').empty();
-            if (egresos.length === 0) { tablaEgresos.append('<tr><td colspan="5" class="text-center">No hay egresos que mostrar.</td></tr>'); return; }
-            [...egresos].sort((a, b) => new Date(b.fechaEgreso) - new Date(a.fechaEgreso)).forEach(e => {
-                tablaEgresos.append(`<tr data-identidad="${e.identidad}" data-fechaegreso="${e.fechaEgreso}"><td>${formatearFecha(e.fechaEgreso)}</td><td>${e.nombre}</td><td>${e.identidad}</td><td>${e.razon}</td><td>${e.fotoUrl ? `<button class="btn btn-info btn-sm btn-action btn-photo-egreso" title="Ver Foto"><i class="fas fa-camera"></i></button>` : ''}</td></tr>`);
-            });
-            $('.btn-photo-egreso').off('click').on('click', function(e) {
-                e.stopPropagation();
-                const row = $(this).closest('tr'), id = row.data('identidad'), fecha = row.data('fechaegreso');
-                const egresoData = colaboradoresEgresos.find(e => e.identidad === id && e.fechaEgreso === fecha);
-                if(egresoData) mostrarFoto(egresoData);
-            });
-        }
+function mostrarEgresos(egresos) {
+    const tablaEgresos = $('#tabla-egresos').empty();
+    
+    // --- MODIFICACIÓN: Colspan cambiado de 5 a 4 ---
+    if (egresos.length === 0) { 
+        tablaEgresos.append('<tr><td colspan="4" class="text-center">No hay egresos que mostrar.</td></tr>'); 
+        return; 
+    }
+    
+    [...egresos].sort((a, b) => new Date(b.fechaEgreso) - new Date(a.fechaEgreso)).forEach(e => {
+        // --- MODIFICACIÓN: Se eliminó la última celda (<td>...</td>) que contenía las acciones ---
+        tablaEgresos.append(`<tr data-identidad="${e.identidad}" data-fechaegreso="${e.fechaEgreso}"><td>${formatearFecha(e.fechaEgreso)}</td><td>${e.nombre}</td><td>${e.identidad}</td><td>${e.razon}</td></tr>`);
+    });
+    
+    // --- MODIFICACIÓN: Se eliminó el event listener para '.btn-photo-egreso' ---
+    // (La función .off('click').on('click'...) que estaba aquí se ha borrado)
+}
+
+
 
         function filtrarEgresos() {
             const texto = $('#buscador-egresos').val().toLowerCase();
@@ -2634,41 +2639,61 @@ function mostrarColaboradoresActivos() {
             });
         }
         
-        function mostrarColaboradoresEgresados() {
-            const tablaEgresados = $('#tabla-colaboradores-egresados').empty();
-            if (colaboradoresEgresos.length === 0) {
-                tablaEgresados.append('<tr><td colspan="5" class="text-center">No hay colaboradores egresados.</td></tr>');
-                return;
-            }
+function mostrarColaboradoresEgresados() {
+    const tablaEgresados = $('#tabla-colaboradores-egresados').empty();
+    if (colaboradoresEgresos.length === 0) {
+        tablaEgresados.append('<tr><td colspan="5" class="text-center">No hay colaboradores egresados.</td></tr>');
+        return;
+    }
 
-            [...colaboradoresEgresos].sort((a,b) => new Date(b.fechaEgreso) - new Date(a.fechaEgreso)).forEach(egreso => {
-                const fila = `
-                    <tr data-identidad="${egreso.identidad}">
-                        <td>${formatearFecha(egreso.fechaEgreso)}</td>
-                        <td>${egreso.nombre}</td>
-                        <td>${egreso.identidad}</td>
-                        <td>${egreso.razon}</td>
-                        <td>
-                            <button class="btn btn-secondary btn-sm btn-action btn-historial-egresado" title="Ver Historial"><i class="fas fa-history"></i></button>
-                            <button class="btn btn-success btn-sm btn-action btn-reingreso" title="Reingresar Colaborador"><i class="fas fa-user-plus"></i></button>
-                        </td>
-                    </tr>`;
-                tablaEgresados.append(fila);
-            });
-            
-            $('.btn-historial-egresado').on('click', function(e) {
-                e.stopPropagation();
-                const identidad = $(this).closest('tr').data('identidad');
-                mostrarDetalleEgresado(identidad);
-            });
+    [...colaboradoresEgresos].sort((a,b) => new Date(b.fechaEgreso) - new Date(a.fechaEgreso)).forEach(egreso => {
+        // --- INICIO DE MODIFICACIÓN ---
+        // Se eliminó la condición (egreso.fotoUrl ? ... : '').
+        // Ahora, el botón de foto se crea siempre.
+        const fotoButtonHtml = `<button class="btn btn-info btn-sm btn-action btn-photo-egresado" data-identidad="${egreso.identidad}" data-fechaegreso="${egreso.fechaEgreso}" title="Ver Foto"><i class="fas fa-camera"></i></button>`;
 
-            $('.btn-reingreso').on('click', function(e) {
-                e.stopPropagation();
-                const identidad = $(this).closest('tr').data('identidad');
-                const egresado = colaboradoresEgresos.find(e => e.identidad === identidad);
-                if (egresado) reingresarColaborador(egresado);
-            });
-        }
+        const fila = `
+            <tr data-identidad="${egreso.identidad}">
+                <td>${formatearFecha(egreso.fechaEgreso)}</td>
+                <td>${egreso.nombre}</td>
+                <td>${egreso.identidad}</td>
+                <td>${egreso.razon}</td>
+                <td>
+                    ${fotoButtonHtml} <button class="btn btn-secondary btn-sm btn-action btn-historial-egresado" title="Ver Historial"><i class="fas fa-history"></i></button>
+                    <button class="btn btn-success btn-sm btn-action btn-reingreso" title="Reingresar Colaborador"><i class="fas fa-user-plus"></i></button>
+                </td>
+            </tr>`;
+        // --- FIN DE MODIFICACIÓN ---
+        tablaEgresados.append(fila);
+    });
+    
+    // Evento para el botón de historial (existente)
+    $('.btn-historial-egresado').on('click', function(e) {
+        e.stopPropagation();
+        const identidad = $(this).closest('tr').data('identidad');
+        mostrarDetalleEgresado(identidad);
+    });
+
+    // Evento para el botón de reingreso (existente)
+    $('.btn-reingreso').on('click', function(e) {
+        e.stopPropagation();
+        const identidad = $(this).closest('tr').data('identidad');
+        const egresado = colaboradoresEgresos.find(e => e.identidad === identidad);
+        if (egresado) reingresarColaborador(egresado);
+    });
+    
+    // Evento para el botón de foto (existente, sin cambios)
+    $('.btn-photo-egresado').on('click', function(e) {
+        e.stopPropagation();
+        const row = $(this).closest('tr');
+        const id = row.data('identidad');
+        // Usamos la fecha de egreso para asegurar que sea el registro correcto
+        const fecha = $(this).data('fechaegreso'); 
+        const egresoData = colaboradoresEgresos.find(e => e.identidad === id && e.fechaEgreso === fecha);
+        if(egresoData) mostrarFoto(egresoData);
+    });
+}
+
         
         function filtrarEgresadosTabla() {
             const texto = $('#buscador-egresados-tabla').val().toLowerCase();

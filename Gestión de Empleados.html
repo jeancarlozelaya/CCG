@@ -1537,6 +1537,7 @@
                                                     <th>Motivo</th>
                                                     <th>Días</th>
                                                     <th>Observaciones</th>
+                                                    <th>Acciones</th>
                                                 </tr>
                                             </thead>
                                             <tbody id="tabla-ausencias" class="no-hover">
@@ -1983,107 +1984,218 @@ function cargarTodosLosDatos() {
             return item;
         }
         
-        function configurarEventos() {
-            $('#btn-registrar-colaborador').on('click', registrarColaborador);
-            $('#btn-agregar-colaborador').on('click', agregarFormularioColaborador);
-            $(document).on('click', '.btn-quitar-item-colaborador', function() { $(this).closest('.formulario-item').remove(); });
-            $(document).on('input', '.identidad', function() { formatearIdentidad(this); });
-            $('#btn-registrar-ausencia').on('click', registrarAusencia);
-            $('#btn-agregar-ausencia').on('click', agregarFormularioAusencia);
-            $(document).on('click', '.btn-quitar-item-ausencia', function() { $(this).closest('.formulario-item').remove(); });
+function configurarEventos() {
+    $('#btn-registrar-colaborador').on('click', registrarColaborador);
+    $('#btn-agregar-colaborador').on('click', agregarFormularioColaborador);
+    $(document).on('click', '.btn-quitar-item-colaborador', function() { $(this).closest('.formulario-item').remove(); });
+    $(document).on('input', '.identidad', function() { formatearIdentidad(this); });
+    $('#btn-registrar-ausencia').on('click', registrarAusencia);
+    $('#btn-agregar-ausencia').on('click', agregarFormularioAusencia);
+    $(document).on('click', '.btn-quitar-item-ausencia', function() { $(this).closest('.formulario-item').remove(); });
 
-            $('#btn-filtrar-ausencias-personalizado').on('click', filtrarAusenciasPersonalizado);
-            $('#btn-filtrar-disciplina-personalizado').on('click', filtrarDisciplinaPersonalizado);
-            $('#btn-filtrar-evaluaciones-personalizado').on('click', filtrarEvaluacionesPersonalizado);
-            $(document).on('click', '.btn-refresh-tab', actualizarTabActual);
+    $('#buscador-activos').on('input', filtrarActivos);
+    $('#buscador-egresos').on('input', filtrarEgresos);
+    $('#buscador-egresados-tabla').on('input', filtrarEgresadosTabla);
+    $('#buscador-ausencias').on('input', filtrarAusencias);
+    $('#buscador-disciplina').on('input', filtrarDisciplina); 
+    $('#buscador-evaluaciones').on('input', filtrarEvaluaciones);
+    $('#buscador-vencimientos').on('input', filtrarVencimientos);
+    $('#buscador-planilla').on('input', filtrarPlanilla);
+    
+    $('#planilla-date-picker').on('change', function() {
+        generarPlanilla(this.value);
+    });
+    
+    $('#btn-calcular-rotacion-personalizado').on('click', calcularRotacionPersonalizado);
+    $('#btn-resumen-disciplina').on('click', mostrarResumenDisciplina);
+    $('#btn-resumen-evaluaciones').on('click', mostrarResumenEvaluaciones);
+    $('#btn-resumen-ausencias').on('click', mostrarResumenAusencias);
+
+    $('#btn-filtrar-grafico').on('click', function() {
+        const ano = parseInt($('#filtro-ano-grafico').val());
+        const mes = parseInt($('#filtro-mes-grafico').val());
+        crearGraficoAusencias(ano, mes);
+        $('#contenedorGraficoFiltradoAusencias').toggle(ano !== new Date().getFullYear() || mes !== new Date().getMonth());
+        if ($('#contenedorGraficoFiltradoAusencias').is(':visible')) {
+            crearGraficoAusenciasMotivoFiltrado(ano, mes);
+        }
+    });
+
+    $('#btn-filtrar-disciplina-grafico').on('click', function() {
+        const ano = parseInt($('#filtro-ano-disciplina').val());
+        const mes = parseInt($('#filtro-mes-disciplina').val());
+        crearGraficoDisciplinaPorDia(ano, mes);
+        $('#contenedorGraficoFiltradoDisciplina').toggle(ano !== new Date().getFullYear() || mes !== new Date().getMonth());
+        if ($('#contenedorGraficoFiltradoDisciplina').is(':visible')) {
+            crearGraficoDisciplinaMotivoFiltrado(ano, mes);
+        }
+    });
+
+    $('#btn-filtrar-evaluaciones-grafico').on('click', function() {
+        const ano = parseInt($('#filtro-ano-evaluaciones-grafico').val());
+        crearGraficoEvaluacionesAnual(ano);
+    });
+    
+    $('#btn-filtrar-rotacion-grafico').on('click', function() {
+        const ano = parseInt($('#filtro-ano-rotacion').val());
+        crearGraficoRotacionAnual(ano);
+    });
+
+    $('#btn-filtrar-egresos').on('click', function() {
+        const ano = parseInt($('#filtro-ano-egresos').val());
+        const mes = parseInt($('#filtro-mes-egresos').val());
+        $('#contenedorGraficoFiltradoEgresos').toggle(ano !== new Date().getFullYear() || mes !== new Date().getMonth());
+         if ($('#contenedorGraficoFiltradoEgresos').is(':visible')) {
+            crearGraficoEgresosMotivoFiltrado(ano, mes);
+        }
+    });
+    
+    $(document).on('input', '.colaborador-ausencia', function() {
+        const input = $(this), valor = input.val().toLowerCase(), autocompleteList = input.next('.autocomplete-list');
+        if (valor.length < 2) { autocompleteList.hide(); return; }
+        const sugerencias = nombresActivos.filter(nombre => nombre.toLowerCase().includes(valor));
+        autocompleteList.empty().toggle(sugerencias.length > 0);
+        sugerencias.forEach(sug => autocompleteList.append(`<div class="autocomplete-item">${sug}</div>`));
+    });
+
+    $(document).on('click', '.autocomplete-item', function() {
+        const item = $(this);
+        item.closest('.autocomplete-container').find('.colaborador-ausencia').val(item.text());
+        item.closest('.autocomplete-list').hide();
+    });
+
+    $(document).on('click', (e) => { if (!$(e.target).closest('.autocomplete-container').length) $('.autocomplete-list').hide(); });
+
+    // Sincronizar active state entre dropdowns y tabs
+    $('a[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
+        let targetId = $(e.target).attr("href");
+        $('.dropdown-item').removeClass('active');
+        $(`.dropdown-item[href="${targetId}"]`).addClass('active');
+    });
+    
+    // Evento click para Vencimiento de Contratos
+    $(document).on('click', '#contenedor-vencimientos .resumen-disciplina-item, #contenedor-contratos-vencidos .resumen-disciplina-item', function() {
+        const identidad = $(this).data('identidad');
+        mostrarDetalleColaboradorCompleto(identidad);
+    });
+
+    // Filtros de fecha personalizados
+    $('#btn-filtrar-ausencias-personalizado').on('click', filtrarAusenciasPersonalizado);
+    $('#btn-filtrar-disciplina-personalizado').on('click', filtrarDisciplinaPersonalizado);
+    $('#btn-filtrar-evaluaciones-personalizado').on('click', filtrarEvaluacionesPersonalizado);
+
+    // Botón de refrescar pestaña
+    $(document).on('click', '.btn-refresh-tab', actualizarTabActual);
+
+    // --- INICIO DE NUEVO CÓDIGO ---
+    // Evento para el nuevo botón de editar ausencia
+    $(document).on('click', '.btn-edit-ausencia', function() {
+        const identidad = $(this).data('identidad');
+        const fecha = $(this).data('fecha'); // La fecha de inicio (YYYY-MM-DD)
+        
+        // Encontrar la ausencia original en el array global
+        const ausenciaOriginal = ausencias.find(a => a.identidad === identidad && a.fecha === fecha);
+        
+        if (ausenciaOriginal) {
+            abrirModalEditarAusencia(ausenciaOriginal);
+        } else {
+            Swal.fire('Error', 'No se pudo encontrar el registro de ausencia original.', 'error');
+        }
+    });
+    // --- FIN DE NUEVO CÓDIGO ---
+}
 
 
-            $('#buscador-activos').on('input', filtrarActivos);
-            $('#buscador-egresos').on('input', filtrarEgresos);
-            $('#buscador-egresados-tabla').on('input', filtrarEgresadosTabla);
-            $('#buscador-ausencias').on('input', filtrarAusencias);
-            $('#buscador-disciplina').on('input', filtrarDisciplina); 
-            $('#buscador-evaluaciones').on('input', filtrarEvaluaciones);
-            $('#buscador-vencimientos').on('input', filtrarVencimientos);
-            $('#buscador-planilla').on('input', filtrarPlanilla);
+/**
+ * Abre un modal (SweetAlert) para editar un registro de ausencia existente.
+ * @param {object} ausenciaOriginal - El objeto de ausencia de la variable global 'ausencias'.
+ */
+function abrirModalEditarAusencia(ausenciaOriginal) {
+    Swal.fire({
+        title: 'Editar Ausencia',
+        html: `
+            <div class="text-start">
+                <p class="mb-1"><strong>Colaborador:</strong> ${ausenciaOriginal.nombre}</p>
+                <p class="mb-3"><strong>Fecha de Inicio:</strong> ${formatearFecha(ausenciaOriginal.fecha)}</p>
+                
+                <div class="mb-3">
+                    <label for="editar-dias-ausencia" class="form-label">Días de Ausencia</label>
+                    <input type="number" class="form-control" id="editar-dias-ausencia" min="1" value="${ausenciaOriginal.diasIncapacidad || 1}" required>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="editar-motivo-ausencia" class="form-label">Motivo</label>
+                    <select class="form-select" id="editar-motivo-ausencia" required>
+                        <option value="Incapacidad" ${ausenciaOriginal.motivo === 'Incapacidad' ? 'selected' : ''}>Incapacidad</option>
+                        <option value="Permiso" ${ausenciaOriginal.motivo === 'Permiso' ? 'selected' : ''}>Permiso</option>
+                        <option value="Falta Injustificada" ${ausenciaOriginal.motivo === 'Falta Injustificada' ? 'selected' : ''}>Falta Injustificada</option>
+                    </select>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="editar-obs-ausencia" class="form-label">Observaciones</label>
+                    <textarea class="form-control" id="editar-obs-ausencia" rows="2">${ausenciaOriginal.observaciones || ''}</textarea>
+                </div>
+            </div>`,
+        showCancelButton: true,
+        confirmButtonText: 'Guardar Cambios',
+        cancelButtonText: 'Cancelar',
+        preConfirm: () => {
+            const diasIncapacidad = parseInt($('#editar-dias-ausencia').val());
+            const motivo = $('#editar-motivo-ausencia').val();
+            const observaciones = $('#editar-obs-ausencia').val();
+
+            if (!diasIncapacidad || diasIncapacidad < 1) {
+                Swal.showValidationMessage('Los días de ausencia deben ser 1 o más.');
+                return false;
+            }
             
-            $('#planilla-date-picker').on('change', function() {
-                generarPlanilla(this.value);
-            });
-            
-            $('#btn-calcular-rotacion-personalizado').on('click', calcularRotacionPersonalizado);
-            $('#btn-resumen-disciplina').on('click', mostrarResumenDisciplina);
-            $('#btn-resumen-evaluaciones').on('click', mostrarResumenEvaluaciones);
-            $('#btn-resumen-ausencias').on('click', mostrarResumenAusencias);
+            // Calcular nueva fecha fin
+            const fechaInicio = new Date(ausenciaOriginal.fecha + 'T00:00:00');
+            const fechaFin = new Date(fechaInicio);
+            fechaFin.setDate(fechaFin.getDate() + diasIncapacidad - 1);
+            const fechaFinStr = fechaFin.toISOString().split('T')[0];
 
-            $('#btn-filtrar-grafico').on('click', function() {
-                const ano = parseInt($('#filtro-ano-grafico').val());
-                const mes = parseInt($('#filtro-mes-grafico').val());
-                crearGraficoAusencias(ano, mes);
-                $('#contenedorGraficoFiltradoAusencias').toggle(ano !== new Date().getFullYear() || mes !== new Date().getMonth());
-                if ($('#contenedorGraficoFiltradoAusencias').is(':visible')) {
-                    crearGraficoAusenciasMotivoFiltrado(ano, mes);
+            const datosNuevos = {
+                diasIncapacidad,
+                motivo,
+                observaciones,
+                fechaFin: fechaFinStr // Calculamos la nueva fecha fin
+            };
+            
+            return { datosNuevos };
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const { datosNuevos } = result.value;
+            
+            $('#overlay').css('display', 'flex');
+            $.post(SCRIPT_URL_ENVIAR, {
+                accion: 'editar_ausencia',
+                // Enviamos la clave original para que el backend la encuentre
+                ausenciaOriginal: JSON.stringify({
+                    identidad: ausenciaOriginal.identidad,
+                    fecha: ausenciaOriginal.fecha // Clave primaria (YYYY-MM-DD)
+                }),
+                datosNuevos: JSON.stringify(datosNuevos)
+            }, function(response) {
+                $('#overlay').hide();
+                if (response === 'Éxito') {
+                    Swal.fire('Éxito', 'Ausencia actualizada correctamente.', 'success').then(() => {
+                        // Actualizar la pestaña actual para ver los cambios
+                        actualizarTabActual(); 
+                    });
+                } else {
+                    Swal.fire('Error', 'Hubo un problema al actualizar: ' + response, 'error');
                 }
-            });
-
-            $('#btn-filtrar-disciplina-grafico').on('click', function() {
-                const ano = parseInt($('#filtro-ano-disciplina').val());
-                const mes = parseInt($('#filtro-mes-disciplina').val());
-                crearGraficoDisciplinaPorDia(ano, mes);
-                $('#contenedorGraficoFiltradoDisciplina').toggle(ano !== new Date().getFullYear() || mes !== new Date().getMonth());
-                if ($('#contenedorGraficoFiltradoDisciplina').is(':visible')) {
-                    crearGraficoDisciplinaMotivoFiltrado(ano, mes);
-                }
-            });
-
-            $('#btn-filtrar-evaluaciones-grafico').on('click', function() {
-                const ano = parseInt($('#filtro-ano-evaluaciones-grafico').val());
-                crearGraficoEvaluacionesAnual(ano);
-            });
-            
-            $('#btn-filtrar-rotacion-grafico').on('click', function() {
-                const ano = parseInt($('#filtro-ano-rotacion').val());
-                crearGraficoRotacionAnual(ano);
-            });
-
-            $('#btn-filtrar-egresos').on('click', function() {
-                const ano = parseInt($('#filtro-ano-egresos').val());
-                const mes = parseInt($('#filtro-mes-egresos').val());
-                $('#contenedorGraficoFiltradoEgresos').toggle(ano !== new Date().getFullYear() || mes !== new Date().getMonth());
-                 if ($('#contenedorGraficoFiltradoEgresos').is(':visible')) {
-                    crearGraficoEgresosMotivoFiltrado(ano, mes);
-                }
-            });
-            
-            $(document).on('input', '.colaborador-ausencia', function() {
-                const input = $(this), valor = input.val().toLowerCase(), autocompleteList = input.next('.autocomplete-list');
-                if (valor.length < 2) { autocompleteList.hide(); return; }
-                const sugerencias = nombresActivos.filter(nombre => nombre.toLowerCase().includes(valor));
-                autocompleteList.empty().toggle(sugerencias.length > 0);
-                sugerencias.forEach(sug => autocompleteList.append(`<div class="autocomplete-item">${sug}</div>`));
-            });
-
-            $(document).on('click', '.autocomplete-item', function() {
-                const item = $(this);
-                item.closest('.autocomplete-container').find('.colaborador-ausencia').val(item.text());
-                item.closest('.autocomplete-list').hide();
-            });
-
-            $(document).on('click', (e) => { if (!$(e.target).closest('.autocomplete-container').length) $('.autocomplete-list').hide(); });
-
-            // Sincronizar active state entre dropdowns y tabs
-            $('a[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
-                let targetId = $(e.target).attr("href");
-                $('.dropdown-item').removeClass('active');
-                $(`.dropdown-item[href="${targetId}"]`).addClass('active');
-            });
-            
-            // Evento click para Vencimiento de Contratos
-            $(document).on('click', '#contenedor-vencimientos .resumen-disciplina-item, #contenedor-contratos-vencidos .resumen-disciplina-item', function() {
-                const identidad = $(this).data('identidad');
-                mostrarDetalleColaboradorCompleto(identidad);
+            }).fail(() => {
+                $('#overlay').hide();
+                Swal.fire('Error', 'Error de conexión al actualizar.', 'error');
             });
         }
+    });
+}
+
         
         function agregarFormularioColaborador() {
             const today = new Date();
@@ -2910,13 +3022,35 @@ function mostrarAusencias(datos) {
     const datosAMostrar = datos || ausencias;
     const tablaAusencias = $('#tabla-ausencias').empty();
     if (datosAMostrar.length === 0) { 
-        tablaAusencias.append('<tr><td colspan="7" class="text-center">No hay ausencias para el filtro seleccionado.</td></tr>'); 
+        // MODIFICACIÓN: Colspan cambiado de 7 a 8
+        tablaAusencias.append('<tr><td colspan="8" class="text-center">No hay ausencias para el filtro seleccionado.</td></tr>'); 
         return; 
     }
     [...datosAMostrar].sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).forEach(a => {
-        tablaAusencias.append(`<tr><td>${formatearFecha(a.fecha)}</td><td>${formatearFecha(a.fechaFin || a.fecha)}</td><td>${a.nombre}</td><td>${a.identidad}</td><td>${a.motivo}</td><td>${a.diasIncapacidad || 1}</td><td>${a.observaciones || ''}</td></tr>`);
+        // MODIFICACIÓN: Añadir celda de Acciones y botón
+        tablaAusencias.append(`
+            <tr class="no-hover">
+                <td>${formatearFecha(a.fecha)}</td>
+                <td>${formatearFecha(a.fechaFin || a.fecha)}</td>
+                <td>${a.nombre}</td>
+                <td>${a.identidad}</td>
+                <td>${a.motivo}</td>
+                <td>${a.diasIncapacidad || 1}</td>
+                <td>${a.observaciones || ''}</td>
+                <td>
+                    <button class="btn btn-warning btn-sm btn-action btn-edit-ausencia" 
+                            data-identidad="${a.identidad}" 
+                            data-fecha="${a.fecha}" 
+                            title="Editar Ausencia">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                </td>
+            </tr>`);
     });
+    // El event listener se manejará en configurarEventos
 }
+
+
 
         function filtrarAusencias() {
             const texto = $('#buscador-ausencias').val().toLowerCase();

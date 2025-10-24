@@ -1373,6 +1373,24 @@
                                     </button>
                                 </div>
                                 <div class="card-body">
+
+<div class="date-range-container">
+    <div class="form-group">
+        <label for="fecha-inicio-ausencias" class="form-label">Filtrar desde</label>
+        <input type="date" class="form-control" id="fecha-inicio-ausencias">
+    </div>
+    <div class="form-group">
+        <label for="fecha-fin-ausencias" class="form-label">Filtrar hasta</label>
+        <input type="date" class="form-control" id="fecha-fin-ausencias">
+    </div>
+    <div class="form-group d-flex align-items-end">
+        <button type="button" class="btn btn-primary btn-sm" id="btn-filtrar-ausencias-personalizado">Filtrar</button>
+    </div>
+</div>
+
+
+
+
                                     <div class="search-container">
                                         <i class="fas fa-search"></i>
                                         <input type="text" class="form-control" id="buscador-ausencias" placeholder="Buscar por nombre, identidad, motivo...">
@@ -1472,6 +1490,22 @@
                                     </button>
                                 </div>
                                 <div class="card-body">
+
+<div class="date-range-container">
+    <div class="form-group">
+        <label for="fecha-inicio-disciplina" class="form-label">Filtrar desde</label>
+        <input type="date" class="form-control" id="fecha-inicio-disciplina">
+    </div>
+    <div class="form-group">
+        <label for="fecha-fin-disciplina" class="form-label">Filtrar hasta</label>
+        <input type="date" class="form-control" id="fecha-fin-disciplina">
+    </div>
+    <div class="form-group d-flex align-items-end">
+        <button type="button" class="btn btn-primary btn-sm" id="btn-filtrar-disciplina-personalizado">Filtrar</button>
+    </div>
+</div>
+
+
                                     <div class="search-container">
                                         <i class="fas fa-search"></i>
                                         <input type="text" class="form-control" id="buscador-disciplina" placeholder="Buscar por nombre o identidad...">
@@ -1570,6 +1604,23 @@
                                     </button>
                                 </div>
                                 <div class="card-body">
+
+<div class="date-range-container">
+    <div class="form-group">
+        <label for="fecha-inicio-evaluaciones" class="form-label">Filtrar desde</label>
+        <input type="date" class="form-control" id="fecha-inicio-evaluaciones">
+    </div>
+    <div class="form-group">
+        <label for="fecha-fin-evaluaciones" class="form-label">Filtrar hasta</label>
+        <input type="date" class="form-control" id="fecha-fin-evaluaciones">
+    </div>
+    <div class="form-group d-flex align-items-end">
+        <button type="button" class="btn btn-primary btn-sm" id="btn-filtrar-evaluaciones-personalizado">Filtrar</button>
+    </div>
+</div>
+
+
+
                                     <div class="search-container">
                                         <i class="fas fa-search"></i>
                                         <input type="text" class="form-control" id="buscador-evaluaciones" placeholder="Buscar por nombre o identidad...">
@@ -1807,6 +1858,11 @@
             $('#btn-registrar-ausencia').on('click', registrarAusencia);
             $('#btn-agregar-ausencia').on('click', agregarFormularioAusencia);
             $(document).on('click', '.btn-quitar-item-ausencia', function() { $(this).closest('.formulario-item').remove(); });
+
+            $('#btn-filtrar-ausencias-personalizado').on('click', filtrarAusenciasPersonalizado);
+            $('#btn-filtrar-disciplina-personalizado').on('click', filtrarDisciplinaPersonalizado);
+            $('#btn-filtrar-evaluaciones-personalizado').on('click', filtrarEvaluacionesPersonalizado);
+
 
             $('#buscador-activos').on('input', filtrarActivos);
             $('#buscador-egresos').on('input', filtrarEgresos);
@@ -2069,28 +2125,106 @@
             $('#contenedor-formularios-ausencia').append(nuevoFormulario);
         }
 
-        function registrarAusencia() {
-            let ausenciasParaRegistrar = [], esValido = true;
-            $('#contenedor-formularios-ausencia .formulario-item').each(function(index) {
-                const item = $(this), fecha = item.find('.fecha-ausencia').val(), diasIncapacidad = parseInt(item.find('.dias-incapacidad').val()), colaborador = item.find('.colaborador-ausencia').val(), motivo = item.find('.motivo-ausencia').val(), observaciones = item.find('.observaciones-ausencia').val();
-                if (!fecha || !diasIncapacidad || !colaborador || !motivo) { Swal.fire('Error', `Complete campos obligatorios para ausencia #${index + 1}.`, 'error'); esValido = false; return false; }
-                if (!colaboradoresActivos.some(col => col.nombre.toLowerCase() === colaborador.toLowerCase())) { Swal.fire('Error', `Colaborador '${colaborador}' (ausencia #${index + 1}) no es activo.`, 'error'); esValido = false; return false; }
-                const fechaInicio = new Date(fecha), fechaFin = new Date(fechaInicio);
-                fechaFin.setDate(fechaFin.getDate() + diasIncapacidad - 1);
-                ausenciasParaRegistrar.push({ fecha, fechaFin: fechaFin.toISOString().split('T')[0], diasIncapacidad, colaborador, motivo, observaciones });
-            });
-            if (!esValido || ausenciasParaRegistrar.length === 0) return;
-            Swal.fire({ title: '¿Está seguro?', html: `Se registrarán <strong>${ausenciasParaRegistrar.length}</strong> ausencias.`, icon: 'question', showCancelButton: true, confirmButtonText: 'Sí, registrar', cancelButtonText: 'No, cancelar' }).then((result) => {
-                if (result.isConfirmed) {
-                    $('#overlay').css('display', 'flex');
-                    $.post(SCRIPT_URL_ENVIAR, { accion: 'registrar_ausencias_masivo', datos: JSON.stringify(ausenciasParaRegistrar) }, (response) => {
-                        $('#overlay').hide();
-                        if (response === 'Éxito') Swal.fire('Éxito', 'Ausencias registradas.', 'success').then(() => { $('#contenedor-formularios-ausencia').empty(); agregarFormularioAusencia(); cargarTodosLosDatos(); });
-                        else Swal.fire('Error', `Error al registrar ausencias: ${response}`, 'error');
-                    }).fail(() => { $('#overlay').hide(); Swal.fire('Error', 'Error de conexión.', 'error'); });
+function registrarAusencia() {
+    let ausenciasParaRegistrar = [], esValido = true;
+    
+    $('#contenedor-formularios-ausencia .formulario-item').each(function(index) {
+        const item = $(this);
+        const fecha = item.find('.fecha-ausencia').val();
+        const diasIncapacidad = parseInt(item.find('.dias-incapacidad').val());
+        const colaborador = item.find('.colaborador-ausencia').val();
+        const motivo = item.find('.motivo-ausencia').val();
+        const observaciones = item.find('.observaciones-ausencia').val();
+
+        if (!fecha || !diasIncapacidad || !colaborador || !motivo) { 
+            Swal.fire('Error', `Complete campos obligatorios para ausencia #${index + 1}.`, 'error'); 
+            esValido = false; 
+            return false; 
+        }
+
+        const colaboradorInfo = colaboradoresActivos.find(col => col.nombre.toLowerCase() === colaborador.toLowerCase());
+        
+        if (!colaboradorInfo) { 
+            Swal.fire('Error', `Colaborador '${colaborador}' (ausencia #${index + 1}) no es activo.`, 'error'); 
+            esValido = false; 
+            return false; 
+        }
+        
+        const identidad = colaboradorInfo.identidad;
+        const fechaInicio = new Date(fecha + 'T00:00:00');
+        const fechaFin = new Date(fechaInicio);
+        fechaFin.setDate(fechaFin.getDate() + diasIncapacidad - 1);
+        const fechaFinStr = fechaFin.toISOString().split('T')[0];
+
+        // --- INICIO DE NUEVA VALIDACIÓN ---
+        let hayDuplicado = false;
+        for (let d = new Date(fechaInicio); d <= fechaFin; d.setDate(d.getDate() + 1)) {
+            const fechaActualStr = d.toISOString().split('T')[0];
+
+            // 1. Revisar en la base de datos (array 'ausencias')
+            const duplicadoExistente = ausencias.some(a => 
+                a.identidad === identidad &&
+                fechaActualStr >= a.fecha && 
+                fechaActualStr <= (a.fechaFin || a.fecha)
+            );
+
+            // 2. Revisar en el lote actual que se está registrando
+            const duplicadoEnLote = ausenciasParaRegistrar.some(a => 
+                a.identidad === identidad &&
+                fechaActualStr >= a.fecha && 
+                fechaActualStr <= a.fechaFin
+            );
+
+            if (duplicadoExistente || duplicadoEnLote) {
+                Swal.fire('Error de Duplicado', `Ya existe una ausencia registrada para '${colaborador}' el día ${formatearFecha(fechaActualStr)}.`, 'error');
+                esValido = false;
+                hayDuplicado = true;
+                return false; // Sale del bucle forEach del formulario
+            }
+        }
+        if (hayDuplicado) return false;
+        // --- FIN DE NUEVA VALIDACIÓN ---
+
+        ausenciasParaRegistrar.push({ fecha, fechaFin: fechaFinStr, diasIncapacidad, colaborador, identidad, motivo, observaciones });
+    });
+    
+    if (!esValido || ausenciasParaRegistrar.length === 0) return;
+    
+    Swal.fire({ 
+        title: '¿Está seguro?', 
+        html: `Se registrarán <strong>${ausenciasParaRegistrar.length}</strong> ausencias.`, 
+        icon: 'question', 
+        showCancelButton: true, 
+        confirmButtonText: 'Sí, registrar', 
+        cancelButtonText: 'No, cancelar' 
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Quitamos 'identidad' del objeto a enviar, ya que el servidor lo resuelve por 'colaborador' (nombre)
+            const datosParaEnviar = ausenciasParaRegistrar.map(({ identidad, ...resto }) => resto);
+
+            $('#overlay').css('display', 'flex');
+            $.post(SCRIPT_URL_ENVIAR, { 
+                accion: 'registrar_ausencias_masivo', 
+                datos: JSON.stringify(datosParaEnviar) 
+            }, (response) => {
+                $('#overlay').hide();
+                if (response === 'Éxito') {
+                    Swal.fire('Éxito', 'Ausencias registradas.', 'success').then(() => { 
+                        $('#contenedor-formularios-ausencia').empty(); 
+                        agregarFormularioAusencia(); 
+                        cargarTodosLosDatos(); 
+                    });
+                } else {
+                    Swal.fire('Error', `Error al registrar ausencias: ${response}`, 'error');
                 }
+            }).fail(() => { 
+                $('#overlay').hide(); 
+                Swal.fire('Error', 'Error de conexión.', 'error'); 
             });
         }
+    });
+}
+
         
         function actualizarDashboard() {
             $('#total-activos').text(colaboradoresActivos.length);
@@ -2596,13 +2730,17 @@
         }
 
 
-        function mostrarAusencias() {
-            const tablaAusencias = $('#tabla-ausencias').empty();
-            if (ausencias.length === 0) { tablaAusencias.append('<tr><td colspan="7" class="text-center">No hay ausencias</td></tr>'); return; }
-            [...ausencias].reverse().forEach(a => {
-                tablaAusencias.append(`<tr><td>${formatearFecha(a.fecha)}</td><td>${formatearFecha(a.fechaFin || a.fecha)}</td><td>${a.nombre}</td><td>${a.identidad}</td><td>${a.motivo}</td><td>${a.diasIncapacidad || 1}</td><td>${a.observaciones || ''}</td></tr>`);
-            });
-        }
+function mostrarAusencias(datos) {
+    const datosAMostrar = datos || ausencias;
+    const tablaAusencias = $('#tabla-ausencias').empty();
+    if (datosAMostrar.length === 0) { 
+        tablaAusencias.append('<tr><td colspan="7" class="text-center">No hay ausencias para el filtro seleccionado.</td></tr>'); 
+        return; 
+    }
+    [...datosAMostrar].sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).forEach(a => {
+        tablaAusencias.append(`<tr><td>${formatearFecha(a.fecha)}</td><td>${formatearFecha(a.fechaFin || a.fecha)}</td><td>${a.nombre}</td><td>${a.identidad}</td><td>${a.motivo}</td><td>${a.diasIncapacidad || 1}</td><td>${a.observaciones || ''}</td></tr>`);
+    });
+}
 
         function filtrarAusencias() {
             const texto = $('#buscador-ausencias').val().toLowerCase();
@@ -2613,26 +2751,28 @@
         }
 
         // --- INICIO FUNCIONES PARA DISCIPLINA ---
-        function mostrarHistorialDisciplina() {
-            const tablaDisciplina = $('#tabla-disciplina').empty();
-            if (disciplina.length === 0) {
-                tablaDisciplina.append('<tr><td colspan="5" class="text-center">No hay registros de disciplina.</td></tr>');
-                return;
-            }
-            const disciplinaOrdenada = [...disciplina].sort((a, b) => new Date(b.fechaFalta) - new Date(a.fechaFalta));
+function mostrarHistorialDisciplina(datos) {
+    const datosAMostrar = datos || disciplina;
+    const tablaDisciplina = $('#tabla-disciplina').empty();
+    if (datosAMostrar.length === 0) {
+        tablaDisciplina.append('<tr><td colspan="5" class="text-center">No hay registros de disciplina para el filtro seleccionado.</td></tr>');
+        return;
+    }
+    const disciplinaOrdenada = [...datosAMostrar].sort((a, b) => new Date(b.fechaFalta) - new Date(a.fechaFalta));
 
-            disciplinaOrdenada.forEach((registro) => {
-                const faltasLista = registro.descripcionFaltas.split('; ').map(falta => `<li>${falta}</li>`).join('');
-                tablaDisciplina.append(`
-                    <tr>
-                        <td>${formatearFecha(registro.fechaFalta)}</td>
-                        <td>${registro.nombre}</td>
-                        <td>${registro.identidad}</td>
-                        <td><ul>${faltasLista}</ul></td>
-                        <td>${registro.observaciones}</td>
-                    </tr>`);
-            });
-        }
+    disciplinaOrdenada.forEach((registro) => {
+        const faltasLista = registro.descripcionFaltas.split('; ').map(falta => `<li>${falta}</li>`).join('');
+        tablaDisciplina.append(`
+            <tr>
+                <td>${formatearFecha(registro.fechaFalta)}</td>
+                <td>${registro.nombre}</td>
+                <td>${registro.identidad}</td>
+                <td><ul>${faltasLista}</ul></td>
+                <td>${registro.observaciones}</td>
+            </tr>`);
+    });
+}
+
         
         function mostrarResumenDisciplina() {
             if (disciplina.length === 0) {
@@ -2877,32 +3017,71 @@
             graficoDisciplinaMotivoFiltrado.update();
         }
         
-        function calcularEstadisticasAusencias() {
-            const hoy = new Date();
-            const periodos = [{ id: 'mes', meses: 0 }, { id: '3meses', meses: 3 }, { id: '6meses', meses: 6 }, { id: '12meses', meses: 12 }];
-            periodos.forEach(p => {
-                const fechaFinPeriodo = new Date(hoy), fechaInicioPeriodo = (p.meses === 0) ? new Date(hoy.getFullYear(), hoy.getMonth(), 1) : new Date(hoy.getFullYear(), hoy.getMonth() - p.meses + 1, 1);
-                let diasAusentePeriodo = 0;
-                ausencias.forEach(a => { for (let d = new Date(a.fecha); d <= new Date(a.fechaFin || a.fecha); d.setDate(d.getDate() + 1)) if (d >= fechaInicioPeriodo && d <= fechaFinPeriodo) diasAusentePeriodo++; });
-                const diasLaborablesPosibles = colaboradoresActivos.length * 22 * (p.meses === 0 ? 1 : p.meses);
-                const porcentaje = diasLaborablesPosibles > 0 ? ((diasAusentePeriodo / diasLaborablesPosibles) * 100).toFixed(2) : '0.00';
-                $(`#ausentismo-${p.id}`).text(porcentaje + '%');
-                if(p.id === 'mes') $('#ausentismo-mes-dashboard').text(porcentaje + '%');
-            });
-            let totalDiasAusenciasHistorico = 0;
-            ausencias.forEach(a => { totalDiasAusenciasHistorico += (a.diasIncapacidad || 1); });
-            let totalDiasLaborablesPosiblesHistorico = 0;
-            [...colaboradoresIngresos].forEach(col => {
-                const fechaInicio = new Date(col.fechaInicio), egreso = colaboradoresEgresos.find(e => e.identidad === col.identidad);
-                let fechaFin = egreso ? new Date(egreso.fechaEgreso) : new Date(hoy);
-                if (fechaFin > hoy) fechaFin = new Date(hoy);
-                if (fechaFin >= fechaInicio) {
-                    let mesesDeTrabajo = (fechaFin.getFullYear() - fechaInicio.getFullYear()) * 12 - fechaInicio.getMonth() + fechaFin.getMonth();
-                    totalDiasLaborablesPosiblesHistorico += (mesesDeTrabajo < 0 ? 0 : mesesDeTrabajo + 1) * 22;
+function calcularEstadisticasAusencias() {
+    const hoy = new Date();
+    const periodos = [{ id: 'mes', meses: 0 }, { id: '3meses', meses: 3 }, { id: '6meses', meses: 6 }, { id: '12meses', meses: 12 }];
+    
+    periodos.forEach(p => {
+        const fechaFinPeriodo = new Date(hoy);
+        const fechaInicioPeriodo = (p.meses === 0) 
+            ? new Date(hoy.getFullYear(), hoy.getMonth(), 1) 
+            : new Date(hoy.getFullYear(), hoy.getMonth() - p.meses + 1, 1);
+        
+        let diasAusentePeriodo = 0;
+        ausencias.forEach(a => { 
+            const fechaAusenciaInicio = new Date(a.fecha + 'T00:00:00');
+            const fechaAusenciaFin = new Date((a.fechaFin || a.fecha) + 'T00:00:00');
+            
+            for (let d = new Date(fechaAusenciaInicio); d <= fechaAusenciaFin; d.setDate(d.getDate() + 1)) {
+                if (d >= fechaInicioPeriodo && d <= fechaFinPeriodo) {
+                    diasAusentePeriodo++; 
                 }
-            });
-            $('#ausentismo-historico').text(totalDiasLaborablesPosiblesHistorico > 0 ? ((totalDiasAusenciasHistorico / totalDiasLaborablesPosiblesHistorico) * 100).toFixed(2) + '%' : '0.00%');
+            }
+        });
+        
+        const diasLaborablesPosibles = colaboradoresActivos.length * 22 * (p.meses === 0 ? 1 : p.meses);
+        const porcentaje = diasLaborablesPosibles > 0 ? ((diasAusentePeriodo / diasLaborablesPosibles) * 100).toFixed(2) : '0.00';
+        $(`#ausentismo-${p.id}`).text(porcentaje + '%');
+        if(p.id === 'mes') $('#ausentismo-mes-dashboard').text(porcentaje + '%');
+    });
+
+    // --- LÓGICA HISTÓRICA CORREGIDA ---
+    let totalDiasAusenciasHistorico = 0;
+    ausencias.forEach(a => { 
+        totalDiasAusenciasHistorico += (a.diasIncapacidad || 1); 
+    });
+
+    // Construir una lista maestra de todos los que han sido contratados (activos + egresados)
+    // Asumimos que 'activos' y 'egresados' son listas distintas.
+    const todosLosEmpleadosHistorial = [...colaboradoresActivos];
+    colaboradoresEgresos.forEach(eg => {
+        if (!todosLosEmpleadosHistorial.some(act => act.identidad === eg.identidad)) {
+            // Asegurarnos que el egresado tiene fecha de inicio, si no, no podemos calcular
+            if (eg.fechaInicio) {
+                todosLosEmpleadosHistorial.push(eg);
+            }
         }
+    });
+
+    let totalDiasLaborablesPosiblesHistorico = 0;
+    
+    todosLosEmpleadosHistorial.forEach(col => {
+        const fechaInicio = new Date(col.fechaInicio + 'T00:00:00');
+        // El 'egreso' solo aplica a los de la lista de 'colaboradoresEgresos'
+        const egreso = colaboradoresEgresos.find(e => e.identidad === col.identidad);
+        let fechaFin = egreso ? new Date(egreso.fechaEgreso + 'T00:00:00') : new Date(hoy);
+
+        if (fechaFin > hoy) fechaFin = new Date(hoy);
+
+        if (fechaFin >= fechaInicio) {
+            let mesesDeTrabajo = (fechaFin.getFullYear() - fechaInicio.getFullYear()) * 12 - fechaInicio.getMonth() + fechaFin.getMonth();
+            totalDiasLaborablesPosiblesHistorico += (mesesDeTrabajo < 0 ? 0 : mesesDeTrabajo + 1) * 22;
+        }
+    });
+
+    $('#ausentismo-historico').text(totalDiasLaborablesPosiblesHistorico > 0 ? ((totalDiasAusenciasHistorico / totalDiasLaborablesPosiblesHistorico) * 100).toFixed(2) + '%' : '0.00%');
+}
+
 
         function popularFiltrosGrafico(mesSelector, anoSelector, datos, fechaKey = 'fecha') {
             const filtroMes = $(mesSelector), filtroAno = $(anoSelector);
@@ -3287,24 +3466,24 @@
             graficoEvaluacionesDesempenoHistorico = crearGraficoDesempenoHelper('graficoEvaluacionesDesempenoHistorico', evaluaciones, 'Desempeño Histórico');
         }
 
-        function mostrarHistorialEvaluaciones() {
-            const tabla = $('#tabla-evaluaciones').empty();
-            if (evaluaciones.length === 0) {
-                tabla.append('<tr><td colspan="4" class="text-center">No hay evaluaciones registradas.</td></tr>');
-                return;
-            }
-            const evaluacionesOrdenadas = [...evaluaciones].sort((a, b) => new Date(b.fechaEvaluacion) - new Date(a.fechaEvaluacion));
-            evaluacionesOrdenadas.forEach(e => {
-                tabla.append(`
-                    <tr>
-                        <td>${formatearFecha(e.fechaEvaluacion)}</td>
-                        <td>${e.nombre}</td>
-                        <td>${e.identidad}</td>
-                        <td>${e.notaFinal}</td>
-                    </tr>`);
-            });
-        }
-        
+function mostrarHistorialEvaluaciones(datos) {
+    const datosAMostrar = datos || evaluaciones;
+    const tabla = $('#tabla-evaluaciones').empty();
+    if (datosAMostrar.length === 0) {
+        tabla.append('<tr><td colspan="4" class="text-center">No hay evaluaciones para el filtro seleccionado.</td></tr>');
+        return;
+    }
+    const evaluacionesOrdenadas = [...datosAMostrar].sort((a, b) => new Date(b.fechaEvaluacion) - new Date(a.fechaEvaluacion));
+    evaluacionesOrdenadas.forEach(e => {
+        tabla.append(`
+            <tr>
+                <td>${formatearFecha(e.fechaEvaluacion)}</td>
+                <td>${e.nombre}</td>
+                <td>${e.identidad}</td>
+                <td>${e.notaFinal}</td>
+            </tr>`);
+    });
+}        
         function filtrarEvaluaciones() {
             const texto = $('#buscador-evaluaciones').val().toLowerCase();
             $('#tabla-evaluaciones tr').each(function() {
@@ -3892,6 +4071,59 @@
             $('#editar-foto').val('');
             $(button).closest('.vista-previa-container').empty();
         }
+
+
+
+function filtrarAusenciasPersonalizado() {
+    const inicio = $('#fecha-inicio-ausencias').val();
+    const fin = $('#fecha-fin-ausencias').val();
+    let ausenciasFiltradas = ausencias;
+
+    if (inicio && fin) {
+        ausenciasFiltradas = ausencias.filter(a => a.fecha >= inicio && a.fecha <= fin);
+    } else if (inicio) {
+        ausenciasFiltradas = ausencias.filter(a => a.fecha >= inicio);
+    } else if (fin) {
+        ausenciasFiltradas = ausencias.filter(a => a.fecha <= fin);
+    }
+
+    mostrarAusencias(ausenciasFiltradas);
+}
+
+function filtrarDisciplinaPersonalizado() {
+    const inicio = $('#fecha-inicio-disciplina').val();
+    const fin = $('#fecha-fin-disciplina').val();
+    let disciplinaFiltrada = disciplina;
+
+    if (inicio && fin) {
+        disciplinaFiltrada = disciplina.filter(d => d.fechaFalta >= inicio && d.fechaFalta <= fin);
+    } else if (inicio) {
+        disciplinaFiltrada = disciplina.filter(d => d.fechaFalta >= inicio);
+    } else if (fin) {
+        disciplinaFiltrada = disciplina.filter(d => d.fechaFalta <= fin);
+    }
+
+    mostrarHistorialDisciplina(disciplinaFiltrada);
+}
+
+function filtrarEvaluacionesPersonalizado() {
+    const inicio = $('#fecha-inicio-evaluaciones').val();
+    const fin = $('#fecha-fin-evaluaciones').val();
+    let evaluacionesFiltradas = evaluaciones;
+
+    if (inicio && fin) {
+        evaluacionesFiltradas = evaluaciones.filter(e => e.fechaEvaluacion >= inicio && e.fechaEvaluacion <= fin);
+    } else if (inicio) {
+        evaluacionesFiltradas = evaluaciones.filter(e => e.fechaEvaluacion >= inicio);
+    } else if (fin) {
+        evaluacionesFiltradas = evaluaciones.filter(e => e.fechaEvaluacion <= fin);
+    }
+
+    mostrarHistorialEvaluaciones(evaluacionesFiltradas);
+}
+
+
+
 
     </script>
 </body>

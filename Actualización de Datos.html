@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Actualización de Fotos</title>
+    <title>Actualización de Datos</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -41,6 +41,32 @@
         box-shadow: var(--shadow);
     }
 
+
+h1 {
+    text-align: center;
+    color: var(--primary-color);
+    margin-bottom: 25px;
+    font-size: 1.8rem;
+    position: relative;
+    padding-bottom: 10px;
+    font-weight: bold;
+}
+
+h1:after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80px;
+    height: 4px;
+    background-color: var(--secondary-color);
+    border-radius: 2px;
+}
+
+
+
+
     .container {
         max-width: 800px; /* Más angosto, mejor para una lista */
         margin: 25px auto;
@@ -63,7 +89,7 @@
         font-size: 1.1rem;
     }
 
-    /* Overlay de carga (reutilizado) */
+    /* --- INICIO ESTILOS OVERLAY CORREGIDOS --- */
     #overlay {
         position: fixed;
         top: 0;
@@ -75,7 +101,7 @@
         justify-content: center;
         align-items: center;
         z-index: 9999;
-        flex-direction: column;
+        flex-direction: column; /* Apila spinner y texto */
     }
     .spinner {
         width: 60px;
@@ -84,8 +110,28 @@
         border-radius: 50%;
         border-top-color: var(--secondary-color);
         animation: spin 1s ease-in-out infinite;
+        margin-bottom: 20px; /* Espacio debajo del spinner */
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    #loadingMessage {
+        text-align: center;
+        color: var(--dark-color);
+        /* Sin margen superior */
+    }
+
+    #loadingMessage h4 {
+        margin: 0 0 10px;
+        font-size: 1.3rem;
+        font-weight: bold;
+    }
+
+    #loadingMessage p {
+        margin: 0;
+        color: #7f8c8d;
+        font-weight: normal;
+    }
+    /* --- FIN ESTILOS OVERLAY CORREGIDOS --- */
 
     /* Estilos específicos para la lista de pendientes */
     .search-container {
@@ -122,13 +168,18 @@
         font-size: 2rem;
         color: #ccc;
         margin-right: 15px;
-        width: 50px;
-        text-align: center;
+        width: 50px; /* Ancho fijo para alineación */
+        height: 50px; /* Alto fijo */
+        display: flex; /* Centrar icono */
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0; /* Evitar que se encoja */
     }
 
     .empleado-info {
         flex-grow: 1;
         user-select: text;
+        margin-right: 10px; /* Espacio antes del botón */
     }
     .empleado-info h6 {
         margin-bottom: 2px;
@@ -141,11 +192,6 @@
         font-size: 0.9rem;
         user-select: text;
     }
-
-    .btn-tomar-foto {
-        flex-shrink: 0;
-        min-width: 120px;
-    }
     
     #no-pendientes {
         text-align: center;
@@ -157,6 +203,79 @@
         color: #2ecc71;
         margin-bottom: 15px;
     }
+
+    /* Estilos para el input de archivo disfrazado y la vista previa */
+    .foto-input-container {
+        position: relative; /* Para posicionar el input encima */
+        overflow: hidden; /* Oculta el input real */
+        display: inline-block; /* Ajusta el tamaño al botón */
+        vertical-align: middle; /* Alinea con otros botones si los hubiera */
+        margin-left: 10px; /* Espacio */
+        flex-shrink: 0; /* Evita que se encoja */
+        min-width: 120px; /* Mismo ancho que el botón anterior */
+        text-align: center; /* Centrar texto del botón */
+    }
+
+    .foto-input-item {
+        position: absolute;
+        left: 0;
+        top: 0;
+        opacity: 0; /* Lo hace invisible */
+        cursor: pointer;
+        height: 100%; /* Cubre todo el botón */
+        width: 100%;
+    }
+
+    .vista-previa-container {
+         position: relative; /* Para posicionar el botón X */
+         display: none; /* Oculto por defecto */
+         width: 50px; /* Ancho fijo para alineación */
+         height: 50px; /* Alto fijo */
+         margin-right: 15px; /* Mismo margen que el avatar */
+         flex-shrink: 0; /* Evitar que se encoja */
+    }
+
+    .vista-previa-foto {
+        width: 100%; /* Ocupa todo el contenedor */
+        height: 100%;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid var(--secondary-color); /* Borde para indicar que es nueva */
+    }
+
+    /* Ocultar el avatar por defecto cuando hay vista previa */
+    .empleado-item.con-foto .empleado-avatar {
+        display: none;
+    }
+    /* Mostrar la vista previa cuando se añade la clase */
+    .empleado-item.con-foto .vista-previa-container {
+        display: block; /* Visible cuando hay foto */
+    }
+
+    /* Estilo para el botón 'X' de quitar foto */
+    .btn-quitar-preview {
+        position: absolute;
+        top: -5px;
+        right: -5px; /* Ajustado para estar sobre la esquina de la foto */
+        background-color: rgba(231, 76, 60, 0.8); /* Rojo semitransparente */
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 25px;
+        height: 25px;
+        font-size: 0.8rem;
+        line-height: 1; /* Centrar el icono */
+        padding: 0;
+        cursor: pointer;
+        display: flex; /* Para centrar el icono */
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    .btn-quitar-preview:hover {
+        background-color: #e74c3c; /* Rojo sólido al pasar el mouse */
+    }
+
 </style>
 </head>
 <body>
@@ -164,7 +283,7 @@
     <div id="main-content">
         <div class="header">Pisos Brillantes</div>
         <div class="container">
-            <h1 class="text-center my-4">Actualización de Fotos</h1>
+            <h1>Actualización de Datos</h1>
             
             <div class="card">
                 <div class="card-header">
@@ -186,15 +305,23 @@
                         <p>No hay fotos pendientes por subir.</p>
                     </div>
 
+                    <div class="text-center mt-4">
+                        <button class="btn btn-success" id="btn-enviar-todas" style="display: none;">
+                            <i class="fas fa-upload me-2"></i>Enviar Fotos Seleccionadas
+                        </button>
+                    </div>
+
                 </div>
             </div>
         </div>
     </div>
 
-    <input type="file" id="foto-input" accept="image/*" capture="environment" style="display: none;">
-
     <div id="overlay">
         <div class="spinner"></div>
+        <div id="loadingMessage">
+            <h4>Por favor espera un momento...</h4>
+            <p></p>
+        </div>
     </div>
 
 <script>
@@ -205,16 +332,12 @@
     // ---------------------
 
     let colaboradoresActivos = [];
-    let colaboradorSeleccionado = null; // Guarda el empleado al que se le tomará la foto
 
     // --- Inicio (Carga directa) ---
 
     document.addEventListener('DOMContentLoaded', function() {
-        // Ahora llamamos a initializeApp directamente, sin contraseña
         initializeApp();
     });
-
-    // Se eliminaron las funciones checkSession y promptForPassword
 
     function initializeApp() {
         configurarEventos();
@@ -222,28 +345,17 @@
     }
     
     function configurarEventos() {
-        // Evento para los botones "Tomar Foto"
-        $(document).on('click', '.btn-tomar-foto', function() {
-            const identidad = $(this).data('identidad');
-            colaboradorSeleccionado = colaboradoresActivos.find(c => c.identidad === identidad);
-            
-            if (colaboradorSeleccionado) {
-                // Activar el input de archivo oculto
-                $('#foto-input').click();
-            }
+        // Evento para los NUEVOS inputs de archivo dentro de cada item
+        $(document).on('change', '.foto-input-item', function() {
+            mostrarVistaPreviaItem(this); 
         });
 
-        // Evento cuando se selecciona un archivo (o se toma la foto)
-        $('#foto-input').on('change', function() {
-            const archivo = this.files[0];
-            if (archivo && colaboradorSeleccionado) {
-                subirFotoSeleccionada(archivo, colaboradorSeleccionado);
-            }
-            // Resetear por si acaso
-            $(this).val(null);
+        // Evento para quitar la vista previa al hacer clic en el BOTÓN 'X'
+        $(document).on('click', '.btn-quitar-preview', function() {
+            quitarVistaPreviaItem(this); 
         });
 
-        // Evento para el buscador
+        // Evento para el buscador (sin cambios)
         $('#buscador-pendientes').on('input', function() {
             const query = $(this).val().toLowerCase();
             $('#lista-pendientes .empleado-item').each(function() {
@@ -252,6 +364,9 @@
                 $(this).toggle(nombre.includes(query) || identidad.includes(query));
             });
         });
+
+        // Evento para el botón "Enviar Todas"
+        $('#btn-enviar-todas').on('click', enviarTodasLasFotos); 
     }
 
     // --- Lógica de Carga y Renderizado ---
@@ -278,6 +393,7 @@
     function mostrarListaPendientes() {
         const container = $('#lista-pendientes');
         container.empty();
+        $('#btn-enviar-todas').hide(); // Ocultar botón de envío por defecto
 
         const pendientes = colaboradoresActivos
             .filter(col => !col.fotoUrl || col.fotoUrl.trim() === '')
@@ -292,53 +408,150 @@
             
             pendientes.forEach(col => {
                 const itemHtml = `
-                    <div class="empleado-item">
+                    <div class="empleado-item" data-identidad="${col.identidad}">
                         <div class="empleado-avatar">
                             <i class="fas fa-user-circle"></i>
                         </div>
+                        <div class="vista-previa-container"></div> 
+                        
                         <div class="empleado-info">
                             <h6>${col.nombre}</h6>
                             <p>${col.identidad}</p>
                         </div>
-                        <button class="btn btn-primary btn-tomar-foto" data-identidad="${col.identidad}">
+
+                        <label class="btn btn-primary foto-input-container">
                             <i class="fas fa-camera me-2"></i>Tomar Foto
-                        </button>
+                            <input type="file" class="foto-input-item" accept="image/*" capture="environment">
+                        </label>
                     </div>`;
                 container.append(itemHtml);
             });
+            
+            // Mostrar el botón de enviar si hay pendientes
+            $('#btn-enviar-todas').show(); 
         }
     }
 
-    // --- Lógica de Subida de Foto (Reutilizada de tu app) ---
+    // --- Lógica de Vista Previa y Envío ---
 
-    function subirFotoSeleccionada(archivo, colaborador) {
-        $('#overlay').css('display', 'flex');
-        
-        subirFoto(colaborador, archivo, true) // 'true' para indicar que es una edición/reemplazo
-            .then(() => {
-                $('#overlay').hide();
-                Swal.fire({
-                    toast: true,
-                    position: 'top-end',
-                    icon: 'success',
-                    title: `Foto subida para ${colaborador.nombre}`,
-                    showConfirmButton: false,
-                    timer: 2000
-                });
-                
-                cargarPendientes(); // Volver a cargar la lista
-            })
-            .catch((error) => {
-                $('#overlay').hide();
-                Swal.fire('Error', 'No se pudo subir la foto: ' + error, 'error');
-            });
+    /**
+     * Muestra la vista previa de la foto seleccionada/tomada para un item específico.
+     * Guarda el archivo en los datos del elemento para su posterior envío.
+     * @param {HTMLInputElement} input El input[type=file] que cambió.
+     */
+    function mostrarVistaPreviaItem(input) {
+        const file = input.files[0];
+        const $item = $(input).closest('.empleado-item'); 
+        const $previewContainer = $item.find('.vista-previa-container');
+
+        if (file) {
+            if (file.size > 5 * 1024 * 1024) { 
+                 Swal.fire('Archivo muy grande', 'La foto no puede exceder los 5MB.', 'warning');
+                 $(input).val(null); 
+                 quitarVistaPreviaItem(input); 
+                 return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const previewHtml = `
+                    <img src="${e.target.result}" class="vista-previa-foto">
+                    <button type="button" class="btn-quitar-preview" title="Quitar foto">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                $previewContainer.html(previewHtml); 
+                $item.addClass('con-foto'); 
+                $item.data('archivo-foto', file); 
+            }
+            reader.readAsDataURL(file);
+        } else {
+            quitarVistaPreviaItem(input);
+        }
     }
 
-    // Tu función 'subirFoto' original
+    /**
+     * Quita la vista previa de la foto y el archivo asociado del item.
+     * @param {HTMLElement} element El botón '.btn-quitar-preview' que se presionó.
+     */
+    function quitarVistaPreviaItem(element) {
+        const $item = $(element).closest('.empleado-item'); 
+        $item.find('.vista-previa-container').empty(); 
+        $item.removeClass('con-foto'); 
+        $item.removeData('archivo-foto'); 
+        $item.find('.foto-input-item').val(null); 
+    }
+
+    /**
+     * Recorre todos los items, recopila las fotos nuevas y las envía al script.
+     */
+    function enviarTodasLasFotos() {
+        const fotosParaEnviar = [];
+        
+        $('#lista-pendientes .empleado-item').each(function() {
+            const $item = $(this);
+            const archivo = $item.data('archivo-foto'); 
+            
+            if (archivo) {
+                const identidad = $item.data('identidad');
+                const colaborador = colaboradoresActivos.find(c => c.identidad === identidad);
+                if (colaborador) {
+                    fotosParaEnviar.push({ colaborador, archivo });
+                }
+            }
+        });
+
+        if (fotosParaEnviar.length === 0) {
+            Swal.fire('Nada que enviar', 'No has seleccionado ninguna foto nueva.', 'info');
+            return;
+        }
+
+        Swal.fire({
+            title: `¿Enviar ${fotosParaEnviar.length} foto(s)?`,
+            text: "Se subirán las fotos seleccionadas.",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, enviar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $('#overlay').css('display', 'flex');
+                
+                const promesasSubida = fotosParaEnviar.map(item => {
+                    return subirFoto(item.colaborador, item.archivo, true); 
+                });
+
+                Promise.all(promesasSubida)
+                    .then(results => {
+                        $('#overlay').hide();
+                        const exitos = results.filter(r => r === 'Éxito').length;
+                        const errores = results.length - exitos;
+
+                        let message = `Se subieron ${exitos} foto(s) correctamente.`;
+                        if (errores > 0) {
+                            message += ` Hubo ${errores} error(es).`;
+                        }
+                        
+                        Swal.fire({
+                            title: errores === 0 ? '¡Éxito!' : 'Completado con errores',
+                            text: message,
+                            icon: errores === 0 ? 'success' : 'warning'
+                        }).then(() => {
+                            cargarPendientes(); 
+                        });
+                    })
+                    .catch(errorGeneral => {
+                        $('#overlay').hide();
+                        Swal.fire('Error General', 'Ocurrió un error inesperado al subir las fotos: ' + errorGeneral, 'error');
+                    });
+            }
+        });
+    }
+
+    // Tu función 'subirFoto' original (devuelve una Promesa)
     function subirFoto(colaborador, archivo, esEdicion = false) {
         return new Promise((resolve, reject) => {
-            if (!archivo) resolve(null);
-            if (archivo.size > 5 * 1024 * 1024) reject('El archivo es demasiado grande (máx 5MB).');
+            if (!archivo) resolve(null); 
             
             const reader = new FileReader();
             reader.onload = e => { 
@@ -347,10 +560,20 @@
                     colaborador: JSON.stringify(colaborador), 
                     archivo: e.target.result.split(',')[1], 
                     esEdicion 
-                }, r => (r === 'Éxito') ? resolve('Éxito') : reject('Error: ' + r))
-                .fail((j, t) => reject('Error: ' + t)); 
+                }, r => {
+                    if (r === 'Éxito') {
+                        resolve('Éxito');
+                    } else {
+                        resolve('Error: ' + r); 
+                    }
+                })
+                .fail((jqXHR, textStatus) => {
+                    resolve('Error de conexión: ' + textStatus); 
+                }); 
             };
-            reader.onerror = () => reject('Error al leer archivo');
+            reader.onerror = () => {
+                resolve('Error al leer archivo localmente');
+            };
             reader.readAsDataURL(archivo);
         });
     }

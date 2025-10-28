@@ -2111,12 +2111,33 @@ function configurarEventos() {
  * @param {object} ausenciaOriginal - El objeto de ausencia de la variable global 'ausencias'.
  */
 function abrirModalEditarAusencia(ausenciaOriginal) {
+    
+    // --- NUEVO: Generar el dropdown de colaboradores ---
+    // Crear la lista de opciones de colaboradores activos
+    let opcionesColaboradores = '';
+    colaboradoresActivos.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(col => {
+        opcionesColaboradores += `<option value="${col.identidad}" ${col.identidad === ausenciaOriginal.identidad ? 'selected' : ''}>
+            ${col.nombre}
+        </option>`;
+    });
+    // --- FIN NUEVO ---
+
     Swal.fire({
         title: 'Editar Ausencia',
         html: `
             <div class="text-start">
-                <p class="mb-1"><strong>Colaborador:</strong> ${ausenciaOriginal.nombre}</p>
-                <p class="mb-3"><strong>Fecha de Inicio:</strong> ${formatearFecha(ausenciaOriginal.fecha)}</p>
+                
+                <div class="mb-3">
+                    <label for="editar-colaborador-ausencia" class="form-label">Colaborador</label>
+                    <select class="form-select" id="editar-colaborador-ausencia" required>
+                        <option value="">Seleccionar...</option>
+                        ${opcionesColaboradores}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="editar-fecha-ausencia" class="form-label">Fecha de Inicio</label>
+                    <input type="date" class="form-control" id="editar-fecha-ausencia" value="${ausenciaOriginal.fecha}" required>
+                </div>
                 
                 <div class="mb-3">
                     <label for="editar-dias-ausencia" class="form-label">Días de Ausencia</label>
@@ -2141,27 +2162,47 @@ function abrirModalEditarAusencia(ausenciaOriginal) {
         confirmButtonText: 'Guardar Cambios',
         cancelButtonText: 'Cancelar',
         preConfirm: () => {
+            // --- INICIO DE MODIFICACIÓN ---
+            const nuevaIdentidad = $('#editar-colaborador-ausencia').val(); // Leer la identidad del select
+            const fecha = $('#editar-fecha-ausencia').val();
             const diasIncapacidad = parseInt($('#editar-dias-ausencia').val());
             const motivo = $('#editar-motivo-ausencia').val();
             const observaciones = $('#editar-obs-ausencia').val();
 
-            if (!diasIncapacidad || diasIncapacidad < 1) {
-                Swal.showValidationMessage('Los días de ausencia deben ser 1 o más.');
+            if (!nuevaIdentidad || !fecha || !diasIncapacidad || diasIncapacidad < 1) {
+                Swal.showValidationMessage('Colaborador, fecha y días (1 o más) son obligatorios.');
+                return false;
+            }
+
+            // Buscar la info completa del *nuevo* colaborador
+            const nuevoColaboradorInfo = colaboradoresActivos.find(col => col.identidad === nuevaIdentidad);
+            if (!nuevoColaboradorInfo) {
+                // Esto no debería pasar si el select está bien, pero es buena validación
+                Swal.showValidationMessage('El colaborador seleccionado no es válido.');
                 return false;
             }
             
             // Calcular nueva fecha fin
-            const fechaInicio = new Date(ausenciaOriginal.fecha + 'T00:00:00');
+            const fechaInicio = new Date(fecha + 'T00:00:00');
             const fechaFin = new Date(fechaInicio);
             fechaFin.setDate(fechaFin.getDate() + diasIncapacidad - 1);
             const fechaFinStr = fechaFin.toISOString().split('T')[0];
 
             const datosNuevos = {
+                // Info del nuevo colaborador
+                nombre: nuevoColaboradorInfo.nombre,
+                identidad: nuevoColaboradorInfo.identidad,
+                fechaNacimiento: nuevoColaboradorInfo.fechaNacimiento || '', // Asegurar que no sea undefined
+                sexo: nuevoColaboradorInfo.sexo,
+                
+                // Info de la ausencia
+                fecha,
                 diasIncapacidad,
                 motivo,
                 observaciones,
-                fechaFin: fechaFinStr // Calculamos la nueva fecha fin
+                fechaFin: fechaFinStr
             };
+            // --- FIN DE MODIFICACIÓN ---
             
             return { datosNuevos };
         }
@@ -2172,17 +2213,16 @@ function abrirModalEditarAusencia(ausenciaOriginal) {
             $('#overlay').css('display', 'flex');
             $.post(SCRIPT_URL_ENVIAR, {
                 accion: 'editar_ausencia',
-                // Enviamos la clave original para que el backend la encuentre
+                // La clave original NO cambia (identidad + fecha de inicio original)
                 ausenciaOriginal: JSON.stringify({
                     identidad: ausenciaOriginal.identidad,
-                    fecha: ausenciaOriginal.fecha // Clave primaria (YYYY-MM-DD)
+                    fecha: ausenciaOriginal.fecha 
                 }),
                 datosNuevos: JSON.stringify(datosNuevos)
             }, function(response) {
                 $('#overlay').hide();
                 if (response === 'Éxito') {
                     Swal.fire('Éxito', 'Ausencia actualizada correctamente.', 'success').then(() => {
-                        // Actualizar la pestaña actual para ver los cambios
                         actualizarTabActual(); 
                     });
                 } else {
@@ -2195,6 +2235,8 @@ function abrirModalEditarAusencia(ausenciaOriginal) {
         }
     });
 }
+
+
 
         
         function agregarFormularioColaborador() {

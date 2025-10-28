@@ -142,10 +142,29 @@
     .btn-quitar-preview:hover { background-color: #e74c3c; }
 
     /* Estilos Pestaña Cumpleaños */
-    .cumple-input-container { flex-shrink: 0; width: 170px; }
+    .cumple-input-container { 
+        flex-shrink: 0; 
+        width: 120px; /* Ancho ajustado */
+        position: relative; /* Para posicionar el icono */
+    }
     .cumple-input-item { cursor: pointer; }
     .empleado-item.con-fecha .cumple-input-item { border-color: var(--success-color); box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25); }
     .empleado-item.con-fecha .empleado-avatar { color: var(--secondary-color); }
+    
+    /* Estilo para el icono de calendario */
+    .cumple-icon {
+        position: absolute;
+        right: 10px; /* Posición a la derecha */
+        top: 50%;
+        transform: translateY(-50%);
+        color: #aaa; /* Color grisáceo */
+        pointer-events: none; /* Evita que interfiera con el clic en la fecha */
+        transition: opacity 0.2s ease-in-out; /* Transición suave */
+    }
+    /* Ocultar el icono cuando se selecciona una fecha */
+    .empleado-item.con-fecha .cumple-icon {
+        opacity: 0;
+    }
 
 </style>
 </head>
@@ -255,7 +274,6 @@
 
         // --- Eventos de Pestañas (Tabs) ---
         // Ya no se necesita el listener 'shown.bs.tab' para recargar
-        // Bootstrap maneja el cambio de visibilidad.
     }
 
     // --- Lógica de Carga Inicial ---
@@ -281,38 +299,28 @@
 
     // --- Lógica Pestaña Fotos ---
 
-    // Esta función ya no es necesaria si cargamos todo al inicio
-    // function cargarPendientesFotos() { mostrarListaPendientesFotos(); }
-
     function mostrarListaPendientesFotos() {
         const container = $('#lista-pendientes-fotos');
-        // container.empty(); // Ya no vaciamos aquí
         $('#btn-enviar-fotos').hide(); 
 
         const pendientes = colaboradoresActivos
             .filter(col => !col.fotoUrl || col.fotoUrl.trim() === '')
             .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
-        // --- LÓGICA MODIFICADA ---
-        // Si ya hay items y aún hay pendientes, solo actualiza visibilidad y botón
+        // Lógica para evitar reconstruir si ya existe
         if (container.children().length > 0 && pendientes.length > 0) {
              $('#no-pendientes-fotos').hide();
              $('#buscador-pendientes-fotos').show();
              $('#btn-enviar-fotos').show();
-             // Podrías filtrar aquí si el filtro estaba aplicado antes de enviar
-             // filtrarListaFotos(); 
              return; 
         } else if (container.children().length > 0 && pendientes.length === 0) {
-             // Si ya había items pero ahora no hay pendientes (ej. después de enviar)
              $('#no-pendientes-fotos').show();
              $('#buscador-pendientes-fotos').hide();
              $('#btn-enviar-fotos').hide();
-             container.empty(); // Limpiar la lista visualmente
+             container.empty(); 
              return;
         }
-        // Si es la primera carga O la lista estaba vacía y ahora hay pendientes
-        container.empty(); // Asegurar vacío antes de construir por primera vez
-        // --- FIN LÓGICA MODIFICADA ---
+        container.empty(); 
 
         if (pendientes.length === 0) {
             $('#no-pendientes-fotos').show();
@@ -416,8 +424,7 @@
                             title: errores === 0 ? '¡Éxito!' : 'Completado con errores',
                             text: message, icon: errores === 0 ? 'success' : 'warning'
                         }).then(() => {
-                            // --- MODIFICACIÓN: Recargar datos globales y reconstruir AMBAS listas ---
-                            cargarDatosIniciales(); 
+                            cargarDatosIniciales(); // Recarga TODO
                         });
                     })
                     .catch(errorGeneral => {
@@ -429,7 +436,7 @@
     }
 
     function subirFoto(colaborador, archivo, esEdicion = false) { 
-        return new Promise((resolve) => { // Simplificado para usar siempre resolve
+        return new Promise((resolve) => { 
             if (!archivo) resolve(null); 
             const reader = new FileReader();
             reader.onload = e => { 
@@ -444,24 +451,19 @@
 
     // --- Lógica Pestaña Cumpleaños ---
 
-     // Esta función ya no es necesaria si cargamos todo al inicio
-     // function cargarPendientesCumpleanos() { mostrarListaPendientesCumpleanos(); }
-
     function mostrarListaPendientesCumpleanos() {
         const container = $('#lista-pendientes-cumples');
-        // container.empty(); // Ya no vaciamos aquí
         $('#btn-enviar-cumples').hide(); 
 
         const pendientes = colaboradoresActivos
             .filter(col => !col.fechaNacimiento || col.fechaNacimiento.trim() === '')
             .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
-        // --- LÓGICA MODIFICADA ---
+        // Lógica para evitar reconstruir si ya existe
         if (container.children().length > 0 && pendientes.length > 0) {
              $('#no-pendientes-cumples').hide();
              $('#buscador-pendientes-cumples').show();
              $('#btn-enviar-cumples').show();
-             // filtrarListaCumples(); // Opcional
              return;
         } else if (container.children().length > 0 && pendientes.length === 0) {
              $('#no-pendientes-cumples').show();
@@ -471,8 +473,6 @@
              return;
         }
         container.empty(); 
-        // --- FIN LÓGICA MODIFICADA ---
-
 
         if (pendientes.length === 0) {
             $('#no-pendientes-cumples').show();
@@ -491,6 +491,7 @@
                         </div>
                         <div class="cumple-input-container">
                             <input type="date" class="form-control cumple-input-item">
+                            <span class="cumple-icon"><i class="far fa-calendar-alt"></i></span> 
                         </div>
                     </div>`;
                 container.append(itemHtml);
@@ -558,8 +559,7 @@
                     $('#overlay').hide();
                     if (response === 'Éxito') {
                         Swal.fire('¡Éxito!', 'Fechas de nacimiento actualizadas.', 'success').then(() => {
-                            // --- MODIFICACIÓN: Recargar datos globales y reconstruir AMBAS listas ---
-                            cargarDatosIniciales(); 
+                            cargarDatosIniciales(); // Recarga TODO
                         });
                     } else {
                         Swal.fire('Error', `Error al actualizar: ${response}`, 'error');

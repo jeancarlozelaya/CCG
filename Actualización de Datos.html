@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Actualización de Fotos</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<style>
+    /* Estilos base reutilizados de tu app principal */
+    :root {
+        --primary-color: #2c3e50;
+        --secondary-color: #3498db;
+        --dark-color: #34495e;
+        --text-color: #333;
+        --border-color: #ddd;
+        --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        --transition: all 0.3s ease;
+    }
+
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f5f7fa;
+        color: var(--text-color);
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+    }
+
+    .header {
+        background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+        color: white;
+        text-align: center;
+        padding: 18px 0;
+        font-size: 1.5rem;
+        font-weight: bold;
+        box-shadow: var(--shadow);
+    }
+
+    .container {
+        max-width: 800px; /* Más angosto, mejor para una lista */
+        margin: 25px auto;
+        padding: 0 15px;
+    }
+
+    .card {
+        border-radius: 12px;
+        box-shadow: var(--shadow);
+        border: none;
+        margin-bottom: 25px;
+    }
+
+    .card-header {
+        background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+        color: white;
+        border-radius: 12px 12px 0 0 !important;
+        padding: 18px 25px;
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+
+    /* Overlay de carga (reutilizado) */
+    #overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(255, 255, 255, 0.95);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        flex-direction: column;
+    }
+    .spinner {
+        width: 60px;
+        height: 60px;
+        border: 5px solid rgba(52, 152, 219, 0.2);
+        border-radius: 50%;
+        border-top-color: var(--secondary-color);
+        animation: spin 1s ease-in-out infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Estilos específicos para la lista de pendientes */
+    .search-container {
+        position: relative;
+        margin-bottom: 20px;
+    }
+    .search-container i {
+        position: absolute;
+        left: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #aaa;
+    }
+    .search-container input {
+        padding-left: 40px;
+    }
+
+    .empleado-item {
+        display: flex;
+        align-items: center;
+        padding: 15px;
+        border-bottom: 1px solid var(--border-color);
+        transition: var(--transition);
+        user-select: text; /* Permitir seleccionar texto aquí */
+    }
+    .empleado-item:last-child {
+        border-bottom: none;
+    }
+    .empleado-item:hover {
+        background-color: #f8f9fa;
+    }
+
+    .empleado-avatar {
+        font-size: 2rem;
+        color: #ccc;
+        margin-right: 15px;
+        width: 50px;
+        text-align: center;
+    }
+
+    .empleado-info {
+        flex-grow: 1;
+        user-select: text;
+    }
+    .empleado-info h6 {
+        margin-bottom: 2px;
+        font-weight: bold;
+        user-select: text;
+    }
+    .empleado-info p {
+        margin-bottom: 0;
+        color: #7f8c8d;
+        font-size: 0.9rem;
+        user-select: text;
+    }
+
+    .btn-tomar-foto {
+        flex-shrink: 0;
+        min-width: 120px;
+    }
+    
+    #no-pendientes {
+        text-align: center;
+        padding: 40px 20px;
+        color: #7f8c8d;
+    }
+    #no-pendientes i {
+        font-size: 3rem;
+        color: #2ecc71;
+        margin-bottom: 15px;
+    }
+</style>
+</head>
+<body>
+
+    <div id="main-content">
+        <div class="header">Pisos Brillantes</div>
+        <div class="container">
+            <h1 class="text-center my-4">Actualización de Fotos</h1>
+            
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-camera-slash me-2"></i> Personal Pendiente de Fotografía
+                </div>
+                <div class="card-body p-4">
+                    
+                    <div class="search-container">
+                        <i class="fas fa-search"></i>
+                        <input type="text" class="form-control" id="buscador-pendientes" placeholder="Buscar por nombre o identidad...">
+                    </div>
+                    
+                    <div id="lista-pendientes">
+                        </div>
+                    
+                    <div id="no-pendientes" style="display: none;">
+                        <i class="fas fa-check-circle"></i>
+                        <h4>¡Excelente!</h4>
+                        <p>No hay fotos pendientes por subir.</p>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="foto-input" accept="image/*" capture="environment" style="display: none;">
+
+    <div id="overlay">
+        <div class="spinner"></div>
+    </div>
+
+<script>
+    // --- ¡IMPORTANTE! ---
+    // Pega aquí las mismas URLs de tu archivo principal
+    const SCRIPT_URL_OBTENER = "https://script.google.com/macros/s/AKfycbwV6UwcNpiC5FAahk3YPuOS-JSm7Fta5bNW_UoOwvqywTiS-a8LSqAMT32PKM1ydQJs/exec";
+    const SCRIPT_URL_ENVIAR = "https://script.google.com/macros/s/AKfycbwP81lGExHp4d9tPRhNNgJ5rlcgXIXj2AsNDNTFcd8Gzdhujy_2UEO0x016YrccFMxU/exec";
+    // ---------------------
+
+    let colaboradoresActivos = [];
+    let colaboradorSeleccionado = null; // Guarda el empleado al que se le tomará la foto
+
+    // --- Inicio (Carga directa) ---
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Ahora llamamos a initializeApp directamente, sin contraseña
+        initializeApp();
+    });
+
+    // Se eliminaron las funciones checkSession y promptForPassword
+
+    function initializeApp() {
+        configurarEventos();
+        cargarPendientes();
+    }
+    
+    function configurarEventos() {
+        // Evento para los botones "Tomar Foto"
+        $(document).on('click', '.btn-tomar-foto', function() {
+            const identidad = $(this).data('identidad');
+            colaboradorSeleccionado = colaboradoresActivos.find(c => c.identidad === identidad);
+            
+            if (colaboradorSeleccionado) {
+                // Activar el input de archivo oculto
+                $('#foto-input').click();
+            }
+        });
+
+        // Evento cuando se selecciona un archivo (o se toma la foto)
+        $('#foto-input').on('change', function() {
+            const archivo = this.files[0];
+            if (archivo && colaboradorSeleccionado) {
+                subirFotoSeleccionada(archivo, colaboradorSeleccionado);
+            }
+            // Resetear por si acaso
+            $(this).val(null);
+        });
+
+        // Evento para el buscador
+        $('#buscador-pendientes').on('input', function() {
+            const query = $(this).val().toLowerCase();
+            $('#lista-pendientes .empleado-item').each(function() {
+                const nombre = $(this).find('h6').text().toLowerCase();
+                const identidad = $(this).find('p').text().toLowerCase();
+                $(this).toggle(nombre.includes(query) || identidad.includes(query));
+            });
+        });
+    }
+
+    // --- Lógica de Carga y Renderizado ---
+
+    function cargarPendientes() {
+        $('#overlay').css('display', 'flex');
+        $.get(SCRIPT_URL_OBTENER, function(data) {
+            $('#overlay').hide();
+            if (data.error) {
+                Swal.fire('Error', 'No se pudieron cargar los datos: ' + data.mensaje, 'error');
+                return;
+            }
+            
+            colaboradoresActivos = (data.activos || []).map(corregirFecha);
+            
+            mostrarListaPendientes();
+            
+        }).fail(function() {
+            $('#overlay').hide();
+            Swal.fire('Error', 'No se pudo conectar al servidor.', 'error');
+        });
+    }
+
+    function mostrarListaPendientes() {
+        const container = $('#lista-pendientes');
+        container.empty();
+
+        const pendientes = colaboradoresActivos
+            .filter(col => !col.fotoUrl || col.fotoUrl.trim() === '')
+            .sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+        if (pendientes.length === 0) {
+            $('#no-pendientes').show();
+            $('#buscador-pendientes').hide();
+        } else {
+            $('#no-pendientes').hide();
+            $('#buscador-pendientes').show();
+            
+            pendientes.forEach(col => {
+                const itemHtml = `
+                    <div class="empleado-item">
+                        <div class="empleado-avatar">
+                            <i class="fas fa-user-circle"></i>
+                        </div>
+                        <div class="empleado-info">
+                            <h6>${col.nombre}</h6>
+                            <p>${col.identidad}</p>
+                        </div>
+                        <button class="btn btn-primary btn-tomar-foto" data-identidad="${col.identidad}">
+                            <i class="fas fa-camera me-2"></i>Tomar Foto
+                        </button>
+                    </div>`;
+                container.append(itemHtml);
+            });
+        }
+    }
+
+    // --- Lógica de Subida de Foto (Reutilizada de tu app) ---
+
+    function subirFotoSeleccionada(archivo, colaborador) {
+        $('#overlay').css('display', 'flex');
+        
+        subirFoto(colaborador, archivo, true) // 'true' para indicar que es una edición/reemplazo
+            .then(() => {
+                $('#overlay').hide();
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'success',
+                    title: `Foto subida para ${colaborador.nombre}`,
+                    showConfirmButton: false,
+                    timer: 2000
+                });
+                
+                cargarPendientes(); // Volver a cargar la lista
+            })
+            .catch((error) => {
+                $('#overlay').hide();
+                Swal.fire('Error', 'No se pudo subir la foto: ' + error, 'error');
+            });
+    }
+
+    // Tu función 'subirFoto' original
+    function subirFoto(colaborador, archivo, esEdicion = false) {
+        return new Promise((resolve, reject) => {
+            if (!archivo) resolve(null);
+            if (archivo.size > 5 * 1024 * 1024) reject('El archivo es demasiado grande (máx 5MB).');
+            
+            const reader = new FileReader();
+            reader.onload = e => { 
+                $.post(SCRIPT_URL_ENVIAR, { 
+                    accion: 'subir_foto', 
+                    colaborador: JSON.stringify(colaborador), 
+                    archivo: e.target.result.split(',')[1], 
+                    esEdicion 
+                }, r => (r === 'Éxito') ? resolve('Éxito') : reject('Error: ' + r))
+                .fail((j, t) => reject('Error: ' + t)); 
+            };
+            reader.onerror = () => reject('Error al leer archivo');
+            reader.readAsDataURL(archivo);
+        });
+    }
+
+    // Tu función 'corregirFecha' original
+    function corregirFecha(item) {
+        const propiedadesFecha = ['fechaInicio', 'fechaNacimiento', 'fechaEgreso', 'fecha', 'fechaFin', 'fechaFalta', 'fechaLlamadoAtencion', 'fechaEvaluacion'];
+        propiedadesFecha.forEach(prop => {
+            if (item[prop] && typeof item[prop] === 'string' && item[prop].includes('T')) {
+                const fecha = new Date(item[prop]);
+                item[prop] = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`;
+            }
+        });
+        return item;
+    }
+
+</script>
+</body>
+</html>

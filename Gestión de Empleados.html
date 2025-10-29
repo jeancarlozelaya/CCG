@@ -2310,6 +2310,7 @@
                                                     <th>Parte Afectada</th>
                                                     <th>Causa</th>
                                                     <th>Medidas</th>
+                                                    <th>Acciones</th>
                                                 </tr>
                                             </thead>
                                             <tbody id="tabla-incidentes" class="no-hover">
@@ -2570,7 +2571,7 @@ function configurarEventos() {
     $('#buscador-evaluaciones').on('input', filtrarEvaluaciones);
     $('#buscador-vencimientos').on('input', filtrarVencimientos);
     $('#buscador-planilla').on('input', filtrarPlanilla);
-    $('#buscador-incidentes').on('input', filtrarIncidentesTabla); 
+    $('#buscador-incidentes').on('input', filtrarIncidentesTabla);
 
     // --- Otros Eventos (Planilla, Rotación, Resúmenes) ---
     $('#planilla-date-picker').on('change', function() { generarPlanilla(this.value); });
@@ -2578,7 +2579,7 @@ function configurarEventos() {
     $('#btn-resumen-disciplina').on('click', mostrarResumenDisciplina);
     $('#btn-resumen-evaluaciones').on('click', mostrarResumenEvaluaciones);
     $('#btn-resumen-ausencias').on('click', mostrarResumenAusencias);
-    $('#btn-resumen-incidentes').on('click', mostrarResumenIncidentes); // <-- AÑADIDO (Req 3.1)
+    $('#btn-resumen-incidentes').on('click', mostrarResumenIncidentes);
 
     // --- Filtros de Gráficos ---
     $('#btn-filtrar-grafico').on('click', function() {
@@ -2615,15 +2616,14 @@ function configurarEventos() {
             crearGraficoEgresosMotivoFiltrado(ano, mes);
         }
     });
-    
-    // INICIO: Incidentes Chart Filters 
+    // INICIO: Incidentes Chart Filters
     $('#btn-filtrar-incidentes-grafico').on('click', function() {
         const ano = parseInt($('#filtro-ano-incidentes').val());
         crearGraficoIncidentesAnual(ano);
     });
-    $('#btn-filtrar-incidentes-pie').on('click', function() { // Renombrado a -pie
-        const ano = parseInt($('#filtro-ano-incidentes-pie').val()); // Renombrado
-        const mes = parseInt($('#filtro-mes-incidentes').val()); // Renombrado
+    $('#btn-filtrar-incidentes-pie').on('click', function() {
+        const ano = parseInt($('#filtro-ano-incidentes-pie').val());
+        const mes = parseInt($('#filtro-mes-incidentes').val());
         $('#contenedorGraficoFiltradoIncidentes').toggle(ano !== new Date().getFullYear() || mes !== new Date().getMonth());
          if ($('#contenedorGraficoFiltradoIncidentes').is(':visible')) {
             crearGraficoIncidentesCategoriaFiltrado(ano, mes);
@@ -2631,8 +2631,8 @@ function configurarEventos() {
     });
     // FIN: Incidentes Chart Filters
 
-    // --- Autocompletado (Restaurado Correctamente) ---
-    $(document).on('input', '.colaborador-ausencia, .colaborador-incidente', function() { // <-- MODIFICADO
+    // --- Autocompletado ---
+    $(document).on('input', '.colaborador-ausencia, .colaborador-incidente', function() {
         const input = $(this), valor = input.val().toLowerCase(), autocompleteList = input.next('.autocomplete-list');
         if (valor.length < 1) { autocompleteList.hide(); return; }
         if (!nombresActivos || nombresActivos.length === 0) return;
@@ -2640,28 +2640,21 @@ function configurarEventos() {
         autocompleteList.empty().toggle(sugerencias.length > 0);
         sugerencias.forEach(sug => autocompleteList.append(`<div class="autocomplete-item">${sug}</div>`));
     });
-    
-    $(document).on('click', '.autocomplete-item', function() { // <-- MODIFICADO
+    $(document).on('click', '.autocomplete-item', function() {
         const item = $(this);
         const nombreSeleccionado = item.text();
         const container = item.closest('.autocomplete-container');
-        
-        // 1. Poner el nombre en el input
         container.find('.colaborador-ausencia, .colaborador-incidente').val(nombreSeleccionado);
         item.closest('.autocomplete-list').hide();
-        
-        // 2. NUEVO: Buscar identidad y rellenar campo si existe
         const colaboradorInfo = colaboradoresActivos.find(col => col.nombre === nombreSeleccionado);
         if (colaboradorInfo) {
-            // Buscar el campo de identidad DENTRO del mismo .formulario-item
             const formularioItem = item.closest('.formulario-item');
             if (formularioItem.length) {
-                // Rellenar el campo de identidad para incidentes
                 formularioItem.find('.identidad-incidente').val(colaboradorInfo.identidad);
             }
         }
     });
-    $(document).on('click', (e) => { // Cierra lista al hacer clic fuera
+    $(document).on('click', (e) => {
         if (!$(e.target).closest('.autocomplete-container').length) {
             $('.autocomplete-list').hide();
         }
@@ -2684,7 +2677,7 @@ function configurarEventos() {
     $('#btn-filtrar-ausencias-personalizado').on('click', filtrarAusenciasPersonalizado);
     $('#btn-filtrar-disciplina-personalizado').on('click', filtrarDisciplinaPersonalizado);
     $('#btn-filtrar-evaluaciones-personalizado').on('click', filtrarEvaluacionesPersonalizado);
-    $('#btn-filtrar-incidentes-personalizado').on('click', filtrarIncidentesPersonalizado); 
+    $('#btn-filtrar-incidentes-personalizado').on('click', filtrarIncidentesPersonalizado);
 
     // --- Botón Refrescar Pestaña ---
     $(document).on('click', '.btn-refresh-tab', actualizarTabActual);
@@ -2698,8 +2691,22 @@ function configurarEventos() {
         else Swal.fire('Error', 'No se pudo encontrar el registro de ausencia original.', 'error');
     });
 
+    // --- INICIO: Editar Incidente (NUEVO BLOQUE) ---
+    $(document).on('click', '.btn-edit-incidente', function() {
+        const identidad = $(this).data('identidad');
+        const fecha = $(this).data('fecha');
+        // Buscar el incidente en la variable global 'incidentes'
+        const incidenteOriginal = incidentes.find(i => i.identidad === identidad && i.fechaIncidente === fecha);
+        if (incidenteOriginal) {
+            abrirModalEditarIncidente(incidenteOriginal); // Llamar a la nueva función
+        } else {
+            Swal.fire('Error', 'No se pudo encontrar el registro de incidente original.', 'error');
+        }
+    });
+    // --- FIN: Editar Incidente ---
+
     // --- Editar Egreso ---
-    $(document).on('click', '#egresados .btn-edit-egreso', function(e) { // Selector más específico
+    $(document).on('click', '#egresados .btn-edit-egreso', function(e) {
         e.stopPropagation();
         const identidad = $(this).data('identidad');
         const fechaEgreso = $(this).data('fechaegreso');
@@ -2709,16 +2716,13 @@ function configurarEventos() {
     });
 
     // --- Cambiar Vista (Activos) ---
-    // Asegúrate que los botones tengan la clase .btn-vista y el data-vista="tabla" o "grid"
-    $('#activos .btn-vista').on('click', function() { // Selector más específico
+    $('#activos .btn-vista').on('click', function() {
         const vistaSeleccionada = $(this).data('vista');
         toggleVistaActivos(vistaSeleccionada);
     });
 
-    // --- Botones de Acción (Delegados desde #myTabContent para mayor especificidad) ---
-    // Usar #myTabContent como base para la delegación asegura que solo afecte a los botones dentro de las pestañas.
+    // --- Botones de Acción (Delegados desde #myTabContent) ---
     const tabContent = $('#myTabContent');
-
     tabContent.on('click', '#activos .btn-photo, #egresados .btn-photo-egresado', function(e) {
         e.stopPropagation();
         const identidad = $(this).data('identidad');
@@ -2728,21 +2732,18 @@ function configurarEventos() {
         const colaboradorData = fuenteDatos.find(c => c.identidad === identidad && (!esEgresado || !fechaRef || c.fechaEgreso === fechaRef));
         if (colaboradorData) mostrarFoto(colaboradorData);
     });
-
     tabContent.on('click', '#activos .btn-edit', function(e) {
         e.stopPropagation();
         const identidad = $(this).data('identidad');
         const index = colaboradoresActivos.findIndex(c => c.identidad === identidad);
-        if (index !== -1) editarColaborador(index);
+        if (index !== -1) editarColaborador(index); // Asume que editarColaborador usa index global
     });
-
     tabContent.on('click', '#activos .btn-delete', function(e) {
         e.stopPropagation();
         const identidad = $(this).data('identidad');
         const index = colaboradoresActivos.findIndex(c => c.identidad === identidad);
-        if (index !== -1) eliminarColaborador(index);
+        if (index !== -1) eliminarColaborador(index); // Asume que eliminarColaborador usa index global
     });
-
     tabContent.on('click', '#activos .btn-historial, #egresados .btn-historial-egresado', function(e) {
         e.stopPropagation();
         const identidad = $(this).data('identidad');
@@ -2750,15 +2751,170 @@ function configurarEventos() {
         if (esEgresado) mostrarDetalleEgresado(identidad);
         else mostrarDetalleColaboradorCompleto(identidad, false);
     });
-
-    // El de reingreso ya estaba delegado desde document, pero lo movemos aquí por consistencia
     tabContent.on('click', '#egresados .btn-reingreso', function(e) {
          e.stopPropagation();
-         const identidad = $(this).closest('.empleado-item, tr').data('identidad'); // Funciona para tabla o grid
+         const identidad = $(this).closest('.empleado-item, tr').data('identidad');
          const egresado = colaboradoresEgresos.find(eg => eg.identidad === identidad);
          if (egresado) reingresarColaborador(egresado);
      });
 }
+
+
+/**
+ * Abre un modal (SweetAlert) para editar un registro de incidente existente.
+ * @param {object} incidenteOriginal - El objeto de incidente de la variable global 'incidentes'.
+ */
+function abrirModalEditarIncidente(incidenteOriginal) {
+
+    // --- Generar el dropdown de colaboradores activos ---
+    let opcionesColaboradores = '';
+    colaboradoresActivos.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(col => {
+        opcionesColaboradores += `<option value="${col.identidad}" ${col.identidad === incidenteOriginal.identidad ? 'selected' : ''}>
+            ${col.nombre}
+        </option>`;
+    });
+
+    // --- Generar checkboxes para partes afectadas ---
+    const partesCuerpo = ["Cabeza", "Ojos", "Torso", "Brazo Izquierdo", "Brazo Derecho", "Mano Izquierda", "Mano Derecha", "Pierna Izquierda", "Pierna Derecha", "Pie Izquierdo", "Pie Derecho", "Otro"];
+    let checkboxesHtml = '';
+    const partesSeleccionadasOriginal = incidenteOriginal.parteAfectada ? incidenteOriginal.parteAfectada.split('; ') : [];
+
+    partesCuerpo.forEach((parte, index) => {
+        const id = `edit-parte-${parte.toLowerCase().replace(/[^a-z0-9]/gi, '-')}`; // Crear ID único
+        const isChecked = partesSeleccionadasOriginal.includes(parte) ? 'checked' : '';
+        checkboxesHtml += `
+            <div class="form-check form-check-inline">
+              <input class="form-check-input edit-parte-afectada-check" type="checkbox" value="${parte}" id="${id}" ${isChecked}>
+              <label class="form-check-label" for="${id}">${parte}</label>
+            </div>`;
+    });
+
+    Swal.fire({
+        title: 'Editar Incidente',
+        html: `
+            <div class="text-start">
+
+                <div class="mb-3">
+                    <label for="editar-fecha-incidente" class="form-label">Fecha de Incidente</label>
+                    <input type="date" class="form-control" id="editar-fecha-incidente" value="${incidenteOriginal.fechaIncidente}" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="editar-colaborador-incidente" class="form-label">Colaborador</label>
+                    <select class="form-select" id="editar-colaborador-incidente" required>
+                        <option value="">Seleccionar...</option>
+                        ${opcionesColaboradores}
+                    </select>
+                </div>
+
+                 <div class="mb-3">
+                    <label class="form-label">Parte Afectada (Opcional)</label>
+                    <div class="border p-2 rounded" style="max-height: 150px; overflow-y: auto;">
+                        ${checkboxesHtml}
+                    </div>
+                 </div>
+
+                <div class="mb-3">
+                    <label for="editar-categoria-siso" class="form-label">Categoría SISO</label>
+                    <select class="form-select" id="editar-categoria-siso" required>
+                        <option value="FAT" ${incidenteOriginal.categoriaSiso === 'FAT' ? 'selected' : ''}>FAT: Fatalidades</option>
+                        <option value="LWC" ${incidenteOriginal.categoriaSiso === 'LWC' ? 'selected' : ''}>LWC: Incidentes con pérdida de tiempo</option>
+                        <option value="MTC" ${incidenteOriginal.categoriaSiso === 'MTC' ? 'selected' : ''}>MTC: Incidentes de tratamiento médico</option>
+                        <option value="FAC" ${incidenteOriginal.categoriaSiso === 'FAC' ? 'selected' : ''}>FAC: Incidentes de primeros auxilios</option>
+                        <option value="N-M" ${incidenteOriginal.categoriaSiso === 'N-M' ? 'selected' : ''}>N-M: Casi Incidentes</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label for="editar-causa-incidente" class="form-label">Causa del Incidente</label>
+                    <textarea class="form-control" id="editar-causa-incidente" rows="2" required>${incidenteOriginal.causa || ''}</textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label for="editar-descripcion-incidente" class="form-label">Descripción del incidente</label>
+                    <textarea class="form-control" id="editar-descripcion-incidente" rows="2" required>${incidenteOriginal.descripcion || ''}</textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label for="editar-medidas-incidente" class="form-label">Medidas Implementadas (Opcional)</label>
+                    <textarea class="form-control" id="editar-medidas-incidente" rows="2">${incidenteOriginal.medidas || ''}</textarea>
+                </div>
+            </div>`,
+        showCancelButton: true,
+        confirmButtonText: 'Guardar Cambios',
+        cancelButtonText: 'Cancelar',
+        preConfirm: () => {
+            const nuevaIdentidad = $('#editar-colaborador-incidente').val();
+            const fechaIncidente = $('#editar-fecha-incidente').val();
+            const categoriaSiso = $('#editar-categoria-siso').val();
+            const causa = $('#editar-causa-incidente').val();
+            const descripcion = $('#editar-descripcion-incidente').val();
+            const medidas = $('#editar-medidas-incidente').val();
+
+            // Leer checkboxes seleccionados
+            const partesAfectadasArray = [];
+            $('.edit-parte-afectada-check:checked').each(function() {
+                partesAfectadasArray.push($(this).val());
+            });
+            const parteAfectada = partesAfectadasArray.join('; ');
+
+            if (!nuevaIdentidad || !fechaIncidente || !categoriaSiso || !causa || !descripcion ) {
+                Swal.showValidationMessage('Fecha, Colaborador, Categoría, Causa y Descripción son obligatorios.');
+                return false;
+            }
+
+            const nuevoColaboradorInfo = colaboradoresActivos.find(col => col.identidad === nuevaIdentidad);
+            if (!nuevoColaboradorInfo) {
+                Swal.showValidationMessage('El colaborador seleccionado no es válido.');
+                return false;
+            }
+
+            const datosNuevos = {
+                // Info del nuevo colaborador (por si cambia)
+                nombre: nuevoColaboradorInfo.nombre,
+                identidad: nuevoColaboradorInfo.identidad,
+
+                // Info del incidente
+                fechaIncidente,
+                categoriaSiso,
+                causa,
+                descripcion,
+                medidas: medidas || '',
+                parteAfectada: parteAfectada || '' // Enviar vacío si no se seleccionó nada
+            };
+
+            return { datosNuevos };
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const { datosNuevos } = result.value;
+
+            $('#overlay').css('display', 'flex');
+            $.post(SCRIPT_URL_ENVIAR, {
+                accion: 'editar_incidente',
+                // La clave original NO cambia (identidad + fecha de incidente original)
+                incidenteOriginal: JSON.stringify({
+                    identidad: incidenteOriginal.identidad,
+                    fechaIncidente: incidenteOriginal.fechaIncidente
+                }),
+                datosNuevos: JSON.stringify(datosNuevos), // Coma corregida aquí
+            }, function(response) {
+                $('#overlay').hide();
+                if (response === 'Éxito') {
+                    Swal.fire('Éxito', 'Incidente actualizado correctamente.', 'success').then(() => {
+                        actualizarTabActual();
+                    });
+                } else {
+                    Swal.fire('Error', 'Hubo un problema al actualizar: ' + response, 'error');
+                }
+            }).fail(() => {
+                $('#overlay').hide();
+                Swal.fire('Error', 'Error de conexión al actualizar.', 'error');
+            }); // Cierre del .fail()
+        } // Cierre del if(result.isConfirmed)
+    }); // Cierre del .then() que sigue a Swal.fire({...})
+}
+
 
 
 /**
@@ -6139,22 +6295,22 @@ function crearGraficoIncidentesCategoriaFiltrado(ano, mes) {
 function mostrarHistorialIncidentes(datos) {
     const datosAMostrar = datos || incidentes;
     const tabla = $('#tabla-incidentes').empty();
-    if (datosAMostrar.length === 0) { 
-        tabla.append('<tr><td colspan="8" class="text-center">No hay incidentes para el filtro seleccionado.</td></tr>'); 
-        return; 
+    if (datosAMostrar.length === 0) {
+        // --- Colspan ajustado a 9 ---
+        tabla.append('<tr><td colspan="9" class="text-center">No hay incidentes para el filtro seleccionado.</td></tr>');
+        return;
     }
     [...datosAMostrar].sort((a, b) => new Date(b.fechaIncidente) - new Date(a.fechaIncidente)).forEach(i => {
-        
-        // --- INICIO: CAMBIO Req 1 (Mostrar lista de partes) ---
+
         let partesHtml = '';
         if (i.parteAfectada && i.parteAfectada.length > 0) {
             const partesArray = i.parteAfectada.split('; ');
             partesHtml = '<ul>' + partesArray.map(p => `<li>${p}</li>`).join('') + '</ul>';
         } else {
-            partesHtml = ''; // Vacío si no hay nada
+            partesHtml = '';
         }
-        // --- FIN: CAMBIO Req 1 ---
 
+        // --- INICIO: Botón Editar añadido ---
         tabla.append(`
             <tr class="no-hover">
                 <td>${formatearFecha(i.fechaIncidente)}</td>
@@ -6162,12 +6318,22 @@ function mostrarHistorialIncidentes(datos) {
                 <td>${i.identidad}</td>
                 <td>${i.categoriaSiso}</td>
                 <td>${i.descripcion}</td>
-                <td>${partesHtml}</td> <td>${i.causa}</td>
+                <td>${partesHtml}</td>
+                <td>${i.causa}</td>
                 <td>${i.medidas || ''}</td>
+                <td>
+                    <button class="btn btn-warning btn-sm btn-action btn-edit-incidente"
+                            data-identidad="${i.identidad}"
+                            data-fecha="${i.fechaIncidente}"
+                            title="Editar Incidente">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                </td>
             </tr>`);
+        // --- FIN: Botón Editar añadido ---
     });
+    // El event listener se manejará en configurarEventos
 }
-
 
 
 function filtrarIncidentesTabla() {

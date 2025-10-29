@@ -344,6 +344,7 @@
 
     .autocomplete-container {
         position: relative;
+        width: 100%;
     }
 
     .autocomplete-list {
@@ -2551,16 +2552,35 @@ function configurarEventos() {
     $('#btn-registrar-colaborador').on('click', registrarColaborador);
     $('#btn-agregar-colaborador').on('click', agregarFormularioColaborador);
     $(document).on('click', '.btn-quitar-item-colaborador', function() { $(this).closest('.formulario-item').remove(); });
-    $(document).on('input', '.identidad', function() { formatearIdentidad(this); }); // Aplica a todos los inputs .identidad
+    // Quitado: $(document).on('input', '.identidad', function() { formatearIdentidad(this); }); // Ahora se llama desde el listener general
     $('#btn-registrar-ausencia').on('click', registrarAusencia);
     $('#btn-agregar-ausencia').on('click', agregarFormularioAusencia);
     $(document).on('click', '.btn-quitar-item-ausencia', function() { $(this).closest('.formulario-item').remove(); });
-
-    // INICIO: Incidentes Form Events
     $('#btn-registrar-incidente').on('click', registrarIncidente);
     $('#btn-agregar-incidente').on('click', agregarFormularioIncidente);
     $(document).on('click', '.btn-quitar-item-incidente', function() { $(this).closest('.formulario-item').remove(); });
-    // FIN: Incidentes Form Events
+
+    // --- INICIO: NUEVOS LISTENERS DE VALIDACIÓN VISUAL ---
+    const formContainers = '#contenedor-formularios-colaborador, #contenedor-formularios-ausencia, #contenedor-formularios-incidente';
+
+    // Para inputs de texto, número, fecha y textareas (evento 'input')
+    $(formContainers).on('input', 'input[required], textarea[required]', function() {
+        if ($(this).hasClass('identidad')) {
+            formatearIdentidad(this); // Llama a formatear, que a su vez llama a validarCampo
+        } else {
+            validarCampo(this);
+        }
+    });
+
+    // Para selects (evento 'change')
+    $(formContainers).on('change', 'select[required]', function() {
+        validarCampo(this);
+    });
+     // Para checkboxes de parte afectada (evento 'change') - No son required, pero limpiamos si se desmarcan todos
+     $('#contenedor-formularios-incidente').on('change', '.parte-afectada-check', function() {
+        // Lógica opcional si quisiéramos validar el contenedor de checkboxes
+     });
+    // --- FIN: NUEVOS LISTENERS DE VALIDACIÓN VISUAL ---
 
     // --- Buscadores ---
     $('#buscador-activos').on('input', filtrarActivos);
@@ -2654,7 +2674,7 @@ function configurarEventos() {
             }
         }
     });
-    $(document).on('click', (e) => {
+    $(document).on('click', (e) => { // Cierra lista al hacer clic fuera
         if (!$(e.target).closest('.autocomplete-container').length) {
             $('.autocomplete-list').hide();
         }
@@ -2691,19 +2711,17 @@ function configurarEventos() {
         else Swal.fire('Error', 'No se pudo encontrar el registro de ausencia original.', 'error');
     });
 
-    // --- INICIO: Editar Incidente (NUEVO BLOQUE) ---
+    // --- Editar Incidente ---
     $(document).on('click', '.btn-edit-incidente', function() {
         const identidad = $(this).data('identidad');
         const fecha = $(this).data('fecha');
-        // Buscar el incidente en la variable global 'incidentes'
         const incidenteOriginal = incidentes.find(i => i.identidad === identidad && i.fechaIncidente === fecha);
         if (incidenteOriginal) {
-            abrirModalEditarIncidente(incidenteOriginal); // Llamar a la nueva función
+            abrirModalEditarIncidente(incidenteOriginal);
         } else {
             Swal.fire('Error', 'No se pudo encontrar el registro de incidente original.', 'error');
         }
     });
-    // --- FIN: Editar Incidente ---
 
     // --- Editar Egreso ---
     $(document).on('click', '#egresados .btn-edit-egreso', function(e) {
@@ -2735,14 +2753,18 @@ function configurarEventos() {
     tabContent.on('click', '#activos .btn-edit', function(e) {
         e.stopPropagation();
         const identidad = $(this).data('identidad');
+        // --- CORRECCIÓN: Usar identidad para buscar índice en el array original ---
         const index = colaboradoresActivos.findIndex(c => c.identidad === identidad);
-        if (index !== -1) editarColaborador(index); // Asume que editarColaborador usa index global
+        // --- FIN CORRECCIÓN ---
+        if (index !== -1) editarColaborador(index); // editarColaborador aún usa el índice del array global
     });
     tabContent.on('click', '#activos .btn-delete', function(e) {
         e.stopPropagation();
         const identidad = $(this).data('identidad');
+        // --- CORRECCIÓN: Usar identidad para buscar índice en el array original ---
         const index = colaboradoresActivos.findIndex(c => c.identidad === identidad);
-        if (index !== -1) eliminarColaborador(index); // Asume que eliminarColaborador usa index global
+        // --- FIN CORRECCIÓN ---
+        if (index !== -1) eliminarColaborador(index); // eliminarColaborador aún usa el índice del array global
     });
     tabContent.on('click', '#activos .btn-historial, #egresados .btn-historial-egresado', function(e) {
         e.stopPropagation();
@@ -2758,6 +2780,7 @@ function configurarEventos() {
          if (egresado) reingresarColaborador(egresado);
      });
 }
+
 
 
 /**
@@ -5349,12 +5372,15 @@ function mostrarCumpleanerosDelMes() {
             return isNaN(fecha.getTime()) ? fechaStr : `${String(fecha.getUTCDate()).padStart(2, '0')}/${String(fecha.getUTCMonth() + 1).padStart(2, '0')}/${fecha.getUTCFullYear()}`;
         }
 
-        function formatearIdentidad(input) {
-            let valor = input.value.replace(/\D/g, '').substring(0, 13);
-            if (valor.length > 8) valor = `${valor.substring(0, 8)}-${valor.substring(8)}`;
-            if (valor.length > 4) valor = `${valor.substring(0, 4)}-${valor.substring(4)}`;
-            input.value = valor;
-        }
+function formatearIdentidad(input) {
+    let valor = input.value.replace(/\D/g, '').substring(0, 13);
+    if (valor.length > 8) valor = `${valor.substring(0, 4)}-${valor.substring(4, 8)}-${valor.substring(8)}`; // Corregido para 3 partes
+    else if (valor.length > 4) valor = `${valor.substring(0, 4)}-${valor.substring(4)}`;
+    input.value = valor;
+
+    // Llamar a la validación visual después de formatear
+    validarCampo(input);
+}
         
         function subirFoto(colaborador, archivo, esEdicion = false) {
             return new Promise((resolve, reject) => {
@@ -6372,6 +6398,56 @@ function filtrarIncidentesPersonalizado() {
 }
 
 // --- FIN FUNCIONES PARA INCIDENTES ---
+
+
+
+/**
+ * Valida un campo de formulario (input, select, textarea) y aplica clases Bootstrap.
+ * @param {HTMLElement} campo - El elemento del formulario a validar.
+ */
+function validarCampo(campo) {
+    const $campo = $(campo);
+    let esValido = false;
+
+    // Quitar clases previas para revalidar
+    $campo.removeClass('is-valid is-invalid');
+
+    // Validación específica para identidad
+    if ($campo.hasClass('identidad')) {
+        const identidadRegex = /^\d{4}-\d{4}-\d{5}$/;
+        esValido = identidadRegex.test($campo.val());
+    }
+    // Validación general para otros campos requeridos
+    else if ($campo.prop('required')) {
+        // Para selects, verificar que no sea el valor vacío ""
+        if ($campo.is('select')) {
+            esValido = $campo.val() !== "";
+        }
+        // Para checkboxes (si los hubiera requeridos, aunque no es el caso actual)
+        else if ($campo.is(':checkbox')) {
+             // Si es un grupo, necesitaría lógica diferente, pero para uno solo:
+             esValido = $campo.is(':checked');
+        }
+         // Para inputs y textareas
+        else {
+             esValido = $campo.val().trim() !== "";
+        }
+    }
+    // Si no es requerido, se considera válido (o neutral, sin clases)
+    else {
+        return; // No añadir clases a campos no requeridos
+    }
+
+    // Aplicar clases Bootstrap
+    if (esValido) {
+        $campo.addClass('is-valid');
+    } else {
+        $campo.addClass('is-invalid');
+    }
+}
+
+
+
 
     </script>
 </body>

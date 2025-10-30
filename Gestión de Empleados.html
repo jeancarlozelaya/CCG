@@ -1135,7 +1135,6 @@
                                 <h2>Resumen de Colaboradores</h2>
 
                                 <button class="btn btn-outline-secondary btn-sm btn-refresh-tab" title="Actualizar esta pestaña">
-                                <div id="contenedor-formularios-colaborador">
                                     <i class="fas fa-sync-alt"></i>
                                 </button>
 
@@ -1292,7 +1291,7 @@
                                         <div class="row">
                                             <div class="col-md-6 mb-3">
                                                 <label for="identidad" class="form-label">Identidad</label>
-                                                <input type="text" class="form-control identidad" placeholder="0000-0000-00000" pattern="\d{4}-\d{4}-\d{5}" required>
+                                                <input type="text" class="form-control identidad" placeholder="0000-0000-00000" pattern="\\d{4}-\\d{4}-\\d{5}" required>
                                             </div>
                                             <div class="col-md-6 mb-3">
                                                 <label for="fecha-nacimiento" class="form-label">Fecha de Nacimiento (Opcional)</label>
@@ -2552,7 +2551,6 @@ function configurarEventos() {
     $('#btn-registrar-colaborador').on('click', registrarColaborador);
     $('#btn-agregar-colaborador').on('click', agregarFormularioColaborador);
     $(document).on('click', '.btn-quitar-item-colaborador', function() { $(this).closest('.formulario-item').remove(); });
-    // Quitado: $(document).on('input', '.identidad', function() { formatearIdentidad(this); }); // Ahora se llama desde el listener general
     $('#btn-registrar-ausencia').on('click', registrarAusencia);
     $('#btn-agregar-ausencia').on('click', agregarFormularioAusencia);
     $(document).on('click', '.btn-quitar-item-ausencia', function() { $(this).closest('.formulario-item').remove(); });
@@ -2576,9 +2574,9 @@ function configurarEventos() {
     $(formContainers).on('change', 'select[required]', function() {
         validarCampo(this);
     });
-     // Para checkboxes de parte afectada (evento 'change') - No son required, pero limpiamos si se desmarcan todos
+     // Para checkboxes de parte afectada (evento 'change') - No son required
      $('#contenedor-formularios-incidente').on('change', '.parte-afectada-check', function() {
-        // Lógica opcional si quisiéramos validar el contenedor de checkboxes
+        // No se necesita validación visual aquí ya que es opcional
      });
     // --- FIN: NUEVOS LISTENERS DE VALIDACIÓN VISUAL ---
 
@@ -2664,8 +2662,15 @@ function configurarEventos() {
         const item = $(this);
         const nombreSeleccionado = item.text();
         const container = item.closest('.autocomplete-container');
-        container.find('.colaborador-ausencia, .colaborador-incidente').val(nombreSeleccionado);
+        const inputCampo = container.find('.colaborador-ausencia, .colaborador-incidente');
+        
+        inputCampo.val(nombreSeleccionado);
         item.closest('.autocomplete-list').hide();
+        
+        // --- VALIDACIÓN VISUAL AL SELECCIONAR ---
+        validarCampo(inputCampo[0]); 
+        // --- FIN VALIDACIÓN ---
+
         const colaboradorInfo = colaboradoresActivos.find(col => col.nombre === nombreSeleccionado);
         if (colaboradorInfo) {
             const formularioItem = item.closest('.formulario-item');
@@ -2753,18 +2758,14 @@ function configurarEventos() {
     tabContent.on('click', '#activos .btn-edit', function(e) {
         e.stopPropagation();
         const identidad = $(this).data('identidad');
-        // --- CORRECCIÓN: Usar identidad para buscar índice en el array original ---
         const index = colaboradoresActivos.findIndex(c => c.identidad === identidad);
-        // --- FIN CORRECCIÓN ---
-        if (index !== -1) editarColaborador(index); // editarColaborador aún usa el índice del array global
+        if (index !== -1) editarColaborador(index);
     });
     tabContent.on('click', '#activos .btn-delete', function(e) {
         e.stopPropagation();
         const identidad = $(this).data('identidad');
-        // --- CORRECCIÓN: Usar identidad para buscar índice en el array original ---
         const index = colaboradoresActivos.findIndex(c => c.identidad === identidad);
-        // --- FIN CORRECCIÓN ---
-        if (index !== -1) eliminarColaborador(index); // eliminarColaborador aún usa el índice del array global
+        if (index !== -1) eliminarColaborador(index);
     });
     tabContent.on('click', '#activos .btn-historial, #egresados .btn-historial-egresado', function(e) {
         e.stopPropagation();
@@ -2780,8 +2781,6 @@ function configurarEventos() {
          if (egresado) reingresarColaborador(egresado);
      });
 }
-
-
 
 /**
  * Abre un modal (SweetAlert) para editar un registro de incidente existente.
@@ -3102,6 +3101,7 @@ function agregarFormularioColaborador() {
     const dd = String(today.getDate()).padStart(2, '0');
     const todayStr = `${yyyy}-${mm}-${dd}`;
     
+    // CORRECCIÓN: Escapada la barra invertida en 'pattern'
     const nuevoFormulario = `
         <div class="formulario-item">
             <button type="button" class="btn btn-danger btn-quitar-item btn-quitar-item-colaborador" title="Quitar registro"><i class="fas fa-times"></i></button>
@@ -3152,90 +3152,112 @@ function agregarFormularioColaborador() {
 }
 
 
+function registrarColaborador() {
+    let colaboradoresParaRegistrar = [];
+    let esValido = true; // Validez global del lote
+    const identidadRegex = /^\d{4}-\d{4}-\d{5}$/;
+    let identidadesEnLote = new Set();
 
-        function registrarColaborador() {
-            let colaboradoresParaRegistrar = [];
-            let esValido = true;
-            const identidadRegex = /^\d{4}-\d{4}-\d{5}$/;
-            let identidadesEnLote = new Set();
+    $('#contenedor-formularios-colaborador .formulario-item').each(function(index) {
+        const item = $(this);
+        let itemValido = true; // Validez de este colaborador específico
 
-            $('#contenedor-formularios-colaborador .formulario-item').each(function(index) {
-                const item = $(this);
-                const fechaInicio = item.find('.fecha-inicio').val();
-                const nombre = item.find('.nombre-completo').val();
-                const identidad = item.find('.identidad').val();
-                const fechaNacimiento = item.find('.fecha-nacimiento').val() || ''; 
-                const sexo = item.find('.sexo').val();
-                const fotoInput = item.find('.foto-colaborador')[0];
+        // --- INICIO: Validación visual explícita ---
+        item.find('input[required], select[required]').each(function() {
+            validarCampo(this); // Aplica clases rojo/verde
+            if ($(this).hasClass('is-invalid')) {
+                itemValido = false; // Si alguno es inválido, el item no es válido
+            }
+        });
+        // --- FIN: Validación visual explícita ---
 
-                if (!fechaInicio || !nombre || !identidad || !sexo) {
-                    Swal.fire('Error', `Por favor complete todos los campos obligatorios para el colaborador #${index + 1}.`, 'error');
-                    esValido = false;
-                    return false;
-                }
-                if (!identidadRegex.test(identidad)) {
-                    Swal.fire('Error', `El formato de identidad para el colaborador #${index + 1} es incorrecto.`, 'error');
-                    esValido = false;
-                    return false;
-                }
-                if (colaboradoresActivos.some(col => col.identidad === identidad) || identidadesEnLote.has(identidad)) {
-                    Swal.fire('Error', `La identidad '${identidad}' del colaborador #${index + 1} ya está registrada o duplicada en este lote.`, 'error');
-                    esValido = false;
-                    return false;
-                }
-                identidadesEnLote.add(identidad);
-                colaboradoresParaRegistrar.push({ fechaInicio, nombre, identidad, fechaNacimiento, sexo, fotoInput });
-            });
+        // Recolección de datos
+        const fechaInicio = item.find('.fecha-inicio').val();
+        const nombre = item.find('.nombre-completo').val();
+        const identidad = item.find('.identidad').val();
+        const fechaNacimiento = item.find('.fecha-nacimiento').val() || '';
+        const sexo = item.find('.sexo').val();
+        const fotoInput = item.find('.foto-colaborador')[0];
 
-            if (!esValido || colaboradoresParaRegistrar.length === 0) return;
+        // Validaciones adicionales específicas (formato, duplicados)
+        if (itemValido) { // Solo si los campos básicos están llenos
+            // La validación de formato ya la hizo validarCampo
+            if (colaboradoresActivos.some(col => col.identidad === identidad) || identidadesEnLote.has(identidad)) {
+                item.find('.identidad').addClass('is-invalid').removeClass('is-valid'); // Marcar como inválido
+                Swal.fire('Error de Duplicado', `La identidad '${identidad}' del colaborador #${index + 1} ya está registrada o duplicada en este lote.`, 'error');
+                itemValido = false;
+            } else {
+                 identidadesEnLote.add(identidad); // Añadir solo si es válido y no duplicado
+            }
+        }
 
-            Swal.fire({
-                title: '¿Está seguro?',
-                html: `Se registrarán <strong>${colaboradoresParaRegistrar.length}</strong> nuevos colaboradores.`,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonText: 'Sí, registrar',
-                cancelButtonText: 'No, cancelar'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    $('#overlay').css('display', 'flex');
-                    const colaboradoresSinFoto = colaboradoresParaRegistrar.map(({ fotoInput, ...resto }) => resto);
+        if (!itemValido) {
+            esValido = false; // Si este item tiene error, el lote completo no se envía
+        }
 
-                    $.post(SCRIPT_URL_ENVIAR, {
-                        accion: 'registrar_colaboradores_masivo',
-                        datos: JSON.stringify(colaboradoresSinFoto)
-                    }, function(response) {
-                        if (response === 'Éxito') {
-                            const promesasFotos = colaboradoresParaRegistrar
-                                .filter(col => col.fotoInput.files[0])
-                                .map(col => subirFoto(col, col.fotoInput.files[0], false));
+        // Solo añadir al array si el item es válido
+        if (itemValido) {
+            colaboradoresParaRegistrar.push({ fechaInicio, nombre, identidad, fechaNacimiento, sexo, fotoInput });
+        }
+    });
 
-                            Promise.all(promesasFotos)
-                                .then(() => {
-                                    $('#overlay').hide();
-                                    Swal.fire('Éxito', 'Colaboradores registrados correctamente.', 'success').then(() => {
-                                        $('#contenedor-formularios-colaborador').empty();
-                                        agregarFormularioColaborador();
-                                        cargarTodosLosDatos();
-                                    });
-                                })
-                                .catch(error => {
-                                    $('#overlay').hide();
-                                    Swal.fire('Advertencia', `Colaboradores registrados, pero hubo un error al subir algunas fotos: ${error}`, 'warning').then(() => {
-                                        cargarTodosLosDatos();
-                                    });
-                                });
-                        } else {
+    // Si hubo algún error en cualquier item, mostrar advertencia y no continuar
+    if (!esValido) {
+         Swal.fire('Formulario Incompleto', 'Revise los campos marcados en rojo en todos los registros de colaboradores.', 'warning');
+         return;
+    }
+    if (colaboradoresParaRegistrar.length === 0) return; // No hacer nada si no hay datos válidos
+
+    // --- Pregunta de confirmación y envío (código existente) ---
+    Swal.fire({
+        title: '¿Está seguro?',
+        html: `Se registrarán <strong>${colaboradoresParaRegistrar.length}</strong> nuevos colaboradores.`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, registrar',
+        cancelButtonText: 'No, cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            $('#overlay').css('display', 'flex');
+            const colaboradoresSinFoto = colaboradoresParaRegistrar.map(({ fotoInput, ...resto }) => resto);
+
+            $.post(SCRIPT_URL_ENVIAR, {
+                accion: 'registrar_colaboradores_masivo',
+                datos: JSON.stringify(colaboradoresSinFoto)
+            }, function(response) {
+                if (response === 'Éxito') {
+                    const promesasFotos = colaboradoresParaRegistrar
+                        .filter(col => col.fotoInput.files[0])
+                        .map(col => subirFoto(col, col.fotoInput.files[0], false));
+
+                    Promise.all(promesasFotos)
+                        .then(() => {
                             $('#overlay').hide();
-                            Swal.fire('Error', 'Hubo un problema al registrar: ' + response, 'error');
-                        }
-                    }).fail(() => {
-                        $('#overlay').hide();
-                        Swal.fire('Error', 'Error de conexión al registrar.', 'error');
-                    });
+                            Swal.fire('Éxito', 'Colaboradores registrados correctamente.', 'success').then(() => {
+                                $('#contenedor-formularios-colaborador').empty();
+                                agregarFormularioColaborador();
+                                cargarTodosLosDatos();
+                            });
+                        })
+                        .catch(error => {
+                            $('#overlay').hide();
+                            Swal.fire('Advertencia', `Colaboradores registrados, pero hubo un error al subir algunas fotos: ${error}`, 'warning').then(() => {
+                                cargarTodosLosDatos();
+                            });
+                        });
+                } else {
+                    $('#overlay').hide();
+                    Swal.fire('Error', 'Hubo un problema al registrar: ' + response, 'error');
                 }
+            }).fail(() => {
+                $('#overlay').hide();
+                Swal.fire('Error', 'Error de conexión al registrar.', 'error');
             });
         }
+    });
+}
+
+
         
         function agregarFormularioAusencia() {
             const today = new Date();
@@ -3272,105 +3294,128 @@ function agregarFormularioColaborador() {
         }
 
 function registrarAusencia() {
-    let ausenciasParaRegistrar = [], esValido = true;
-    
+    let ausenciasParaRegistrar = [];
+    let esValido = true; // Validez global del lote
+
     $('#contenedor-formularios-ausencia .formulario-item').each(function(index) {
         const item = $(this);
+        let itemValido = true; // Validez de esta ausencia específica
+
+        // --- INICIO: Validación visual explícita ---
+        item.find('input[required], select[required]').each(function() {
+            validarCampo(this); // Aplica clases rojo/verde
+            if ($(this).hasClass('is-invalid')) {
+                itemValido = false;
+            }
+        });
+        // --- FIN: Validación visual explícita ---
+
+        // Recolección de datos
         const fecha = item.find('.fecha-ausencia').val();
         const diasIncapacidad = parseInt(item.find('.dias-incapacidad').val());
         const colaborador = item.find('.colaborador-ausencia').val();
         const motivo = item.find('.motivo-ausencia').val();
         const observaciones = item.find('.observaciones-ausencia').val();
 
-        if (!fecha || !diasIncapacidad || !colaborador || !motivo) { 
-            Swal.fire('Error', `Complete campos obligatorios para ausencia #${index + 1}.`, 'error'); 
-            esValido = false; 
-            return false; 
-        }
+        let colaboradorInfo = null;
+        let identidad = null;
+        let fechaInicio = null;
+        let fechaFin = null;
+        let fechaFinStr = '';
 
-        const colaboradorInfo = colaboradoresActivos.find(col => col.nombre.toLowerCase() === colaborador.toLowerCase());
-        
-        if (!colaboradorInfo) { 
-            Swal.fire('Error', `Colaborador '${colaborador}' (ausencia #${index + 1}) no es activo.`, 'error'); 
-            esValido = false; 
-            return false; 
-        }
-        
-        const identidad = colaboradorInfo.identidad;
-        const fechaInicio = new Date(fecha + 'T00:00:00');
-        const fechaFin = new Date(fechaInicio);
-        fechaFin.setDate(fechaFin.getDate() + diasIncapacidad - 1);
-        const fechaFinStr = fechaFin.toISOString().split('T')[0];
+        // Validaciones adicionales específicas (colaborador activo, duplicados)
+        if (itemValido) { // Solo si los campos básicos están llenos
+            colaboradorInfo = colaboradoresActivos.find(col => col.nombre.toLowerCase() === colaborador.toLowerCase());
 
-        // --- INICIO DE NUEVA VALIDACIÓN ---
-        let hayDuplicado = false;
-        for (let d = new Date(fechaInicio); d <= fechaFin; d.setDate(d.getDate() + 1)) {
-            const fechaActualStr = d.toISOString().split('T')[0];
+            if (!colaboradorInfo) {
+                item.find('.colaborador-ausencia').addClass('is-invalid').removeClass('is-valid'); // Marcar como inválido
+                Swal.fire('Error', `Colaborador '${colaborador}' (ausencia #${index + 1}) no es activo.`, 'error');
+                itemValido = false;
+            } else {
+                 identidad = colaboradorInfo.identidad;
+                 fechaInicio = new Date(fecha + 'T00:00:00');
+                 fechaFin = new Date(fechaInicio);
+                 fechaFin.setDate(fechaFin.getDate() + diasIncapacidad - 1);
+                 fechaFinStr = fechaFin.toISOString().split('T')[0];
 
-            // 1. Revisar en la base de datos (array 'ausencias')
-            const duplicadoExistente = ausencias.some(a => 
-                a.identidad === identidad &&
-                fechaActualStr >= a.fecha && 
-                fechaActualStr <= (a.fechaFin || a.fecha)
-            );
+                let hayDuplicado = false;
+                for (let d = new Date(fechaInicio); d <= fechaFin; d.setDate(d.getDate() + 1)) {
+                    const fechaActualStr = d.toISOString().split('T')[0];
+                    const duplicadoExistente = ausencias.some(a =>
+                        a.identidad === identidad &&
+                        fechaActualStr >= a.fecha &&
+                        fechaActualStr <= (a.fechaFin || a.fecha)
+                    );
+                    const duplicadoEnLote = ausenciasParaRegistrar.some(a =>
+                        a.identidad === identidad &&
+                        fechaActualStr >= a.fecha &&
+                        fechaActualStr <= a.fechaFin
+                    );
 
-            // 2. Revisar en el lote actual que se está registrando
-            const duplicadoEnLote = ausenciasParaRegistrar.some(a => 
-                a.identidad === identidad &&
-                fechaActualStr >= a.fecha && 
-                fechaActualStr <= a.fechaFin
-            );
-
-            if (duplicadoExistente || duplicadoEnLote) {
-                Swal.fire('Error de Duplicado', `Ya existe una ausencia registrada para '${colaborador}' el día ${formatearFecha(fechaActualStr)}.`, 'error');
-                esValido = false;
-                hayDuplicado = true;
-                return false; // Sale del bucle forEach del formulario
+                    if (duplicadoExistente || duplicadoEnLote) {
+                        Swal.fire('Error de Duplicado', `Ya existe una ausencia registrada para '${colaborador}' el día ${formatearFecha(fechaActualStr)}.`, 'error');
+                        itemValido = false;
+                        hayDuplicado = true;
+                        break; // Salir del bucle for
+                    }
+                }
+                if (hayDuplicado) {
+                    item.find('.fecha-ausencia, .dias-incapacidad, .colaborador-ausencia').addClass('is-invalid').removeClass('is-valid');
+                }
             }
         }
-        if (hayDuplicado) return false;
-        // --- FIN DE NUEVA VALIDACIÓN ---
 
-        ausenciasParaRegistrar.push({ fecha, fechaFin: fechaFinStr, diasIncapacidad, colaborador, identidad, motivo, observaciones });
+        if (!itemValido) {
+            esValido = false; // Si este item tiene error, el lote completo no se envía
+        }
+
+        // Solo añadir al array si el item es válido
+        if (itemValido) {
+             ausenciasParaRegistrar.push({ fecha, fechaFin: fechaFinStr, diasIncapacidad, colaborador, identidad, motivo, observaciones });
+        }
     });
-    
-    if (!esValido || ausenciasParaRegistrar.length === 0) return;
-    
-    Swal.fire({ 
-        title: '¿Está seguro?', 
-        html: `Se registrarán <strong>${ausenciasParaRegistrar.length}</strong> ausencias.`, 
-        icon: 'question', 
-        showCancelButton: true, 
-        confirmButtonText: 'Sí, registrar', 
-        cancelButtonText: 'No, cancelar' 
+
+    // Si hubo algún error en cualquier item, mostrar advertencia y no continuar
+    if (!esValido) {
+         Swal.fire('Formulario Incompleto', 'Revise los campos marcados en rojo o corrija los errores indicados en todos los registros de ausencias.', 'warning');
+         return;
+    }
+    if (ausenciasParaRegistrar.length === 0) return; // No hacer nada si no hay datos válidos
+
+    // --- Pregunta de confirmación y envío (código existente) ---
+    Swal.fire({
+        title: '¿Está seguro?',
+        html: `Se registrarán <strong>${ausenciasParaRegistrar.length}</strong> ausencias.`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, registrar',
+        cancelButtonText: 'No, cancelar'
     }).then((result) => {
         if (result.isConfirmed) {
-            // Quitamos 'identidad' del objeto a enviar, ya que el servidor lo resuelve por 'colaborador' (nombre)
             const datosParaEnviar = ausenciasParaRegistrar.map(({ identidad, ...resto }) => resto);
 
             $('#overlay').css('display', 'flex');
-            $.post(SCRIPT_URL_ENVIAR, { 
-                accion: 'registrar_ausencias_masivo', 
-                datos: JSON.stringify(datosParaEnviar) 
+            $.post(SCRIPT_URL_ENVIAR, {
+                accion: 'registrar_ausencias_masivo',
+                datos: JSON.stringify(datosParaEnviar)
             }, (response) => {
                 $('#overlay').hide();
                 if (response === 'Éxito') {
-                    Swal.fire('Éxito', 'Ausencias registradas.', 'success').then(() => { 
-                        $('#contenedor-formularios-ausencia').empty(); 
-                        agregarFormularioAusencia(); 
-                        cargarTodosLosDatos(); 
+                    Swal.fire('Éxito', 'Ausencias registradas.', 'success').then(() => {
+                        $('#contenedor-formularios-ausencia').empty();
+                        agregarFormularioAusencia();
+                        cargarTodosLosDatos();
                     });
                 } else {
                     Swal.fire('Error', `Error al registrar ausencias: ${response}`, 'error');
                 }
-            }).fail(() => { 
-                $('#overlay').hide(); 
-                Swal.fire('Error', 'Error de conexión.', 'error'); 
+            }).fail(() => {
+                $('#overlay').hide();
+                Swal.fire('Error', 'Error de conexión.', 'error');
             });
         }
     });
 }
-
         
         function actualizarDashboard() {
             $('#total-activos').text(colaboradoresActivos.length);
@@ -5776,87 +5821,103 @@ function agregarFormularioIncidente() {
 
 function registrarIncidente() {
     let incidentesParaRegistrar = [];
-    let esValido = true;
-    
+    let esValido = true; // Validez global del lote
+
     $('#contenedor-formularios-incidente .formulario-item').each(function(index) {
         const item = $(this);
+        let itemValido = true; // Validez de este incidente específico
+
+        // --- INICIO: Validación visual explícita ---
+        item.find('input[required], select[required], textarea[required]').each(function() {
+            validarCampo(this); // Aplica clases rojo/verde
+            if ($(this).hasClass('is-invalid')) {
+                itemValido = false;
+            }
+        });
+        // --- FIN: Validación visual explícita ---
+
+        // Recolección de datos
         const fechaIncidente = item.find('.fecha-incidente').val();
         const nombre = item.find('.colaborador-incidente').val();
-        const identidad = item.find('.identidad-incidente').val(); 
+        const identidad = item.find('.identidad-incidente').val(); // Hidden input
         const descripcion = item.find('.descripcion-incidente').val();
-        
-        // --- INICIO: CAMBIO Req 1 (Leer checkboxes) ---
+        const causa = item.find('.causa-incidente').val();
+        const medidas = item.find('.medidas-incidente').val();
+        const categoriaSiso = item.find('.categoria-siso-incidente').val();
         const partesAfectadasArray = [];
         item.find('.parte-afectada-check:checked').each(function() {
             partesAfectadasArray.push($(this).val());
         });
-        const parteAfectada = partesAfectadasArray.join('; '); // Unir con "; "
-        // --- FIN: CAMBIO Req 1 ---
-        
-        const causa = item.find('.causa-incidente').val(); 
-        const medidas = item.find('.medidas-incidente').val(); 
-        const categoriaSiso = item.find('.categoria-siso-incidente').val(); 
+        const parteAfectada = partesAfectadasArray.join('; ');
 
-        // Validación actualizada (parteAfectada ya no es obligatoria)
-        if (!fechaIncidente || !nombre || !identidad || !descripcion || !causa || !categoriaSiso) { 
-            Swal.fire('Error', `Complete todos los campos obligatorios para el incidente #${index + 1}.`, 'error'); 
-            esValido = false; 
-            return false; 
-        }
-        
-        const colaboradorInfo = colaboradoresActivos.find(col => col.nombre === nombre && col.identidad === identidad);
-        if (!colaboradorInfo) {
-            Swal.fire('Error', `El colaborador '${nombre}' (incidente #${index + 1}) no es un colaborador activo válido o la identidad no coincide. Por favor, selecciónelo de la lista.`, 'error'); 
-            esValido = false; 
-            return false; 
+        // Validaciones adicionales específicas (colaborador activo)
+        if (itemValido) { // Solo si los campos básicos están llenos
+            const colaboradorInfo = colaboradoresActivos.find(col => col.nombre === nombre && col.identidad === identidad);
+            if (!colaboradorInfo) {
+                item.find('.colaborador-incidente').addClass('is-invalid').removeClass('is-valid'); // Marcar como inválido
+                Swal.fire('Error', `El colaborador '${nombre}' (incidente #${index + 1}) no es válido o la identidad oculta no coincide. Por favor, selecciónelo de la lista.`, 'error');
+                itemValido = false;
+            }
         }
 
-        incidentesParaRegistrar.push({ 
-            fechaIncidente, 
-            nombre, 
-            identidad, 
-            descripcion, 
-            parteAfectada: parteAfectada, // Enviamos el string (puede estar vacío)
-            causa, 
-            medidas: medidas || '', 
-            categoriaSiso 
-        });
+        if (!itemValido) {
+            esValido = false; // Si este item tiene error, el lote completo no se envía
+        }
+
+        // Solo añadir al array si el item es válido
+        if (itemValido) {
+            incidentesParaRegistrar.push({
+                fechaIncidente,
+                nombre,
+                identidad,
+                descripcion,
+                parteAfectada,
+                causa,
+                medidas: medidas || '',
+                categoriaSiso
+            });
+        }
     });
-    
-    if (!esValido || incidentesParaRegistrar.length === 0) return;
-    
-    Swal.fire({ 
-        title: '¿Está seguro?', 
-        html: `Se registrarán <strong>${incidentesParaRegistrar.length}</strong> incidentes.`, 
-        icon: 'question', 
-        showCancelButton: true, 
-        confirmButtonText: 'Sí, registrar', 
-        cancelButtonText: 'No, cancelar' 
+
+    // Si hubo algún error en cualquier item, mostrar advertencia y no continuar
+    if (!esValido) {
+         Swal.fire('Formulario Incompleto', 'Revise los campos marcados en rojo en todos los registros de incidentes.', 'warning');
+         return;
+    }
+    if (incidentesParaRegistrar.length === 0) return; // No hacer nada si no hay datos válidos
+
+    // --- Pregunta de confirmación y envío (código existente) ---
+    Swal.fire({
+        title: '¿Está seguro?',
+        html: `Se registrarán <strong>${incidentesParaRegistrar.length}</strong> incidentes.`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, registrar',
+        cancelButtonText: 'No, cancelar'
     }).then((result) => {
         if (result.isConfirmed) {
             $('#overlay').css('display', 'flex');
-            $.post(SCRIPT_URL_ENVIAR, { 
-                accion: 'registrar_incidentes_masivo', 
-                datos: JSON.stringify(incidentesParaRegistrar) 
+            $.post(SCRIPT_URL_ENVIAR, {
+                accion: 'registrar_incidentes_masivo',
+                datos: JSON.stringify(incidentesParaRegistrar)
             }, (response) => {
                 $('#overlay').hide();
                 if (response === 'Éxito') {
-                    Swal.fire('Éxito', 'Incidentes registrados.', 'success').then(() => { 
-                        $('#contenedor-formularios-incidente').empty(); 
-                        agregarFormularioIncidente(); 
-                        cargarTodosLosDatos(); 
+                    Swal.fire('Éxito', 'Incidentes registrados.', 'success').then(() => {
+                        $('#contenedor-formularios-incidente').empty();
+                        agregarFormularioIncidente();
+                        cargarTodosLosDatos();
                     });
                 } else {
                     Swal.fire('Error', `Error al registrar incidentes: ${response}`, 'error');
                 }
-            }).fail(() => { 
-                $('#overlay').hide(); 
-                Swal.fire('Error', 'Error de conexión.', 'error'); 
+            }).fail(() => {
+                $('#overlay').hide();
+                Swal.fire('Error', 'Error de conexión.', 'error');
             });
         }
     });
 }
-
 
 function calcularEstadisticasIncidentes() {
     const totalHistorico = incidentes.length;
@@ -6423,9 +6484,8 @@ function validarCampo(campo) {
         if ($campo.is('select')) {
             esValido = $campo.val() !== "";
         }
-        // Para checkboxes (si los hubiera requeridos, aunque no es el caso actual)
+        // Para checkboxes (si los hubiera requeridos)
         else if ($campo.is(':checkbox')) {
-             // Si es un grupo, necesitaría lógica diferente, pero para uno solo:
              esValido = $campo.is(':checked');
         }
          // Para inputs y textareas
@@ -6433,9 +6493,9 @@ function validarCampo(campo) {
              esValido = $campo.val().trim() !== "";
         }
     }
-    // Si no es requerido, se considera válido (o neutral, sin clases)
+    // Si no es requerido, no se añaden clases
     else {
-        return; // No añadir clases a campos no requeridos
+        return;
     }
 
     // Aplicar clases Bootstrap
@@ -6445,7 +6505,6 @@ function validarCampo(campo) {
         $campo.addClass('is-invalid');
     }
 }
-
 
 
 

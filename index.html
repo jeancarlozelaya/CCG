@@ -4,12 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>PIBRISA - Pisos Brillantes</title>
-    <!-- FontAwesome CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="icon" href="Imágenes/Icono.png" type="image/png">
     <link rel="manifest" href="/CCG/manifest.json">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <style>
         :root {
@@ -592,16 +593,15 @@
             
             <div class="separator"></div>
 
-            <div class="menu-item" onclick="window.location.href='Pag - RRHH.html';">
+            <div class="menu-item" onclick="promptForRRHH()">
                 <span><i class="fa-solid fa-handshake"></i></span>
                 <p>Gestión de Empleados y Disciplina</p>
             </div>           
 
-            <div class="menu-item" onclick="window.location.href='Actualización de Datos.html';">
+            <div class="menu-item" onclick="promptForActualizacion()">
                 <span><i class="fa-solid fa-tag"></i></span>
                 <p>Actualización de Datos Pendientes</p>
             </div>           
-
             <div class="separator"></div>
            
             <div class="menu-item" onclick="mostrarInfo()">
@@ -847,19 +847,99 @@
     document.addEventListener('contextmenu', function(e) {
         e.preventDefault();
     });
+    
+    // --- INICIO DE MODIFICACIÓN (Función de Contraseña RRHH) ---
+    function promptForRRHH() {
+        // Esta es la llave que usa 'Gestión de Empleados.html' para su sesión
+        const sessionKey = 'passwordSessionTimestamp';
+        const sessionStart = localStorage.getItem(sessionKey);
+
+        if (sessionStart) {
+            const twentyFourHours = 24 * 60 * 60 * 1000;
+            const timeElapsed = new Date().getTime() - parseInt(sessionStart, 10);
+
+            if (timeElapsed < twentyFourHours) {
+                // La sesión es válida, redirigir directamente
+                window.location.href = 'Pag - RRHH.html';
+                return;
+            }
+        }
+
+        // Si no hay sesión o ha expirado, pedir contraseña
+        Swal.fire({
+            title: 'Acceso Restringido',
+            html: 'Ingrese la contraseña para acceder a Gestión de Empleados.',
+            input: 'password',
+            inputPlaceholder: 'Contraseña',
+            confirmButtonText: 'Ingresar',
+            showCancelButton: true,
+            cancelButtonText: 'Cancelar',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            backdrop: `rgba(43, 62, 80, 0.8)`,
+            preConfirm: (password) => {
+                if (password !== 'pisos2025') { // La nueva contraseña solicitada
+                    Swal.showValidationMessage('Contraseña incorrecta');
+                    return false;
+                }
+                return password;
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Si la contraseña es correcta, guardar la sesión y redirigir
+                localStorage.setItem(sessionKey, new Date().getTime().toString());
+                window.location.href = 'Pag - RRHH.html';
+            }
+        });
+    }
+    // --- FIN DE MODIFICACIÓN ---
+
+    // --- INICIO: NUEVA FUNCIÓN (Tarea Actual) ---
+    function promptForActualizacion() {
+        // 1. Usar la llave de sesión ÚNICA que definimos para esta página
+        const sessionKey = 'actualizacionDatosSessionTimestamp'; 
+        const sessionStart = localStorage.getItem(sessionKey);
+
+        if (sessionStart) {
+            const twentyFourHours = 24 * 60 * 60 * 1000;
+            const timeElapsed = new Date().getTime() - parseInt(sessionStart, 10);
+
+            if (timeElapsed < twentyFourHours) {
+                // La sesión es válida, redirigir directamente
+                window.location.href = 'Actualización de Datos.html';
+                return;
+            }
+        }
+
+        // 2. Si no hay sesión o ha expirado, pedir la contraseña específica
+        Swal.fire({
+            title: 'Acceso Restringido',
+            html: 'Ingrese la contraseña para acceder a Actualización de Datos.',
+            input: 'password',
+            inputPlaceholder: 'Contraseña',
+            confirmButtonText: 'Ingresar',
+            showCancelButton: true,
+            cancelButtonText: 'Cancelar',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            backdrop: `rgba(43, 62, 80, 0.8)`,
+            preConfirm: (password) => {
+                if (password !== 'pisos123') { // La contraseña para esta página
+                    Swal.showValidationMessage('Contraseña incorrecta');
+                    return false;
+                }
+                return password;
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // 3. Si es correcta, guardar la sesión con su llave única
+                localStorage.setItem(sessionKey, new Date().getTime().toString());
+                window.location.href = 'Actualización de Datos.html';
+            }
+        });
+    }
+    // --- FIN: NUEVA FUNCIÓN ---
         
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-

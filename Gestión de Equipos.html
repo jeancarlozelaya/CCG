@@ -1000,6 +1000,56 @@
         }
     }
 
+
+/* --- INICIO DE CÓDIGO A AÑADIR --- */
+.checklist-item-fotos {
+    width: 100%;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #eee;
+}
+
+.foto-button {
+    background: #f0f8ff;
+    border: 1px dashed var(--secondary-color);
+    color: var(--secondary-color);
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: var(--transition);
+    width: 100%;
+}
+
+.foto-button:hover {
+    background: #e6f3ff;
+}
+
+.foto-button i {
+    margin-right: 5px;
+}
+
+.foto-preview {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+/* Re-usamos el estilo de preview, pero ajustamos el tamaño */
+.foto-preview .image-preview-item {
+    width: 60px;
+    height: 60px;
+}
+
+.foto-preview .delete-icon {
+    font-size: 12px;
+    width: 18px;
+    height: 18px;
+}
+/* --- FIN DE CÓDIGO A AÑADIR --- */
+
 </style>
 </head>
 <body>
@@ -1041,16 +1091,7 @@
             <div class="equipos-container" id="equipos"></div>
             <br>
 
-            <div class="question-container" id="adjunto4Container">
-                <label for="adjunto4"><strong>Evidencia (Fotos):</strong></label>
-                <div class="file-upload" id="drag-area4">
-                    <input type="file" id="adjunto4" name="adjunto4" accept="image/*" multiple capture="environment">
-                    <i class="fas fa-camera"></i>
-                    <div class="file-upload-text">Toca aquí para tomar fotos</div>
-                    <div class="file-upload-subtext">Mantén presionado para modo cámara</div>
-                </div>
-                <div id="preview4" class="image-preview"></div>
-            </div>
+
 
             <div class="question-container">
                 <label for="firma">Firma del Responsable:</label>
@@ -1151,6 +1192,8 @@
     let modoActual = "salidas";
     let ultimaTransaccion = null;
     let checklistEstado = {};
+    let allColaboradores = [];
+
 
     // Checklists preoperativos y postoperativos
     const checklistsPreOperativos = {
@@ -1713,11 +1756,12 @@
         verificarFormulario();
     }
 
-    function verificarFormulario() {
+function verificarFormulario() {
         let fecha = $("#fecha").val();
         let colaborador = $("#colaborador").val();
         let area = $("#area").val();
-        const hayFotos = selectedFiles.preview4.length > 0;
+        
+        // const hayFotos = selectedFiles.preview4.length > 0; // <-- LÍNEA ELIMINADA
         
         // Verificar firma de manera más precisa
         const canvas = document.getElementById('firmaCanvas');
@@ -1736,7 +1780,7 @@
             colaboradorValido: colaboradorValido,
             area: !!area,
             equipoSeleccionado: !!equipoSeleccionado,
-            hayFotos: hayFotos,
+            // hayFotos: hayFotos, // <-- LÍNEA ELIMINADA
             hayFirma: hayFirma
         });
         
@@ -1745,7 +1789,7 @@
                                   colaborador && 
                                   area && 
                                   equipoSeleccionado && 
-                                  hayFotos && 
+                                  // hayFotos && // <-- LÍNEA ELIMINADA
                                   hayFirma && 
                                   colaboradorValido;
         
@@ -1773,6 +1817,8 @@
             canvas.style.borderWidth = "1px";
         }
     }
+
+
 
     // FUNCIONES MODIFICADAS PARA EL CHECKLIST EN FORMULARIO
     function solicitarEquipo() {
@@ -1910,7 +1956,7 @@
         });
     }
 
-    function generarChecklistUI(checklist) {
+function generarChecklistUI(checklist) {
         const container = document.getElementById('checklistContainer');
         if (!container) {
             console.error('No se encontró el elemento checklistContainer');
@@ -1918,22 +1964,50 @@
         }
         
         container.innerHTML = '';
+
+        // INICIALIZAR EL CONTENEDOR DE FOTOS EN checklistEstado SI NO EXISTE
+        if (!checklistEstado.fotos) {
+            checklistEstado.fotos = {};
+        }
         
         checklist.forEach((item, index) => {
             const itemDiv = document.createElement('div');
             itemDiv.className = 'checklist-item';
+
+            // Inicializar array de fotos para este item si no existe
+            if (!checklistEstado.fotos[index]) {
+                checklistEstado.fotos[index] = []; // Usaremos data URLs para simplicidad
+            }
+            
+            // Contar fotos existentes
+            const numFotos = checklistEstado.fotos[index].length;
+
             itemDiv.innerHTML = `
                 <label>${item}</label>
                 <div class="checklist-buttons">
                     <button type="button" class="check-button" onclick="seleccionarRespuesta(${index}, '✔')">Cumple</button>
                     <button type="button" class="x-button" onclick="seleccionarRespuesta(${index}, 'X')">No<br>Cumple</button>
                 </div>
-            `;
+                
+                <div class="checklist-item-fotos">
+                    <button type="button" class="foto-button" onclick="abrirInputFoto(${index})">
+                        <i class="fas fa-camera"></i> Añadir Foto (<span id="foto-count-${index}">${numFotos}</span>)
+                    </button>
+                    <input type="file" id="foto-input-${index}" accept="image/*" capture="environment" style="display: none;" onchange="manejarInputFoto(event, ${index})">
+                    <div class="foto-preview" id="foto-preview-${index}">
+                        </div>
+                </div>
+                `;
             container.appendChild(itemDiv);
+
+            // Generar previews existentes al (re)cargar
+            renderizarPreviews(index); 
         });
         
         console.log('Checklist UI generado con', checklist.length, 'elementos');
     }
+
+
 
     function seleccionarRespuesta(index, respuesta) {
         const item = document.querySelectorAll('.checklist-item')[index];
@@ -1952,7 +2026,7 @@
         actualizarProgresoChecklist();
     }
 
-    function guardarEstadoChecklist() {
+function guardarEstadoChecklist() {
         const respuestas = [];
         document.querySelectorAll('.checklist-item').forEach(item => {
             const selectedButton = item.querySelector('.selected');
@@ -1963,25 +2037,51 @@
         const observacionesTextarea = document.getElementById('checklistObservaciones');
         const observaciones = observacionesTextarea ? observacionesTextarea.value : '';
         
-        checklistEstado = {
-            respuestas: respuestas,
-            observaciones: observaciones
-        };
+        // --- INICIO DE MODIFICACIÓN ---
+        // En lugar de sobrescribir todo el objeto 'checklistEstado',
+        // solo actualizamos las respuestas y observaciones.
+        // De esta forma, 'checklistEstado.fotos' se mantiene intacto.
+        checklistEstado.respuestas = respuestas;
+        checklistEstado.observaciones = observaciones;
+        // --- FIN DE MODIFICACIÓN ---
         
         console.log('Estado del checklist guardado:', checklistEstado);
     }
 
-    function actualizarProgresoChecklist() {
+
+
+function actualizarProgresoChecklist() {
         const items = document.querySelectorAll('.checklist-item');
-        const completados = document.querySelectorAll('.checklist-item .selected').length;
-        const total = items.length;
-        const porcentaje = total > 0 ? Math.round((completados / total) * 100) : 0;
+        const totalItems = items.length;
+        let itemsCompletados = 0;
+        
+        // Verificamos que 'checklistEstado.fotos' exista, por si acaso
+        if (!checklistEstado.fotos) {
+            checklistEstado.fotos = {};
+        }
+
+        items.forEach((item, index) => {
+            // Condición 1: Botón de 'Cumple' o 'No Cumple' seleccionado
+            const botonSeleccionado = item.querySelector('.selected') !== null;
+            
+            // Condición 2: Hay al menos una foto para este item
+            // Nos aseguramos que el array del item exista antes de chequear su 'length'
+            const hayFotos = checklistEstado.fotos[index] && checklistEstado.fotos[index].length > 0;
+            
+            // Solo si AMBAS condiciones son verdaderas, el ítem está completo
+            if (botonSeleccionado && hayFotos) {
+                itemsCompletados++;
+            }
+        });
+
+        const porcentaje = totalItems > 0 ? Math.round((itemsCompletados / totalItems) * 100) : 0;
         
         document.getElementById('progressBar').style.width = porcentaje + '%';
         document.getElementById('progressText').textContent = porcentaje + '% completado';
         
         const btnConfirmar = document.getElementById('btnConfirmarChecklist');
-        btnConfirmar.disabled = completados !== total;
+        // El botón solo se activa si todos los ítems están completos
+        btnConfirmar.disabled = itemsCompletados !== totalItems;
     }
 
     function volverAlFormulario() {
@@ -2023,7 +2123,7 @@
         verificarFormulario();
     }
 
-    function confirmarChecklist() {
+function confirmarChecklist() {
         const checklistRespuestas = [];
         document.querySelectorAll('.checklist-item').forEach(item => {
             const selectedButton = item.querySelector('.selected');
@@ -2045,9 +2145,15 @@
         });
         
         ultimaTransaccion.observaciones = observaciones;
+
+        // *** NUEVO CÓDIGO A AÑADIR ***
+        // Adjuntar las fotos. checklistEstado.fotos ya tiene las fotos (como dataUrls)
+        // organizadas por índice.
+        ultimaTransaccion.fotosChecklist = checklistEstado.fotos || {};
         
         mostrarConfirmacionFinal();
     }
+
 
     function mostrarConfirmacionFinal() {
         const tipoMovimiento = ultimaTransaccion.tipo === 'salidas' ? 'préstamo' : 'devolución';
@@ -2131,10 +2237,7 @@
     }
 
     // Funciones para el manejo de imágenes y PDF
-    const selectedFiles = {
-        preview3: [],
-        preview4: []
-    };
+    const selectedFiles = { preview3: [] };
 
     function handleFileInput(event, previewId) {
         const files = event.target.files;
@@ -2176,27 +2279,7 @@
         }
     }
 
-    document.getElementById('adjunto4').addEventListener('change', (e) => handleFileInput(e, 'preview4'));
-    document.getElementById('drag-area4').addEventListener('dragover', (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        document.getElementById('drag-area4').style.backgroundColor = "#e0f7ff";
-    });
-    document.getElementById('drag-area4').addEventListener('dragleave', (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        document.getElementById('drag-area4').style.backgroundColor = "#f0f8ff";
-    });
-    document.getElementById('drag-area4').addEventListener('drop', (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        const files = event.dataTransfer.files;
-        handleFileInput({
-            target: {
-                files
-            }
-        }, 'preview4');
-    });
+
 
     async function compressImage(file, quality) {
         return new Promise((resolve, reject) => {
@@ -2348,367 +2431,375 @@
         }
     }
 
-    async function generarPDF() {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF({
-            orientation: 'portrait',
-            format: 'letter',
-            unit: 'mm'
-        });
-        
+async function generarPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({
+        orientation: 'portrait',
+        format: 'letter',
+        unit: 'mm'
+    });
+
+    doc.setFont("times", "normal");
+    const tipoMovimiento = ultimaTransaccion.tipo === 'salidas' ? 'Acta de Compromiso' : 'Acta de Recepción';
+    const tituloChecklist = ultimaTransaccion.tipo === 'salidas' ? 'Checklist Preoperativo' : 'Checklist Postoperativo';
+    const now = new Date();
+    const horaGeneracion = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const [yyyy, mm, dd] = ultimaTransaccion.fecha.split('-');
+    const meses = [
+        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+    ];
+    const mesTexto = meses[parseInt(mm) - 1];
+    let y = 15;
+    const margin = 15;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const textWidth = pageWidth - (2 * margin);
+
+    // Encabezado
+    doc.setFontSize(16);
+    doc.setTextColor(34, 49, 63);
+    doc.setFont("times", "bold");
+    doc.text(tipoMovimiento, pageWidth / 2, y, { align: 'center' });
+    y += 8;
+    doc.setDrawColor(200, 200, 200);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 10;
+    doc.setFontSize(12);
+    doc.setTextColor(50, 50, 50);
+    doc.setFont("times", "normal");
+
+    // Contenido del acta
+    if (ultimaTransaccion.tipo === 'salidas') {
+        const textoCompleto = `Yo ${ultimaTransaccion.colaborador} mediante la presente Acta de Compromiso hago constar que en esta fecha estoy recibiendo el equipo ${ultimaTransaccion.equipo}, el cual será utilizado para el desempeño de mis funciones.`;
+        const lineas = doc.splitTextToSize(textoCompleto, textWidth);
+        doc.text(lineas, margin, y);
+        y += (lineas.length * 6) + 4;
+
+        doc.setFont("times", "bold");
+        const textoCompromiso = "Habiendo recibido me comprometo a lo siguiente:";
+        doc.text(textoCompromiso, margin, y);
+        y += 7;
+
         doc.setFont("times", "normal");
-        const tipoMovimiento = ultimaTransaccion.tipo === 'salidas' ? 'Acta de Compromiso' : 'Acta de Recepción';
-        const tituloChecklist = ultimaTransaccion.tipo === 'salidas' ? 'Checklist Preoperativo' : 'Checklist Postoperativo';
-        const now = new Date();
-        const horaGeneracion = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
-        const [yyyy, mm, dd] = ultimaTransaccion.fecha.split('-');
-        const meses = [
-            "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-            "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+        const compromisos = [
+            "- Cuidar y hacer buen uso del mismo, durante el tiempo que este bajo mi cargo en beneficio de las actividades del negocio.",
+            "- En caso de accidente, daño por mal uso y cualquier que bajo mi uso dañe el equipo se procederá a realizar la deducción del valor completo proporcionando uno nuevo.",
+            "- Me comprometo a cuidar todos y cada uno de los componentes del equipo."
         ];
-        const mesTexto = meses[parseInt(mm) - 1];
-        let y = 15;
-        const margin = 15;
-        const pageWidth = doc.internal.pageSize.getWidth();
-        const pageHeight = doc.internal.pageSize.getHeight();
-        const textWidth = pageWidth - (2 * margin);
-        
-        // Encabezado
-        doc.setFontSize(16);
+
+        compromisos.forEach(compromiso => {
+            const splitText = doc.splitTextToSize(compromiso, textWidth - 5);
+            doc.text(splitText, margin + 5, y);
+            y += (splitText.length * 5) + 3;
+        });
+
+        y += 5;
+        const textoFinal = `Firmo la presente en la ciudad de Tegucigalpa a los ${dd} días del mes de ${mesTexto} del ${yyyy}.`;
+        const lineasFinal = doc.splitTextToSize(textoFinal, textWidth);
+        doc.text(lineasFinal, margin, y);
+        y += (lineasFinal.length * 6) + 10;
+    } else if (ultimaTransaccion.tipo === 'entradas') {
+        const textoCompleto = `Yo ${ultimaTransaccion.colaborador} mediante la presente Acta de Recepción hago constar que en esta fecha estoy entregando el equipo ${ultimaTransaccion.equipo}, el cual fue utilizado para el desempeño de mis funciones y ahora estoy retornando.`;
+        const lineas = doc.splitTextToSize(textoCompleto, textWidth);
+        doc.text(lineas, margin, y);
+        y += (lineas.length * 6) + 4;
+
+        doc.setFont("times", "bold");
+        const textoDeclaracion = "Al entregarla declaro lo siguiente:";
+        doc.text(textoDeclaracion, margin, y);
+        y += 7;
+
+        doc.setFont("times", "normal");
+        const declaraciones = [
+            "- El equipo se encuentra en las mismas condiciones en las que me fue entregado.",
+            "- Fui responsable y cuidadoso en el uso del equipo y todos sus componentes.",
+            "- Cualquier daño, accidente o mal uso fue reportado en tiempo y forma."
+        ];
+
+        declaraciones.forEach(declaracion => {
+            const splitText = doc.splitTextToSize(declaracion, textWidth - 5);
+            doc.text(splitText, margin + 5, y);
+            y += (splitText.length * 5) + 3;
+        });
+
+        y += 5;
+        const textoFinal = `Firmo la presente en la ciudad de Tegucigalpa a los ${dd} días del mes de ${mesTexto} del ${yyyy}.`;
+        const lineasFinal = doc.splitTextToSize(textoFinal, textWidth);
+        doc.text(lineasFinal, margin, y);
+        y += (lineasFinal.length * 6) + 10;
+    }
+
+    // Firma
+    const canvasFirma = document.getElementById('firmaCanvas');
+    const firmaDataUrl = canvasFirma.toDataURL('image/png');
+    const firmaWidth = 60;
+    const firmaHeight = 25;
+    const firmaX = (pageWidth - firmaWidth) / 2;
+    doc.addImage(firmaDataUrl, 'PNG', firmaX, y, firmaWidth, firmaHeight);
+    y += firmaHeight + 2;
+    doc.line(firmaX, y, firmaX + firmaWidth, y);
+    y += 4;
+    doc.setFontSize(12);
+    doc.setTextColor(80, 80, 80);
+    doc.setFont("times", "bold");
+    doc.text(ultimaTransaccion.colaborador, pageWidth / 2, y, { align: 'center' });
+    y += 10;
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 8;
+
+    // Para checklists largos (más de 8 ítems), comenzar en nueva página
+    if (ultimaTransaccion.checklist.length > 8) {
+        doc.addPage();
+        y = 15;
+    }
+
+    // Checklist
+    doc.setFontSize(14);
+    doc.setTextColor(34, 49, 63);
+    doc.setFont("times", "bold");
+    doc.text(tituloChecklist, pageWidth / 2, y, { align: 'center' });
+    y += 8;
+
+    // Cambiar los encabezados de la tabla
+    const tableColumn = ["Punto de Verificación", "Cumple", "No Cumple"];
+    const tableRows = ultimaTransaccion.checklist.map(item => {
+        const cumple = item.respuesta === "✔" ? "X" : "";
+        const noCumple = item.respuesta === "X" ? "X" : "";
+        return [item.item, cumple, noCumple];
+    });
+
+    // Configuración de la tabla para checklists largos
+    let fontSize = 9;
+    let cellPadding = 2;
+    let rowHeight = 5;
+
+    // Ajustar tamaño de fuente para checklists largos
+    if (ultimaTransaccion.checklist.length > 10) {
+        fontSize = 8;
+        cellPadding = 1.5;
+        rowHeight = 4;
+    }
+
+    // Calcular el ancho de las columnas para centrar la tabla
+    const anchoDisponible = pageWidth - (2 * margin);
+    const col1Width = anchoDisponible * 0.75;
+    const col2Width = (anchoDisponible - col1Width) / 2;
+    const col3Width = col2Width;
+
+    // Configuración de autoTable para manejar múltiples páginas
+    doc.autoTable({
+        startY: y,
+        head: [tableColumn],
+        body: tableRows,
+        theme: 'grid',
+        tableWidth: anchoDisponible,
+        margin: { 
+            left: margin, 
+            right: margin,
+            top: y
+        },
+        headStyles: {
+            fillColor: [0, 123, 255],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold',
+            fontSize: fontSize,
+            font: "times",
+            cellPadding: cellPadding,
+            minCellHeight: rowHeight,
+            halign: 'center'
+        },
+        styles: {
+            fontSize: fontSize,
+            cellPadding: cellPadding,
+            textColor: [50, 50, 50],
+            lineColor: [200, 200, 200],
+            lineWidth: 0.1,
+            font: "times",
+            minCellHeight: rowHeight
+        },
+        columnStyles: {
+            0: {
+                cellWidth: col1Width,
+                fontStyle: 'bold',
+                halign: 'left',
+                cellPadding: {left: 3, right: 3, top: cellPadding, bottom: cellPadding}
+            },
+            1: {
+                cellWidth: col2Width,
+                halign: 'center',
+                cellPadding: {left: 1, right: 1, top: cellPadding, bottom: cellPadding}
+            },
+            2: {
+                cellWidth: col3Width,
+                halign: 'center',
+                cellPadding: {left: 1, right: 1, top: cellPadding, bottom: cellPadding}
+            }
+        },
+        pageBreak: 'auto',
+        showHead: 'everyPage',
+        tableLineWidth: 0.1,
+        tableLineColor: [200, 200, 200]
+    });
+
+    // Añadir observaciones si existen
+    let currentY = doc.autoTable.previous.finalY + 10;
+
+    if (ultimaTransaccion.observaciones && ultimaTransaccion.observaciones.trim() !== '') {
+        if (currentY + 30 > pageHeight) {
+            doc.addPage();
+            currentY = 15;
+        }
+
+        doc.setFontSize(12);
         doc.setTextColor(34, 49, 63);
         doc.setFont("times", "bold");
-        doc.text(tipoMovimiento, pageWidth / 2, y, { align: 'center' });
-        y += 8;
-        doc.setDrawColor(200, 200, 200);
-        doc.line(margin, y, pageWidth - margin, y);
-        y += 10;
-        doc.setFontSize(12);
+        doc.text("Observaciones:", margin, currentY);
+        currentY += 5;
+
+        doc.setFontSize(10);
         doc.setTextColor(50, 50, 50);
         doc.setFont("times", "normal");
 
-        // Contenido del acta
-        if (ultimaTransaccion.tipo === 'salidas') {
-            const textoCompleto = `Yo ${ultimaTransaccion.colaborador} mediante la presente Acta de Compromiso hago constar que en esta fecha estoy recibiendo el equipo ${ultimaTransaccion.equipo}, el cual será utilizado para el desempeño de mis funciones.`;
-            const lineas = doc.splitTextToSize(textoCompleto, textWidth);
-            doc.text(lineas, margin, y);
-            y += (lineas.length * 6) + 4;
-            
-            doc.setFont("times", "bold");
-            const textoCompromiso = "Habiendo recibido me comprometo a lo siguiente:";
-            doc.text(textoCompromiso, margin, y);
-            y += 7;
-            
-            doc.setFont("times", "normal");
-            const compromisos = [
-                "- Cuidar y hacer buen uso del mismo, durante el tiempo que este bajo mi cargo en beneficio de las actividades del negocio.",
-                "- En caso de accidente, daño por mal uso y cualquier que bajo mi uso dañe el equipo se procederá a realizar la deducción del valor completo proporcionando uno nuevo.",
-                "- Me comprometo a cuidar todos y cada uno de los componentes del equipo."
-            ];
-            
-            compromisos.forEach(compromiso => {
-                const splitText = doc.splitTextToSize(compromiso, textWidth - 5);
-                doc.text(splitText, margin + 5, y);
-                y += (splitText.length * 5) + 3;
-            });
-            
-            y += 5;
-            const textoFinal = `Firmo la presente en la ciudad de Tegucigalpa a los ${dd} días del mes de ${mesTexto} del ${yyyy}.`;
-            const lineasFinal = doc.splitTextToSize(textoFinal, textWidth);
-            doc.text(lineasFinal, margin, y);
-            y += (lineasFinal.length * 6) + 10;
-        } else if (ultimaTransaccion.tipo === 'entradas') {
-            const textoCompleto = `Yo ${ultimaTransaccion.colaborador} mediante la presente Acta de Recepción hago constar que en esta fecha estoy entregando el equipo ${ultimaTransaccion.equipo}, el cual fue utilizado para el desempeño de mis funciones y ahora estoy retornando.`;
-            const lineas = doc.splitTextToSize(textoCompleto, textWidth);
-            doc.text(lineas, margin, y);
-            y += (lineas.length * 6) + 4;
-            
-            doc.setFont("times", "bold");
-            const textoDeclaracion = "Al entregarla declaro lo siguiente:";
-            doc.text(textoDeclaracion, margin, y);
-            y += 7;
-            
-            doc.setFont("times", "normal");
-            const declaraciones = [
-                "- El equipo se encuentra en las mismas condiciones en las que me fue entregado.",
-                "- Fui responsable y cuidadoso en el uso del equipo y todos sus componentes.",
-                "- Cualquier daño, accidente o mal uso fue reportado en tiempo y forma."
-            ];
-            
-            declaraciones.forEach(declaracion => {
-                const splitText = doc.splitTextToSize(declaracion, textWidth - 5);
-                doc.text(splitText, margin + 5, y);
-                y += (splitText.length * 5) + 3;
-            });
-            
-            y += 5;
-            const textoFinal = `Firmo la presente en la ciudad de Tegucigalpa a los ${dd} días del mes de ${mesTexto} del ${yyyy}.`;
-            const lineasFinal = doc.splitTextToSize(textoFinal, textWidth);
-            doc.text(lineasFinal, margin, y);
-            y += (lineasFinal.length * 6) + 10;
-        }
-
-        // Firma
-        const canvasFirma = document.getElementById('firmaCanvas');
-        const firmaDataUrl = canvasFirma.toDataURL('image/png');
-        const firmaWidth = 60;
-        const firmaHeight = 25;
-        const firmaX = (pageWidth - firmaWidth) / 2;
-        doc.addImage(firmaDataUrl, 'PNG', firmaX, y, firmaWidth, firmaHeight);
-        y += firmaHeight + 2;
-        doc.line(firmaX, y, firmaX + firmaWidth, y);
-        y += 4;
-        doc.setFontSize(12);
-        doc.setTextColor(80, 80, 80);
-        doc.setFont("times", "bold");
-        doc.text(ultimaTransaccion.colaborador, pageWidth / 2, y, { align: 'center' });
-        y += 10;
-        doc.line(margin, y, pageWidth - margin, y);
-        y += 8;
-
-        // Para checklists largos (más de 8 ítems), comenzar en nueva página
-        if (ultimaTransaccion.checklist.length > 8) {
-            doc.addPage();
-            y = 15;
-        }
-
-        // Checklist
-        doc.setFontSize(14);
-        doc.setTextColor(34, 49, 63);
-        doc.setFont("times", "bold");
-        doc.text(tituloChecklist, pageWidth / 2, y, { align: 'center' });
-        y += 8;
-        
-        // Cambiar los encabezados de la tabla
-        const tableColumn = ["Punto de Verificación", "Cumple", "No Cumple"];
-        const tableRows = ultimaTransaccion.checklist.map(item => {
-            const cumple = item.respuesta === "✔" ? "X" : "";
-            const noCumple = item.respuesta === "X" ? "X" : "";
-            return [item.item, cumple, noCumple];
-        });
-        
-        // Configuración de la tabla para checklists largos
-        let fontSize = 9;
-        let cellPadding = 2;
-        let rowHeight = 5;
-        
-        // Ajustar tamaño de fuente para checklists largos
-        if (ultimaTransaccion.checklist.length > 10) {
-            fontSize = 8;
-            cellPadding = 1.5;
-            rowHeight = 4;
-        }
-        
-        // Calcular el ancho de las columnas para centrar la tabla
-        const anchoDisponible = pageWidth - (2 * margin);
-        const col1Width = anchoDisponible * 0.75;
-        const col2Width = (anchoDisponible - col1Width) / 2;
-        const col3Width = col2Width;
-        
-        // Configuración de autoTable para manejar múltiples páginas
-        doc.autoTable({
-            startY: y,
-            head: [tableColumn],
-            body: tableRows,
-            theme: 'grid',
-            tableWidth: anchoDisponible,
-            margin: { 
-                left: margin, 
-                right: margin,
-                top: y
-            },
-            headStyles: {
-                fillColor: [0, 123, 255],
-                textColor: [255, 255, 255],
-                fontStyle: 'bold',
-                fontSize: fontSize,
-                font: "times",
-                cellPadding: cellPadding,
-                minCellHeight: rowHeight,
-                halign: 'center'
-            },
-            styles: {
-                fontSize: fontSize,
-                cellPadding: cellPadding,
-                textColor: [50, 50, 50],
-                lineColor: [200, 200, 200],
-                lineWidth: 0.1,
-                font: "times",
-                minCellHeight: rowHeight
-            },
-            columnStyles: {
-                0: {
-                    cellWidth: col1Width,
-                    fontStyle: 'bold',
-                    halign: 'left',
-                    cellPadding: {left: 3, right: 3, top: cellPadding, bottom: cellPadding}
-                },
-                1: {
-                    cellWidth: col2Width,
-                    halign: 'center',
-                    cellPadding: {left: 1, right: 1, top: cellPadding, bottom: cellPadding}
-                },
-                2: {
-                    cellWidth: col3Width,
-                    halign: 'center',
-                    cellPadding: {left: 1, right: 1, top: cellPadding, bottom: cellPadding}
-                }
-            },
-            pageBreak: 'auto',
-            showHead: 'everyPage',
-            tableLineWidth: 0.1,
-            tableLineColor: [200, 200, 200]
-        });
-
-        // Añadir observaciones si existen
-        let currentY = doc.autoTable.previous.finalY + 10;
-        
-        if (ultimaTransaccion.observaciones && ultimaTransaccion.observaciones.trim() !== '') {
-            if (currentY + 30 > pageHeight) {
-                doc.addPage();
-                currentY = 15;
-            }
-            
-            doc.setFontSize(12);
-            doc.setTextColor(34, 49, 63);
-            doc.setFont("times", "bold");
-            doc.text("Observaciones:", margin, currentY);
-            currentY += 5;
-            
-            doc.setFontSize(10);
-            doc.setTextColor(50, 50, 50);
-            doc.setFont("times", "normal");
-            
-            const observacionesLines = doc.splitTextToSize(ultimaTransaccion.observaciones, textWidth);
-            doc.text(observacionesLines, margin, currentY);
-            currentY += (observacionesLines.length * 4) + 10;
-        }
-
-        // Añadir fotos - solo si hay espacio disponible
-        let photosSectionY = currentY;
-        if (selectedFiles.preview4.length > 0) {
-            if (photosSectionY + 60 > pageHeight) {
-                doc.addPage();
-                photosSectionY = 15;
-            }
-            photosSectionY = await addPhotoSection(doc, "Evidencia:", selectedFiles.preview4, photosSectionY);
-        }
-
-        const tipoMovimientoNombre = ultimaTransaccion.tipo === 'salidas' ? 'Salida' : 'Entrada';
-        const pdfName = `${dd}-${mm}-${yyyy} - ${tipoMovimientoNombre} - ${ultimaTransaccion.equipo} - ${ultimaTransaccion.colaborador}.pdf`;
-        const pdfBlob = doc.output('blob');
-        const pdfFile = new File([pdfBlob], pdfName, { type: 'application/pdf' });
-        
-        // GUARDAR EL PDF CON LA NUEVA FUNCIÓN MEJORADA
-        const pdfData = {
-            name: pdfName,
-            tipo: ultimaTransaccion.tipo,
-            equipo: ultimaTransaccion.equipo,
-            colaborador: ultimaTransaccion.colaborador,
-            fecha: ultimaTransaccion.fecha
-        };
-        
-        console.log('=== INICIANDO GUARDADO EN STORAGE ===');
-        console.log('Datos del PDF:', pdfData);
-        
-        // GUARDAR CON LA NUEVA FUNCIÓN MEJORADA
-        const exito = await guardarPDFEnStorage(pdfBlob, pdfData);
-        
-        if (exito) {
-            console.log('✅ PDF guardado completamente en el sistema de múltiples archivos');
-        } else {
-            console.log('⚠️ PDF guardado con limitaciones (solo metadatos)');
-        }
-        
-        // VERIFICACIÓN EXTRA - Confirmar que se guardó correctamente
-        setTimeout(() => {
-            const pdfsGuardados = JSON.parse(localStorage.getItem('pdfsAlmacenados') || '[]');
-            console.log('=== VERIFICACIÓN FINAL DEL ALMACENAMIENTO ===');
-            console.log('Total de PDFs almacenados:', pdfsGuardados.length);
-            
-            pdfsGuardados.forEach((pdf, index) => {
-                console.log(`PDF ${index + 1}:`, {
-                    nombre: pdf.name,
-                    equipo: pdf.equipo,
-                    colaborador: pdf.colaborador,
-                    tamaño: pdf.size ? `${Math.round(pdf.size / 1024)} KB` : 'Solo metadatos',
-                    timestamp: new Date(pdf.timestamp).toLocaleString(),
-                    tieneArchivo: !!(pdf.data && !pdf.error)
-                });
-            });
-            
-            // Actualizar la interfaz visualmente
-            mostrarBotonesActasPendientes();
-        }, 500);
-        
-        // Mostrar SweetAlert con opciones de compartir y descargar
-        Swal.fire({
-            title: '¡Éxito!',
-            html: `
-                <div style="text-align: center;">
-                    <p style="font-size: 1.1em; margin-bottom: 15px;">${ultimaTransaccion.tipo === 'salidas' ? 'Préstamo' : 'Devolución'} registrada correctamente</p>
-                    <div style="color: #28a745; font-size: 2em; margin-bottom: 15px;">
-                        <i class="fas fa-check-circle"></i>
-                    </div>
-                    <p style="font-size: 0.9em; color: #666; margin-bottom: 10px;">
-                        <strong>Equipo:</strong> ${ultimaTransaccion.equipo}<br>
-                        <strong>Colaborador:</strong> ${ultimaTransaccion.colaborador}<br>
-                        <strong>Fecha:</strong> ${ultimaTransaccion.fecha}
-                    </p>
-                    <p style="font-size: 0.9em; color: #666; margin-bottom: 20px;">¿Qué deseas hacer con el PDF?</p>
-                    <div style="display: flex; justify-content: center; gap: 10px;">
-                        <button id="sharePdfBtn" class="swal2-confirm swal2-styled" style="background-color: #007bff;">
-                            <i class="fas fa-share-alt"></i> Compartir
-                        </button>
-                        <button id="downloadPdfBtn" class="swal2-cancel swal2-styled" style="background-color: #6c757d;">
-                            <i class="fas fa-download"></i> Descargar
-                        </button>
-                    </div>
-                    <p style="font-size: 0.8em; color: #888; margin-top: 15px;">
-                        <i class="fas fa-info-circle"></i> El PDF también se ha guardado localmente para acceso futuro
-                    </p>
-                </div>
-            `,
-            icon: 'success',
-            showConfirmButton: false,
-            showCloseButton: true,
-            allowOutsideClick: false,
-            didOpen: () => {
-                // Asignar los event listeners directamente a los botones
-                document.getElementById('sharePdfBtn').addEventListener('click', async function() {
-                    try {
-                        if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
-                            await navigator.share({
-                                files: [pdfFile],
-                                title: pdfName,
-                                text: `Comparto el documento de ${tipoMovimientoNombre} para el equipo ${ultimaTransaccion.equipo}.`
-                            });
-                        } else {
-                            doc.save(pdfName);
-                        }
-                    } catch (error) {
-                        console.error('Error al compartir el archivo:', error);
-                        if (error.name !== 'AbortError') {
-                            doc.save(pdfName);
-                        }
-                    }
-                });
-                
-                document.getElementById('downloadPdfBtn').addEventListener('click', function() {
-                    doc.save(pdfName);
-                });
-            }
-        }).then((result) => {
-            // Este código se ejecuta cuando se cierra el SweetAlert
-            if (result.dismiss === Swal.DismissReason.close) {
-                // Recargar la página cuando se hace clic en la X
-                console.log('Recargando página...');
-                location.reload();
-            }
-        });
+        const observacionesLines = doc.splitTextToSize(ultimaTransaccion.observaciones, textWidth);
+        doc.text(observacionesLines, margin, currentY);
+        currentY += (observacionesLines.length * 4) + 10;
     }
 
+    // --- INICIO DE SECCIÓN MODIFICADA ---
+    // Aquí es donde estaba la lógica de "selectedFiles.preview4".
+    // La hemos reemplazado para que lea las fotos del checklist.
+
+    const fotosAgregadas = ultimaTransaccion.fotosChecklist && Object.keys(ultimaTransaccion.fotosChecklist).some(key => ultimaTransaccion.fotosChecklist[key].length > 0);
+
+    if (fotosAgregadas) {
+        // Verificamos si hay espacio, si no, añadimos página
+        if (currentY + 60 > pageHeight) { // 60 es un estimado para el título + una fila de fotos
+            doc.addPage();
+            currentY = 15;
+        }
+        // addChecklistPhotosToPDF es la nueva función auxiliar que te di en la respuesta anterior
+        currentY = await addChecklistPhotosToPDF(doc, currentY);
+    }
+    // --- FIN DE SECCIÓN MODIFICADA ---
+
+
+    const tipoMovimientoNombre = ultimaTransaccion.tipo === 'salidas' ? 'Salida' : 'Entrada';
+    const pdfName = `${dd}-${mm}-${yyyy} - ${tipoMovimientoNombre} - ${ultimaTransaccion.equipo} - ${ultimaTransaccion.colaborador}.pdf`;
+    const pdfBlob = doc.output('blob');
+    const pdfFile = new File([pdfBlob], pdfName, { type: 'application/pdf' });
+
+    // GUARDAR EL PDF CON LA NUEVA FUNCIÓN MEJORADA
+    const pdfData = {
+        name: pdfName,
+        tipo: ultimaTransaccion.tipo,
+        equipo: ultimaTransaccion.equipo,
+        colaborador: ultimaTransaccion.colaborador,
+        fecha: ultimaTransaccion.fecha
+    };
+
+    console.log('=== INICIANDO GUARDADO EN STORAGE ===');
+    console.log('Datos del PDF:', pdfData);
+
+    // GUARDAR CON LA NUEVA FUNCIÓN MEJORADA
+    const exito = await guardarPDFEnStorage(pdfBlob, pdfData);
+
+    if (exito) {
+        console.log('✅ PDF guardado completamente en el sistema de múltiples archivos');
+    } else {
+        console.log('⚠️ PDF guardado con limitaciones (solo metadatos)');
+    }
+
+    // VERIFICACIÓN EXTRA - Confirmar que se guardó correctamente
+    setTimeout(() => {
+        const pdfsGuardados = JSON.parse(localStorage.getItem('pdfsAlmacenados') || '[]');
+        console.log('=== VERIFICACIÓN FINAL DEL ALMACENAMIENTO ===');
+        console.log('Total de PDFs almacenados:', pdfsGuardados.length);
+
+        pdfsGuardados.forEach((pdf, index) => {
+            console.log(`PDF ${index + 1}:`, {
+                nombre: pdf.name,
+                equipo: pdf.equipo,
+                colaborador: pdf.colaborador,
+                tamaño: pdf.size ? `${Math.round(pdf.size / 1024)} KB` : 'Solo metadatos',
+                timestamp: new Date(pdf.timestamp).toLocaleString(),
+                tieneArchivo: !!(pdf.data && !pdf.error)
+            });
+        });
+
+        // Actualizar la interfaz visualmente
+        mostrarBotonesActasPendientes();
+    }, 500);
+
+    // Mostrar SweetAlert con opciones de compartir y descargar
+    Swal.fire({
+        title: '¡Éxito!',
+        html: `
+            <div style="text-align: center;">
+                <p style="font-size: 1.1em; margin-bottom: 15px;">${ultimaTransaccion.tipo === 'salidas' ? 'Préstamo' : 'Devolución'} registrada correctamente</p>
+                <div style="color: #28a745; font-size: 2em; margin-bottom: 15px;">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <p style="font-size: 0.9em; color: #666; margin-bottom: 10px;">
+                    <strong>Equipo:</strong> ${ultimaTransaccion.equipo}<br>
+                    <strong>Colaborador:</strong> ${ultimaTransaccion.colaborador}<br>
+                    <strong>Fecha:</strong> ${ultimaTransaccion.fecha}
+                </p>
+                <p style="font-size: 0.9em; color: #666; margin-bottom: 20px;">¿Qué deseas hacer con el PDF?</p>
+                <div style="display: flex; justify-content: center; gap: 10px;">
+                    <button id="sharePdfBtn" class="swal2-confirm swal2-styled" style="background-color: #007bff;">
+                        <i class="fas fa-share-alt"></i> Compartir
+                    </button>
+                    <button id="downloadPdfBtn" class="swal2-cancel swal2-styled" style="background-color: #6c757d;">
+                        <i class="fas fa-download"></i> Descargar
+                    </button>
+                </div>
+                <p style="font-size: 0.8em; color: #888; margin-top: 15px;">
+                    <i class="fas fa-info-circle"></i> El PDF también se ha guardado localmente para acceso futuro
+                </p>
+            </div>
+        `,
+        icon: 'success',
+        showConfirmButton: false,
+        showCloseButton: true,
+        allowOutsideClick: false,
+        didOpen: () => {
+            // Asignar los event listeners directamente a los botones
+            document.getElementById('sharePdfBtn').addEventListener('click', async function() {
+                try {
+                    if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+                        await navigator.share({
+                            files: [pdfFile],
+                            title: pdfName,
+                            text: `Comparto el documento de ${tipoMovimientoNombre} para el equipo ${ultimaTransaccion.equipo}.`
+                        });
+                    } else {
+                        doc.save(pdfName);
+                    }
+                } catch (error) {
+                    console.error('Error al compartir el archivo:', error);
+                    if (error.name !== 'AbortError') {
+                        doc.save(pdfName);
+                    }
+                }
+            });
+
+            document.getElementById('downloadPdfBtn').addEventListener('click', function() {
+                doc.save(pdfName);
+            });
+        }
+    }).then((result) => {
+        // Este código se ejecuta cuando se cierra el SweetAlert
+        if (result.dismiss === Swal.DismissReason.close) {
+            // Recargar la página cuando se hace clic en la X
+            console.log('Recargando página...');
+            location.reload();
+        }
+    });
+}
+
+
     // Nuevas variables para el autocomplete
-    let allColaboradores = [];
     let selectedColaboradorIndex = -1;
     let filteredColaboradores = [];
 
@@ -3136,6 +3227,177 @@
             }
         });
     }
+
+
+
+
+/* --- INICIO: NUEVAS FUNCIONES PARA FOTOS DEL CHECKLIST --- */
+
+/**
+ * Simula un clic en el input de archivo oculto para el ítem del checklist.
+ */
+function abrirInputFoto(index) {
+    document.getElementById(`foto-input-${index}`).click();
+}
+
+/**
+ * Maneja el archivo seleccionado, lo comprime y lo añade al estado.
+ */
+async function manejarInputFoto(event, index) {
+        const files = event.target.files;
+        if (!files || files.length === 0) return;
+
+        const file = files[0];
+        
+        try {
+            // Usamos la función de compresión que ya tienes
+            const dataUrl = await compressImage(file, 0.5); 
+            
+            // Nos aseguramos que la propiedad 'fotos' exista
+            if (!checklistEstado.fotos) {
+                checklistEstado.fotos = {};
+            }
+            // Nos aseguramos que el array para ESE item exista
+            if (!checklistEstado.fotos[index]) {
+                checklistEstado.fotos[index] = [];
+            }
+
+            checklistEstado.fotos[index].push(dataUrl);
+            
+            // Actualizar UI
+            renderizarPreviews(index);
+
+            // --- LÍNEA AÑADIDA ---
+            // ¡Llamamos a la función de progreso para que se actualice!
+            actualizarProgresoChecklist();
+            // --- FIN LÍNEA AÑADIDA ---
+            
+            // Limpiar el input para permitir tomar la misma foto de nuevo si se elimina
+            event.target.value = ""; 
+
+        } catch (error) {
+            console.error("Error al procesar la imagen:", error);
+            Swal.fire('Error', 'No se pudo procesar la imagen.', 'error');
+        }
+    }
+
+
+/**
+ * Dibuja las vistas previas de las fotos para un ítem específico.
+ */
+function renderizarPreviews(index) {
+    const previewContainer = document.getElementById(`foto-preview-${index}`);
+    if (!previewContainer) return; // Salir si el elemento no existe
+
+    previewContainer.innerHTML = '';
+    const fotos = checklistEstado.fotos[index] || [];
+    
+    fotos.forEach((dataUrl, fotoIndex) => {
+        const div = document.createElement('div');
+        div.classList.add('image-preview-item'); // Reusamos clase CSS existente
+        div.innerHTML = `
+            <img src="${dataUrl}" alt="Preview">
+            <div class="delete-icon" onclick="eliminarFotoChecklist(${index}, ${fotoIndex})">×</div>
+        `;
+        previewContainer.appendChild(div);
+    });
+    
+    // Actualizar contador
+    const countSpan = document.getElementById(`foto-count-${index}`);
+    if (countSpan) {
+        countSpan.textContent = fotos.length;
+    }
+}
+
+/**
+ * Elimina una foto del estado y actualiza la vista previa.
+ */
+function eliminarFotoChecklist(index, fotoIndex) {
+        if (checklistEstado.fotos[index] && checklistEstado.fotos[index][fotoIndex]) {
+            checklistEstado.fotos[index].splice(fotoIndex, 1);
+            renderizarPreviews(index); // Re-renderizar las previews para ese item
+
+            // --- LÍNEA AÑADIDA ---
+            // ¡Llamamos a la función de progreso para que se actualice!
+            actualizarProgresoChecklist();
+            // --- FIN LÍNEA AÑADIDA ---
+        }
+    }
+
+
+/**
+ * Nueva función para añadir las fotos del checklist al PDF.
+ * Reemplaza la funcionalidad de addPhotoSection para la evidencia.
+ */
+async function addChecklistPhotosToPDF(doc, startY) {
+    let currentY = startY;
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 15;
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    const fotosChecklist = ultimaTransaccion.fotosChecklist || {};
+
+    // --- INICIO DE MODIFICACIÓN ---
+    // 1. Tomar todas las fotos (Object.values) y aplanarlas en un solo array (.flat())
+    const todasLasFotos = Object.values(fotosChecklist).flat();
+
+    // 2. Si no hay fotos en total, no hacer nada.
+    if (todasLasFotos.length === 0) {
+        return startY;
+    }
+    // --- FIN DE MODIFICACIÓN ---
+
+    // Título de la sección de Evidencia
+    if (currentY + 20 > pageHeight - margin) {
+        doc.addPage();
+        currentY = 15;
+    }
+    doc.setFontSize(14);
+    doc.setFont("times", "bold");
+    // Usamos un título genérico para la galería
+    doc.text("Evidencia Fotográfica", pageWidth / 2, currentY, { align: 'center' });
+    currentY += 10;
+
+    // Lógica para añadir imágenes (copiada de la función original addPhotoSection)
+    const imgWidth = 60;
+    const imgHeight = 40;
+    const spacingX = 65;
+    const spacingY = 45;
+    let currentX = margin;
+    let imagesInRow = 0;
+
+    // 3. Iterar sobre el array plano de "todasLasFotos"
+    for (const dataUrl of todasLasFotos) {
+        if (imagesInRow === 3) {
+            imagesInRow = 0;
+            currentX = margin;
+            currentY += spacingY;
+        }
+        if (currentY + imgHeight > pageHeight - margin) {
+            doc.addPage();
+            currentY = 15;
+            currentX = margin;
+            imagesInRow = 0;
+        }
+        
+        // Añadimos la imagen (ya es un dataUrl comprimido)
+        try {
+            doc.addImage(dataUrl, 'JPEG', currentX, currentY, imgWidth, imgHeight); 
+        } catch(e) {
+            console.error("Error al añadir imagen al PDF:", e);
+            doc.text("Error al cargar foto", currentX, currentY + (imgHeight/2));
+        }
+        
+        currentX += spacingX;
+        imagesInRow++;
+    }
+    currentY += spacingY; // Espacio después del último set de fotos
+
+    return currentY;
+}
+
+
+/* --- FIN: NUEVAS FUNCIONES PARA FOTOS DEL CHECKLIST --- */
 
 </script>
 </body>

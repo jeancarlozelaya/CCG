@@ -2343,9 +2343,7 @@ async function generarReporte() {
     }
 
     // 3. TABLA DE RESUMEN (con color en fila final)
-    // Verificar si hay espacio suficiente para la tabla completa
-    checkPageHeight(40); // Esto asegura que si no hay espacio, se crea una nueva página
-    
+    checkPageHeight(40);
     currentY = drawSectionTitle("RESUMEN DE DISTRIBUCIÓN", currentY);
 
     doc.autoTable({
@@ -2403,9 +2401,7 @@ async function generarReporte() {
     currentY = doc.autoTable.previous.finalY + styles.margins.section;
 
     // 4. TABLA DE SOBRANTE (con color en fila final)
-    // Verificar si hay espacio suficiente para la tabla completa
     checkPageHeight(40);
-    
     currentY = drawSectionTitle("SOBRANTE PARA EL SIGUIENTE TURNO (REALIDAD)", currentY);
 
     doc.autoTable({
@@ -2445,6 +2441,119 @@ async function generarReporte() {
         tableWidth: styles.tableWidth,
         theme: 'grid'
     });
+    currentY = doc.autoTable.previous.finalY + styles.margins.section;
+
+    
+// --- INICIO: NUEVO BLOQUE PARA GOOGLE SHEETS (VERSIÓN doc.text() MÚLTIPLE) ---
+    
+    // 1. Forzar una nueva página y resetear la posición Y
+    doc.addPage();
+    currentY = styles.margins.top;
+    
+    // 2. Dibujar el título en la nueva página
+    currentY = drawSectionTitle("DATOS PARA GOOGLE SHEETS", currentY);
+
+    const sheetsData = [];
+    const productoHigienico = "PAPEL HIGIENICO SMARTONE MINI";
+    const productoToalla = "TOALLA PARA MANOS 240MTS";
+    
+    const generationTime = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+    if (edificio && dynamicLevelQuantities[edificio]) {
+        if (edificio === 'Cuerpos Bajos') {
+            const subBuildings = ['CBA', 'CBB', 'CBC'];
+            
+            subBuildings.forEach(sub => {
+                const subBuildingData = dynamicLevelQuantities[edificio][sub] || {higienico: {}, toalla: {}};
+                const edificioLabel = sub; // Correcto: Solo "CBA"
+
+                const allLevels = new Set([
+                    ...Object.keys(subBuildingData.higienico).filter(key => subBuildingData.higienico[key] > 0).map(key => parseInt(key.split('-')[key.split('-').length - 1])),
+                    ...Object.keys(subBuildingData.toalla).filter(key => subBuildingData.toalla[key] > 0).map(key => parseInt(key.split('-')[key.split('-').length - 1]))
+                ]);
+                const sortedLevels = Array.from(allLevels).sort((a, b) => a - b);
+
+                sortedLevels.forEach(levelIndex => {
+                    const safeSubId = sub.replace(/[ #]/g, '');
+                    const higienicoItemId = `higienico-${safeSubId}-${levelIndex}`;
+                    const toallaItemId = `toalla-${safeSubId}-${levelIndex}`;
+                    const phQty = subBuildingData.higienico[higienicoItemId] || 0;
+                    const ptQty = subBuildingData.toalla[toallaItemId] || 0;
+                    const nivelLabel = levelIndex; // Correcto: Solo "0"
+                    
+                    if (phQty > 0) {
+                        sheetsData.push(`${formattedDate};${generationTime};${personaEncargada};${edificioLabel};${nivelLabel};${productoHigienico};${phQty}`);
+                    }
+                    if (ptQty > 0) {
+                        sheetsData.push(`${formattedDate};${generationTime};${personaEncargada};${edificioLabel};${nivelLabel};${productoToalla};${ptQty}`);
+                    }
+                });
+            });
+        } else { // Edificios individuales
+            const higienicoLevels = dynamicLevelQuantities[edificio].higienico || {};
+            const toallaLevels = dynamicLevelQuantities[edificio].toalla || {};
+            const edificioLabel = edificio;
+
+            const allLevels = new Set([
+                ...Object.keys(higienicoLevels).filter(key => higienicoLevels[key] > 0).map(key => parseInt(key.split('-')[key.split('-').length - 1])),
+                ...Object.keys(toallaLevels).filter(key => toallaLevels[key] > 0).map(key => parseInt(key.split('-')[key.split('-').length - 1]))
+            ]);
+            const sortedLevels = Array.from(allLevels).sort((a, b) => a - b);
+
+            sortedLevels.forEach(levelIndex => {
+                const safeEdificioId = edificio.replace(/[ #]/g, '');
+                const higienicoItemId = `higienico-${safeEdificioId}-${levelIndex}`;
+                const toallaItemId = `toalla-${safeEdificioId}-${levelIndex}`;
+                const phQty = higienicoLevels[higienicoItemId] || 0;
+                const ptQty = toallaLevels[toallaItemId] || 0;
+                const nivelLabel = levelIndex; // Correcto: Solo "0"
+
+                if (phQty > 0) {
+                    sheetsData.push(`${formattedDate};${generationTime};${personaEncargada};${edificioLabel};${nivelLabel};${productoHigienico};${phQty}`);
+                }
+                if (ptQty > 0) {
+                    sheetsData.push(`${formattedDate};${generationTime};${personaEncargada};${edificioLabel};${nivelLabel};${productoToalla};${ptQty}`);
+                }
+            });
+        }
+    }
+
+    const finalSheetsString = sheetsData.join('\n'); // Texto con saltos de línea
+    
+    // --- BLOQUE DE INSTRUCCIONES ELIMINADO ---
+
+    // --- Dibujar el texto línea por línea ---
+    const lines = finalSheetsString.split('\n');
+    const lineHeight = 4; // 4mm por línea
+    const blockHeight = (lines.length * lineHeight) + 6; // + padding
+
+    // Dibujar el fondo
+    doc.setFillColor(248, 249, 250); // Fondo gris claro
+    doc.setDrawColor(206, 212, 218); // Borde
+    doc.roundedRect(styles.margins.left, currentY, styles.tableWidth, blockHeight, 3, 3, 'FD');
+    
+    // Dibujar el texto
+    doc.setFont('courier', 'normal'); // Fuente monoespaciada
+    doc.setFontSize(8);
+    doc.setTextColor(0, 0, 0);
+
+    let textY = currentY + 5; // Posición Y inicial con padding
+    
+    lines.forEach(line => {
+        // Verificar si el texto cabe en la página actual
+        if (textY + lineHeight > 280) { // 280mm es un margen seguro antes del pie de página
+             doc.addPage();
+             currentY = styles.margins.top;
+             textY = currentY;
+        }
+        doc.text(line, styles.margins.left + 3, textY); // + padding izquierdo
+        textY += lineHeight;
+    });
+
+    currentY = textY + 10; // Actualizar Y global
+
+    // --- FIN: NUEVO BLOQUE PARA GOOGLE SHEETS ---
+
 
     // Número de página
     const pageCount = doc.internal.getNumberOfPages();
@@ -2504,7 +2613,6 @@ async function generarReporte() {
     
     tryShareOrDownload();
 }
-
 
 // Funciones para scroll
 function scrollToTop() {

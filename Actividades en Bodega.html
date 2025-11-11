@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-R">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Horario de Limpieza de Bodega</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+<style>
+    /* --- INICIO: Estilos base de tu referencia --- */
+    :root {
+        --primary-color: #2c3e50;
+        --secondary-color: #3498db;
+        --accent-color: #e74c3c;
+        --warning-color: #f39c12;
+        --success-color: #2ecc71;
+        --dark-color: #34495e;
+        --text-color: #333;
+        --border-color: #ddd;
+        --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        --transition: all 0.3s ease;
+    }
+
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f5f7fa;
+        color: var(--text-color);
+        line-height: 1.6;
+        zoom: 90%; 
+    }
+
+    .header {
+        background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+        color: white;
+        text-align: center;
+        padding: 18px 0;
+        font-size: 1.5rem;
+        font-weight: bold;
+        box-shadow: var(--shadow);
+    }
+
+    h1 {
+        text-align: center;
+        color: var(--primary-color);
+        margin-bottom: 25px;
+        font-size: 1.8rem;
+        position: relative;
+        padding-bottom: 10px;
+        font-weight: bold;
+    }
+
+    h1:after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 80px;
+        height: 4px;
+        background-color: var(--secondary-color);
+        border-radius: 2px;
+    }
+
+    .container {
+        max-width: 900px;
+        margin: 25px auto;
+        padding: 0 15px;
+    }
+
+    .card {
+        border-radius: 12px;
+        box-shadow: var(--shadow);
+        border: none;
+        margin-bottom: 25px;
+    }
+
+    .card-header {
+        background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+        color: white;
+        border-radius: 12px 12px 0 0 !important;
+        padding: 18px 25px;
+        font-weight: 600;
+        font-size: 1.1rem;
+        position: relative;
+        overflow: hidden;
+    }
+    /* --- FIN: Estilos base de tu referencia --- */
+
+
+    /* --- INICIO: Estilos para la página --- */
+    
+    .limpieza-hoy-card {
+        background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
+        color: white;
+        border-radius: 10px;
+        padding: 30px;
+        text-align: center;
+        box-shadow: 0 10px 20px rgba(52, 152, 219, 0.3);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative; 
+        overflow: hidden; 
+    }
+    .limpieza-hoy-card h3 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin: 0;
+        line-height: 1.2;
+        z-index: 2; /* Asegura que el texto esté sobre el confeti */
+    }
+    .limpieza-hoy-card p {
+        font-size: 1.2rem;
+        opacity: 0.9;
+        margin-bottom: 0;
+        z-index: 2;
+    }
+    
+    .limpieza-hoy-img {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        object-fit: cover;
+        margin-bottom: 15px;
+        border: 4px solid rgba(255, 255, 255, 0.5);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        z-index: 2;
+    }
+    .limpieza-hoy-card .fa-bed, 
+    .limpieza-hoy-card .fa-hourglass-start,
+    .limpieza-hoy-card .fa-broom { 
+        font-size: 3rem;
+        margin-bottom: 15px;
+        opacity: 0.8;
+        z-index: 2;
+    }
+
+    /* --- INICIO: Efecto Brillo y Confeti --- */
+    
+    @keyframes glow-border {
+      0% { box-shadow: 0 0 5px rgba(255,255,255,0.2), 0 10px 20px rgba(52, 152, 219, 0.3); }
+      50% { box-shadow: 0 0 20px rgba(255,255,255,0.8), 0 10px 20px rgba(52, 152, 219, 0.3); }
+      100% { box-shadow: 0 0 5px rgba(255,255,255,0.2), 0 10px 20px rgba(52, 152, 219, 0.3); }
+    }
+    
+    .limpieza-activa-hoy {
+        animation: glow-border 2s ease-in-out infinite;
+    }
+
+    /* Contenedor del Confeti */
+    .confeti-container {
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        pointer-events: none;
+        width: 100%;
+        height: 100%;
+        z-index: 1; /* Detrás del texto pero sobre el fondo */
+    }
+
+    @keyframes fall {
+      0% {
+        transform: translateY(-100px) rotateZ(0deg);
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(350px) rotateZ(360deg);
+        opacity: 0;
+      }
+    }
+
+    .confeti-pieza {
+        position: absolute;
+        width: 10px;
+        height: 15px;
+        opacity: 0;
+        animation: fall 5s linear infinite;
+    }
+
+    /* --- MÁS CONFETI (40 piezas) --- */
+    .confeti-pieza:nth-child(1) { background: #f1c40f; left: 10%; animation-delay: 0s; animation-duration: 4s; }
+    .confeti-pieza:nth-child(2) { background: #e74c3c; left: 20%; animation-delay: -3s; animation-duration: 5s; }
+    .confeti-pieza:nth-child(3) { background: #2ecc71; left: 30%; animation-delay: -1s; animation-duration: 3s; }
+    .confeti-pieza:nth-child(4) { background: #ffffff; left: 40%; animation-delay: -2.5s; animation-duration: 4.5s; }
+    .confeti-pieza:nth-child(5) { background: #f1c40f; left: 50%; animation-delay: -4s; animation-duration: 5s; }
+    .confeti-pieza:nth-child(6) { background: #e74c3c; left: 60%; animation-delay: -1.5s; animation-duration: 3.5s; }
+    .confeti-pieza:nth-child(7) { background: #2ecc71; left: 70%; animation-delay: -2s; animation-duration: 4s; }
+    .confeti-pieza:nth-child(8) { background: #ffffff; left: 80%; animation-delay: -0.5s; animation-duration: 3s; }
+    .confeti-pieza:nth-child(9) { background: #f1c40f; left: 90%; animation-delay: -3.5s; animation-duration: 4.5s; }
+    .confeti-pieza:nth-child(10) { background: #e74c3c; left: 15%; animation-delay: -2.2s; animation-duration: 5s; }
+    .confeti-pieza:nth-child(11) { background: #2ecc71; left: 25%; animation-delay: -0.8s; animation-duration: 3s; }
+    .confeti-pieza:nth-child(12) { background: #ffffff; left: 35%; animation-delay: -1.7s; animation-duration: 4s; }
+    .confeti-pieza:nth-child(13) { background: #f1c40f; left: 45%; animation-delay: -4.5s; animation-duration: 5s; }
+    .confeti-pieza:nth-child(14) { background: #e74c3c; left: 55%; animation-delay: -3.3s; animation-duration: 3.5s; }
+    .confeti-pieza:nth-child(15) { background: #2ecc71; left: 65%; animation-delay: -1.2s; animation-duration: 4s; }
+    .confeti-pieza:nth-child(16) { background: #ffffff; left: 75%; animation-delay: -0.2s; animation-duration: 3s; }
+    .confeti-pieza:nth-child(17) { background: #f1c40f; left: 85%; animation-delay: -3.8s; animation-duration: 4.5s; }
+    .confeti-pieza:nth-child(18) { background: #e74c3c; left: 95%; animation-delay: -1.9s; animation-duration: 5s; }
+    .confeti-pieza:nth-child(19) { background: #2ecc71; left: 5%; animation-delay: -0.4s; animation-duration: 3.5s; }
+    .confeti-pieza:nth-child(20) { background: #ffffff; left: 22%; animation-delay: -2.7s; animation-duration: 4s; }
+    .confeti-pieza:nth-child(21) { background: #f1c40f; left: 12%; animation-delay: -0.1s; animation-duration: 4s; }
+    .confeti-pieza:nth-child(22) { background: #e74c3c; left: 23%; animation-delay: -3.1s; animation-duration: 5s; }
+    .confeti-pieza:nth-child(23) { background: #2ecc71; left: 33%; animation-delay: -1.1s; animation-duration: 3s; }
+    .confeti-pieza:nth-child(24) { background: #ffffff; left: 44%; animation-delay: -2.6s; animation-duration: 4.5s; }
+    .confeti-pieza:nth-child(25) { background: #f1c40f; left: 55%; animation-delay: -4.1s; animation-duration: 5s; }
+    .confeti-pieza:nth-child(26) { background: #e74c3c; left: 66%; animation-delay: -1.6s; animation-duration: 3.5s; }
+    .confeti-pieza:nth-child(27) { background: #2ecc71; left: 77%; animation-delay: -2.1s; animation-duration: 4s; }
+    .confeti-pieza:nth-child(28) { background: #ffffff; left: 88%; animation-delay: -0.6s; animation-duration: 3s; }
+    .confeti-pieza:nth-child(29) { background: #f1c40f; left: 99%; animation-delay: -3.6s; animation-duration: 4.5s; }
+    .confeti-pieza:nth-child(30) { background: #e74c3c; left: 18%; animation-delay: -2.3s; animation-duration: 5s; }
+    .confeti-pieza:nth-child(31) { background: #2ecc71; left: 28%; animation-delay: -0.9s; animation-duration: 3s; }
+    .confeti-pieza:nth-child(32) { background: #ffffff; left: 38%; animation-delay: -1.8s; animation-duration: 4s; }
+    .confeti-pieza:nth-child(33) { background: #f1c40f; left: 48%; animation-delay: -4.6s; animation-duration: 5s; }
+    .confeti-pieza:nth-child(34) { background: #e74c3c; left: 58%; animation-delay: -3.4s; animation-duration: 3.5s; }
+    .confeti-pieza:nth-child(35) { background: #2ecc71; left: 68%; animation-delay: -1.3s; animation-duration: 4s; }
+    .confeti-pieza:nth-child(36) { background: #ffffff; left: 78%; animation-delay: -0.3s; animation-duration: 3s; }
+    .confeti-pieza:nth-child(37) { background: #f1c40f; left: 84%; animation-delay: -3.9s; animation-duration: 4.5s; }
+    .confeti-pieza:nth-child(38) { background: #e74c3c; left: 94%; animation-delay: -2.9s; animation-duration: 5s; }
+    .confeti-pieza:nth-child(39) { background: #2ecc71; left: 7%; animation-delay: -0.7s; animation-duration: 3.5s; }
+    .confeti-pieza:nth-child(40) { background: #ffffff; left: 17%; animation-delay: -2.8s; animation-duration: 4s; }
+    /* --- FIN Efectos --- */
+
+
+    /* --- Estilos para la cuadrícula (Miniaturas) --- */
+    .semana-card {
+        padding: 15px 10px; border: 1px solid var(--border-color);
+        border-radius: 8px; background-color: #fff;
+        text-align: center; height: 100%; 
+        transition: var(--transition); display: flex;
+        flex-direction: column; justify-content: center;
+    }
+    .semana-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+    .semana-card-img {
+        width: 70px; height: 70px; border-radius: 50%;
+        object-fit: cover; margin-bottom: 10px;
+        border: 3px solid var(--border-color);
+        margin-left: auto; margin-right: auto;
+    }
+    .semana-card-icon {
+        width: 70px; height: 70px; border-radius: 50%;
+        margin-bottom: 10px; display: flex; align-items: center;
+        justify-content: center; background-color: #eee;
+        color: #aaa; font-size: 2rem; border: 3px solid #eee;
+        margin-left: auto; margin-right: auto;
+    }
+    .semana-card h6 {
+        font-weight: 700; color: var(--dark-color);
+        font-size: 0.95rem; margin-bottom: 3px;
+    }
+    .semana-card p {
+        font-weight: 500; color: var(--secondary-color);
+        font-size: 0.85rem; margin-bottom: 0;
+        word-wrap: break-word; min-height: 2.5em;
+    }
+    .semana-card.domingo { background-color: #fff9e6; }
+    .semana-card.domingo p { color: var(--warning-color); font-style: italic; }
+    .semana-card.domingo .semana-card-icon {
+        background-color: #fcf8e3; color: var(--warning-color); border-color: #fcf8e3;
+    }
+    .semana-card.hoy-en-lista {
+        background-color: #eaf2f8; border-color: var(--secondary-color);
+        transform: scale(1.03);
+    }
+    .semana-card.hoy-en-lista h6,
+    .semana-card.hoy-en-lista p { font-weight: 700; }
+
+</style>
+</head>
+<body>
+
+    <div id="main-content">
+        <div class="header">Pisos Brillantes</div>
+
+        <div class="container">
+            <h1>Horario de Limpieza - Bodega</h1>
+
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-calendar-check me-2"></i>Limpieza de Hoy
+                </div>
+                <div class="card-body">
+                    <h2 id="fecha-hoy-titulo" class="h4 text-center text-muted mb-3"></h2>
+                    <div id="persona-hoy-container" class="limpieza-hoy-card">
+                        </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-calendar-alt me-2"></i>Horario de la Semana
+                </div>
+                <div class="card-body">
+                    <div id="horario-semana-grid" class="row g-2">
+                        </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+
+            // --- 1. CONFIGURACIÓN ---
+            
+            const EMPLEADO_SABADO = "Mirian Yolanda Hernández Contreras";
+            const EMPLEADOS_SEMANA = [
+                "Adelfa Esperanza Romero", "Delmi Mercedes Gaitán Reyes",
+                "Iris Undina Izaguirre Medina", "Jensy Mariela Argueta Escobar",
+                "Vilma Vasquez Avila"
+            ];
+            const FECHA_BASE_SEMANA = new Date('2025-11-11T00:00:00'); 
+            const INDICE_BASE_SEMANA = 4; // Índice de Vilma
+            const FECHA_INICIO_CONTROL = new Date('2025-11-11T00:00:00');
+            const FOTOS = {
+                "Adelfa Esperanza Romero": "https://lh3.googleusercontent.com/d/1w73IKp5SmTTTPUJYnNkBzoxC588oxqNn",
+                "Vilma Vasquez Avila": "https://lh3.googleusercontent.com/d/1cWY6aM8GkiE2RgVqIZcJB5ES47CXhwQA",
+                "Mirian Yolanda Hernández Contreras": "https://lh3.googleusercontent.com/d/1CFO9RuAm0wY7OSuUFSBHvIuaPjm7QwRt",
+                "Jensy Mariela Argueta Escobar": "https://lh3.googleusercontent.com/d/1HbNVWR9Fv5k_KPPFm0gOJHp2WXUSKu9A",
+                "Delmi Mercedes Gaitán Reyes": "https://lh3.googleusercontent.com/d/1Tj4lqX879MKVpE2564qmTxAtZi9Ix2cY",
+                "Iris Undina Izaguirre Medina": "https://lh3.googleusercontent.com/d/1TP8B_0vn37WJRPBftUHxk-aE3X3VF472",
+                "Descanso": null, "Control no iniciado": null
+            };
+            const DIAS_SEMANA = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+            
+            // --- 2. FUNCIONES DE LÓGICA ---
+
+            function safeMod(n, m) { return ((n % m) + m) % m; }
+
+            function contarDiasEntreSemana(fechaInicio, fechaFin) {
+                let contador = 0;
+                let fechaActual = new Date(fechaInicio.getTime());
+                if (fechaFin > fechaInicio) {
+                    fechaActual.setDate(fechaActual.getDate() + 1); 
+                    while (fechaActual <= fechaFin) {
+                        const dia = fechaActual.getDay();
+                        if (dia !== 0 && dia !== 6) { contador++; }
+                        fechaActual.setDate(fechaActual.getDate() + 1);
+                    }
+                } else if (fechaFin < fechaInicio) {
+                    while (fechaActual > fechaFin) {
+                        const dia = fechaActual.getDay();
+                        if (dia !== 0 && dia !== 6) { contador--; }
+                        fechaActual.setDate(fechaActual.getDate() - 1);
+                    }
+                }
+                return contador;
+            }
+
+            function getPersonaParaFecha(fecha) {
+                const diaSemana = fecha.getDay();
+                if (diaSemana === 0) return "Descanso";
+                if (diaSemana === 6) return EMPLEADO_SABADO;
+                
+                const fechaConsultaNorm = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate());
+                const fechaBaseNorm = new Date(FECHA_BASE_SEMANA.getFullYear(), FECHA_BASE_SEMANA.getMonth(), FECHA_BASE_SEMANA.getDate());
+                const diasEntreSemanaPasados = contarDiasEntreSemana(fechaBaseNorm, fechaConsultaNorm);
+                const nuevoIndice = safeMod(INDICE_BASE_SEMANA + diasEntreSemanaPasados, EMPLEADOS_SEMANA.length);
+                return EMPLEADOS_SEMANA[nuevoIndice];
+            }
+
+            function formatearFechaLarga(fecha) {
+                return fecha.toLocaleDateString('es-HN', {
+                    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+                });
+            }
+
+
+            // --- 3. FUNCIONES DE RENDERIZADO ---
+
+            function mostrarLimpiezaHoy() {
+                // Usamos la fecha del contexto como "hoy"
+                const hoy = new Date('2025-11-11T00:00:00'); 
+                const container = document.getElementById('persona-hoy-container');
+                
+                container.classList.remove('limpieza-activa-hoy');
+
+                const fechaFormateada = formatearFechaLarga(hoy);
+                document.getElementById('fecha-hoy-titulo').textContent = fechaFormateada.charAt(0).toUpperCase() + fechaFormateada.slice(1);
+                
+                let personaHoy, fotoUrl, mensaje;
+                let iconoFallback = '';
+                let activarEfectos = false; 
+
+                if (hoy < FECHA_INICIO_CONTROL) {
+                    personaHoy = "Control no iniciado";
+                    mensaje = "El rol inicia el 11 de noviembre de 2025.";
+                    fotoUrl = null;
+                    iconoFallback = 'fa-hourglass-start';
+                    container.style.background = 'linear-gradient(135deg, var(--dark-color), #555)';
+                } else {
+                    personaHoy = getPersonaParaFecha(hoy);
+                    fotoUrl = FOTOS[personaHoy];
+                    
+                    if (personaHoy === "Descanso") {
+                        mensaje = "Hoy es domingo, no hay limpieza.";
+                        iconoFallback = 'fa-bed';
+                        container.style.background = 'linear-gradient(135deg, var(--warning-color), #f7b733)';
+                    } else {
+                        mensaje = "Le corresponde la limpieza el día de hoy.";
+                        iconoFallback = 'fa-broom';
+                        activarEfectos = true;
+                    }
+                }
+
+                let fotoHtml = '';
+                if (fotoUrl) {
+                    fotoHtml = `<img src="${fotoUrl}" alt="${personaHoy}" class="limpieza-hoy-img" onerror="this.style.display='none'; document.getElementById('icon-fallback-hoy').style.display='block';">
+                                <i id="icon-fallback-hoy" class="fas ${iconoFallback} limpieza-hoy-img" style="display:none; border: 4px solid rgba(255, 255, 255, 0.5); padding-top: 20px;"></i>`;
+                } else {
+                    fotoHtml = `<i class="fas ${iconoFallback}"></i>`;
+                }
+                
+                let confetiHtml = '';
+                if (activarEfectos) {
+                    container.classList.add('limpieza-activa-hoy'); // Activa el brillo
+                    confetiHtml = '<div class="confeti-container">';
+                    // --- MÁS CONFETI ---
+                    for (let i = 1; i <= 40; i++) { // Aumentado a 40
+                        confetiHtml += `<span class="confeti-pieza"></span>`;
+                    }
+                    confetiHtml += '</div>';
+                }
+
+                container.innerHTML = `
+                    ${confetiHtml} 
+                    ${fotoHtml}
+                    <h3>${personaHoy}</h3>
+                    <p>${mensaje}</p>
+                `;
+            }
+
+            /**
+             * Genera la cuadrícula de la semana
+             */
+            function mostrarHorarioSemana() {
+                const hoy = new Date('2025-11-11T00:00:00');
+                const diaDeHoy = hoy.getDay();
+                const inicioSemana = new Date(hoy);
+                inicioSemana.setDate(hoy.getDate() - diaDeHoy); 
+
+                const gridContainer = document.getElementById('horario-semana-grid');
+                gridContainer.innerHTML = ''; 
+
+                for (let i = 0; i < 7; i++) {
+                    const fechaActual = new Date(inicioSemana);
+                    fechaActual.setDate(inicioSemana.getDate() + i);
+                    
+                    if (fechaActual >= FECHA_INICIO_CONTROL) {
+                        const persona = getPersonaParaFecha(fechaActual);
+                        const fotoUrl = FOTOS[persona];
+                        
+                        const div = document.createElement('div');
+                        div.className = 'col-lg-3 col-md-4 col-6'; 
+
+                        let claseEstado = '';
+                        let iconoFallback = (persona === "Descanso") ? 'fa-bed' : 'fa-user';
+
+                        if (persona === "Descanso") claseEstado = 'domingo';
+                        if (fechaActual.toDateString() === hoy.toDateString()) claseEstado = 'hoy-en-lista';
+                        
+                        let fotoHtml = '';
+                        if (fotoUrl) {
+                            fotoHtml = `<img src="${fotoUrl}" alt="${persona}" class="semana-card-img" onerror="this.style.display='none'; this.nextSibling.style.display='flex';">
+                                        <span class="semana-card-icon" style="display:none;"><i class="fas ${iconoFallback}"></i></span>`;
+                        } else {
+                            fotoHtml = `<span class="semana-card-icon"><i class="fas ${iconoFallback}"></i></span>`;
+                        }
+
+                        div.innerHTML = `
+                            <div class="semana-card ${claseEstado}">
+                                ${fotoHtml}
+                                <h6>${DIAS_SEMANA[fechaActual.getDay()]} ${fechaActual.getDate()}</h6>
+                                <p>${persona}</p>
+                            </div>
+                        `;
+                        gridContainer.appendChild(div);
+                    }
+                }
+            }
+
+            // --- 4. EJECUCIÓN INICIAL ---
+            mostrarLimpiezaHoy();
+            mostrarHorarioSemana();
+
+        });
+    </script>
+</body>
+</html>

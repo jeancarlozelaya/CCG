@@ -341,7 +341,8 @@
         border-left: 4px solid var(--secondary-color);
     }
     
-    #lista-oficinas-calificadas .list-group-item {
+#lista-oficinas-calificadas .list-group-item,
+    #lista-elevadores-calificados .list-group-item {
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -349,12 +350,16 @@
     }
     
     #lista-oficinas-calificadas .list-group-item:hover,
-    #lista-oficinas-calificadas .list-group-item.active {
+    #lista-oficinas-calificadas .list-group-item.active,
+    #lista-elevadores-calificados .list-group-item:hover,
+    #lista-elevadores-calificados .list-group-item.active {
         background-color: #f0f8ff;
         font-weight: bold;
     }
     
-    #lista-oficinas-calificadas .btn-delete-office {
+    /* (Req 2) Renombrar y aplicar a ambos */
+    .btn-delete-oficina,
+    .btn-delete-elevador {
         padding: 3px 8px;
         font-size: 0.8rem;
     }
@@ -377,6 +382,26 @@
         font-size: 0.9rem;
         font-weight: 600;
     }
+
+
+/* --- INICIO: (Req 2) Estilos Confirmar Borrado --- */
+    .delete-confirm {
+        display: none; /* Oculto por defecto */
+        gap: 5px;
+    }
+    .list-group-item.is-deleting .delete-confirm {
+        display: flex; /* Mostrar al confirmar */
+    }
+    .list-group-item.is-deleting .btn-delete-oficina,
+    .list-group-item.is-deleting .btn-delete-elevador {
+        display: none; /* Ocultar basurero */
+    }
+    .delete-confirm .btn {
+        padding: 3px 8px;
+        font-size: 0.8rem;
+    }
+    /* --- FIN: (Req 2) Estilos Confirmar Borrado --- */
+
 </style>
 
 </head>
@@ -480,7 +505,7 @@
                         </div>
                     </div>
 
-                    <div id="pagina-3" class="pagina">
+<div id="pagina-3" class="pagina">
                         <div class="tab-title">
                             <h2>Elevadores</h2>
                         </div>
@@ -496,25 +521,44 @@
                             </div>
                         </div>
 
-
                         <div id="area-elevadores" class="area-supervision" style="display: none;">
                             <hr>
                             <h5 class="mb-3"><i class="fas fa-elevator me-2"></i>Calificación de Elevadores</h5>
                             
-                            <div id="preguntas-elevadores-container">
+                            <label class="form-label">Elevadores Calificados:</label>
+                            <div id="lista-elevadores-calificados" class="list-group mb-3">
                                 </div>
                             
-                            <div class="seccion-fotos mb-3 mt-4">
-                                <label class="form-label">Adjuntar Fotos (Req. 1 o más si marca "Sí")</label>
-                                <div class="file-upload" onclick="document.getElementById('fotos-elevadores').click()">
-                                    <input type="file" id="fotos-elevadores" multiple accept="image/*" capture="environment" onchange="handleFileInput(event, 'preview-elevadores')">
-                                    <i class="fas fa-camera"></i>
-                                    <span class="file-upload-text">Haz clic o arrastra imágenes</span>
+                            <div id="formulario-elevador-reutilizable" class="formulario-item">
+                                <h5 id="titulo-form-elevador">Nuevo Elevador</h5>
+                                <input type="hidden" id="elevador-edit-index" value="-1"> 
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="elevador-num-reutilizable" class="form-label">Número/Nombre de Elevador</label>
+                                        <input type="text" class="form-control auto-save" id="elevador-num-reutilizable" required>
+                                    </div>
                                 </div>
-                                <div id="preview-elevadores" class="image-preview"></div>
+                                
+                                <div id="preguntas-elevador-container">
+                                </div>
+                                
+                                <div class="seccion-fotos mb-3 mt-4">
+                                    <label class="form-label">Adjuntar Fotos (Req. 1 o más)</label>
+                                    <div class="file-upload" onclick="document.getElementById('fotos-elevador').click()">
+                                        <input type="file" id="fotos-elevador" multiple accept="image/*" capture="environment" onchange="handleFileInput(event, 'preview-elevador')">
+                                        <i class="fas fa-camera"></i>
+                                        <span class="file-upload-text">Haz clic o arrastra imágenes</span>
+                                    </div>
+                                    <div id="preview-elevador" class="image-preview"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="d-flex gap-2 mt-3">
+                                <button type="button" class="btn btn-success" id="btn-guardar-elevador">
+                                    <i class="fas fa-save me-2"></i> Guardar Elevador
+                                </button>
                             </div>
                         </div>
-
                         <div class="d-flex justify-content-between mt-4">
                             <button type="button" class="btn btn-secondary btn-navegacion" data-pagina-actual="3" data-direccion="retroceder">
                                 <i class="fas fa-arrow-left me-2"></i> Retroceder
@@ -524,6 +568,9 @@
                             </button>
                         </div>
                     </div>
+
+
+
 
                     <div id="pagina-4" class="pagina">
                         <div class="tab-title">
@@ -748,7 +795,7 @@
     </div>
 
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
 <script>
         
@@ -767,7 +814,7 @@ const nivelesPorEdificio = {
 // (Req 3) Almacén para IDs de fotos (contendrá IDs de IndexedDB)
 let selectedFiles = {
     'preview-banos': [],
-    'preview-elevadores': [],
+    'preview-elevador': [], // <--- MODIFICADO (singular)
     'preview-espacios': [],
     'preview-juntas': [], 
     'preview-comunes': [], 
@@ -776,6 +823,8 @@ let selectedFiles = {
 
 // (Req 5) Almacén para oficinas guardadas
 let oficinasGuardadas = [];
+// (NUEVO) Almacén para elevadores guardados
+let elevadoresGuardados = [];
 
 // (CORRECCIÓN V7.1) Movida al ámbito global
 const totalPaginas = 8;
@@ -783,6 +832,9 @@ const totalPaginas = 8;
 // (CORRECCIÓN V8) Definir variables de Pág 1 y Pág 7 globalmente
 let $selectEdificio, $selectNivel, $fechaInput, $btnPag1Siguiente;
 let $listaOficinas, $formOficina, $tituloFormOficina, $oficinaNumInput, $oficinaEditIndex;
+// (NUEVO) Variables globales para Pág 3 (Elevadores)
+let $listaElevadores, $formElevador, $tituloFormElevador, $elevadorNumInput, $elevadorEditIndex;
+
 let $form; // (CORRECCIÓN V8.2) Añadida variable $form global
 
 // (Req 8) Variable para el logo local
@@ -802,7 +854,7 @@ const QUESTIONS_CONFIG = {
         "¿Abastecimiento de papel higiénico, jabón y toallas de mano?",
         "¿Basureros vacíos y sin malos olores?"
     ],
-    'elevadores': [
+    'elevador': [ // <--- MODIFICADO (singular)
         "¿Paredes y puertas de acero inoxidable limpias y sin huellas?",
         "¿Piso limpio y sin residuos?",
         "¿Rieles de puerta limpios y sin obstrucciones?",
@@ -877,8 +929,8 @@ function populateAllQuestions() {
             const questions = QUESTIONS_CONFIG[area];
             let html = '';
             questions.forEach((q, index) => {
-                // El prefijo para oficina es 'oficina', para los demás es el 'area'
-                const prefix = (area === 'oficina') ? 'oficina' : area;
+                // El prefijo para oficina/elevador es singular, para los demás es el 'area'
+                const prefix = (area === 'oficina' || area === 'elevador') ? area : area;
                 html += generateQuestionHTML(prefix, index, q);
             });
             $container.html(html);
@@ -1120,12 +1172,19 @@ document.addEventListener('DOMContentLoaded', async function() {
         $fechaInput = $('#fecha-supervision');
         $btnPag1Siguiente = $('#btn-pag1-siguiente');
         
-        // (CORRECCIÓN V8.2) Asignar variables de Pág 7
+        // --- MODIFICACIÓN: Asignar variables de Pág 3 y Pág 7 ---
         $listaOficinas = $('#lista-oficinas-calificadas');
         $formOficina = $('#formulario-oficina-reutilizable');
         $tituloFormOficina = $('#titulo-form-oficina');
         $oficinaNumInput = $('#oficina-num-reutilizable');
         $oficinaEditIndex = $('#oficina-edit-index');
+        
+        $listaElevadores = $('#lista-elevadores-calificados');
+        $formElevador = $('#formulario-elevador-reutilizable');
+        $tituloFormElevador = $('#titulo-form-elevador');
+        $elevadorNumInput = $('#elevador-num-reutilizable');
+        $elevadorEditIndex = $('#elevador-edit-index');
+        // --- FIN MODIFICACIÓN ---
         
         // (Req 2) Revisar si hay sesión guardada
         await checkForSavedSession();
@@ -1186,14 +1245,24 @@ document.addEventListener('DOMContentLoaded', async function() {
                     previewId = 'preview-banos'; // (Req 3)
                 }
                 break;
+            
+            // --- MODIFICACIÓN: Caso 3 (Elevadores) ---
             case 3:
                 if ($('input[name="calificar-elevadores"]:checked').val() === 'si') {
-                    areaId = '#area-elevadores';
-                    nombreArea = 'Elevadores';
-                    fotosRequeridas = true; // (Req 3)
-                    previewId = 'preview-elevadores'; // (Req 3)
+                    // Ya no valida preguntas/fotos aquí, valida que haya elevadores guardados
+                    if (elevadoresGuardados.length === 0) {
+                        if ($('#elevador-num-reutilizable').val().trim() !== '') {
+                            Swal.fire('Elevador Pendiente', 'Debe guardar el elevador actual antes de continuar, o seleccionar "No" si no desea calificar elevadores.', 'warning');
+                            return false;
+                        } else {
+                            Swal.fire('Campos Incompletos', 'Debe calificar y guardar al menos un elevador, o seleccionar "No".', 'warning');
+                            return false;
+                        }
+                    }
                 }
                 break;
+            // --- FIN MODIFICACIÓN ---
+                
             case 4:
                 if ($('input[name="calificar-espacios"]:checked').val() === 'si') {
                     areaId = '#area-espacios';
@@ -1237,6 +1306,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             // Página 8 (Comentarios) no tiene validación para "siguiente"
         }
         
+        // Esta validación genérica ahora solo aplica a Pág 2, 4, 5 y 6
         if (areaId) {
             const $preguntas = $(`${areaId} .pregunta-supervision`);
             let todasRespondidas = true;
@@ -1308,9 +1378,172 @@ document.addEventListener('DOMContentLoaded', async function() {
     // --- FIN: Lógica General (Toggles) ---
 
 
-    // --- INICIO: Lógica Página 7 (Oficinas - Req 1, 3, 5) ---
-    // (CORRECCIÓN V8) Las variables jQuery ahora son globales
-    // $listaOficinas, $formOficina, $tituloFormOficina, $oficinaNumInput, $oficinaEditIndex
+// --- INICIO: Lógica Página 3 (Elevadores) ---
+    
+    $('#btn-guardar-elevador').on('click', function() {
+        const nombreElevador = $elevadorNumInput.val().trim();
+        if (nombreElevador === '') {
+            Swal.fire('Dato Requerido', 'Debe ingresar el nombre o número del elevador.', 'warning');
+            return;
+        }
+        
+        let preguntasRespondidas = true;
+        const respuestasElevador = [];
+        QUESTIONS_CONFIG.elevador.forEach((q, index) => {
+            const val = $(`[name="elevador-p${index}"]:checked`).val() || null;
+            if (!val) {
+                preguntasRespondidas = false;
+            }
+            respuestasElevador.push(val);
+        });
+        
+        if (!preguntasRespondidas) {
+            Swal.fire('Campos Incompletos', `Debe responder todas las ${QUESTIONS_CONFIG.elevador.length} preguntas del elevador.`, 'warning');
+            return;
+        }
+
+        if (selectedFiles['preview-elevador'].length === 0) {
+            Swal.fire('Foto Requerida', 'Debe adjuntar al menos una foto de evidencia para este elevador.', 'warning');
+            return;
+        }
+        
+        const elevadorData = {
+            id: Date.now(),
+            numero: nombreElevador,
+            respuestas: respuestasElevador,
+            fotos: [...selectedFiles['preview-elevador']]
+        };
+        
+        const editIndex = parseInt($elevadorEditIndex.val());
+        
+        if (editIndex > -1) {
+            elevadoresGuardados[editIndex] = elevadorData;
+        } else {
+            elevadoresGuardados.push(elevadorData);
+        }
+        
+        renderListaElevadores();
+        limpiarFormularioElevador();
+        
+        Swal.fire({
+            icon: 'success', title: 'Elevador Guardado',
+            text: `El "${elevadorData.numero}" se ha guardado.`,
+            toast: true, position: 'top-end',
+            showConfirmButton: false, timer: 3000
+        });
+    });
+
+    // (Req 2) Modificado: Al editar, resetea otros botones de borrado
+    $listaElevadores.on('click', '.btn-editar-elevador', function(e) {
+        e.preventDefault();
+        
+        // Resetea cualquier confirmación de borrado pendiente
+        $listaElevadores.find('.list-group-item').removeClass('is-deleting');
+        
+        const index = $(this).data('index');
+        const elevadorData = elevadoresGuardados[index];
+        if (!elevadorData) return;
+        
+        $listaElevadores.find('.list-group-item').removeClass('active');
+        $(this).addClass('active');
+        
+        $elevadorEditIndex.val(index);
+        $tituloFormElevador.text('Editando: ' + elevadorData.numero);
+        $elevadorNumInput.val(elevadorData.numero);
+        
+        if(elevadorData.respuestas && elevadorData.respuestas.length > 0) {
+            elevadorData.respuestas.forEach((answer, index) => {
+                if (answer) {
+                    $(`[name="elevador-p${index}"]`).val([answer]);
+                }
+            });
+        }
+        
+        selectedFiles['preview-elevador'] = [...elevadorData.fotos];
+        renderFotosPreview('preview-elevador');
+        
+        saveSession();
+    });
+    
+    // (Req 2) Modificado: Muestra la confirmación
+    $listaElevadores.on('click', '.btn-delete-elevador', function(e) {
+        e.stopPropagation();
+        e.preventDefault();
+        // Resetea cualquier otro item
+        $listaElevadores.find('.list-group-item').removeClass('is-deleting');
+        // Activa la confirmación en este item
+        $(this).closest('.list-group-item').addClass('is-deleting');
+    });
+
+    // (Req 2) NUEVO: Botón de cancelar borrado
+    $listaElevadores.on('click', '.btn-cancel-delete', function(e) {
+        e.stopPropagation();
+        e.preventDefault();
+        $(this).closest('.list-group-item').removeClass('is-deleting');
+    });
+
+    // (Req 2) NUEVO: Botón de confirmar borrado
+    $listaElevadores.on('click', '.btn-confirm-delete-elevador', async function(e) {
+        e.stopPropagation();
+        e.preventDefault();
+        const index = $(this).data('index');
+        const elevadorData = elevadoresGuardados[index];
+
+        if (elevadorData && elevadorData.fotos) {
+            for (const id of elevadorData.fotos) {
+                deleteImageFromDB(id);
+            }
+        }
+        
+        elevadoresGuardados.splice(index, 1);
+        renderListaElevadores();
+        
+        if (parseInt($elevadorEditIndex.val()) === index) {
+            limpiarFormularioElevador();
+        } else {
+            saveSession();
+        }
+    });
+    
+    // --- FIN: Lógica Página 3 ---
+    
+function renderListaElevadores() {
+    $listaElevadores.empty();
+    if (elevadoresGuardados.length === 0) {
+        $listaElevadores.append('<p class="text-muted" id="elevadores-vacios">Aún no hay elevadores calificados.</p>');
+        return;
+    }
+    
+    elevadoresGuardados.forEach((elevador, index) => {
+        // (Req 2) Nuevo HTML con botones de confirmación
+        $listaElevadores.append(`
+            <a href="#" class="list-group-item list-group-item-action btn-editar-elevador" data-index="${index}">
+                <span>${elevador.numero}</span>
+                <div>
+                    <button type="button" class="btn btn-danger btn-sm btn-delete-elevador" data-index="${index}" title="Eliminar">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    <div class="delete-confirm">
+                        <button type="button" class="btn btn-sm btn-success btn-confirm-delete-elevador" data-index="${index}">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-secondary btn-cancel-delete" data-index="${index}">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            </a>
+        `);
+    });
+}
+
+
+    
+    renderListaElevadores();
+    // --- FIN: Lógica Página 3 ---
+
+
+// --- INICIO: Lógica Página 7 (Oficinas - Req 1, 3, 5) ---
 
     $('#btn-guardar-oficina').on('click', function() {
         const nombreOficina = $oficinaNumInput.val().trim();
@@ -1319,7 +1552,6 @@ document.addEventListener('DOMContentLoaded', async function() {
             return;
         }
         
-        // (Req 1) Validar y recolectar preguntas dinámicamente
         let preguntasRespondidas = true;
         const respuestasOficina = [];
         QUESTIONS_CONFIG.oficina.forEach((q, index) => {
@@ -1335,7 +1567,6 @@ document.addEventListener('DOMContentLoaded', async function() {
             return;
         }
 
-        // (Req 3) Validar fotos obligatorias para la oficina
         if (selectedFiles['preview-oficina'].length === 0) {
             Swal.fire('Foto Requerida', 'Debe adjuntar al menos una foto de evidencia para esta oficina.', 'warning');
             return;
@@ -1344,8 +1575,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         const officeData = {
             id: Date.now(),
             numero: nombreOficina,
-            respuestas: respuestasOficina, // (Req 1) Guardar array
-            fotos: [...selectedFiles['preview-oficina']] // (Req 3) Clonar el array de IDs
+            respuestas: respuestasOficina, 
+            fotos: [...selectedFiles['preview-oficina']]
         };
         
         const editIndex = parseInt($oficinaEditIndex.val());
@@ -1357,7 +1588,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
         
         renderListaOficinas();
-        limpiarFormularioOficina(); // (Req 1) Limpiar después de guardar
+        limpiarFormularioOficina(); 
         
         Swal.fire({
             icon: 'success', title: 'Oficina Guardada',
@@ -1365,12 +1596,15 @@ document.addEventListener('DOMContentLoaded', async function() {
             toast: true, position: 'top-end',
             showConfirmButton: false, timer: 3000
         });
-        
-        // saveSession() se llama dentro de limpiarFormularioOficina()
     });
 
+    // (Req 2) Modificado: Al editar, resetea otros botones de borrado
     $listaOficinas.on('click', '.btn-editar-oficina', function(e) {
         e.preventDefault();
+        
+        // Resetea cualquier confirmación de borrado pendiente
+        $listaOficinas.find('.list-group-item').removeClass('is-deleting');
+        
         const index = $(this).data('index');
         const officeData = oficinasGuardadas[index];
         if (!officeData) return;
@@ -1382,7 +1616,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         $tituloFormOficina.text('Editando: ' + officeData.numero);
         $oficinaNumInput.val(officeData.numero);
         
-        // (Req 1) Cargar respuestas dinámicas
         if(officeData.respuestas && officeData.respuestas.length > 0) {
             officeData.respuestas.forEach((answer, index) => {
                 if (answer) {
@@ -1391,22 +1624,38 @@ document.addEventListener('DOMContentLoaded', async function() {
             });
         }
         
-        selectedFiles['preview-oficina'] = [...officeData.fotos]; // Carga array de IDs
-        renderFotosPreview('preview-oficina'); // Renderiza desde DB
+        selectedFiles['preview-oficina'] = [...officeData.fotos]; 
+        renderFotosPreview('preview-oficina');
         
-        // (Req 2) Guardar sesión para que se sepa que se está editando
         saveSession();
     });
     
-    $listaOficinas.on('click', '.btn-delete-office', async function(e) {
+    // (Req 2) Modificado: Muestra la confirmación
+    $listaOficinas.on('click', '.btn-delete-oficina', async function(e) {
         e.stopPropagation();
+        e.preventDefault();
+        // Resetea cualquier otro item
+        $listaOficinas.find('.list-group-item').removeClass('is-deleting');
+        // Activa la confirmación en este item
+        $(this).closest('.list-group-item').addClass('is-deleting');
+    });
+
+    // (Req 2) NUEVO: Botón de cancelar borrado (compartido, por eso no tiene sufijo)
+    $form.on('click', '.btn-cancel-delete', function(e) {
+        e.stopPropagation();
+        e.preventDefault();
+        $(this).closest('.list-group-item').removeClass('is-deleting');
+    });
+
+    // (Req 2) NUEVO: Botón de confirmar borrado
+    $listaOficinas.on('click', '.btn-confirm-delete-oficina', async function(e) {
+        e.stopPropagation();
+        e.preventDefault();
         const index = $(this).data('index');
         const officeData = oficinasGuardadas[index];
 
         if (officeData && officeData.fotos) {
-            // Eliminar las fotos de esta oficina de IndexedDB
             for (const id of officeData.fotos) {
-                // (Req 3) No necesitamos esperar (await), que lo haga en fondo
                 deleteImageFromDB(id);
             }
         }
@@ -1417,31 +1666,44 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (parseInt($oficinaEditIndex.val()) === index) {
             limpiarFormularioOficina();
         } else {
-            // Si se borra una oficina diferente a la que se edita, solo guardar sesión
             saveSession();
         }
     });
-
+    
+    // --- FIN: Lógica Página 7 ---
     // (Req 1) Botón "Nueva Oficina" eliminado de los listeners
     
-    function renderListaOficinas() {
-        $listaOficinas.empty();
-        if (oficinasGuardadas.length === 0) {
-            $listaOficinas.append('<p class="text-muted" id="oficinas-vacias">Aún no hay oficinas calificadas.</p>');
-            return;
-        }
-        
-        oficinasGuardadas.forEach((oficina, index) => {
-            $listaOficinas.append(`
-                <a href="#" class="list-group-item list-group-item-action btn-editar-oficina" data-index="${index}">
-                    ${oficina.numero}
-                    <button type="button" class="btn btn-danger btn-sm btn-delete-office" data-index="${index}" title="Eliminar">
+function renderListaOficinas() {
+    $listaOficinas.empty();
+    if (oficinasGuardadas.length === 0) {
+        $listaOficinas.append('<p class="text-muted" id="oficinas-vacias">Aún no hay oficinas calificadas.</p>');
+        return;
+    }
+    
+    oficinasGuardadas.forEach((oficina, index) => {
+        // (Req 2) Nuevo HTML con botones de confirmación
+        $listaOficinas.append(`
+            <a href="#" class="list-group-item list-group-item-action btn-editar-oficina" data-index="${index}">
+                <span>${oficina.numero}</span>
+                <div>
+                    <button type="button" class="btn btn-danger btn-sm btn-delete-oficina" data-index="${index}" title="Eliminar">
                         <i class="fas fa-trash"></i>
                     </button>
-                </a>
-            `);
-        });
-    }
+                    <div class="delete-confirm">
+                        <button type="button" class="btn btn-sm btn-success btn-confirm-delete-oficina" data-index="${index}">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-secondary btn-cancel-delete" data-index="${index}">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            </a>
+        `);
+    });
+}
+
+
     
     renderListaOficinas();
     // --- FIN: Lógica Página 7 ---
@@ -1465,8 +1727,11 @@ document.addEventListener('DOMContentLoaded', async function() {
     $form.on('change input', '.auto-save', saveSession);
     // Guardar en CUALQUIER cambio de los botones C/NC/NA
     $form.on('change', '.btn-check', saveSession);
-    // (Req 2) Guardar también el formulario de oficina "sucio"
+    
+    // --- MODIFICACIÓN: Guardar también ambos formularios "sucios" ---
     $formOficina.on('change input', 'input, .btn-check', saveSession);
+    $formElevador.on('change input', 'input, .btn-check', saveSession);
+    // --- FIN MODIFICACIÓN ---
 
 
 }); // Fin de DOMContentLoaded
@@ -1474,6 +1739,9 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 // (CORRECCIÓN V8) Mover limpiarFormularioOficina al ámbito global
 function limpiarFormularioOficina() {
+    // (Asegurarse de que las variables globales están definidas)
+    if (!$oficinaEditIndex) return; 
+    
     $oficinaEditIndex.val('-1');
     $tituloFormOficina.text('Nueva Oficina');
     $oficinaNumInput.val('');
@@ -1491,6 +1759,26 @@ function limpiarFormularioOficina() {
     saveSession();
 }
 
+// (NUEVO) Duplicado de limpiarFormularioOficina
+function limpiarFormularioElevador() {
+    // (Asegurarse de que las variables globales están definidas)
+    if (!$elevadorEditIndex) return; 
+    
+    $elevadorEditIndex.val('-1');
+    $tituloFormElevador.text('Nuevo Elevador');
+    $elevadorNumInput.val('');
+    
+    QUESTIONS_CONFIG.elevador.forEach((q, index) => {
+        $(`[name="elevador-p${index}"]`).prop('checked', false);
+    });
+
+    selectedFiles['preview-elevador'] = [];
+    $('#preview-elevador').empty();
+    $listaElevadores.find('.list-group-item').removeClass('active');
+    
+    saveSession();
+}
+
 // --- INICIO: (Req 2) Funciones de Sesión ---
 
 /**
@@ -1501,14 +1789,17 @@ function saveSession() {
     // No guardar si la DB no está lista
     if (!db) return;
     
-    // (CORRECCIÓN V8.2) No guardar si los elementos de Pág 7 no están listos
-    if (!$formOficina || !$oficinaNumInput || !$oficinaEditIndex) return;
+    // --- MODIFICACIÓN: Checar Pág 3 y Pág 7 ---
+    if (!$formOficina || !$oficinaNumInput || !$oficinaEditIndex || !$formElevador || !$elevadorNumInput || !$elevadorEditIndex) return;
+    // --- FIN MODIFICACIÓN ---
 
     // 1. Recolectar radios C/NC/NA
     const radioGroups = {};
-    // (Req 1) Busca todos los grupos de botones que NO estén en el form de oficina
+    // (Req 1) Busca todos los grupos de botones que NO estén en un form reutilizable
     $('.auto-save.btn-group').each(function() {
-        if ($(this).closest('#formulario-oficina-reutilizable').length === 0) {
+        // --- MODIFICACIÓN: Excluir AMBOS formularios reutilizables ---
+        if ($(this).closest('#formulario-oficina-reutilizable').length === 0 && $(this).closest('#formulario-elevador-reutilizable').length === 0) {
+        // --- FIN MODIFICACIÓN ---
             const name = $(this).find('.btn-check').first().attr('name');
             if (name) {
                 const value = $(`[name="${name}"]:checked`).val();
@@ -1525,25 +1816,34 @@ function saveSession() {
         nivel: $('#select-nivel').val(),
         
         calificarBanos: $('[name="calificar-banos"]:checked').val(),
-        calificarElevadores: $('[name="calificar-elevadores"]:checked').val(),
+        calificarElevadores: $('[name="calificar-elevadores"]:checked').val(), // <-- Este es el toggle Si/No
         calificarEspacios: $('[name="calificar-espacios"]:checked').val(),
-        calificarJuntas: $('[name="calificar-juntas"]:checked').val(), // (Req 1) Añadido
-        calificarComunes: $('[name="calificar-comunes"]:checked').val(), // (Req 1) Añadido
+        calificarJuntas: $('[name="calificar-juntas"]:checked').val(),
+        calificarComunes: $('[name="calificar-comunes"]:checked').val(),
         calificarOficinas: $('[name="calificar-oficinas"]:checked').val(),
         
         radios: radioGroups,
         fotos: selectedFiles, // (Solo IDs)
-        oficinas: oficinasGuardadas, // (Contiene IDs de fotos)
         
-        // (Req 2) Guardar el estado "sucio" del form de oficina
+        // --- MODIFICACIÓN: Guardar ambos arrays y formularios "sucios" ---
+        oficinas: oficinasGuardadas,
+        elevadores: elevadoresGuardados, // <-- NUEVO
+        
         currentOffice: {
-            numero: $oficinaNumInput.val(), // (Corrección V8.2) Usar variable global
-            editIndex: $oficinaEditIndex.val(), // (Corrección V8.2) Usar variable global
-            // (Req 1) Guardar dinámicamente
+            numero: $oficinaNumInput.val(),
+            editIndex: $oficinaEditIndex.val(),
             respuestas: QUESTIONS_CONFIG.oficina.map((q, index) => {
                 return $(`[name="oficina-p${index}"]:checked`).val() || null;
             })
         },
+        currentElevador: { // <-- NUEVO
+            numero: $elevadorNumInput.val(),
+            editIndex: $elevadorEditIndex.val(),
+            respuestas: QUESTIONS_CONFIG.elevador.map((q, index) => {
+                return $(`[name="elevador-p${index}"]:checked`).val() || null;
+            })
+        },
+        // --- FIN MODIFICACIÓN ---
         
         comentarios: $('#comentarios-finales').val()
     };
@@ -1551,6 +1851,7 @@ function saveSession() {
     // 3. Guardar en localStorage
     localStorage.setItem(SESSION_KEY, JSON.stringify(sessionData));
 }
+
 
 /**
  * Carga los datos del formulario desde localStorage.
@@ -1578,9 +1879,9 @@ async function loadSession() {
             $('[name="calificar-banos"][value="no"]').prop('checked', true);
         }
         
-        if (data.calificarElevadores === 'si') {
+        if (data.calificarElevadores === 'si') { // <-- Este es el toggle
             $('[name="calificar-elevadores"][value="si"]').prop('checked', true);
-            $('#area-elevadores').show();
+            $('#area-elevadores').show(); // <-- Esto muestra el área de la lista
         } else {
             $('[name="calificar-elevadores"][value="no"]').prop('checked', true);
         }
@@ -1628,17 +1929,19 @@ async function loadSession() {
             selectedFiles = data.fotos;
             // Re-renderizar todas las vistas previas desde la DB
             await renderFotosPreview('preview-banos');
-            await renderFotosPreview('preview-elevadores');
+            await renderFotosPreview('preview-elevador'); // <-- Renombrado
             await renderFotosPreview('preview-espacios');
             await renderFotosPreview('preview-juntas'); // (Req 1) Añadido
             await renderFotosPreview('preview-comunes'); // (Req 1) Añadido
             await renderFotosPreview('preview-oficina'); // (Req 2) Carga fotos del form "sucio"
         }
 
-        // (Req 5) Cargar Oficinas Guardadas
+        // --- MODIFICACIÓN: Cargar Oficinas Y Elevadores guardados ---
+        
+        // Cargar Oficinas Guardadas
         if (data.oficinas) {
             oficinasGuardadas = data.oficinas;
-            const $listaOficinas = $('#lista-oficinas-calificadas');
+            // (Llamar a la función que duplicaste)
             $listaOficinas.empty();
             if (oficinasGuardadas.length === 0) {
                 $listaOficinas.append('<p class="text-muted" id="oficinas-vacias">Aún no hay oficinas calificadas.</p>');
@@ -1647,7 +1950,7 @@ async function loadSession() {
                     $listaOficinas.append(`
                         <a href="#" class="list-group-item list-group-item-action btn-editar-oficina" data-index="${index}">
                             ${oficina.numero}
-                            <button type="button" class="btn btn-danger btn-sm btn-delete-office" data-index="${index}" title="Eliminar">
+                            <button type="button" class="btn btn-danger btn-sm btn-delete-oficina" data-index="${index}" title="Eliminar">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </a>
@@ -1656,18 +1959,39 @@ async function loadSession() {
             }
         }
         
-        // (Req 2) Cargar formulario de oficina "sucio"
+        // Cargar Elevadores Guardados (NUEVO)
+        if (data.elevadores) {
+            elevadoresGuardados = data.elevadores;
+            // (Llamar a la función que duplicaste)
+            $listaElevadores.empty();
+            if (elevadoresGuardados.length === 0) {
+                $listaElevadores.append('<p class="text-muted" id="elevadores-vacios">Aún no hay elevadores calificados.</p>');
+            } else {
+                elevadoresGuardados.forEach((elevador, index) => {
+                    $listaElevadores.append(`
+                        <a href="#" class="list-group-item list-group-item-action btn-editar-elevador" data-index="${index}">
+                            ${elevador.numero}
+                            <button type="button" class="btn btn-danger btn-sm btn-delete-elevador" data-index="${index}" title="Eliminar">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </a>
+                    `);
+                });
+            }
+        }
+        
+        // Cargar formulario "sucio" de oficina
         if (data.currentOffice) {
             const office = data.currentOffice;
-            $('#oficina-num-reutilizable').val(office.numero);
-            $('#oficina-edit-index').val(office.editIndex);
+            $oficinaNumInput.val(office.numero);
+            $oficinaEditIndex.val(office.editIndex);
             
             if (office.editIndex > -1) {
-                 $('#titulo-form-oficina').text('Editando: ' + office.numero);
+                 $tituloFormOficina.text('Editando: ' + office.numero);
                  // Marcarla como activa en la lista
-                 $(`#lista-oficinas-calificadas .btn-editar-oficina[data-index="${office.editIndex}"]`).addClass('active');
+                 $listaOficinas.find(`.btn-editar-oficina[data-index="${office.editIndex}"]`).addClass('active');
             } else {
-                 $('#titulo-form-oficina').text('Nueva Oficina');
+                 $tituloFormOficina.text('Nueva Oficina');
             }
             
             // (Req 1) Cargar respuestas dinámicas
@@ -1679,6 +2003,29 @@ async function loadSession() {
                 });
             }
         }
+        
+        // Cargar formulario "sucio" de elevador (NUEVO)
+        if (data.currentElevador) {
+            const elevador = data.currentElevador;
+            $elevadorNumInput.val(elevador.numero);
+            $elevadorEditIndex.val(elevador.editIndex);
+            
+            if (elevador.editIndex > -1) {
+                 $tituloFormElevador.text('Editando: ' + elevador.numero);
+                 $listaElevadores.find(`.btn-editar-elevador[data-index="${elevador.editIndex}"]`).addClass('active');
+            } else {
+                 $tituloFormElevador.text('Nuevo Elevador');
+            }
+            
+            if(elevador.respuestas && elevador.respuestas.length > 0) {
+                elevador.respuestas.forEach((answer, index) => {
+                    if (answer) {
+                        $(`[name="elevador-p${index}"]`).val([answer]);
+                    }
+                });
+            }
+        }
+        // --- FIN MODIFICACIÓN ---
         
         // Comentarios
         $('#comentarios-finales').val(data.comentarios);
@@ -1701,20 +2048,26 @@ async function loadSession() {
     }
 }
 
+
 /**
  * Limpia localStorage (datos de formulario) y IndexedDB (fotos).
  */
 async function clearSession() {
     localStorage.removeItem(SESSION_KEY);
+    
+    // --- MODIFICACIÓN: Limpiar los keys nuevos y viejos ---
     selectedFiles = {
         'preview-banos': [],
-        'preview-elevadores': [],
+        'preview-elevador': [], // Key nuevo (singular)
+        'preview-elevadores': [], // Key viejo (plural) - por si acaso
         'preview-espacios': [],
-        'preview-juntas': [], // (Req 1) Añadido
-        'preview-comunes': [], // (Req 1) Añadido
+        'preview-juntas': [], 
+        'preview-comunes': [], 
         'preview-oficina': []
     };
     oficinasGuardadas = [];
+    elevadoresGuardados = []; // NUEVO
+    // --- FIN MODIFICACIÓN ---
     
     if (db) {
         try {
@@ -1726,6 +2079,7 @@ async function clearSession() {
         }
     }
 }
+
 
 /**
  * Revisa si hay sesión guardada y pregunta al usuario.
@@ -2081,7 +2435,7 @@ const addPhotos = async (doc, imageIds, yPosRef) => {
         // Comprobar si cabe en la página
         if (y + imgHeight > pageHeight - margin) {
             doc.addPage();
-            addPageFooters(doc); // (Corrección) Añadir pie de página a la nueva pág
+            // addPageFooters(doc); // <-- (CORRECCIÓN) Esta línea se elimina.
             yPos = margin;
             imgCount = 0; // Reiniciar
             const newRow = Math.floor(imgCount / 3);
@@ -2094,7 +2448,7 @@ const addPhotos = async (doc, imageIds, yPosRef) => {
     }
     // Actualizar yPos a la posición después de la última fila de fotos
     const rowsUsed = Math.ceil(imgCount / 3);
-    yPosRef.y = yPos + (rowsUsed * spacingY); // (Corrección) Quitado el marginY extra
+    yPosRef.y = yPos + (rowsUsed * spacingY); 
 };
 
 // (Req 1 & 2) Función de tabla de preguntas MODIFICADA
@@ -2147,24 +2501,47 @@ const addQuestionsTable = (doc, areaPrefix, config, data, yPosRef) => {
 };
 
 // (Req 3) Función auxiliar para yPos y Títulos
-const addSectionTitle = (doc, title, yPosRef) => {
+const addSectionTitle = (doc, title, yPosRef, forceNewPage = false) => {
     const pageHeight = doc.internal.pageSize.height;
+    const pageWidth = doc.internal.pageSize.width;
     const margin = 40;
-    
-    if (yPosRef.y > pageHeight - 100) { // Margen de seguridad
+    const rectHeight = 22; // Altura del rectángulo de título
+    const spacingAfter = 15; // Espacio después del título
+
+    // --- INICIO: Lógica de Salto de Página (Req 1) ---
+    // Revisar si cabe (título + espacio) o si se fuerza una nueva página
+    if (forceNewPage || (yPosRef.y + rectHeight + spacingAfter > pageHeight - margin)) {
         doc.addPage();
-        yPosRef.y = margin;
+        yPosRef.y = margin; // Resetear yPos para la nueva página
     }
+    // --- FIN: Lógica de Salto de Página ---
+    
+    // --- INICIO: Diseño de Título Mejorado (Req 3) ---
+    // Dibujar el rectángulo de fondo (usando el --primary-color)
+    doc.setFillColor(44, 62, 80); 
+    doc.rect(margin, yPosRef.y, pageWidth - margin * 2, rectHeight, 'F');
+    
+    // Escribir el texto del título
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text(title, margin, yPosRef.y);
-    yPosRef.y += 20;
+    doc.setTextColor(255, 255, 255); // Texto blanco
+    
+    // Calcular Y del texto para centrarlo verticalmente
+    const textY = yPosRef.y + (rectHeight / 2) + 5; // +5 es un ajuste para la línea base de la fuente
+    doc.text(title, margin + 10, textY); // Añadir 10pt de padding izquierdo
+    
+    doc.setTextColor(51, 51, 51); // Resetear color de texto a oscuro para lo que siga
+    yPosRef.y += rectHeight + spacingAfter; // Actualizar yPos para el siguiente elemento
+    // --- FIN: Diseño de Título Mejorado ---
 };
+
 
 
 /**
  * (Req 2) Función principal para generar y mostrar el PDF.
  * (MODIFICADA V8 - Portada)
+ * (MODIFICADA V9 - Req 1, 2, 3, 4)
+ * (MODIFICADA V10 - Corrección de bucle asíncrono)
  */
 async function generatePDF() {
     
@@ -2194,16 +2571,16 @@ async function generatePDF() {
     const pageHeight = doc.internal.pageSize.height;
     const pageWidth = doc.internal.pageSize.width;
     const margin = 40;
-    let yPosRef = { y: margin }; // (Req 3) Usar un objeto como referencia
+    let yPosRef = { y: margin }; 
 
-    // --- (Req 1 & 3) INICIO DE LA PORTADA/CABECERA (Estilo de Referencia) ---
-    const logoBase64 = logoBase64_Cache; // (Req 8) Usar el logo cacheado
+    // --- INICIO DE LA PORTADA/CABECERA ---
+    const logoBase64 = logoBase64_Cache; 
     let textX = margin;
     const logoWidth = 30;
     const logoHeight = 30;
     const logoX = margin;
-    const startYText = yPosRef.y + 10; // Alineado verticalmente con el logo
-    const lineHeight = 14; // Espacio entre líneas de texto
+    const startYText = yPosRef.y + 10; 
+    const lineHeight = 15; // (Req 1) Aumentado para más espacio
 
     if (logoBase64) {
         try {
@@ -2214,13 +2591,34 @@ async function generatePDF() {
         }
     }
     
-    doc.setFontSize(16); // Tamaño del título
+    doc.setFontSize(16); 
     doc.setFont('helvetica', 'bold');
     doc.text('Reporte de Supervisión', textX, startYText);
     
-    doc.setFontSize(11); // Tamaño del texto de detalle
+    // --- INICIO: (Req 1) Formato de Fecha ---
+    doc.setFontSize(11); 
     doc.setFont('helvetica', 'normal');
-    doc.text(`Fecha: ${data.fecha || 'N/A'}`, textX, startYText + lineHeight);
+    
+    let fechaFormateada = data.fecha || 'N/A';
+    if (data.fecha) {
+        try {
+            // Se añade T00:00:00 para evitar problemas de zona horaria
+            const fechaObj = new Date(data.fecha + 'T00:00:00'); 
+            fechaFormateada = fechaObj.toLocaleDateString('es-ES', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+            // Capitalizar la primera letra (ej. 'miércoles' -> 'Miércoles')
+            fechaFormateada = fechaFormateada.charAt(0).toUpperCase() + fechaFormateada.slice(1);
+        } catch(e) {
+            console.error("Error formateando fecha", e);
+            fechaFormateada = data.fecha; // Fallback
+        }
+    }
+    doc.text(`Fecha: ${fechaFormateada}`, textX, startYText + lineHeight);
+    // --- FIN: (Req 1) Formato de Fecha ---
     
     let locationInfo = `Edificio/Área: ${data.edificio || 'N/A'}`;
     if (data.nivel) {
@@ -2228,134 +2626,165 @@ async function generatePDF() {
     }
     doc.text(locationInfo, textX, startYText + (lineHeight * 2));
 
-    yPosRef.y += logoHeight + 30; // Espacio después del header
+    yPosRef.y += logoHeight + 20; // (Req 1) Aumentado para más espacio
     // --- FIN DE LA PORTADA/CABECERA ---
-    
-    
-    // (Req 4) Comentarios Finales en la portada
+
+    // --- INICIO: (Req 2) Posición de Línea Horizontal ---
+    // Mover Comentarios ANTES de la línea
     if (data.comentarios) {
-        addSectionTitle(doc, 'Comentarios Finales', yPosRef);
+        addSectionTitle(doc, 'Comentarios Finales', yPosRef, false); // false = no forzar pág nueva
         doc.setFontSize(11);
         doc.setFont('helvetica', 'normal');
-        // Usar splitTextToSize para manejar saltos de línea
-        const textLines = doc.splitTextToSize(data.comentarios, pageWidth - margin * 2);
         
-        // (Req 2) Comprobar si cabe
+        const textLines = doc.splitTextToSize(data.comentarios, pageWidth - margin * 2);
         const textHeight = textLines.length * 14;
+        
         if (yPosRef.y + textHeight > pageHeight - margin) {
             doc.addPage();
-            addPageFooters(doc); // (Corrección) Añadir pie de página a la nueva pág
             yPosRef.y = margin;
         }
         
         doc.text(textLines, margin, yPosRef.y);
-        yPosRef.y += textHeight + 15; // Estimar altura
+        yPosRef.y += textHeight + 15; 
     }
     
-    // --- Secciones Calificadas ---
+    // Dibujar la línea horizontal (siempre después de la portada y comentarios)
+    doc.setDrawColor(221, 221, 221); // Color gris claro
+    doc.line(margin, yPosRef.y, pageWidth - margin, yPosRef.y);
+    yPosRef.y += 15; // Espacio después de la línea
+    // --- FIN: (Req 2) Posición de Línea Horizontal ---
+    
+    
+    // --- INICIO: (Req 1) Lógica de Secciones ---
+    let isFirstSection = true; // Flag para controlar saltos de página
     
     // Baños
     if (data.calificarBanos === 'si') {
-        addSectionTitle(doc, 'Baños', yPosRef);
-        // (CORRECCIÓN V8.2) Usar el prefijo correcto
+        addSectionTitle(doc, 'Baños', yPosRef, !isFirstSection);
+        isFirstSection = false; // Las siguientes secciones SÍ forzarán
+        
         addQuestionsTable(doc, 'banos', QUESTIONS_CONFIG.banos, data, yPosRef);
         await addPhotos(doc, data.fotos['preview-banos'], yPosRef);
     }
 
-    // Elevadores
-    if (data.calificarElevadores === 'si') {
-        addSectionTitle(doc, 'Elevadores', yPosRef);
-        // (CORRECCIÓN V8.2) Usar el prefijo correcto
-        addQuestionsTable(doc, 'elevadores', QUESTIONS_CONFIG.elevadores, data, yPosRef);
-        await addPhotos(doc, data.fotos['preview-elevadores'], yPosRef);
+    // --- INICIO: (Req 3 y 4) Lógica Elevadores (CORREGIDA CON FOR...OF) ---
+    if (data.calificarElevadores === 'si' && data.elevadores.length > 0) {
+        
+        // *** INICIO DE LA CORRECCIÓN ***
+        // Cambiado de .forEach a for...of para que espere el await
+        for (const elevador of data.elevadores) {
+            
+            // Req 3: El título de sección usa el nombre de CADA elevador
+            // Req 4: addSectionTitle maneja el salto de página si no cabe
+            addSectionTitle(doc, `Elevador: ${elevador.numero}`, yPosRef, !isFirstSection);
+            isFirstSection = false;
+
+            // Tabla y fotos del elevador
+            const bodyElevador = [];
+            QUESTIONS_CONFIG.elevador.forEach((pregunta, qIndex) => {
+                const respuesta = elevador.respuestas[qIndex] || 'N/A';
+                const c = (respuesta === 'C') ? 'X' : '';
+                const nc = (respuesta === 'NC') ? 'X' : '';
+                const na = (respuesta === 'NA') ? 'X' : '';
+                bodyElevador.push([pregunta, c, nc, na]);
+            });
+
+            doc.autoTable({
+                startY: yPosRef.y,
+                head: [['Pregunta', 'Cumple', 'No Cumple', 'No Aplica']],
+                body: bodyElevador,
+                headStyles: { 
+                    fillColor: [52, 73, 94], 
+                    halign: 'center', 
+                    valign: 'middle' 
+                },
+                columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 50, halign: 'center' }, 2: { cellWidth: 60, halign: 'center' }, 3: { cellWidth: 60, halign: 'center' }},
+                didDrawPage: (hookData) => { if (hookData.pageNumber > hookData.settings.pageNumber) { yPosRef.y = margin; } },
+                margin: { top: margin }
+            });
+            yPosRef.y = doc.autoTable.previous.finalY + 15;
+            
+            // Este await AHORA SÍ pausará el bucle for...of
+            await addPhotos(doc, elevador.fotos, yPosRef);
+        }
+        // *** FIN DE LA CORRECCIÓN ***
     }
+    // --- FIN: (Req 3 y 4) Lógica Elevadores ---
 
     // Espacios Abiertos
     if (data.calificarEspacios === 'si') {
-        addSectionTitle(doc, 'Espacios Abiertos', yPosRef);
-        // (CORRECCIÓN V8.2) Usar el prefijo correcto
+        addSectionTitle(doc, 'Espacios Abiertos', yPosRef, !isFirstSection);
+        isFirstSection = false;
+        
         addQuestionsTable(doc, 'espacios', QUESTIONS_CONFIG.espacios, data, yPosRef);
         await addPhotos(doc, data.fotos['preview-espacios'], yPosRef);
     }
     
     // Sala de Juntas
     if (data.calificarJuntas === 'si') {
-        addSectionTitle(doc, 'Sala de Juntas', yPosRef);
-        // (CORRECCIÓN V8.2) Usar el prefijo correcto
+        addSectionTitle(doc, 'Sala de Juntas', yPosRef, !isFirstSection);
+        isFirstSection = false;
+        
         addQuestionsTable(doc, 'juntas', QUESTIONS_CONFIG.juntas, data, yPosRef);
         await addPhotos(doc, data.fotos['preview-juntas'], yPosRef);
     }
 
     // Áreas Comunes
     if (data.calificarComunes === 'si') {
-        addSectionTitle(doc, 'Áreas Comunes y Atención al Público', yPosRef);
-        // (CORRECCIÓN V8.2) Usar el prefijo correcto
+        addSectionTitle(doc, 'Áreas Comunes y Atención al Público', yPosRef, !isFirstSection);
+        isFirstSection = false;
+        
         addQuestionsTable(doc, 'comunes', QUESTIONS_CONFIG.comunes, data, yPosRef);
         await addPhotos(doc, data.fotos['preview-comunes'], yPosRef);
     }
 
-    // Oficinas Privadas
+    // --- INICIO: (Req 3 y 4) Lógica Oficinas (CORREGIDA CON FOR...OF) ---
     if (data.calificarOficinas === 'si' && data.oficinas.length > 0) {
-        addSectionTitle(doc, 'Oficinas Privadas', yPosRef);
         
+        // *** INICIO DE LA CORRECCIÓN ***
+        // Cambiado de .forEach a for...of
         for (const oficina of data.oficinas) {
-            if (yPosRef.y > pageHeight - 150) { // Espacio para subtítulo + tabla
-                doc.addPage();
-                addPageFooters(doc); // (Corrección) Añadir pie de página a la nueva pág
-                yPosRef.y = margin;
-            }
-            
-            doc.setFontSize(12);
-            doc.setFont('helvetica', 'bold');
-            doc.text(`Oficina: ${oficina.numero}`, margin, yPosRef.y);
-            yPosRef.y += 15;
 
-            // (Req 1 & 2) Lógica de tabla de oficina
+            // Req 3: El título de sección usa el nombre de CADA oficina
+            // Req 4: addSectionTitle maneja el salto de página si no cabe
+            addSectionTitle(doc, `Oficina: ${oficina.numero}`, yPosRef, !isFirstSection);
+            isFirstSection = false;
+
+            // Tabla y fotos de la oficina
             const bodyOficina = [];
-            QUESTIONS_CONFIG.oficina.forEach((pregunta, index) => {
-                const respuesta = oficina.respuestas[index] || 'N/A';
+            QUESTIONS_CONFIG.oficina.forEach((pregunta, qIndex) => {
+                const respuesta = oficina.respuestas[qIndex] || 'N/A';
                 const c = (respuesta === 'C') ? 'X' : '';
                 const nc = (respuesta === 'NC') ? 'X' : '';
                 const na = (respuesta === 'NA') ? 'X' : '';
-                bodyOficina.push([pregunta, c, nc, na]); // (Req 2) Se quitó index + 1
+                bodyOficina.push([pregunta, c, nc, na]);
             });
 
             doc.autoTable({
                 startY: yPosRef.y,
-                // (Req 1 & 2) Cabecera actualizada
                 head: [['Pregunta', 'Cumple', 'No Cumple', 'No Aplica']],
                 body: bodyOficina,
-                // (Req 2) Estilos de cabecera centrados
                 headStyles: { 
                     fillColor: [52, 73, 94], 
                     halign: 'center', 
                     valign: 'middle' 
                 },
-                // (Req 1 & 2) Estilos de columna actualizados
-                columnStyles: {
-                    0: { cellWidth: 'auto' }, // Pregunta
-                    1: { cellWidth: 50, halign: 'center' }, // C
-                    2: { cellWidth: 60, halign: 'center' }, // NC
-                    3: { cellWidth: 60, halign: 'center' }  // NA
-                },
-                didDrawPage: (hookData) => {
-                    // Si autoTable añade una página, reiniciar yPos
-                    if (hookData.pageNumber > hookData.settings.pageNumber) {
-                        yPosRef.y = margin;
-                    }
-                },
-                margin: { top: margin } // Asegurar que autoTable en nueva pág respete margen
+                columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 50, halign: 'center' }, 2: { cellWidth: 60, halign: 'center' }, 3: { cellWidth: 60, halign: 'center' }},
+                didDrawPage: (hookData) => { if (hookData.pageNumber > hookData.settings.pageNumber) { yPosRef.y = margin; } },
+                margin: { top: margin }
             });
             yPosRef.y = doc.autoTable.previous.finalY + 15;
-
+            
+            // Este await AHORA SÍ pausará el bucle for...of
             await addPhotos(doc, oficina.fotos, yPosRef);
         }
+        // *** FIN DE LA CORRECCIÓN ***
     }
+    // --- FIN: (Req 3 y 4) Lógica Oficinas ---
     
-    // (Req 4) Sección de Comentarios Finales ELIMINADA de aquí
     
     // 6. Añadir pies de página
-    addPageFooters(doc); // Pasa 'doc'
+    addPageFooters(doc); 
     
     // 7. Generar Blob
     const pdfBlob = doc.output('blob');
@@ -2364,7 +2793,7 @@ async function generatePDF() {
     // 8. Ocultar "Cargando" y mostrar opciones
     Swal.close();
     
-    // 9. (Req 2) Opciones de Compartir/Descargar
+    // 9. Opciones de Compartir/Descargar
     const canShare = navigator.share && navigator.canShare && navigator.canShare({ files: [pdfFile] });
 
     if (canShare) {
@@ -2416,468 +2845,6 @@ async function generatePDF() {
 }
 
 // --- FIN: LÓGICA DE GENERACIÓN DE PDF ---
-
-
-// --- INICIO: (Req 2) Funciones de Sesión ---
-
-/**
- * Guarda los datos del formulario (sin fotos) en localStorage.
- * Las fotos se guardan en IndexedDB en el momento en que se añaden.
- */
-function saveSession() {
-    // No guardar si la DB no está lista
-    if (!db) return;
-    
-    // (CORRECCIÓN V8.2) No guardar si los elementos de Pág 7 no están listos
-    if (!$formOficina || !$oficinaNumInput || !$oficinaEditIndex) return;
-
-    // 1. Recolectar radios C/NC/NA
-    const radioGroups = {};
-    // (Req 1) Busca todos los grupos de botones que NO estén en el form de oficina
-    $('.auto-save.btn-group').each(function() {
-        if ($(this).closest('#formulario-oficina-reutilizable').length === 0) {
-            const name = $(this).find('.btn-check').first().attr('name');
-            if (name) {
-                const value = $(`[name="${name}"]:checked`).val();
-                radioGroups[name] = value || null;
-            }
-        }
-    });
-
-    // 2. Crear el objeto de sesión
-    const sessionData = {
-        paginaActual: $('.pagina.active').attr('id') || 'pagina-1',
-        fecha: $('#fecha-supervision').val(),
-        edificio: $('#select-edificio').val(),
-        nivel: $('#select-nivel').val(),
-        
-        calificarBanos: $('[name="calificar-banos"]:checked').val(),
-        calificarElevadores: $('[name="calificar-elevadores"]:checked').val(),
-        calificarEspacios: $('[name="calificar-espacios"]:checked').val(),
-        calificarJuntas: $('[name="calificar-juntas"]:checked').val(), // (Req 1) Añadido
-        calificarComunes: $('[name="calificar-comunes"]:checked').val(), // (Req 1) Añadido
-        calificarOficinas: $('[name="calificar-oficinas"]:checked').val(),
-        
-        radios: radioGroups,
-        fotos: selectedFiles, // (Solo IDs)
-        oficinas: oficinasGuardadas, // (Contiene IDs de fotos)
-        
-        // (Req 2) Guardar el estado "sucio" del form de oficina
-        currentOffice: {
-            numero: $oficinaNumInput.val(), // (Corrección V8.2) Usar variable global
-            editIndex: $oficinaEditIndex.val(), // (Corrección V8.2) Usar variable global
-            // (Req 1) Guardar dinámicamente
-            respuestas: QUESTIONS_CONFIG.oficina.map((q, index) => {
-                return $(`[name="oficina-p${index}"]:checked`).val() || null;
-            })
-        },
-        
-        comentarios: $('#comentarios-finales').val()
-    };
-    
-    // 3. Guardar en localStorage
-    localStorage.setItem(SESSION_KEY, JSON.stringify(sessionData));
-}
-
-/**
- * Carga los datos del formulario desde localStorage.
- * Las fotos se cargan por separado desde IndexedDB.
- */
-async function loadSession() {
-    const dataString = localStorage.getItem(SESSION_KEY);
-    if (!dataString) return;
-    
-    try {
-        const data = JSON.parse(dataString);
-        
-        // Página 1 (Req 1 - Bug Fix)
-        $('#fecha-supervision').val(data.fecha);
-        $('#select-edificio').val(data.edificio); // 1. Setear valor
-        actualizarNiveles();                     // 2. Poblar niveles
-        $('#select-nivel').val(data.nivel);      // 3. Setear nivel
-        validarPagina1();                        // 4. Validar
-        
-        // (Req 1) Toggles Sí/No y Desplegar áreas
-        if (data.calificarBanos === 'si') {
-            $('[name="calificar-banos"][value="si"]').prop('checked', true);
-            $('#area-banos').show();
-        } else {
-            $('[name="calificar-banos"][value="no"]').prop('checked', true);
-        }
-        
-        if (data.calificarElevadores === 'si') {
-            $('[name="calificar-elevadores"][value="si"]').prop('checked', true);
-            $('#area-elevadores').show();
-        } else {
-            $('[name="calificar-elevadores"][value="no"]').prop('checked', true);
-        }
-        
-        if (data.calificarEspacios === 'si') {
-            $('[name="calificar-espacios"][value="si"]').prop('checked', true);
-            $('#area-espacios').show();
-        } else {
-            $('[name="calificar-espacios"][value="no"]').prop('checked', true);
-        }
-
-        // (Req 1) Cargar nuevas áreas
-        if (data.calificarJuntas === 'si') {
-            $('[name="calificar-juntas"][value="si"]').prop('checked', true);
-            $('#area-juntas').show();
-        } else {
-            $('[name="calificar-juntas"][value="no"]').prop('checked', true);
-        }
-
-        if (data.calificarComunes === 'si') {
-            $('[name="calificar-comunes"][value="si"]').prop('checked', true);
-            $('#area-comunes').show();
-        } else {
-            $('[name="calificar-comunes"][value="no"]').prop('checked', true);
-        }
-        
-        if (data.calificarOficinas === 'si') {
-            $('[name="calificar-oficinas"][value="si"]').prop('checked', true);
-            $('#area-oficinas').show();
-        } else {
-            $('[name="calificar-oficinas"][value="no"]').prop('checked', true);
-        }
-        
-        // Radios C/NC/NA
-        if (data.radios) {
-            for (const name in data.radios) {
-                if (data.radios[name]) {
-                    $(`[name="${name}"]`).val([data.radios[name]]);
-                }
-            }
-        }
-        
-        // (Req 3) Cargar IDs de fotos
-        if (data.fotos) {
-            selectedFiles = data.fotos;
-            // Re-renderizar todas las vistas previas desde la DB
-            await renderFotosPreview('preview-banos');
-            await renderFotosPreview('preview-elevadores');
-            await renderFotosPreview('preview-espacios');
-            await renderFotosPreview('preview-juntas'); // (Req 1) Añadido
-            await renderFotosPreview('preview-comunes'); // (Req 1) Añadido
-            await renderFotosPreview('preview-oficina'); // (Req 2) Carga fotos del form "sucio"
-        }
-
-        // (Req 5) Cargar Oficinas Guardadas
-        if (data.oficinas) {
-            oficinasGuardadas = data.oficinas;
-            const $listaOficinas = $('#lista-oficinas-calificadas');
-            $listaOficinas.empty();
-            if (oficinasGuardadas.length === 0) {
-                $listaOficinas.append('<p class="text-muted" id="oficinas-vacias">Aún no hay oficinas calificadas.</p>');
-            } else {
-                oficinasGuardadas.forEach((oficina, index) => {
-                    $listaOficinas.append(`
-                        <a href="#" class="list-group-item list-group-item-action btn-editar-oficina" data-index="${index}">
-                            ${oficina.numero}
-                            <button type="button" class="btn btn-danger btn-sm btn-delete-office" data-index="${index}" title="Eliminar">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </a>
-                    `);
-                });
-            }
-        }
-        
-        // (Req 2) Cargar formulario de oficina "sucio"
-        if (data.currentOffice) {
-            const office = data.currentOffice;
-            $('#oficina-num-reutilizable').val(office.numero);
-            $('#oficina-edit-index').val(office.editIndex);
-            
-            if (office.editIndex > -1) {
-                 $('#titulo-form-oficina').text('Editando: ' + office.numero);
-                 // Marcarla como activa en la lista
-                 $(`#lista-oficinas-calificadas .btn-editar-oficina[data-index="${office.editIndex}"]`).addClass('active');
-            } else {
-                 $('#titulo-form-oficina').text('Nueva Oficina');
-            }
-            
-            // (Req 1) Cargar respuestas dinámicas
-            if(office.respuestas && office.respuestas.length > 0) {
-                office.respuestas.forEach((answer, index) => {
-                    if (answer) {
-                        $(`[name="oficina-p${index}"]`).val([answer]);
-                    }
-                });
-            }
-        }
-        
-        // Comentarios
-        $('#comentarios-finales').val(data.comentarios);
-        
-        // Página Actual
-        $('.pagina').removeClass('active');
-        const paginaGuardada = data.paginaActual || 'pagina-1';
-        $(`#${paginaGuardada}`).addClass('active');
-        
-        // Actualizar barra de progreso a la página guardada
-        const paginaNum = parseInt(paginaGuardada.split('-')[1]);
-        const porcentaje = (paginaNum / totalPaginas) * 100; // totalPaginas AHORA ES GLOBAL
-        $('#progress-bar').css('width', porcentaje + '%');
-        $('#progress-bar').text(`Paso ${paginaNum} de ${totalPaginas}`);
-
-
-    } catch (e) {
-        console.error("Error al cargar sesión (datos corruptos):", e);
-        await clearSession();
-    }
-}
-
-/**
- * Limpia localStorage (datos de formulario) y IndexedDB (fotos).
- */
-async function clearSession() {
-    localStorage.removeItem(SESSION_KEY);
-    selectedFiles = {
-        'preview-banos': [],
-        'preview-elevadores': [],
-        'preview-espacios': [],
-        'preview-juntas': [], // (Req 1) Añadido
-        'preview-comunes': [], // (Req 1) Añadido
-        'preview-oficina': []
-    };
-    oficinasGuardadas = [];
-    
-    if (db) {
-        try {
-            await clearImageDB();
-            console.log("IndexedDB de imágenes limpiada.");
-        } catch (error) {
-            console.error("No se pudo limpiar la IndexedDB:", error);
-            Swal.fire('Error', 'No se pudo limpiar la base de datos de fotos, pero la sesión del formulario fue borrada.', 'warning');
-        }
-    }
-}
-
-/**
- * Revisa si hay sesión guardada y pregunta al usuario.
- */
-async function checkForSavedSession() {
-    return new Promise((resolve) => {
-        if (localStorage.getItem(SESSION_KEY)) {
-            Swal.fire({
-                title: 'Trabajo Pendiente',
-                text: 'Detectamos un trabajo de supervisión que no fue enviado. ¿Deseas recuperarlo?',
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonText: 'Sí, recuperar',
-                cancelButtonText: 'No, empezar de cero',
-                allowOutsideClick: false
-            }).then(async (result) => {
-                if (result.isConfirmed) {
-                    await loadSession();
-                    Swal.fire('¡Listo!', 'Tu sesión ha sido restaurada.', 'success');
-                } else if (result.isDismissed) { 
-                    // (Req 4) Iniciar doble confirmación
-                    Swal.fire({
-                        title: '¿Estás 100% seguro?',
-                        html: "Esta acción es irreversible y todo su progreso se perderá.<br><strong>No habrá marcha atrás.</strong>",
-                        icon: 'error',
-                        showCancelButton: true,
-                        confirmButtonText: 'Sí, borrar todo',
-                        cancelButtonText: 'Cancelar',
-                        confirmButtonColor: '#e74c3c' // Rojo para el botón de borrar
-                    }).then(async (deleteResult) => {
-                        if (deleteResult.isConfirmed) {
-                            await clearSession();
-                            Swal.fire('Eliminado', 'Se ha borrado el progreso anterior.', 'success');
-                        } else {
-                            // Si cancela la segunda vez, RECARGAR la sesión
-                            await loadSession();
-                            Swal.fire('¡Restaurado!', 'Tu sesión ha sido restaurada.', 'success');
-                        }
-                        resolve();
-                    });
-                    return; // Importante: no resolver la promesa principal todavía
-                }
-                resolve();
-            });
-        } else {
-            resolve(); // No hay sesión, continuar normalmente
-        }
-    });
-}
-
-// --- FIN: (Req 2) Funciones de Sesión ---
-
-
-// --- INICIO: LÓGICA FOTOS (Req 2 y 3) ---
-
-/**
- * Convierte un File object a un string Base64.
- * @param {File} file - El archivo a convertir.
- * @returns {Promise<string>} - El string Base64.
- */
-function fileToBase64(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = (error) => reject(error);
-        reader.readAsDataURL(file);
-    });
-}
-
-/**
- * Maneja la selección de archivos (clic o arrastrar)
- * (Req 3) Guarda el archivo en IndexedDB y el ID en 'selectedFiles'.
- */
-async function handleFileInput(event, previewId) {
-    const files = event.target ? event.target.files : event.dataTransfer.files;
-    if (!files || files.length === 0 || !db) return;
-    
-    if (!selectedFiles[previewId]) {
-        selectedFiles[previewId] = [];
-    }
-
-    // Mostrar un "cargando" temporal
-    const previewContainer = document.getElementById(previewId);
-    const loadingHtml = `
-        <div class="image-preview-item text-center p-3">
-            <div class="spinner-border spinner-border-sm" role="status">
-                <span class="visually-hidden">Cargando...</span>
-            </div>
-        </div>`;
-    
-    // Crear promesas para todas las conversiones y guardados
-    const processingPromises = Array.from(files).map(async (file) => {
-        const tempSpinner = $(loadingHtml);
-        previewContainer.appendChild(tempSpinner[0]); // Añadir spinner
-        
-        try {
-            const base64Data = await fileToBase64(file);
-            const newId = await saveImageToDB(base64Data);
-            selectedFiles[previewId].push(newId);
-            
-            // (Req 3) Renderizar solo la nueva imagen en lugar de todo
-            tempSpinner.remove(); // Quitar el spinner
-            const div = document.createElement("div");
-            div.classList.add("image-preview-item");
-            div.innerHTML = `
-                <img src="${base64Data}" alt="Vista previa ${newId}">
-                <div class="delete-icon" onclick="deleteImage(this, '${previewId}', ${newId})">×</div>
-            `;
-            previewContainer.appendChild(div);
-            
-        } catch (error) {
-            console.error("Error guardando foto en DB:", error);
-            Swal.fire('Error de Foto', 'No se pudo guardar la imagen en la base de datos local.', 'error');
-            tempSpinner.remove();
-        }
-    });
-
-    // Esperar a que todas las fotos de este lote se procesen
-    await Promise.all(processingPromises);
-    
-    // (Req 2) Guardar la sesión con los nuevos IDs
-    saveSession();
-    
-    if (event.target) {
-        event.target.value = null;
-    }
-}
-
-/**
- * (Req 5) Renderiza las vistas previas desde el array de IDs.
- * (Req 3) Modificado para no "flashear"
- */
-async function renderFotosPreview(previewId) {
-    const previewContainer = document.getElementById(previewId);
-    previewContainer.innerHTML = ''; // Limpiar vistas previas actuales
-    
-    const idArray = selectedFiles[previewId] || [];
-    if (!db && idArray.length > 0) {
-        previewContainer.innerHTML = '<p class="text-danger">Error: La base de datos de fotos no está lista.</p>';
-        return;
-    }
-
-    // (Req 3) Optimización: Crear un fragmento de documento
-    const fragment = document.createDocumentFragment();
-
-    // Crear promesas para todas las recuperaciones de la DB
-    const renderPromises = idArray.map(async (id) => {
-        try {
-            const base64String = await getImageFromDB(id);
-            if (base64String) {
-                const div = document.createElement("div");
-                div.classList.add("image-preview-item");
-                // (Req 3) El onclick ahora pasa 'this'
-                div.innerHTML = `
-                    <img src="${base64String}" alt="Vista previa ${id}">
-                    <div class="delete-icon" onclick="deleteImage(this, '${previewId}', ${id})">×</div>
-                `;
-                return div;
-            } else {
-                console.warn(`Image ID ${id} no encontrado en DB. Eliminando de la sesión.`);
-                selectedFiles[previewId] = selectedFiles[previewId].filter(dbId => dbId !== id);
-                saveSession();
-                return null;
-            }
-        } catch (error) {
-            console.error(`Error al cargar imagen ID ${id} de la DB:`, error);
-            return null;
-        }
-    });
-
-    // Esperar a que todas las fotos se recuperen
-    const elements = await Promise.all(renderPromises);
-    
-    // Añadirlas al fragmento
-    elements.forEach(el => {
-        if (el) {
-            fragment.appendChild(el);
-        }
-    });
-    
-    // Añadir el fragmento al DOM (una sola operación)
-    previewContainer.appendChild(fragment);
-}
-
-
-/**
- * (Req 3) Elimina una imagen sin "flasheo".
- */
-async function deleteImage(buttonElement, previewId, id) {
-    if (!db) {
-        Swal.fire('Error', 'La base de datos no está lista.', 'error');
-        return;
-    }
-
-    // 1. (Req 3) Animar y eliminar de la UI inmediatamente
-    const item = buttonElement.closest('.image-preview-item');
-    if (item) {
-        item.classList.add('deleting');
-        // Esperar que la animación CSS termine (300ms) antes de borrar
-        setTimeout(() => {
-            item.remove();
-        }, 300);
-    }
-
-    try {
-        // 2. Eliminar de IndexedDB (en segundo plano)
-        await deleteImageFromDB(id);
-        
-        // 3. Eliminar de 'selectedFiles'
-        if (selectedFiles[previewId]) {
-            selectedFiles[previewId] = selectedFiles[previewId].filter(dbId => dbId !== id);
-        }
-        
-        // 4. Guardar la sesión actualizada
-        saveSession();
-        
-    } catch (error) {
-        console.error("Error eliminando imagen:", error);
-        Swal.fire('Error', 'No se pudo eliminar la imagen de la base de datos.', 'error');
-        // Si falla, al menos la UI está actualizada. La próxima carga lo sincronizará.
-    }
-}
-
-// --- FIN: LÓGICA FOTOS ---
 </script>
-
 </body>
 </html>

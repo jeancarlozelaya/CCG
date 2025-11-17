@@ -135,7 +135,8 @@
     }
 
     .question-container input,
-    .question-container select {
+    .question-container select,
+    .question-container textarea {
         width: 100%;
         padding: 12px 15px;
         border: 1px solid var(--border-color);
@@ -146,7 +147,8 @@
     }
 
     .question-container input:focus,
-    .question-container select:focus {
+    .question-container select:focus,
+    .question-container textarea:focus {
         border-color: var(--secondary-color);
         outline: none;
         box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
@@ -276,8 +278,6 @@
         font-weight: 600;
         font-size: 0.85rem;
     }
-
-    /* ESTILOS DE FOTOS REMOVIDOS DE AQUÍ (YA NO ESTÁ EL CONTENEDOR) */
 
     .image-preview {
         width: 100%;
@@ -599,10 +599,10 @@
     .checklist-item {
         margin-bottom: 10px;
         display: flex;
-        flex-direction: column; /* MODIFICADO para apilar */
-        align-items: flex-start; /* MODIFICADO para alinear */
+        flex-direction: column; 
+        align-items: flex-start; 
         justify-content: space-between;
-        padding: 12px; /* Más padding */
+        padding: 12px; 
         gap: 10px;
         background: #f9f9f9;
         border-radius: 6px;
@@ -617,17 +617,17 @@
         line-height: 1.3;
         word-wrap: break-word;
         overflow-wrap: break-word;
-        font-weight: 600; /* Más énfasis */
+        font-weight: 600; 
     }
 
     .checklist-buttons {
         display: flex;
         gap: 4px;
-        width: 100%; /* Ocupa todo el ancho */
+        width: 100%; 
     }
 
     .check-button, .x-button {
-        flex: 1; /* Distribución equitativa */
+        flex: 1; 
         height: 32px;
         border-radius: 3px;
         font-weight: bold;
@@ -975,17 +975,17 @@
         <div class="question-container">
             <div>
                 <label for="fecha"><strong>Fecha:</strong></label>
-                <input type="date" id="fecha" name="fecha">
+                <input type="date" id="fecha" name="fecha" class="auto-save">
             </div>
 
             <label for="colaborador"><strong>Colaborador:</strong></label>
             <div class="autocomplete-container">
-                <input type="text" id="colaborador" name="colaborador" placeholder="Escribe el nombre del colaborador" autocomplete="off">
+                <input type="text" id="colaborador" name="colaborador" placeholder="Escribe el nombre del colaborador" autocomplete="off" class="auto-save">
                 <div class="autocomplete-suggestions" id="colaborador-suggestions"></div>
             </div>
 
             <label for="area"><strong>Destino:</strong></label>
-            <select id="area" name="area">
+            <select id="area" name="area" class="auto-save">
                 <option value="">Seleccionar área</option>
             </select>
         </div>
@@ -1015,7 +1015,7 @@
     
                 <div class="question-container" style="margin-top: 20px;">
                     <label for="checklistObservaciones"><strong>Observaciones:</strong></label>
-                    <textarea id="checklistObservaciones" rows="3" placeholder="Escribe aquí cualquier observación adicional..." style="width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: 6px; font-family: inherit; resize: vertical;"></textarea>
+                    <textarea id="checklistObservaciones" rows="3" placeholder="Escribe aquí cualquier observación adicional..." style="width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: 6px; font-family: inherit; resize: vertical;" class="auto-save"></textarea>
                 </div>
             </div>
 
@@ -1062,6 +1062,10 @@
         <i class="fa-solid fa-download"></i>
         <span class="badge">0</span>
     </button>
+    
+    <button class="scroll-button" id="clear-session-button" onclick="confirmClearSession()" title="Borrar Sesión Actual y Empezar de Nuevo" style="bottom: 85px; background-color: var(--accent-color); display: none;">
+        <i class="fa-solid fa-broom"></i>
+    </button>
 
 
 <script>
@@ -1078,17 +1082,32 @@
         return result;
     };
 
-    // Variables globales
+    // === INICIO: VARIABLES GLOBALES Y CONSTANTES PARA PERSISTENCIA ===
+
+    const SESSION_KEY = 'equiposSessionData'; 
+    const DB_NAME = 'EquiposImageDB';       
+    const STORE_NAME = 'checklistImages';                
+    let db; // Variable global para la base de datos
+    let isDbInitialized = false;
+
+    // Variables globales (EXISTENTES)
     let equipos = [];
     let colaboradores = [];
     let areas = ["Bodega"];
     let equipoSeleccionado = null;
     let modoActual = "salidas";
     let ultimaTransaccion = null;
-    let checklistEstado = {};
-    let allColaboradores = []; // MOVIDA AL INICIO
+    let checklistEstado = {}; // {respuestas: [], fotos: {0: [id1, ...], 1: [...]}, observaciones: ""}
+    let allColaboradores = [];
 
-    // Checklists preoperativos y postoperativos
+    // Constante para el número máximo de PDFs a guardar
+    const MAX_PDFS_ALMACENADOS = 5;
+
+    // Variables de Autocomplete
+    let selectedColaboradorIndex = -1;
+    let filteredColaboradores = [];
+
+    // Checklists preoperativos y postoperativos (SIN CAMBIOS)
     const checklistsPreOperativos = {
         "aspiradoras": [
             "¿La aspiradora está limpia por fuera?",
@@ -1169,6 +1188,415 @@
             "Nivel de aceite del motor verificado y completado"
         ]
     };
+    
+    // === FIN: VARIABLES GLOBALES Y CONSTANTES PARA PERSISTENCIA ===
+
+
+    // === INICIO: LÓGICA DE INDEXEDDB ===
+
+    function initDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(DB_NAME, 1);
+            request.onupgradeneeded = function(event) {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains(STORE_NAME)) {
+                    db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+                }
+            };
+            request.onsuccess = function(event) {
+                db = event.target.result;
+                isDbInitialized = true;
+                console.log('IndexedDB abierta correctamente');
+                resolve(db);
+            };
+            request.onerror = function(event) {
+                console.error('Error al abrir IndexedDB:', event.target.error);
+                Swal.fire('Error Crítico', 'No se pudo iniciar la base de datos local para fotos. La página no funcionará correctamente.', 'error');
+                reject(event.target.error);
+            };
+        });
+    }
+    
+    /**
+     * Recupera una imagen de la DB usando su ID.
+     */
+    function getImageFromDB(id) {
+        return new Promise((resolve, reject) => {
+            if (!db) { reject('La base de datos no está inicializada.'); return; }
+            const transaction = db.transaction([STORE_NAME], 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.get(id);
+            request.onsuccess = (event) => {
+                const result = event.target.result;
+                // Devolvemos la DataURL que es el campo 'image' del objeto almacenado
+                resolve(result ? result.image : null); 
+            };
+            request.onerror = (event) => reject(event.target.error);
+        });
+    }
+
+    function saveImageToDB(base64Data) {
+        return new Promise((resolve, reject) => {
+            if (!db) { reject('La base de datos no está inicializada.'); return; }
+            const transaction = db.transaction([STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.add({ image: base64Data });
+            request.onsuccess = (event) => resolve(event.target.result);
+            request.onerror = (event) => reject(event.target.error);
+        });
+    }
+
+    function deleteImageFromDB(id) {
+        return new Promise((resolve, reject) => {
+            if (!db) { reject('La base de datos no está inicializada.'); return; }
+            const transaction = db.transaction([STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.delete(id);
+            request.onsuccess = () => resolve();
+            request.onerror = (event) => reject(event.target.error);
+        });
+    }
+
+    function clearImageDB() {
+        return new Promise((resolve, reject) => {
+            if (!db) { reject('La base de datos no está inicializada.'); return; }
+            const transaction = db.transaction([STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.clear();
+            request.onsuccess = () => resolve();
+            request.onerror = (event) => reject(event.target.error);
+        });
+    }
+
+    // === FIN: LÓGICA DE INDEXEDDB ===
+
+
+    // === INICIO: LÓGICA DE SESIÓN (AUTOGUARDADO Y RECUPERACIÓN) ===
+
+    function saveSession() {
+        const colaboradorVal = $('#colaborador').val();
+        const areaVal = $('#area').val();
+        
+        // 1. CORRECCIÓN: Evitar guardar una sesión vacía (soluciona Issue 1 anterior)
+        if (!equipoSeleccionado && !colaboradorVal && !areaVal) {
+             localStorage.removeItem(SESSION_KEY);
+             document.getElementById('clear-session-button').style.display = 'none';
+             return; 
+        }
+        
+        // Aseguramos que la firma se guarde antes de la sesión
+        const canvas = document.getElementById('firmaCanvas');
+        const firmaData = isCanvasBlank(canvas) ? null : canvas.toDataURL();
+        
+        // Guardamos las fotos del checklist como IDs si la DB está inicializada
+        let fotosParaGuardar = {};
+        if (isDbInitialized) {
+            // El estado ya usa IDs si se inicializó correctamente
+            fotosParaGuardar = checklistEstado.fotos; 
+        } else {
+            // Si la DB falló, guardamos la estructura, pero las fotos son dataURLs (menos robusto)
+            fotosParaGuardar = checklistEstado.fotos; 
+        }
+
+        const sessionData = {
+            modoActual: modoActual,
+            fecha: $('#fecha').val(),
+            colaborador: colaboradorVal,
+            area: areaVal,
+            equipoSeleccionadoNombre: equipoSeleccionado ? equipoSeleccionado.nombre : null,
+            
+            // Checklist: respuestas, observaciones y fotos (IDs)
+            checklistEstado: {
+                respuestas: checklistEstado.respuestas || [],
+                observaciones: $('#checklistObservaciones').val() || "",
+                fotos: fotosParaGuardar || {}
+            },
+            
+            // Firma (DataURL)
+            firmaData: firmaData,
+            
+            // Estado del canvas para deshacer/rehacer (Opcional, pero para consistencia)
+            undoStackLength: undoStack.length,
+            redoStackLength: redoStack.length
+        };
+        
+        localStorage.setItem(SESSION_KEY, JSON.stringify(sessionData));
+        document.getElementById('clear-session-button').style.display = 'flex'; // Mostrar botón de limpieza manual
+    }
+
+
+    async function loadSession() {
+        const dataString = localStorage.getItem(SESSION_KEY);
+        if (!dataString) return;
+        
+        try {
+            const data = JSON.parse(dataString);
+            
+            // Capturamos la fecha actual (la que se cargó por defecto en DOMContentLoaded)
+            const defaultDate = document.getElementById("fecha").value; 
+            
+            // 1. Cargar datos de formulario
+            $('#fecha').val(data.fecha || defaultDate); 
+            $('#colaborador').val(data.colaborador);
+            $('#area').val(data.area);
+            
+            // 2. Cambiar modo
+            if (data.modoActual) {
+                // Usamos la función original de cambiarModo, pero evitamos el autoguardado inicial
+                const oldModo = modoActual;
+                modoActual = data.modoActual; // Establecer globalmente antes de llamar
+                
+                // Actualizar botones (la lógica de la función cambiarModo se encargará del resto)
+                if (modoActual === 'salidas') {
+                    $('#btnSalidas').removeClass('inactivo').addClass('activo');
+                    $('#btnEntradas').removeClass('activo').addClass('inactivo');
+                    $('#titulo-equipos').text('Seleccione el equipo a prestar:');
+                } else {
+                    $('#btnSalidas').removeClass('activo').addClass('inactivo');
+                    $('#btnEntradas').removeClass('inactivo').addClass('activo');
+                    $('#titulo-equipos').text('Seleccione el equipo a devolver:');
+                }
+                
+                // La lógica de mostrarEquiposEnUI se llama después de cargar todos los datos
+                // Se cargará al final de DOMContentLoaded
+            }
+
+            // 3. Cargar Equipo Seleccionado (Necesitamos la lista `equipos` cargada)
+            if (data.equipoSeleccionadoNombre && equipos.length > 0) {
+                const index = equipos.findIndex(e => e.nombre === data.equipoSeleccionadoNombre);
+                if (index !== -1) {
+                    equipoSeleccionado = equipos[index];
+                    // Resaltar en la UI (se hace en mostrarEquiposEnUI, pero lo forzamos aquí)
+                    setTimeout(() => {
+                         $(`#equipo-${index}`).css('border-color', '#007BFF').css('background-color', '#e6f0ff');
+                         if (modoActual === "entradas") {
+                            $('#buscador').prop('disabled', true);
+                            $('#fecha').prop('disabled', true);
+                            $('#colaborador').prop('disabled', true);
+                            $('#area').prop('disabled', true).val("Bodega");
+                            if (equipoSeleccionado.asignadoA) {
+                                // Mantenemos el nombre del colaborador guardado en la sesión, si existe
+                                if (!data.colaborador) {
+                                    $('#colaborador').val(equipoSeleccionado.asignadoA);
+                                }
+                            }
+                        }
+                    }, 500); // Pequeño delay para asegurar que el DOM de equipos se renderizó
+                }
+            }
+
+            // 4. Cargar Checklist
+            if (data.checklistEstado) {
+                checklistEstado = data.checklistEstado;
+                
+                // Si hay un equipo seleccionado, mostramos y restauramos el checklist
+                if (equipoSeleccionado) {
+                    await restaurarChecklistCompleto(checklistEstado);
+                }
+            }
+            
+            // 5. Cargar Firma
+            if (data.firmaData) {
+                const img = new Image();
+                img.src = data.firmaData;
+                img.onload = () => {
+                    const canvas = document.getElementById("firmaCanvas");
+                    const ctx = canvas.getContext("2d");
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    
+                    // Restaurar stacks de deshacer/rehacer (si se guardaron)
+                    undoStack.length = data.undoStackLength || 0;
+                    redoStack.length = data.redoStackLength || 0;
+                    updateButtonStates();
+                    verificarFormulario();
+                };
+            }
+            
+            verificarFormulario(); // Actualizar estilos finales
+            document.getElementById('clear-session-button').style.display = 'flex'; // Mostrar botón de limpieza manual
+            
+        } catch (e) {
+            console.error("Error al cargar sesión (datos corruptos):", e);
+            await clearSession();
+        }
+    }
+    
+    /**
+     * Reune toda la lógica para restaurar el checklist (UI y Fotos).
+     */
+    async function restaurarChecklistCompleto(estado) {
+        if (!equipoSeleccionado) return;
+        
+        const tipo = modoActual === 'salidas' ? 'pre' : 'post';
+        const categoriaSeleccionada = determinarCategoria(equipos.findIndex(e => e.nombre === equipoSeleccionado.nombre));
+        const checklistData = tipo === 'pre' ? 
+            (checklistsPreOperativos[categoriaSeleccionada] || checklistsPreOperativos["aspiradoras"]) :
+            (checklistsPostOperativos[categoriaSeleccionada] || checklistsPostOperativos["aspiradoras"]);
+
+        // 1. Generar UI del checklist
+        generarChecklistUI(checklistData); 
+        
+        // 2. Restaurar respuestas de botones
+        restaurarEstadoChecklist(estado.respuestas || []);
+        
+        // 3. Restaurar observaciones
+        $('#checklistObservaciones').val(estado.observaciones || '');
+        
+        // 4. Restaurar fotos (desde IndexedDB usando los IDs guardados)
+        if (estado.fotos && isDbInitialized) {
+            const fotosPromesas = Object.keys(estado.fotos).map(async (index) => {
+                const ids = estado.fotos[index] || [];
+                const restoredDataUrls = [];
+                const validIds = [];
+                for (const id of ids) {
+                    // Obtener la imagen de la DB
+                    const dataUrl = await getImageFromDB(id); 
+                    if (dataUrl) {
+                        // Aquí no necesitamos la dataUrl, solo necesitamos 
+                        // que los IDs sigan siendo los mismos en el estado.
+                        validIds.push(id);
+                    } else {
+                        console.warn(`ID de foto ${id} no encontrado. Eliminando del estado.`);
+                    }
+                }
+                // Actualizar el array de IDs del estado (limpia IDs no encontrados)
+                checklistEstado.fotos[index] = validIds; 
+                await renderizarPreviews(index); // Renderiza las previews usando los IDs válidos
+            });
+            await Promise.all(fotosPromesas);
+        } else if (estado.fotos) {
+             // Si la DB falló, restauramos fotos usando los dataURLs (si se guardaron así)
+             for (const index in estado.fotos) {
+                 await renderizarPreviews(index); 
+             }
+        }
+        
+        // 5. Actualizar progreso final
+        actualizarProgresoChecklist();
+        $('#checklist-section').show();
+    }
+
+
+    async function clearSession() {
+        localStorage.removeItem(SESSION_KEY);
+        
+        checklistEstado = {};
+        
+        // Limpiar formulario
+        $('#fecha').val('');
+        $('#colaborador').val('');
+        $('#area').val('');
+        equipoSeleccionado = null;
+        ocultarChecklist();
+        
+        // Limpiar firma
+        clearSignature();
+
+        if (db) {
+            try {
+                await clearImageDB();
+                console.log("IndexedDB de imágenes limpiada.");
+            } catch (error) {
+                console.error("No se pudo limpiar la IndexedDB:", error);
+                Swal.fire('Error', 'No se pudo limpiar la base de datos de fotos.', 'warning');
+            }
+        }
+        
+        mostrarEquiposEnUI(); // Refrescar equipos
+        cambiarModo('salidas'); // Volver al modo inicial
+        
+        // Al limpiar, forzamos la fecha a la de hoy nuevamente para consistencia
+        var today = new Date();
+        var yyyy = today.getFullYear();
+        var mm = String(today.getMonth() + 1).padStart(2, '0');
+        var dd = String(today.getDate()).padStart(2, '0');
+        document.getElementById("fecha").value = yyyy + '-' + mm + '-' + dd;
+        
+        // Ocultar botón de limpieza
+        document.getElementById('clear-session-button').style.display = 'none';
+    }
+
+    // FUNCIÓN DE CONFIRMACIÓN CON DOBLE ADVERTENCIA (CORREGIDO)
+    function confirmClearSession() {
+        Swal.fire({
+            title: '¿Limpiar Formulario?',
+            text: "Esta acción eliminará el progreso actual y la sesión autoguardada. ¿Deseas continuar?",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, borrar todo',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#e74c3c'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // INICIO: SEGUNDA ADVERTENCIA (COMO AL CARGAR LA PÁGINA)
+                Swal.fire({
+                    title: '¿Estás 100% seguro?',
+                    html: "Esta acción es irreversible y todo su progreso se perderá.",
+                    icon: 'error',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, borrar todo',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: '#e74c3c'
+                }).then(async (deleteResult) => {
+                    if (deleteResult.isConfirmed) {
+                        await clearSession();
+                        Swal.fire('Eliminado', 'Se ha borrado el progreso anterior.', 'success');
+                    }
+                    // Si cancela la segunda, se cierra este diálogo y vuelve al estado anterior
+                });
+                // FIN: SEGUNDA ADVERTENCIA
+            }
+        });
+    }
+
+
+    async function checkForSavedSession() {
+        return new Promise((resolve) => {
+            if (localStorage.getItem(SESSION_KEY)) {
+                Swal.fire({
+                    title: 'Trabajo Pendiente',
+                    text: 'Detectamos un trabajo de gestión que no fue enviado. ¿Deseas recuperarlo?',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, recuperar',
+                    cancelButtonText: 'No, empezar de cero',
+                    allowOutsideClick: false
+                }).then(async (result) => {
+                    if (result.isConfirmed) {
+                        await loadSession();
+                        Swal.fire('¡Listo!', 'Tu sesión ha sido restaurada.', 'success');
+                    } else if (result.isDismissed) { 
+                        Swal.fire({
+                            title: '¿Estás 100% seguro?',
+                            html: "Esta acción es irreversible y todo su progreso se perderá.",
+                            icon: 'error',
+                            showCancelButton: true,
+                            confirmButtonText: 'Sí, borrar todo',
+                            cancelButtonText: 'Cancelar',
+                            confirmButtonColor: '#e74c3c'
+                        }).then(async (deleteResult) => {
+                            if (deleteResult.isConfirmed) {
+                                await clearSession();
+                                Swal.fire('Eliminado', 'Se ha borrado el progreso anterior.', 'success');
+                            } else {
+                                await loadSession();
+                                Swal.fire('¡Restaurado!', 'Tu sesión ha sido restaurada.', 'success');
+                            }
+                            resolve();
+                        });
+                        return;
+                    }
+                    resolve();
+                });
+            } else {
+                resolve();
+            }
+        });
+    }
+
+    // === FIN: LÓGICA DE SESIÓN ===
+
 
     // ===== CÓDIGO MEJORADO PARA LA FIRMA =====
     let isDrawing = false;
@@ -1182,7 +1610,6 @@
 
     // Configuración inicial del canvas
     function initializeCanvas() {
-        // Establecer tamaño fijo para mejor compatibilidad
         canvas.width = 400;
         canvas.height = 200;
         ctx.strokeStyle = "#000000";
@@ -1190,15 +1617,9 @@
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
         
-        // Limpiar canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = "#FFFFFF";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Verificar el formulario después de inicializar el canvas
-        setTimeout(() => {
-            verificarFormulario();
-        }, 100);
     }
 
     // Función mejorada para obtener coordenadas
@@ -1230,15 +1651,15 @@
     // Función para empezar a dibujar
     function startDrawing(e) {
         e.preventDefault();
-        saveToUndoStack();
+        saveToUndoStack(); // Guardamos el estado ANTES de dibujar
         isDrawing = true;
         const { x, y } = getCoordinates(e);
         lastX = x;
         lastY = y;
         
-        // Dibujar un punto inicial (importante para touch)
         ctx.beginPath();
         ctx.arc(x, y, ctx.lineWidth/2, 0, Math.PI * 2);
+        ctx.fillStyle = isErasing ? "#FFFFFF" : "#000000";
         ctx.fill();
         ctx.beginPath();
         ctx.moveTo(x, y);
@@ -1260,19 +1681,15 @@
         
         lastX = x;
         lastY = y;
-        
-        // Verificar después de cada trazo significativo
-        verificarFormulario();
     }
 
     // Función para terminar de dibujar
     function stopDrawing() {
         if (isDrawing) {
             isDrawing = false;
-            // Pequeño delay para asegurar que el canvas se actualizó
-            setTimeout(() => {
-                verificarFormulario();
-            }, 50);
+            // Guardamos la sesión después de una pausa para no sobrecargar el storage
+            setTimeout(saveSession, 500); 
+            setTimeout(verificarFormulario, 50); // Verificar después de una pausa
         }
     }
 
@@ -1293,6 +1710,7 @@
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 ctx.drawImage(img, 0, 0);
                 verificarFormulario();
+                saveSession();
             };
             updateButtonStates();
         }
@@ -1308,6 +1726,7 @@
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 ctx.drawImage(img, 0, 0);
                 verificarFormulario();
+                saveSession();
             };
             updateButtonStates();
         }
@@ -1325,39 +1744,34 @@
         ctx.fillStyle = "#FFFFFF";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        // Asegurar que se verifique después de limpiar
         setTimeout(() => {
             verificarFormulario();
+            saveSession();
         }, 100);
         
         updateButtonStates();
     }
 
-    // ===== CONFIGURACIÓN DE EVENTOS MEJORADA =====
+    // CONFIGURACIÓN DE EVENTOS MEJORADA
     function setupSignatureEvents() {
-        // Eventos de mouse
         canvas.addEventListener("mousedown", startDrawing);
         canvas.addEventListener("mousemove", draw);
         canvas.addEventListener("mouseup", stopDrawing);
         canvas.addEventListener("mouseout", stopDrawing);
         
-        // Eventos de touch (mejorados)
         canvas.addEventListener("touchstart", function(e) {
             startDrawing(e);
-            // Prevenir scroll y zoom
             e.preventDefault();
         }, { passive: false });
         
         canvas.addEventListener("touchmove", function(e) {
             draw(e);
-            // Prevenir scroll durante el dibujo
             e.preventDefault();
         }, { passive: false });
         
         canvas.addEventListener("touchend", stopDrawing);
         canvas.addEventListener("touchcancel", stopDrawing);
         
-        // Botones de herramientas
         document.getElementById("toggleEraser").addEventListener("click", function() {
             isErasing = !isErasing;
             this.classList.toggle("active");
@@ -1370,99 +1784,108 @@
         document.getElementById("redo").addEventListener("click", redo);
         document.getElementById("clearSignature").addEventListener("click", clearSignature);
         
-        // Prevenir acciones por defecto en el canvas
-        canvas.addEventListener("contextmenu", function(e) {
-            e.preventDefault();
-        });
+        canvas.addEventListener("contextmenu", function(e) { e.preventDefault(); });
         
-        // Estilos CSS adicionales para mejorar la experiencia táctil
         canvas.style.touchAction = "none";
         canvas.style.msTouchAction = "none";
     }
 
-    // ===== INICIALIZACIÓN =====
-    document.addEventListener('DOMContentLoaded', function() {
-        // Establecer fecha actual
-        var today = new Date();
-        var yyyy = today.getFullYear();
-        var mm = String(today.getMonth() + 1).padStart(2, '0');
-        var dd = String(today.getDate()).padStart(2, '0');
-        document.getElementById("fecha").value = yyyy + '-' + mm + '-' + dd;
-
-        // Inicializar canvas después de que todo esté cargado
-        setTimeout(() => {
-            initializeCanvas();
-            setupSignatureEvents();
-            
-            // Mostrar botones de herramientas
-            document.getElementById("toggleEraser").style.display = "block";
-            document.getElementById("undo").style.display = "none";
-            document.getElementById("redo").style.display = "none";
-        }, 100);
-
-        cargarTodosLosDatos();
-        configurarEventos();
-
-        // Prevenir acciones no deseadas
-        document.addEventListener('contextmenu', function(e) {
-            e.preventDefault();
-        });
-
-        document.addEventListener('selectstart', function(e) {
-            e.preventDefault();
-        });
-
-        document.querySelectorAll('img').forEach(img => {
-            img.addEventListener('dragstart', function(e) {
-                e.preventDefault();
-            });
-        });
-        
-        // Verificar PDFs pendientes al cargar
-        setTimeout(() => {
-            console.log('🚀 INICIANDO APLICACIÓN - VERIFICANDO PDFs');
-            mostrarBotonesActasPendientes();
-        }, 1000);
-
-        // Inicializar eventos para el autocomplete
-        initAutocomplete();
-    });
-
-    // ===== FUNCIÓN CORREGIDA PARA VERIFICAR SI EL CANVAS ESTÁ VACÍO =====
+    // VERIFICAR SI EL CANVAS ESTÁ VACÍO
     function isCanvasBlank(canvas) {
         try {
             const context = canvas.getContext('2d');
             const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
             const pixelBuffer = new Uint32Array(imageData.data.buffer);
             
-            console.log('Verificando canvas. Total píxeles:', pixelBuffer.length);
-            
-            // Contar píxeles no blancos (diferentes de blanco puro o transparente)
             let nonWhitePixels = 0;
             for (let i = 0; i < pixelBuffer.length; i++) {
-                // Un pixel es considerado "no blanco" si no es completamente blanco (0xFFFFFFFF) o transparente (0x00000000)
                 if (pixelBuffer[i] !== 0xFFFFFFFF && pixelBuffer[i] !== 0x00000000) {
                     nonWhitePixels++;
                 }
             }
-            
-            console.log('Píxeles no blancos encontrados:', nonWhitePixels);
-            
-            // Si hay más de 100 píxeles no blancos, considerar que tiene contenido
             const hasContent = nonWhitePixels > 100;
-            
             return !hasContent;
             
         } catch (error) {
             console.error('Error al verificar canvas:', error);
-            return true; // En caso de error, considerar como vacío
+            return true;
         }
     }
 
-    // ===== RESTO DEL CÓDIGO DE LA APLICACIÓN =====
+
+    // === INICIO: DOMContentLoaded y Inicialización ===
+    
+    document.addEventListener('DOMContentLoaded', async function() {
+        
+        // 1. Inicializar DB y Canvas
+        await initDB();
+        initializeCanvas();
+        setupSignatureEvents();
+        
+        // 2. Establecer fecha actual (Siempre se ejecuta antes de loadSession)
+        var today = new Date();
+        var yyyy = today.getFullYear();
+        var mm = String(today.getMonth() + 1).padStart(2, '0');
+        var dd = String(today.getDate()).padStart(2, '0');
+        
+        // Establecer la fecha actual de inmediato (si está vacía), 
+        // para que 'loadSession' pueda usarla como fallback.
+        if (document.getElementById("fecha").value === '') {
+            document.getElementById("fecha").value = yyyy + '-' + mm + '-' + dd;
+        }
+
+
+        // 3. Cargar datos remotos
+        await cargarTodosLosDatos();
+        
+        // 4. Revisar sesión guardada
+        await checkForSavedSession();
+
+        // 5. Configurar Eventos de Formulario (Autoguardado)
+        configurarEventos();
+
+        // 6. Configurar eventos de autocompletado
+        initAutocomplete();
+        
+        // 7. Mostrar botón de actas pendientes
+        mostrarBotonesActasPendientes();
+        
+        // Mostrar botones de herramientas de firma
+        document.getElementById("toggleEraser").style.display = "block";
+        document.getElementById("undo").style.display = "none";
+        document.getElementById("redo").style.display = "none";
+
+        // 8. Ocultar el botón de limpieza si no hay sesión
+        if (!localStorage.getItem(SESSION_KEY)) {
+             document.getElementById('clear-session-button').style.display = 'none';
+        }
+    });
+
+    // === FIN: DOMContentLoaded y Inicialización ===
+
+    // ===== RESTO DEL CÓDIGO DE LA APLICACIÓN (ADAPTADO) =====
+    
+    // Función de autoguardado para los campos principales
+    // Se usa 'input' para campos de texto y 'change' para select/date
+    function configurarEventos() {
+        $('#buscador').on('input', filtrarEquipos);
+        $("#fecha, #colaborador, #area").on("change input", function() {
+             verificarFormulario(); 
+             saveSession();
+        });
+        $("#checklistObservaciones").on("input", function() {
+             guardarEstadoChecklist(); 
+             saveSession();
+        });
+        
+        // Eventos para modo
+        $('#btnSalidas').on('click', function() { cambiarModo('salidas'); saveSession(); });
+        $('#btnEntradas').on('click', function() { cambiarModo('entradas'); saveSession(); });
+    }
+
     function cambiarModo(modo) {
         checklistEstado = {};
-        ocultarChecklist(); // Oculta y resetea el checklist
+        ocultarChecklist(); 
         modoActual = modo;
         equipoSeleccionado = null;
         $('.equipo').css('border-color', '#ddd').css('background-color', '#f9f9f9');
@@ -1491,19 +1914,25 @@
         }
 
         mostrarEquiposEnUI();
-        verificarFormulario(); // Solo para feedback visual
+        verificarFormulario();
+        // El autoguardado se maneja en el listener de los botones.
     }
 
-    function cargarTodosLosDatos() {
+    async function cargarTodosLosDatos() {
         $('#overlay').show();
+        $('#loadingMessage p').text('Cargando la lista de equipos y colaboradores desde el servidor...');
+
         const scriptURL = "https://script.google.com/macros/s/AKfycbxbiQDZcTJA2I9XknV-VF-3E9NdK_b8xq-8fc4LkZ4jh5n4jkJQz0_UlB_zbKpHSJGl/exec";
 
-        $.get(scriptURL, function(data) {
+        try {
+            const data = await $.get(scriptURL);
             $('#overlay').hide();
+            
             if (data.error) {
                 Swal.fire('Error', 'No se pudieron cargar los datos: ' + data.mensaje, 'error');
                 return;
             }
+            
             equipos = data.equipos;
             colaboradores = data.colaboradores;
             data.areas.forEach(area => {
@@ -1514,11 +1943,12 @@
 
             mostrarEquiposEnUI();
             llenarSelects();
-        }).fail(function(jqXHR, textStatus, errorThrown) {
+            
+        } catch (error) {
             $('#overlay').hide();
-            Swal.fire('Error', 'No se pudo conectar al servidor o hubo un error de red. ' + textStatus + ': ' + errorThrown, 'error');
-            console.error("Error en la solicitud AJAX:", jqXHR, textStatus, errorThrown);
-        });
+            Swal.fire('Error', 'No se pudo conectar al servidor o hubo un error de red.', 'error');
+            console.error("Error en la solicitud AJAX:", error);
+        }
     }
 
     function llenarSelects() {
@@ -1556,9 +1986,13 @@
 
             let estadoClass = equipo.disponible ? 'disponible' : 'no-disponible';
             let estadoText = equipo.disponible ? 'Disponible' : `Ocupada por: ${equipo.asignadoA}`;
+            
+            // Determinar si es el equipo seleccionado para marcarlo
+            let isSelected = equipoSeleccionado && equipoSeleccionado.nombre === equipo.nombre;
+            let borderStyle = isSelected ? 'border-color: #007BFF; background-color: #e6f0ff;' : '';
 
             let equipoHtml = `
-                <div class="equipo" id="equipo-${index}" onclick="seleccionarEquipo(${index})">
+                <div class="equipo" id="equipo-${index}" data-index="${index}" onclick="seleccionarEquipo(${index})" style="${borderStyle}">
                     <img src="${equipo.imagen || ''}" alt="${equipo.nombre}" onerror="this.style.display='none'">
                     <label>${equipo.nombre}</label>
                     <span class="${estadoClass}">${estadoText}</span>
@@ -1572,7 +2006,7 @@
             }
         });
 
-        $('.category-separator').on('click', function() {
+        $('.category-separator').off('click').on('click', function() {
             const $separator = $(this);
             const $toggleIcon = $separator.find('.toggle-icon');
             const $equiposToToggle = $separator.nextUntil('.category-separator');
@@ -1586,29 +2020,23 @@
         });
     }
 
-    function configurarEventos() {
-        $('#buscador').on('input', filtrarEquipos);
-        $("#fecha, #colaborador, #area").on("change", verificarFormulario);
-    }
-
     function filtrarEquipos() {
         const textoBusqueda = $('#buscador').val().toLowerCase();
-        if (textoBusqueda === '') {
-            $('.equipo').show();
-            $('.category-separator').show().removeClass('collapsed').find('.toggle-icon').html('&#9660;');
-            return;
-        }
-
-        $('.equipo').hide();
-        $('.category-separator').hide();
+        
+        $('.equipo, .category-separator').hide();
 
         $('.equipo').each(function() {
             const nombreEquipo = $(this).find('label').text().toLowerCase();
             if (nombreEquipo.includes(textoBusqueda)) {
                 $(this).show();
+                // Mostrar el separador de categoría anterior
                 $(this).prevAll('.category-separator:first').show().removeClass('collapsed').find('.toggle-icon').html('&#9660;');
             }
         });
+        
+        if (textoBusqueda === '') {
+            mostrarEquiposEnUI(); // Restaura la vista normal si se limpia el buscador
+        }
     }
 
     function determinarCategoria(equipoIndex) {
@@ -1628,14 +2056,16 @@
             return;
         }
 
-        // Resetea el checklist antes de seleccionar nuevo equipo
-        checklistEstado = {};
+        // 1. Resetear y guardar el equipo seleccionado
+        checklistEstado = { fotos: {} }; // Inicializar checklistEstado
         ocultarChecklist();
+        equipoSeleccionado = equipo;
 
+        // 2. Resaltar en UI
         $('.equipo').css('border-color', '#ddd').css('background-color', '#f9f9f9');
         $(`#equipo-${index}`).css('border-color', '#007BFF').css('background-color', '#e6f0ff');
-        equipoSeleccionado = equipo;
         
+        // 3. Bloquear/Rellenar campos en modo "entradas"
         if (modoActual === "entradas") {
             $('#buscador').prop('disabled', true);
             $('#fecha').prop('disabled', true);
@@ -1644,16 +2074,21 @@
             if (equipoSeleccionado.asignadoA) {
                 $('#colaborador').val(equipoSeleccionado.asignadoA);
             }
+        } else {
+            // Limpiar campos en modo "salidas" al cambiar de equipo
+            $('#colaborador').prop('disabled', false).val('');
+            $('#area').prop('disabled', false).val('');
         }
 
-        verificarFormulario(); // Da feedback visual
-        mostrarChecklist(); // Muestra el checklist para el equipo seleccionado
+        // 4. Mostrar Checklist
+        mostrarChecklist(); 
+        
+        // 5. Autoguardado
+        saveSession();
     }
 
     function verificarFormulario() {
-        // Esta función ahora solo da feedback visual (ej. bordes rojos)
-        // No habilita/deshabilita el botón de envío.
-        
+        // La función original solo verifica la firma y el colaborador (adaptado)
         let colaborador = $("#colaborador").val();
         const canvas = document.getElementById('firmaCanvas');
         const hayFirma = !isCanvasBlank(canvas);
@@ -1665,7 +2100,6 @@
             colaboradorValido = colaborador !== '';
         }
 
-        // Estilos visuales
         if (modoActual === "salidas") {
             if (colaborador && !colaboradorValido) {
                 $("#colaborador").css("border-color", "red");
@@ -1674,7 +2108,6 @@
             }
         }
         
-        // Estilo para el canvas de firma
         if (hayFirma) {
             canvas.style.borderColor = "#28a745";
             canvas.style.borderWidth = "2px";
@@ -1684,7 +2117,7 @@
         }
     }
 
-    // --- FUNCIONES DE CHECKLIST INTEGRADAS ---
+    // --- FUNCIONES DE CHECKLIST INTEGRADAS (ADAPTADAS PARA DB) ---
 
     function ocultarChecklist() {
         $('#checklist-section').hide();
@@ -1692,6 +2125,8 @@
         $('#checklistObservaciones').val('');
         $('#progressBar').css('width', '0%');
         $('#progressText').text('0% completado');
+        // Limpiar el estado de fotos al ocultar
+        checklistEstado = { fotos: {} }; 
     }
 
     function mostrarChecklist() {
@@ -1713,8 +2148,6 @@
             (checklistsPreOperativos[categoriaSeleccionada] || checklistsPreOperativos["aspiradoras"]) :
             (checklistsPostOperativos[categoriaSeleccionada] || checklistsPostOperativos["aspiradoras"]);
         
-        console.log('Checklist data:', checklistData);
-        
         generarChecklistUI(checklistData);
         
         if (checklistEstado.respuestas) {
@@ -1730,7 +2163,10 @@
         
         if (observacionesTextarea) {
             observacionesTextarea.removeEventListener('input', guardarEstadoChecklist);
-            observacionesTextarea.addEventListener('input', guardarEstadoChecklist);
+            observacionesTextarea.addEventListener('input', function() {
+                guardarEstadoChecklist(); 
+                saveSession();
+            });
         }
         
         actualizarProgresoChecklist();
@@ -1743,6 +2179,8 @@
         items.forEach((item, index) => {
             if (respuestasGuardadas[index]) {
                 const respuesta = respuestasGuardadas[index];
+                item.querySelector('.check-button').classList.remove('selected');
+                item.querySelector('.x-button').classList.remove('selected');
                 if (respuesta === '✔') {
                     item.querySelector('.check-button').classList.add('selected');
                 } else if (respuesta === 'X') {
@@ -1754,29 +2192,19 @@
 
     function generarChecklistUI(checklist) {
         const container = document.getElementById('checklistContainer');
-        if (!container) {
-            console.error('No se encontró el elemento checklistContainer');
-            return;
-        }
+        if (!container) { return; }
         
         container.innerHTML = '';
 
-        // INICIALIZAR EL CONTENEDOR DE FOTOS EN checklistEstado SI NO EXISTE
-        if (!checklistEstado.fotos) {
-            checklistEstado.fotos = {};
-        }
+        if (!checklistEstado.fotos) { checklistEstado.fotos = {}; }
         
         checklist.forEach((item, index) => {
             const itemDiv = document.createElement('div');
             itemDiv.className = 'checklist-item';
 
-            // Inicializar array de fotos para este item si no existe
-            if (!checklistEstado.fotos[index]) {
-                checklistEstado.fotos[index] = []; // Usaremos data URLs para simplicidad
-            }
+            if (!checklistEstado.fotos[index]) { checklistEstado.fotos[index] = []; }
             
-            // Contar fotos existentes
-            const numFotos = checklistEstado.fotos[index].length;
+            const numFotos = (checklistEstado.fotos[index] || []).length;
 
             itemDiv.innerHTML = `
                 <label>${item}</label>
@@ -1796,11 +2224,9 @@
             `;
             container.appendChild(itemDiv);
 
-            // Generar previews existentes al (re)cargar
+            // Renderizar las previews existentes (llama a renderizarPreviews)
             renderizarPreviews(index); 
         });
-        
-        console.log('Checklist UI generado con', checklist.length, 'elementos');
     }
 
     function seleccionarRespuesta(index, respuesta) {
@@ -1818,6 +2244,7 @@
         
         guardarEstadoChecklist();
         actualizarProgresoChecklist();
+        saveSession(); // Autoguardado al seleccionar respuesta
     }
 
     function guardarEstadoChecklist() {
@@ -1831,11 +2258,8 @@
         const observacionesTextarea = document.getElementById('checklistObservaciones');
         const observaciones = observacionesTextarea ? observacionesTextarea.value : '';
         
-        // MODIFICADO: No sobrescribir 'fotos'
         checklistEstado.respuestas = respuestas;
         checklistEstado.observaciones = observaciones;
-        
-        console.log('Estado del checklist guardado:', checklistEstado);
     }
 
     function actualizarProgresoChecklist() {
@@ -1843,20 +2267,12 @@
         const totalItems = items.length;
         let itemsCompletados = 0;
         
-        // Verificamos que 'checklistEstado.fotos' exista, por si acaso
-        if (!checklistEstado.fotos) {
-            checklistEstado.fotos = {};
-        }
+        if (!checklistEstado.fotos) { checklistEstado.fotos = {}; }
 
         items.forEach((item, index) => {
-            // Condición 1: Botón de 'Cumple' o 'No Cumple' seleccionado
             const botonSeleccionado = item.querySelector('.selected') !== null;
-            
-            // Condición 2: Hay al menos una foto para este item
-            // Nos aseguramos que el array del item exista antes de chequear su 'length'
             const hayFotos = checklistEstado.fotos[index] && checklistEstado.fotos[index].length > 0;
             
-            // Solo si AMBAS condiciones son verdaderas, el ítem está completo
             if (botonSeleccionado && hayFotos) {
                 itemsCompletados++;
             }
@@ -1866,8 +2282,6 @@
         
         document.getElementById('progressBar').style.width = porcentaje + '%';
         document.getElementById('progressText').textContent = porcentaje + '% completado';
-        
-        // YA NO SE DESHABILITA EL BOTÓN AQUÍ
     }
 
 
@@ -1887,7 +2301,7 @@
         }
 
         if (!fecha || !colaborador || !area || !colaboradorValido) {
-            Swal.fire('Datos Incompletos', 'Por favor completa los campos de Fecha, Colaborador y Destino.', 'warning');
+            Swal.fire('Datos Incompletos', 'Por favor completa los campos de Fecha, Colaborador (válido) y Destino.', 'warning');
             return;
         }
 
@@ -1943,7 +2357,6 @@
         const tipoMovimiento = ultimaTransaccion.tipo === 'salidas' ? 'préstamo' : 'devolución';
         const textoAccion = ultimaTransaccion.tipo === 'salidas' ? 'solicitar' : 'devolver';
         
-        // Tomar observaciones AHORA
         const observaciones = document.getElementById('checklistObservaciones').value;
         
         Swal.fire({
@@ -1973,7 +2386,7 @@
         });
     }
 
-    function procesarYEnviarDatos() {
+    async function procesarYEnviarDatos() {
         // 1. Recolectar datos finales del checklist
         const checklistRespuestas = [];
         document.querySelectorAll('.checklist-item').forEach(item => {
@@ -1984,24 +2397,44 @@
         
         const observaciones = document.getElementById('checklistObservaciones').value;
         
-        const checklistData = ultimaTransaccion.tipo === 'salidas' ? 
+        const checklistDataConfig = ultimaTransaccion.tipo === 'salidas' ? 
             (checklistsPreOperativos[ultimaTransaccion.categoria] || checklistsPreOperativos["aspiradoras"]) :
             (checklistsPostOperativos[ultimaTransaccion.categoria] || checklistsPostOperativos["aspiradoras"]);
 
         ultimaTransaccion.checklist = checklistRespuestas.map((respuesta, index) => {
             return {
-                item: checklistData[index],
+                item: checklistDataConfig[index],
                 respuesta: respuesta
             };
         });
         
         ultimaTransaccion.observaciones = observaciones;
-        ultimaTransaccion.fotosChecklist = checklistEstado.fotos || {};
-
-        // 2. Mostrar Overlay
-        $('#overlay').show();
         
-        // 3. Preparar datos y enviar AJAX (lógica de enviarTransaccion)
+        // 2. Preparar fotos: convertir IDs a DataURLs (Solo las necesarias para el PDF)
+        $('#loadingMessage p').text('Preparando fotos para el reporte...');
+        
+        const fotosFinales = {};
+        const fotosPromesas = Object.keys(checklistEstado.fotos).map(async (index) => {
+            const ids = checklistEstado.fotos[index] || [];
+            if (ids.length > 0) {
+                fotosFinales[index] = [];
+                for (const id of ids) {
+                    const dataUrl = await getImageFromDB(id); 
+                    if (dataUrl) {
+                        fotosFinales[index].push(dataUrl);
+                    }
+                }
+            }
+        });
+        await Promise.all(fotosPromesas);
+        ultimaTransaccion.fotosChecklist = fotosFinales;
+
+
+        // 3. Mostrar Overlay
+        $('#overlay').show();
+        $('#loadingMessage p').text('Registrando movimiento en el servidor...');
+        
+        // 4. Enviar AJAX a Google Apps Script
         const scriptURL = ultimaTransaccion.tipo === 'salidas' ? 
             "https://script.google.com/macros/s/AKfycbweOAqrT8cQuoW9xPbWBwOyLxbORFTT6HaStsNUz7i9ySkTRlElJIirZwcoGC-l8Sb-/exec" :
             "https://script.google.com/macros/s/AKfycbw4OfK5DQQqbiro8olfyb8MvjQnOHGZBoELkTBJnOYS2GMpkr8yFrJJASiAiAxxePGfzA/exec";
@@ -2012,12 +2445,13 @@
             area: ultimaTransaccion.area,
             equipo: ultimaTransaccion.equipo,
             categoria: ultimaTransaccion.categoria,
-            checklist: JSON.stringify(ultimaTransaccion.checklist.map(item => item.respuesta)),
+            checklist: JSON.stringify(checklistRespuestas), // Solo las respuestas (✔/X/NA) para la hoja de cálculo
             observaciones: ultimaTransaccion.observaciones
         };
         
         if (ultimaTransaccion.tipo === 'salidas') {
-            data.retornable = equipoSeleccionado.devolucion;
+            const equipoData = equipos.find(e => e.nombre === ultimaTransaccion.equipo);
+            data.retornable = equipoData ? equipoData.devolucion : 'Sí';
         } else {
             data.tipo = 'devolucion';
         }
@@ -2027,20 +2461,28 @@
             type: "POST",
             data: data,
             success: function(response) {
-                $('#overlay').hide();
-                checklistEstado = {};
-                // No volvemos al formulario, generamos PDF
-                generarPDF();
+                // No ocultar overlay todavía
+                $('#loadingMessage p').text('Generando documento PDF...');
+                
+                // --- MANTENEMOS EL PROGRESO EN PANTALLA ---
+                generarPDF().then(() => {
+                    // La sesión y el progreso se mantienen en el formulario.
+                    $('#overlay').hide();
+                }).catch(pdfError => {
+                    console.error("Error al generar o guardar PDF:", pdfError);
+                    Swal.fire('Advertencia', 'Transacción registrada, pero hubo un error al generar el PDF. Puedes intentarlo de nuevo desde Actas Pendientes.', 'warning');
+                    $('#overlay').hide();
+                });
+                // -------------------------------------------------------------------
             },
             error: function(xhr, status, error) {
                 $('#overlay').hide();
                 Swal.fire('Error', `Hubo un problema al registrar la transacción. Por favor inténtalo nuevamente. Error: ${error}`, 'error');
-                // No volvemos al formulario, nos quedamos para reintentar
             }
         });
     }
 
-    // Funciones auxiliares
+    // Funciones auxiliares (scroll)
     function scrollToTop() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -2050,14 +2492,18 @@
     }
 
     // Funciones para el manejo de imágenes y PDF
-    const selectedFiles = {
-        preview3: [],
-        // preview4 ya no se usa
-    };
+    
+    // Función para convertir archivo a base64 (adaptada de Reporte de Supervisión)
+    function fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = (error) => reject(error);
+            reader.readAsDataURL(file);
+        });
+    }
 
-    // handleFileInput y deleteImage ya no se usan para preview4
-    // Se eliminan los event listeners de adjunto4 y drag-area4 (ya no existen)
-
+    // Función de compresión (SIN CAMBIOS)
     async function compressImage(file, quality) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -2081,96 +2527,198 @@
         });
     }
 
-    // addPhotoSection (la original) ya no se usa, la reemplaza addChecklistPhotosToPDF
+    /* --- NUEVAS FUNCIONES PARA FOTOS DEL CHECKLIST (ADAPTADAS PARA DB) --- */
 
-    // Constante para el número máximo de PDFs a guardar
-    const MAX_PDFS_ALMACENADOS = 5;
+    function abrirInputFoto(index) {
+        document.getElementById(`foto-input-${index}`).click();
+    }
 
-    // Función para guardar múltiples PDFs - VERSIÓN SIMPLIFICADA Y FUNCIONAL
-    async function guardarPDFEnStorage(pdfBlob, pdfData) {
-        console.log('🔄 INICIANDO GUARDADO DE PDF MÚLTIPLE');
+    async function manejarInputFoto(event, index) {
+        if (!isDbInitialized) {
+            Swal.fire('Error', 'Base de datos de fotos no inicializada.', 'error');
+            return;
+        }
+
+        const files = event.target.files;
+        if (!files || files.length === 0) return;
+
+        const file = files[0];
         
+        // 1. Mostrar Spinner
+        const previewContainer = document.getElementById(`foto-preview-${index}`);
+        const tempSpinner = $(`<div class="image-preview-item text-center p-2" style="width: 60px; height: 60px;"><div class="spinner" style="width: 20px; height: 20px; border: 2px solid rgba(52, 152, 219, 0.2); border-top-color: var(--secondary-color);"></div></div>`);
+        previewContainer.appendChild(tempSpinner[0]);
+
         try {
-            // 1. Obtener PDFs existentes o crear array vacío
-            let pdfsExistentes = JSON.parse(localStorage.getItem('pdfsAlmacenados') || '[]');
-            console.log('📊 PDFs existentes antes de agregar:', pdfsExistentes.length);
+            // 2. Comprimir y obtener DataURL
+            const base64Data = await compressImage(file, 0.5); 
+            
+            // 3. Guardar en IndexedDB y obtener ID
+            const newId = await saveImageToDB(base64Data);
 
-            // 2. Crear nuevo PDF
-            const nuevoPDF = {
-                id: 'pdf_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-                name: pdfData.name,
-                tipo: pdfData.tipo,
-                equipo: pdfData.equipo,
-                colaborador: pdfData.colaborador,
-                fecha: pdfData.fecha,
-                timestamp: Date.now(),
-                size: pdfBlob.size
-            };
+            // 4. Actualizar estado y UI
+            if (!checklistEstado.fotos) { checklistEstado.fotos = {}; }
+            if (!checklistEstado.fotos[index]) { checklistEstado.fotos[index] = []; }
 
-            // 3. Intentar guardar el PDF completo
+            checklistEstado.fotos[index].push(newId); // Guardamos el ID
+            
+            // Re-renderizar las previews (usando el ID recién guardado)
+            await renderizarPreviews(index); 
+            
+            // Eliminar spinner y autoguardar
+            tempSpinner.remove();
+            actualizarProgresoChecklist();
+            saveSession(); 
+            
+            event.target.value = ""; 
+
+        } catch (error) {
+            console.error("Error al procesar/guardar la imagen:", error);
+            tempSpinner.remove();
+            Swal.fire('Error', 'No se pudo procesar o guardar la imagen.', 'error');
+        }
+    }
+
+    /**
+     * Dibuja las vistas previas de las fotos para un ítem específico usando IDs de la DB.
+     */
+    async function renderizarPreviews(index) {
+        const previewContainer = document.getElementById(`foto-preview-${index}`);
+        if (!previewContainer) return; 
+
+        previewContainer.innerHTML = '';
+        const idArray = checklistEstado.fotos[index] || [];
+        
+        const fragment = document.createDocumentFragment();
+        
+        for (const id of idArray) {
+            const base64String = await getImageFromDB(id);
+            if (base64String) {
+                const div = document.createElement("div");
+                div.classList.add("image-preview-item");
+                // La función deleteImageChecklist debe usar el ID de la DB
+                div.innerHTML = `
+                    <img src="${base64String}" alt="Preview ${id}">
+                    <div class="delete-icon" onclick="deleteImageChecklist(this, ${index}, ${id})">×</div>
+                `;
+                fragment.appendChild(div);
+            } else {
+                 console.warn(`Image ID ${id} no encontrado en DB.`);
+                 // Si no se encuentra, la eliminamos del estado
+                 checklistEstado.fotos[index] = checklistEstado.fotos[index].filter(dbId => dbId !== id);
+                 saveSession();
+            }
+        }
+
+        previewContainer.appendChild(fragment);
+        
+        const countSpan = document.getElementById(`foto-count-${index}`);
+        if (countSpan) {
+            countSpan.textContent = idArray.length;
+        }
+        
+        // Es importante llamar a esta función para que se actualice el progreso después de renderizar.
+        actualizarProgresoChecklist(); 
+    }
+
+    /**
+     * Elimina una foto del estado y de IndexedDB.
+     */
+    async function deleteImageChecklist(buttonElement, index, id) {
+        if (!isDbInitialized) { Swal.fire('Error', 'La base de datos no está lista.', 'error'); return; }
+        
+        const item = buttonElement.closest('.image-preview-item');
+        if (item) {
+            item.remove();
+        }
+
+        try {
+            await deleteImageFromDB(id);
+            
+            if (checklistEstado.fotos[index]) {
+                // Eliminar el ID del estado
+                checklistEstado.fotos[index] = checklistEstado.fotos[index].filter(dbId => dbId !== id);
+                
+                // Actualizar contador y re-renderizar para reflejar el cambio
+                const countSpan = document.getElementById(`foto-count-${index}`);
+                if (countSpan) {
+                    countSpan.textContent = checklistEstado.fotos[index].length;
+                }
+                
+                actualizarProgresoChecklist();
+                saveSession();
+            }
+        } catch (error) {
+            console.error("Error eliminando imagen de DB:", error);
+            Swal.fire('Error', 'No se pudo eliminar la imagen.', 'error');
+        }
+    }
+
+    /**
+     * Función para añadir las fotos del checklist al PDF.
+     */
+    async function addChecklistPhotosToPDF(doc, startY) {
+        let currentY = startY;
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const margin = 15;
+        const pageWidth = doc.internal.pageSize.getWidth();
+
+        const fotosChecklist = ultimaTransaccion.fotosChecklist || {};
+        const todasLasFotos = Object.values(fotosChecklist).flat();
+
+        if (todasLasFotos.length === 0) {
+            return startY;
+        }
+
+        if (currentY + 20 > pageHeight - margin) {
+            doc.addPage();
+            currentY = 15;
+        }
+        doc.setFontSize(14);
+        doc.setFont("times", "bold");
+        doc.text("Evidencia Fotográfica", pageWidth / 2, currentY, { align: 'center' });
+        currentY += 10;
+
+        const imgWidth = 60;
+        const imgHeight = 40;
+        const spacingX = 65;
+        const spacingY = 45;
+        let currentX = margin;
+        let imagesInRow = 0;
+
+        for (const dataUrl of todasLasFotos) {
+            if (imagesInRow === 3) {
+                imagesInRow = 0;
+                currentX = margin;
+                currentY += spacingY;
+            }
+            if (currentY + imgHeight > pageHeight - margin) {
+                doc.addPage();
+                currentY = 15;
+                currentX = margin;
+                imagesInRow = 0;
+            }
+            
             try {
-                const reader = new FileReader();
-                nuevoPDF.data = await new Promise((resolve, reject) => {
-                    reader.onload = () => resolve(reader.result);
-                    reader.onerror = reject;
-                    reader.readAsDataURL(pdfBlob);
-                });
-                nuevoPDF.error = null;
-                console.log('✅ PDF convertido a base64 exitosamente');
-            } catch (error) {
-                console.warn('⚠️ No se pudo guardar el PDF completo, guardando solo metadatos');
-                nuevoPDF.data = null;
-                nuevoPDF.error = 'solo_metadatos';
+                // Ya son DataURLs comprimidos de la DB
+                doc.addImage(dataUrl, 'JPEG', currentX, currentY, imgWidth, imgHeight); 
+            } catch(e) {
+                doc.text("Error al cargar foto", currentX, currentY + (imgHeight/2));
             }
-
-            // 4. Agregar nuevo PDF al inicio del array
-            pdfsExistentes.unshift(nuevoPDF);
-
-            // 5. Limitar a 3 PDFs máximo (eliminar los más antiguos)
-            if (pdfsExistentes.length > MAX_PDFS_ALMACENADOS) {
-                const pdfsEliminados = pdfsExistentes.splice(MAX_PDFS_ALMACENADOS);
-                console.log('🗑️ PDFs eliminados (exceden límite):', pdfsEliminados.length);
-            }
-
-            // 6. Guardar en localStorage
-            localStorage.setItem('pdfsAlmacenados', JSON.stringify(pdfsExistentes));
             
-            console.log('💾 PDFs guardados en localStorage:', pdfsExistentes.length);
-            console.log('📋 Lista actual de PDFs:');
-            pdfsExistentes.forEach((pdf, i) => {
-                console.log(`   ${i + 1}. ${pdf.name} (${new Date(pdf.timestamp).toLocaleTimeString()})`);
-            });
-
-            // 7. Actualizar interfaz inmediatamente
-            mostrarBotonesActasPendientes();
-            return true;
-
-        } catch (error) {
-            console.error('❌ Error crítico al guardar PDF:', error);
-            return false;
+            currentX += spacingX;
+            imagesInRow++;
         }
+        currentY += spacingY; 
+
+        return currentY;
     }
 
-    // Función para obtener PDFs - VERSIÓN SIMPLIFICADA
-    function obtenerPDFsAlmacenados() {
-        try {
-            const pdfsGuardados = localStorage.getItem('pdfsAlmacenados');
-            if (!pdfsGuardados) {
-                console.log('📭 No hay PDFs almacenados');
-                return [];
-            }
-            
-            const pdfs = JSON.parse(pdfsGuardados);
-            console.log('📂 PDFs recuperados:', pdfs.length);
-            return pdfs;
-            
-        } catch (error) {
-            console.error('❌ Error al obtener PDFs:', error);
-            return [];
-        }
-    }
+    /* --- FIN NUEVAS FUNCIONES FOTOS --- */
+
 
     async function generarPDF() {
+        
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF({
             orientation: 'portrait',
@@ -2182,7 +2730,6 @@
         const tipoMovimiento = ultimaTransaccion.tipo === 'salidas' ? 'Acta de Compromiso' : 'Acta de Recepción';
         const tituloChecklist = ultimaTransaccion.tipo === 'salidas' ? 'Checklist Preoperativo' : 'Checklist Postoperativo';
         const now = new Date();
-        const horaGeneracion = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
         const [yyyy, mm, dd] = ultimaTransaccion.fecha.split('-');
         const meses = [
             "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -2275,6 +2822,8 @@
         const firmaWidth = 60;
         const firmaHeight = 25;
         const firmaX = (pageWidth - firmaWidth) / 2;
+        
+        // Agregar firma
         doc.addImage(firmaDataUrl, 'PNG', firmaX, y, firmaWidth, firmaHeight);
         y += firmaHeight + 2;
         doc.line(firmaX, y, firmaX + firmaWidth, y);
@@ -2300,33 +2849,29 @@
         doc.text(tituloChecklist, pageWidth / 2, y, { align: 'center' });
         y += 8;
         
-        // Cambiar los encabezados de la tabla
+        // Colores para la tabla de checklist
         const tableColumn = ["Punto de Verificación", "Cumple", "No Cumple"];
         const tableRows = ultimaTransaccion.checklist.map(item => {
-            const cumple = item.respuesta === "✔" ? "X" : "";
-            const noCumple = item.respuesta === "X" ? "X" : "";
+            const cumple = item.respuesta === "✔" ? { content: "X", styles: { fillColor: [46, 204, 113], textColor: [255, 255, 255], fontStyle: 'bold' } } : "";
+            const noCumple = item.respuesta === "X" ? { content: "X", styles: { fillColor: [231, 76, 60], textColor: [255, 255, 255], fontStyle: 'bold' } } : "";
             return [item.item, cumple, noCumple];
         });
         
-        // Configuración de la tabla para checklists largos
         let fontSize = 9;
         let cellPadding = 2;
         let rowHeight = 5;
         
-        // Ajustar tamaño de fuente para checklists largos
         if (ultimaTransaccion.checklist.length > 10) {
             fontSize = 8;
             cellPadding = 1.5;
             rowHeight = 4;
         }
         
-        // Calcular el ancho de las columnas para centrar la tabla
         const anchoDisponible = pageWidth - (2 * margin);
         const col1Width = anchoDisponible * 0.75;
         const col2Width = (anchoDisponible - col1Width) / 2;
         const col3Width = col2Width;
         
-        // Configuración de autoTable para manejar múltiples páginas
         doc.autoTable({
             startY: y,
             head: [tableColumn],
@@ -2422,7 +2967,6 @@
         const pdfBlob = doc.output('blob');
         const pdfFile = new File([pdfBlob], pdfName, { type: 'application/pdf' });
         
-        // GUARDAR EL PDF CON LA NUEVA FUNCIÓN MEJORADA
         const pdfData = {
             name: pdfName,
             tipo: ultimaTransaccion.tipo,
@@ -2431,38 +2975,11 @@
             fecha: ultimaTransaccion.fecha
         };
         
-        console.log('=== INICIANDO GUARDADO EN STORAGE ===');
-        console.log('Datos del PDF:', pdfData);
-        
-        // GUARDAR CON LA NUEVA FUNCIÓN MEJORADA
         const exito = await guardarPDFEnStorage(pdfBlob, pdfData);
         
-        if (exito) {
-            console.log('✅ PDF guardado completamente en el sistema de múltiples archivos');
-        } else {
-            console.log('⚠️ PDF guardado con limitaciones (solo metadatos)');
+        if (!exito) {
+            Swal.fire('Advertencia', 'Transacción registrada, pero hubo un error al guardar el PDF. No podrás compartirlo más tarde.', 'warning');
         }
-        
-        // VERIFICACIÓN EXTRA - Confirmar que se guardó correctamente
-        setTimeout(() => {
-            const pdfsGuardados = JSON.parse(localStorage.getItem('pdfsAlmacenados') || '[]');
-            console.log('=== VERIFICACIÓN FINAL DEL ALMACENAMIENTO ===');
-            console.log('Total de PDFs almacenados:', pdfsGuardados.length);
-            
-            pdfsGuardados.forEach((pdf, index) => {
-                console.log(`PDF ${index + 1}:`, {
-                    nombre: pdf.name,
-                    equipo: pdf.equipo,
-                    colaborador: pdf.colaborador,
-                    tamaño: pdf.size ? `${Math.round(pdf.size / 1024)} KB` : 'Solo metadatos',
-                    timestamp: new Date(pdf.timestamp).toLocaleString(),
-                    tieneArchivo: !!(pdf.data && !pdf.error)
-                });
-            });
-            
-            // Actualizar la interfaz visualmente
-            mostrarBotonesActasPendientes();
-        }, 500);
         
         // Mostrar SweetAlert con opciones de compartir y descargar
         Swal.fire({
@@ -2488,7 +3005,7 @@
                         </button>
                     </div>
                     <p style="font-size: 0.8em; color: #888; margin-top: 15px;">
-                        <i class="fas fa-info-circle"></i> El PDF también se ha guardado localmente para acceso futuro
+                        <i class="fas fa-info-circle"></i> El PDF también se ha guardado localmente para acceso futuro. **El progreso se mantiene en pantalla.**
                     </p>
                 </div>
             `,
@@ -2497,7 +3014,6 @@
             showCloseButton: true,
             allowOutsideClick: false,
             didOpen: () => {
-                // Asignar los event listeners directamente a los botones
                 document.getElementById('sharePdfBtn').addEventListener('click', async function() {
                     try {
                         if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
@@ -2522,182 +3038,61 @@
                 });
             }
         }).then((result) => {
-            // Este código se ejecuta cuando se cierra el SweetAlert
-            if (result.dismiss === Swal.DismissReason.close) {
-                // Recargar la página cuando se hace clic en la X
-                console.log('Recargando página...');
-                location.reload();
-            }
+            // Se mantiene el progreso.
         });
     }
 
 
-    /* --- NUEVAS FUNCIONES PARA FOTOS DEL CHECKLIST --- */
-
-    /**
-     * Simula un clic en el input de archivo oculto para el ítem del checklist.
-     */
-    function abrirInputFoto(index) {
-        document.getElementById(`foto-input-${index}`).click();
-    }
-
-    /**
-     * Maneja el archivo seleccionado, lo comprime y lo añade al estado.
-     */
-    async function manejarInputFoto(event, index) {
-        const files = event.target.files;
-        if (!files || files.length === 0) return;
-
-        const file = files[0];
+    // Función para guardar múltiples PDFs (SIN CAMBIOS)
+    async function guardarPDFEnStorage(pdfBlob, pdfData) {
         
         try {
-            // Usamos la función de compresión que ya tienes
-            const dataUrl = await compressImage(file, 0.5); 
-            
-            // 1. Nos aseguramos que la propiedad 'fotos' exista
-            if (!checklistEstado.fotos) {
-                checklistEstado.fotos = {};
-            }
-            // 2. Nos aseguramos que el array para ESE item exista
-            if (!checklistEstado.fotos[index]) {
-                checklistEstado.fotos[index] = [];
+            let pdfsExistentes = JSON.parse(localStorage.getItem('pdfsAlmacenados') || '[]');
+
+            const nuevoPDF = {
+                id: 'pdf_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                name: pdfData.name,
+                tipo: pdfData.tipo,
+                equipo: pdfData.equipo,
+                colaborador: pdfData.colaborador,
+                fecha: pdfData.fecha,
+                timestamp: Date.now(),
+                size: pdfBlob.size
+            };
+
+            try {
+                const reader = new FileReader();
+                nuevoPDF.data = await new Promise((resolve, reject) => {
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(pdfBlob);
+                });
+                nuevoPDF.error = null;
+            } catch (error) {
+                nuevoPDF.data = null;
+                nuevoPDF.error = 'solo_metadatos';
             }
 
-            checklistEstado.fotos[index].push(dataUrl);
+            pdfsExistentes.unshift(nuevoPDF);
+
+            if (pdfsExistentes.length > MAX_PDFS_ALMACENADOS) {
+                pdfsExistentes.splice(MAX_PDFS_ALMACENADOS);
+            }
+
+            localStorage.setItem('pdfsAlmacenados', JSON.stringify(pdfsExistentes));
             
-            // Actualizar UI
-            renderizarPreviews(index);
-            
-            // ¡Llamamos a la función de progreso para que se actualice!
-            actualizarProgresoChecklist();
-            
-            // Limpiar el input para permitir tomar la misma foto de nuevo si se elimina
-            event.target.value = ""; 
+            mostrarBotonesActasPendientes();
+            return true;
 
         } catch (error) {
-            console.error("Error al procesar la imagen:", error);
-            Swal.fire('Error', 'No se pudo procesar la imagen.', 'error');
+            console.error('❌ Error crítico al guardar PDF:', error);
+            return false;
         }
     }
 
-    /**
-     * Dibuja las vistas previas de las fotos para un ítem específico.
-     */
-    function renderizarPreviews(index) {
-        const previewContainer = document.getElementById(`foto-preview-${index}`);
-        if (!previewContainer) return; // Salir si el elemento no existe
-
-        previewContainer.innerHTML = '';
-        const fotos = checklistEstado.fotos[index] || [];
-        
-        fotos.forEach((dataUrl, fotoIndex) => {
-            const div = document.createElement('div');
-            div.classList.add('image-preview-item'); // Reusamos clase CSS existente
-            div.innerHTML = `
-                <img src="${dataUrl}" alt="Preview">
-                <div class="delete-icon" onclick="eliminarFotoChecklist(${index}, ${fotoIndex})">×</div>
-            `;
-            previewContainer.appendChild(div);
-        });
-        
-        // Actualizar contador
-        const countSpan = document.getElementById(`foto-count-${index}`);
-        if (countSpan) {
-            countSpan.textContent = fotos.length;
-        }
-    }
-
-    /**
-     * Elimina una foto del estado y actualiza la vista previa.
-     */
-    function eliminarFotoChecklist(index, fotoIndex) {
-        if (checklistEstado.fotos[index] && checklistEstado.fotos[index][fotoIndex]) {
-            checklistEstado.fotos[index].splice(fotoIndex, 1);
-            renderizarPreviews(index); // Re-renderizar las previews para ese item
-
-            // ¡Llamamos a la función de progreso para que se actualice!
-            actualizarProgresoChecklist();
-        }
-    }
-
-    /**
-     * Nueva función para añadir las fotos del checklist al PDF.
-     * ESTA VERSIÓN AÑADE TODAS LAS FOTOS JUNTAS EN UNA SOLA GALERÍA.
-     */
-    async function addChecklistPhotosToPDF(doc, startY) {
-        let currentY = startY;
-        const pageHeight = doc.internal.pageSize.getHeight();
-        const margin = 15;
-        const pageWidth = doc.internal.pageSize.getWidth();
-
-        const fotosChecklist = ultimaTransaccion.fotosChecklist || {};
-
-        // 1. Tomar todas las fotos (Object.values) y aplanarlas en un solo array (.flat())
-        const todasLasFotos = Object.values(fotosChecklist).flat();
-
-        // 2. Si no hay fotos en total, no hacer nada.
-        if (todasLasFotos.length === 0) {
-            return startY;
-        }
-
-        // Título de la sección de Evidencia
-        if (currentY + 20 > pageHeight - margin) {
-            doc.addPage();
-            currentY = 15;
-        }
-        doc.setFontSize(14);
-        doc.setFont("times", "bold");
-        // Usamos un título genérico para la galería
-        doc.text("Evidencia Fotográfica", pageWidth / 2, currentY, { align: 'center' });
-        currentY += 10;
-
-        // Lógica para añadir imágenes (copiada de la función original addPhotoSection)
-        const imgWidth = 60;
-        const imgHeight = 40;
-        const spacingX = 65;
-        const spacingY = 45;
-        let currentX = margin;
-        let imagesInRow = 0;
-
-        // 3. Iterar sobre el array plano de "todasLasFotos"
-        for (const dataUrl of todasLasFotos) {
-            if (imagesInRow === 3) {
-                imagesInRow = 0;
-                currentX = margin;
-                currentY += spacingY;
-            }
-            if (currentY + imgHeight > pageHeight - margin) {
-                doc.addPage();
-                currentY = 15;
-                currentX = margin;
-                imagesInRow = 0;
-            }
-            
-            // Añadimos la imagen (ya es un dataUrl comprimido)
-            try {
-                doc.addImage(dataUrl, 'JPEG', currentX, currentY, imgWidth, imgHeight); 
-            } catch(e) {
-                console.error("Error al añadir imagen al PDF:", e);
-                doc.text("Error al cargar foto", currentX, currentY + (imgHeight/2));
-            }
-            
-            currentX += spacingX;
-            imagesInRow++;
-        }
-        currentY += spacingY; // Espacio después del último set de fotos
-
-        return currentY;
-    }
-
-    /* --- FIN NUEVAS FUNCIONES FOTOS --- */
-
-    // Nuevas variables para el autocomplete
-    let selectedColaboradorIndex = -1;
-    let filteredColaboradores = [];
-
+    // Funciones para Autocomplete (SIN CAMBIOS)
     function initAutocomplete() {
         const input = document.getElementById('colaborador');
-        const suggestionsContainer = document.getElementById('colaborador-suggestions');
         
         input.addEventListener('input', function(e) {
             const value = e.target.value.toLowerCase();
@@ -2707,6 +3102,7 @@
             
             showSuggestions(filteredColaboradores);
             verificarFormulario();
+            saveSession(); // Autoguardado en input
         });
         
         input.addEventListener('keydown', function(e) {
@@ -2729,6 +3125,7 @@
         });
         
         document.addEventListener('click', function(e) {
+            const suggestionsContainer = document.getElementById('colaborador-suggestions');
             if (!input.contains(e.target) && !suggestionsContainer.contains(e.target)) {
                 hideSuggestions();
             }
@@ -2808,59 +3205,26 @@
         document.getElementById('colaborador').value = suggestion;
         hideSuggestions();
         verificarFormulario();
+        saveSession(); // Autoguardado al seleccionar
     }
 
-    // Función para actualizar el botón único
+    // Funciones de Actas Pendientes (SIN CAMBIOS)
     function mostrarBotonesActasPendientes() {
-        console.log('🔄 ACTUALIZANDO BOTÓN DE ACTAS');
+        const pdfsAlmacenados = JSON.parse(localStorage.getItem('pdfsAlmacenados') || '[]');
+        const boton = document.getElementById('acta-pendiente-button');
+        const badge = boton.querySelector('.badge');
         
-        try {
-            const pdfsAlmacenados = JSON.parse(localStorage.getItem('pdfsAlmacenados') || '[]');
-            const boton = document.getElementById('acta-pendiente-button');
-            const badge = boton.querySelector('.badge');
-            
-            if (pdfsAlmacenados.length > 0) {
-                // Mostrar botón
-                boton.classList.add('pendiente');
-                boton.style.display = 'flex';
-                
-                // Actualizar badge con el número de actas
-                badge.textContent = pdfsAlmacenados.length;
-                
-                // Actualizar tooltip
-                boton.title = `Tienes ${pdfsAlmacenados.length} acta(s) pendiente(s)`;
-                
-                console.log(`✅ Botón activado con ${pdfsAlmacenados.length} actas`);
-            } else {
-                // Ocultar botón
-                boton.classList.remove('pendiente');
-                boton.style.display = 'none';
-                console.log('👻 Botón ocultado (no hay actas)');
-            }
-            
-        } catch (error) {
-            console.error('❌ Error al actualizar botón:', error);
+        if (pdfsAlmacenados.length > 0) {
+            boton.classList.add('pendiente');
+            boton.style.display = 'flex';
+            badge.textContent = pdfsAlmacenados.length;
+            boton.title = `Tienes ${pdfsAlmacenados.length} acta(s) pendiente(s)`;
+        } else {
+            boton.classList.remove('pendiente');
+            boton.style.display = 'none';
         }
     }
 
-    // Función para debuggear el storage (ejecutar en consola)
-    function debugStorage() {
-        console.log('=== DEBUG DEL STORAGE ===');
-        const pdfs = JSON.parse(localStorage.getItem('pdfsAlmacenados') || '[]');
-        console.log('PDFs en storage:', pdfs.length);
-        pdfs.forEach((pdf, i) => {
-            console.log(`PDF ${i + 1}:`, {
-                nombre: pdf.name,
-                equipo: pdf.equipo,
-                timestamp: new Date(pdf.timestamp).toLocaleString(),
-                tieneData: !!pdf.data,
-                error: pdf.error
-            });
-        });
-        console.log('=== FIN DEBUG ===');
-    }
-
-    // Función para mostrar todas las actas disponibles
     function mostrarTodasLasActas() {
         const pdfsAlmacenados = JSON.parse(localStorage.getItem('pdfsAlmacenados') || '[]');
         
@@ -2868,8 +3232,6 @@
             Swal.fire('Información', 'No hay actas pendientes por compartir', 'info');
             return;
         }
-        
-        console.log(`📋 Mostrando ${pdfsAlmacenados.length} actas disponibles`);
         
         let htmlContent = `
             <div style="text-align: center;">
@@ -2883,7 +3245,7 @@
             const fecha = new Date(pdf.timestamp).toLocaleString();
             const tipoTexto = pdf.tipo === 'salidas' ? 'Salida' : 'Entrada';
             const tienePDF = pdf.data && !pdf.error;
-            const esReciente = (Date.now() - pdf.timestamp) < (24 * 60 * 60 * 1000); // Menos de 24 horas
+            const esReciente = (Date.now() - pdf.timestamp) < (24 * 60 * 60 * 1000); 
             
             htmlContent += `
                 <div style="border: 2px solid ${esReciente ? '#28a745' : '#6c757d'}; border-radius: 10px; padding: 15px; margin-bottom: 12px; text-align: left; background-color: ${tienePDF ? '#f8fff8' : '#fff8f8'};">
@@ -2943,7 +3305,6 @@
             width: '95%',
             maxWidth: '700px',
             didOpen: () => {
-                // Eliminar todas las actas
                 document.getElementById('eliminarTodasBtn').addEventListener('click', function() {
                     Swal.fire({
                         title: '¿Eliminar todas las actas?',
@@ -2971,7 +3332,6 @@
                     });
                 });
                 
-                // Cerrar diálogo
                 document.getElementById('cerrarDialogoBtn').addEventListener('click', function() {
                     Swal.close();
                 });
@@ -2979,7 +3339,6 @@
         });
     }
 
-    // Función para descargar un acta específica
     function descargarActa(indice) {
         const pdfsAlmacenados = JSON.parse(localStorage.getItem('pdfsAlmacenados') || '[]');
         
@@ -3024,7 +3383,6 @@
         }
     }
 
-    // Función para compartir un acta específica
     async function compartirActa(indice) {
         const pdfsAlmacenados = JSON.parse(localStorage.getItem('pdfsAlmacenados') || '[]');
         
@@ -3063,7 +3421,6 @@
                 });
                 Swal.fire('Éxito', 'Acta compartida correctamente', 'success');
             } else {
-                // Fallback: descargar
                 descargarActa(indice);
             }
             
@@ -3075,7 +3432,6 @@
         }
     }
 
-    // Función para eliminar un acta específica
     function eliminarActa(indice) {
         const pdfsAlmacenados = JSON.parse(localStorage.getItem('pdfsAlmacenados') || '[]');
         
@@ -3108,7 +3464,6 @@
                 localStorage.setItem('pdfsAlmacenados', JSON.stringify(pdfsAlmacenados));
                 mostrarBotonesActasPendientes();
                 Swal.fire('Eliminada', 'El acta ha sido eliminada', 'success').then(() => {
-                    // Recargar el diálogo si sigue abierto
                     if (Swal.isVisible()) {
                         Swal.close();
                         setTimeout(() => {

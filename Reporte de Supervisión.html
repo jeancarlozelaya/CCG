@@ -412,6 +412,66 @@
     }
     /* --- FIN: (Req 2) Estilos Confirmar Borrado --- */
 
+
+/* --- Estilos para Comentarios de No Conformidad --- */
+    .comentario-nc-container {
+        display: none; /* Oculto por defecto */
+        margin-top: 10px;
+        width: 100%;
+        animation: slideDown 0.3s ease-out;
+    }
+
+    .comentario-nc-container textarea {
+        background-color: #fff5f5; /* Fondo rojizo muy suave */
+        border: 1px solid #ef5350; /* Borde rojo acorde al botón No Cumple */
+        font-size: 0.9rem;
+        resize: vertical;
+        border-radius: 6px;
+        box-shadow: inset 0 1px 3px rgba(0,0,0,0.06);
+    }
+
+    .comentario-nc-container textarea:focus {
+        background-color: #fff;
+        box-shadow: 0 0 0 0.25rem rgba(239, 83, 80, 0.25);
+        border-color: #ef5350;
+    }
+
+    @keyframes slideDown {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+
+/* --- Estilos Botón Flotante --- */
+    .btn-flotante {
+        position: fixed;
+        bottom: 25px;
+        left: 25px; /* Izquierda */
+        width: 65px;
+        height: 65px;
+        background: linear-gradient(45deg, var(--secondary-color), #2980b9);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        z-index: 9999;
+        font-size: 1.8rem;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .btn-flotante:hover {
+        transform: scale(1.1);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+    }
+    
+    .btn-flotante:active {
+        transform: scale(0.95);
+    }
+
 </style>
 
 </head>
@@ -1083,7 +1143,9 @@
         </div>
     </div>
 
-
+<button id="btn-camara-flotante" type="button" class="btn-flotante" style="display: none;">
+    <i class="fas fa-camera"></i>
+</button>
     
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
@@ -1161,7 +1223,6 @@ let logoBase64_Cache = null;
 
 /**
  * (Req 1) CONFIGURACIÓN DE PREGUNTAS (¡EDITAR AQUÍ!)
- * ¡He añadido las nuevas secciones con preguntas de EJEMPLO!
  */
 const QUESTIONS_CONFIG = {
     // --- Torres ---
@@ -1244,7 +1305,7 @@ const QUESTIONS_CONFIG = {
         "¿Baños: Los dispensadores (papel y jabón) están limpios, abastecidos y en funcionamiento?"
     ],
 
-    // --- (REQ 1) Nuevas Secciones (¡REEMPLAZAR PREGUNTAS!) ---
+    // --- (REQ 1) Nuevas Secciones ---
     'sotano_seccion': [
         "¿Pisos se encuentran limpios, secos y sin manchas de aceite?",
         "¿Se observa basura acumulada en esquinas o parqueos?",
@@ -1254,7 +1315,6 @@ const QUESTIONS_CONFIG = {
         "¿Columnas y paredes sin rayones o daños excesivos?"
     ],
     'sotano_bano': [
-        // Re-utilizamos las preguntas de baños estándar
         "¿El área se encuentra aromatizada?",
         "¿Se observa presencia de telas de araña?",
         "¿Pisos limpios, secos y sin basura?",
@@ -1297,14 +1357,11 @@ const QUESTIONS_CONFIG = {
 };
 
 /**
- * Genera el HTML para un grupo de botones de pregunta
- * @param {string} prefix - El prefijo para el 'name' (ej. 'bano')
- * @param {number} index - El índice de la pregunta (ej. 0)
- * @param {string} questionText - El texto de la pregunta
+ * Genera el HTML para un grupo de botones de pregunta Y EL CUADRO DE COMENTARIO (NUEVO)
  */
 function generateQuestionHTML(prefix, index, questionText) {
-    // (REQ 1) Corregido para usar guiones bajos
     const name = `${prefix.replace('_', '-')}-p${index}`;
+    // Se agrega el contenedor oculto para el comentario
     return `
         <div class="pregunta-supervision mb-3">
             <label class="form-label">${index + 1}. ${questionText}</label>
@@ -1318,6 +1375,11 @@ function generateQuestionHTML(prefix, index, questionText) {
                 <input type="radio" class="btn-check" name="${name}" id="${name}-na" value="NA" autocomplete="off">
                 <label class="btn btn-outline-secondary" for="${name}-na">No Aplica</label>
             </div>
+            
+            <div id="comentario-${name}" class="comentario-nc-container">
+                <label class="form-label mt-2" style="font-size: 0.85rem; font-weight: bold; color: #d32f2f;">¿Por qué no cumple?</label>
+                <textarea class="form-control auto-save-comment" id="obs-${name}" rows="2" placeholder="Describa la no conformidad..."></textarea>
+            </div>
         </div>
     `;
 }
@@ -1327,7 +1389,6 @@ function generateQuestionHTML(prefix, index, questionText) {
  */
 function populateAllQuestions() {
     for (const area in QUESTIONS_CONFIG) {
-        // (REQ 1) Corregido para usar guiones bajos
         const containerId = `#preguntas-${area.replace('_', '-')}-container`;
         const $container = $(containerId);
         
@@ -1355,16 +1416,12 @@ function populateAllQuestions() {
  * Actualiza los niveles según el edificio seleccionado
  */
 function actualizarNiveles() {
-    // (ARREGLO) Asegurarse de que $selectEdificio y $selectNivel estén definidos
-    // Esto se llama ANTES de que DOMContentLoaded asigne las variables
-    // por lo que usamos jQuery directamente aquí.
     const $edificio = $('#select-edificio');
     const $nivel = $('#select-nivel');
     const edificioVal = $edificio.val();
     
     $nivel.empty();
     
-    // (REQ 1) Nueva lógica de niveles
     if (!edificioVal) {
         $nivel.append('<option value="">Seleccione un edificio primero...</option>');
         $nivel.prop('disabled', true);
@@ -1379,7 +1436,6 @@ function actualizarNiveles() {
         }
         $nivel.prop('disabled', false);
     } else {
-        // Fallback
         $nivel.append('<option value="">Seleccione un edificio primero...</option>');
         $nivel.prop('disabled', true);
     }
@@ -1393,7 +1449,7 @@ function validarPagina1() {
     
     const fechaValida = $fechaInput.val() !== '';
     const edificioValido = $selectEdificio.val() !== '';
-    const nivelValido = $selectNivel.val() !== '' || $selectNivel.prop('disabled'); // Válido si está deshabilitado (N/A)
+    const nivelValido = $selectNivel.val() !== '' || $selectNivel.prop('disabled'); 
     
     $btnPag1Siguiente.prop('disabled', !(fechaValida && edificioValido && nivelValido));
 }
@@ -1402,16 +1458,13 @@ function validarPagina1() {
  * (REQ 1) Controla qué grupo de páginas mostrar
  */
 function gestionarVistasDePagina() {
-    // (ARREGLO) Usar jQuery directo porque esto puede ser llamado antes de la asignación de variables
     const edificio = $('#select-edificio').val();
     
-    // Ocultar todos los grupos
     $('#grupo-paginas-torres').hide();
     $('#grupo-paginas-sotanos').hide();
     $('#grupo-paginas-plazas').hide();
     $('#grupo-paginas-exteriores').hide();
     
-    // Mostrar el grupo correcto
     if (['CBA', 'CBB', 'CBC', 'Torre1', 'Torre2'].includes(edificio)) {
         $('#grupo-paginas-torres').show();
     } else if (edificio === 'Sotanos') {
@@ -1531,7 +1584,7 @@ function loadLogoCache() {
  */
 document.addEventListener('DOMContentLoaded', async function() {
     
-    // (Req 1) Generar TODAS las preguntas, incluidas las nuevas
+    // (Req 1) Generar TODAS las preguntas
     populateAllQuestions();
     
     try {
@@ -1593,9 +1646,6 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // --- INICIO: Lógica de Paginación ---
     
-    // (ARREGLO) Las funciones de navegación ahora están FUERA de DOMContentLoaded
-    
-    // (REQ 1) Listener del "Router" (Página 1)
     $('#btn-pag1-siguiente').on('click', function() {
         if (!validarPagina('pagina-1', '')) return;
         
@@ -1603,22 +1653,21 @@ document.addEventListener('DOMContentLoaded', async function() {
         let nextPageId = '';
         
         if (['CBA', 'CBB', 'CBC', 'Torre1', 'Torre2'].includes(edificio)) {
-            nextPageId = pageFlows.torres[1]; // pagina-2
+            nextPageId = pageFlows.torres[1];
         } else if (edificio === 'Sotanos') {
-            nextPageId = pageFlows.sotanos[1]; // pagina-sotano-1
+            nextPageId = pageFlows.sotanos[1];
         } else if (edificio === 'Plazas') {
-            nextPageId = pageFlows.plazas[1]; // pagina-plazas-1
+            nextPageId = pageFlows.plazas[1];
         } else if (edificio === 'Exteriores') {
-            nextPageId = pageFlows.exteriores[1]; // pagina-exteriores-1
+            nextPageId = pageFlows.exteriores[1];
         }
         
         if (nextPageId) {
-            gestionarVistasDePagina(); // Asegura que el grupo correcto esté visible
+            gestionarVistasDePagina();
             navegarPagina(nextPageId);
         }
     });
     
-    // (REQ 1) Listener de navegación unificado (para todos menos Pág 1)
     $form.on('click', '.btn-navegacion:not(#btn-pag1-siguiente)', function() {
         const $btn = $(this);
         const paginaActualId = $btn.data('pagina-actual');
@@ -1656,7 +1705,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     $selectEdificio.on('change', function() {
         actualizarNiveles();
         validarPagina1();
-        // (REQ 1) Ocultar/mostrar grupos AHORA
         gestionarVistasDePagina();
     });
     $fechaInput.on('change', validarPagina1);
@@ -1664,22 +1712,75 @@ document.addEventListener('DOMContentLoaded', async function() {
     // --- FIN: Lógica Página 1 ---
 
 
-    // --- INICIO: Lógica General (Toggles) ---
+    // --- INICIO: Lógica General (Toggles y Visibilidad de Comentarios) ---
+// 1. Toggles de Áreas (Si/No) con actualización del botón flotante
     $form.on('change', '.toggle-area', function() {
         const targetSelector = $(this).data('target');
         const $targetArea = $(targetSelector);
         
         if (this.value === 'si') {
-            $targetArea.slideDown();
+            // Mostramos el área con animación
+            $targetArea.slideDown(400, function() {
+                // Al terminar la animación, verificamos si hay que mostrar el botón
+                updateFloatingButtonVisibility();
+            });
+            
+            // TRUCO IMPORTANTE: Si el área tiene un input de archivo, forzamos 
+            // la aparición del botón INMEDIATAMENTE sin esperar la animación.
+            if ($targetArea.find('input[type="file"]').length > 0) {
+                 $('#btn-camara-flotante').fadeIn();
+            }
+            
         } else {
-            $targetArea.slideUp();
+            $targetArea.slideUp(400, function() {
+                updateFloatingButtonVisibility();
+            });
         }
     });
-    // --- FIN: Lógica General (Toggles) ---
+
+// 3. Lógica del Botón Flotante de Cámara (CORREGIDO EL DOBLE CLIC)
+$('#btn-camara-flotante').on('click', function(e) {
+        e.preventDefault(); 
+        e.stopPropagation(); // Prevenir que el clic suba al body
+
+        const $activePage = $('.pagina.active');
+        // Buscar el input file que esté visible en la página actual
+        const $visibleInput = $activePage.find('.area-supervision').filter(':visible').find('input[type="file"]').first();
+        
+        if ($visibleInput.length > 0) {
+            // TRUCO PARA EVITAR DOBLE CLIC:
+            // Detenemos la propagación en el input temporalmente para que el contenedor 
+            // padre (div file-upload) no reciba el evento y lo duplique.
+            $visibleInput.one('click', function(ev) {
+                ev.stopPropagation(); 
+            });
+            
+            $visibleInput.trigger('click');
+        }
+    });
+
+    // *** NUEVO: Mostrar/Ocultar cuadro de comentario al marcar NC ***
+    $form.on('change', '.btn-check', function() {
+        const name = $(this).attr('name');
+        const val = $(this).val();
+        // Busca el contenedor del comentario relacionado con esta pregunta
+        const $commentContainer = $(`#comentario-${name}`);
+        
+        if ($commentContainer.length) {
+            if (val === 'NC') {
+                $commentContainer.slideDown();
+            } else {
+                $commentContainer.slideUp();
+                // Opcional: Limpiar si se marca otra cosa? 
+                // No lo haremos para no perder datos por click accidental.
+            }
+        }
+        saveSession(); // Asegurar que se guarda el estado
+    });
+    // --- FIN: Lógica General ---
 
 
     // --- Lógica Página 3 (Elevadores) ---
-    // (Sin cambios)
     $('#btn-guardar-elevador').on('click', function() {
         const nombreElevador = $elevadorNumInput.val().trim();
         if (nombreElevador === '') {
@@ -1688,11 +1789,18 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
         let preguntasRespondidas = true;
         const respuestasElevador = [];
+        const obsElevador = []; // Array para observaciones
+
         QUESTIONS_CONFIG.elevador.forEach((q, index) => {
-            const val = $(`[name="elevador-p${index}"]:checked`).val() || null;
+            const name = `elevador-p${index}`;
+            const val = $(`[name="${name}"]:checked`).val() || null;
+            const obs = $(`#obs-${name}`).val() || ""; // Capturar observación
+            
             if (!val) preguntasRespondidas = false;
             respuestasElevador.push(val);
+            obsElevador.push(obs);
         });
+
         if (!preguntasRespondidas) {
             Swal.fire('Campos Incompletos', `Debe responder todas las ${QUESTIONS_CONFIG.elevador.length} preguntas.`, 'warning');
             return;
@@ -1704,6 +1812,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         const elevadorData = {
             id: Date.now(), numero: nombreElevador,
             respuestas: respuestasElevador,
+            observaciones: obsElevador, // Guardar observaciones
             fotos: [...selectedFiles['preview-elevador']]
         };
         const editIndex = parseInt($elevadorEditIndex.val());
@@ -1713,6 +1822,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         limpiarFormularioElevador();
         Swal.fire({ icon: 'success', title: 'Elevador Guardado', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
     });
+
     $listaElevadores.on('click', '.btn-editar-elevador', function(e) {
         e.preventDefault();
         $listaElevadores.find('.list-group-item').removeClass('is-deleting');
@@ -1724,9 +1834,20 @@ document.addEventListener('DOMContentLoaded', async function() {
         $elevadorEditIndex.val(index);
         $tituloFormElevador.text('Editando: ' + elevadorData.numero);
         $elevadorNumInput.val(elevadorData.numero);
+        
         if(elevadorData.respuestas && elevadorData.respuestas.length > 0) {
             elevadorData.respuestas.forEach((answer, index) => {
-                if (answer) $(`[name="elevador-p${index}"]`).val([answer]);
+                const name = `elevador-p${index}`;
+                if (answer) {
+                    $(`[name="${name}"][value="${answer}"]`).prop('checked', true);
+                    // Mostrar u ocultar comentario según respuesta guardada
+                    const $comment = $(`#comentario-${name}`);
+                    if(answer === 'NC') $comment.show(); else $comment.hide();
+                }
+                // Cargar observación
+                if(elevadorData.observaciones && elevadorData.observaciones[index]) {
+                     $(`#obs-${name}`).val(elevadorData.observaciones[index]);
+                }
             });
         }
         selectedFiles['preview-elevador'] = [...elevadorData.fotos];
@@ -1755,7 +1876,6 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 
     // --- Lógica Página 7 (Oficinas) ---
-    // (Sin cambios)
     $('#btn-guardar-oficina').on('click', function() {
         const nombreOficina = $oficinaNumInput.val().trim();
         if (nombreOficina === '') {
@@ -1764,11 +1884,18 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
         let preguntasRespondidas = true;
         const respuestasOficina = [];
+        const obsOficina = []; // Array observaciones
+
         QUESTIONS_CONFIG.oficina.forEach((q, index) => {
-            const val = $(`[name="oficina-p${index}"]:checked`).val() || null;
+            const name = `oficina-p${index}`;
+            const val = $(`[name="${name}"]:checked`).val() || null;
+            const obs = $(`#obs-${name}`).val() || "";
+
             if (!val) preguntasRespondidas = false;
             respuestasOficina.push(val);
+            obsOficina.push(obs);
         });
+
         if (!preguntasRespondidas) {
             Swal.fire('Campos Incompletos', `Debe responder todas las ${QUESTIONS_CONFIG.oficina.length} preguntas.`, 'warning');
             return;
@@ -1779,7 +1906,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
         const officeData = {
             id: Date.now(), numero: nombreOficina,
-            respuestas: respuestasOficina, 
+            respuestas: respuestasOficina,
+            observaciones: obsOficina,
             fotos: [...selectedFiles['preview-oficina']]
         };
         const editIndex = parseInt($oficinaEditIndex.val());
@@ -1789,6 +1917,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         limpiarFormularioOficina(); 
         Swal.fire({ icon: 'success', title: 'Oficina Guardada', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
     });
+
     $listaOficinas.on('click', '.btn-editar-oficina', function(e) {
         e.preventDefault();
         $listaOficinas.find('.list-group-item').removeClass('is-deleting');
@@ -1800,9 +1929,18 @@ document.addEventListener('DOMContentLoaded', async function() {
         $oficinaEditIndex.val(index);
         $tituloFormOficina.text('Editando: ' + officeData.numero);
         $oficinaNumInput.val(officeData.numero);
+        
         if(officeData.respuestas && officeData.respuestas.length > 0) {
             officeData.respuestas.forEach((answer, index) => {
-                if (answer) $(`[name="oficina-p${index}"]`).val([answer]);
+                const name = `oficina-p${index}`;
+                if (answer) {
+                    $(`[name="${name}"][value="${answer}"]`).prop('checked', true);
+                    const $comment = $(`#comentario-${name}`);
+                    if(answer === 'NC') $comment.show(); else $comment.hide();
+                }
+                if(officeData.observaciones && officeData.observaciones[index]) {
+                     $(`#obs-${name}`).val(officeData.observaciones[index]);
+                }
             });
         }
         selectedFiles['preview-oficina'] = [...officeData.fotos]; 
@@ -1831,7 +1969,6 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 
     // --- (REQ 1) INICIO: Lógica Página Sótano 1 (Secciones) ---
-    // (Copiada de Oficinas y renombrada)
     $('#btn-guardar-sotano-seccion').on('click', function() {
         const nombreSeccion = $sotanoSeccionNumInput.val().trim();
         if (nombreSeccion === '') {
@@ -1840,11 +1977,17 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
         let preguntasRespondidas = true;
         const respuestasSeccion = [];
+        const obsSeccion = [];
+
         QUESTIONS_CONFIG.sotano_seccion.forEach((q, index) => {
-            const val = $(`[name="sotano-seccion-p${index}"]:checked`).val() || null;
+            const name = `sotano-seccion-p${index}`;
+            const val = $(`[name="${name}"]:checked`).val() || null;
+            const obs = $(`#obs-${name}`).val() || "";
             if (!val) preguntasRespondidas = false;
             respuestasSeccion.push(val);
+            obsSeccion.push(obs);
         });
+
         if (!preguntasRespondidas) {
             Swal.fire('Campos Incompletos', `Debe responder todas las ${QUESTIONS_CONFIG.sotano_seccion.length} preguntas.`, 'warning');
             return;
@@ -1855,7 +1998,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
         const seccionData = {
             id: Date.now(), numero: nombreSeccion,
-            respuestas: respuestasSeccion, 
+            respuestas: respuestasSeccion,
+            observaciones: obsSeccion,
             fotos: [...selectedFiles['preview-sotano-seccion']]
         };
         const editIndex = parseInt($sotanoSeccionEditIndex.val());
@@ -1865,6 +2009,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         limpiarFormularioSotanoSeccion(); 
         Swal.fire({ icon: 'success', title: 'Sección Guardada', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
     });
+
     $listaSotanoSeccion.on('click', '.btn-editar-sotano-seccion', function(e) {
         e.preventDefault();
         $listaSotanoSeccion.find('.list-group-item').removeClass('is-deleting');
@@ -1876,9 +2021,18 @@ document.addEventListener('DOMContentLoaded', async function() {
         $sotanoSeccionEditIndex.val(index);
         $tituloFormSotanoSeccion.text('Editando: ' + seccionData.numero);
         $sotanoSeccionNumInput.val(seccionData.numero);
+        
         if(seccionData.respuestas && seccionData.respuestas.length > 0) {
             seccionData.respuestas.forEach((answer, index) => {
-                if (answer) $(`[name="sotano-seccion-p${index}"]`).val([answer]);
+                const name = `sotano-seccion-p${index}`;
+                if (answer) {
+                    $(`[name="${name}"][value="${answer}"]`).prop('checked', true);
+                    const $comment = $(`#comentario-${name}`);
+                    if(answer === 'NC') $comment.show(); else $comment.hide();
+                }
+                if(seccionData.observaciones && seccionData.observaciones[index]) {
+                     $(`#obs-${name}`).val(seccionData.observaciones[index]);
+                }
             });
         }
         selectedFiles['preview-sotano-seccion'] = [...seccionData.fotos]; 
@@ -1907,7 +2061,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     
     // --- (REQ 1) INICIO: Lógica Página Sótano 2 (Baños) ---
-    // (Copiada de Oficinas y renombrada)
     $('#btn-guardar-sotano-bano').on('click', function() {
         const nombreBano = $sotanoBanoNumInput.val().trim();
         if (nombreBano === '') {
@@ -1916,11 +2069,17 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
         let preguntasRespondidas = true;
         const respuestasBano = [];
+        const obsBano = [];
+
         QUESTIONS_CONFIG.sotano_bano.forEach((q, index) => {
-            const val = $(`[name="sotano-bano-p${index}"]:checked`).val() || null;
+            const name = `sotano-bano-p${index}`;
+            const val = $(`[name="${name}"]:checked`).val() || null;
+            const obs = $(`#obs-${name}`).val() || "";
             if (!val) preguntasRespondidas = false;
             respuestasBano.push(val);
+            obsBano.push(obs);
         });
+
         if (!preguntasRespondidas) {
             Swal.fire('Campos Incompletos', `Debe responder todas las ${QUESTIONS_CONFIG.sotano_bano.length} preguntas.`, 'warning');
             return;
@@ -1932,6 +2091,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         const banoData = {
             id: Date.now(), numero: nombreBano,
             respuestas: respuestasBano, 
+            observaciones: obsBano,
             fotos: [...selectedFiles['preview-sotano-bano']]
         };
         const editIndex = parseInt($sotanoBanoEditIndex.val());
@@ -1941,6 +2101,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         limpiarFormularioSotanoBano(); 
         Swal.fire({ icon: 'success', title: 'Baño Guardado', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
     });
+
     $listaSotanoBano.on('click', '.btn-editar-sotano-bano', function(e) {
         e.preventDefault();
         $listaSotanoBano.find('.list-group-item').removeClass('is-deleting');
@@ -1952,9 +2113,18 @@ document.addEventListener('DOMContentLoaded', async function() {
         $sotanoBanoEditIndex.val(index);
         $tituloFormSotanoBano.text('Editando: ' + banoData.numero);
         $sotanoBanoNumInput.val(banoData.numero);
+        
         if(banoData.respuestas && banoData.respuestas.length > 0) {
             banoData.respuestas.forEach((answer, index) => {
-                if (answer) $(`[name="sotano-bano-p${index}"]`).val([answer]);
+                const name = `sotano-bano-p${index}`;
+                if (answer) {
+                    $(`[name="${name}"][value="${answer}"]`).prop('checked', true);
+                    const $comment = $(`#comentario-${name}`);
+                    if(answer === 'NC') $comment.show(); else $comment.hide();
+                }
+                if(banoData.observaciones && banoData.observaciones[index]) {
+                     $(`#obs-${name}`).val(banoData.observaciones[index]);
+                }
             });
         }
         selectedFiles['preview-sotano-bano'] = [...banoData.fotos]; 
@@ -1991,24 +2161,22 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 
     // --- INICIO: Lógica Envío Final (TODOS LOS BOTONES) ---
-    // (REQ 1) Unir todos los botones de enviar a la misma función
     $('#btn-enviar-supervision, #btn-enviar-supervision-sotanos, #btn-enviar-supervision-plazas, #btn-enviar-supervision-exteriores').on('click', async function(e) {
         e.preventDefault();
-        
-        // (REQ 1) Llamar a la nueva función "Router" de PDF
         await generatePDF();
     });
     // --- FIN: Lógica Envío Final ---
     
     
-    // --- INICIO: Lógica de Auto-Guardado ---
-    // (REQ 1) Extendido para incluir todos los formularios "sucios"
+    // --- INICIO: Lógica de Auto-Guardado (Ampliada para textareas) ---
     $form.on('change input', '.auto-save', saveSession);
     $form.on('change', '.btn-check', saveSession);
-    $formOficina.on('change input', 'input, .btn-check', saveSession);
-    $formElevador.on('change input', 'input, .btn-check', saveSession);
-    $formSotanoSeccion.on('change input', 'input, .btn-check', saveSession);
-    $formSotanoBano.on('change input', 'input, .btn-check', saveSession);
+    $form.on('input', '.auto-save-comment', saveSession); // Guardar comentarios al escribir
+    
+    $formOficina.on('change input', 'input, .btn-check, textarea', saveSession);
+    $formElevador.on('change input', 'input, .btn-check, textarea', saveSession);
+    $formSotanoSeccion.on('change input', 'input, .btn-check, textarea', saveSession);
+    $formSotanoBano.on('change input', 'input, .btn-check, textarea', saveSession);
 
 
 }); // Fin de DOMContentLoaded
@@ -2018,19 +2186,13 @@ document.addEventListener('DOMContentLoaded', async function() {
 // (ARREGLO) INICIO: Funciones movidas al ámbito global
 // =========================================================================
 
-/**
- * (ARREGLO) Navega a una página específica por su ID
- * @param {string} paginaId - El ID de la página (ej. 'pagina-1', 'pagina-sotano-1')
- */
 function navegarPagina(paginaId) {
-    // Ocultar todas las páginas
     $('.pagina').removeClass('active');
     
-    // Mostrar la página solicitada
     const $pagina = $(`#${paginaId}`);
     $pagina.addClass('active');
     
-    // Asegurarse de que el grupo contenedor esté visible (excepto para pagina-1)
+    // Gestionar visibilidad de grupos (Torres vs Sotanos etc)
     if (paginaId !== 'pagina-1') {
         const $grupo = $pagina.closest('[id^="grupo-paginas-"]');
         if ($grupo.length > 0 && !$grupo.is(':visible')) {
@@ -2038,44 +2200,36 @@ function navegarPagina(paginaId) {
         }
     }
     
-    // (ARREGLO) Asegurarse de que $progressBar y $selectEdificio estén disponibles
-    // Si $progressBar no está asignado (porque la función se llamó antes), asignarlo.
-    if (!$progressBar) {
-        $progressBar = $('#progress-bar');
-    }
-    if (!$selectEdificio) {
-        $selectEdificio = $('#select-edificio');
-    }
+    // Inicializar variables si no existen
+    if (!$progressBar) $progressBar = $('#progress-bar');
+    if (!$selectEdificio) $selectEdificio = $('#select-edificio');
 
+    // Calcular progreso
     const edificio = $selectEdificio.val();
-    let grupo = 'torres'; // Default
+    let grupo = 'torres'; 
     if (['CBA', 'CBB', 'CBC', 'Torre1', 'Torre2'].includes(edificio)) { grupo = 'torres'; }
     else if (edificio === 'Sotanos') { grupo = 'sotanos'; }
     else if (edificio === 'Plazas') { grupo = 'plazas'; }
     else if (edificio === 'Exteriores') { grupo = 'exteriores'; }
 
     const flow = pageFlows[grupo];
-    let pasoActual = flow.indexOf(paginaId) + 1;
-    let totalPasos = flow.length;
+    let pasoActual = flow ? flow.indexOf(paginaId) + 1 : 1;
+    let totalPasos = flow ? flow.length : 1;
     
     if (paginaId === 'pagina-1') {
         pasoActual = 1;
-        $progressBar.css('width', '12.5%');
-        $progressBar.text(`Paso 1`);
+        $progressBar.css('width', '12.5%').text(`Paso 1`);
     } else {
         const porcentaje = (pasoActual / totalPasos) * 100;
-        $progressBar.css('width', porcentaje + '%');
-        $progressBar.text(`Paso ${pasoActual} de ${totalPasos}`);
+        $progressBar.css('width', porcentaje + '%').text(`Paso ${pasoActual} de ${totalPasos}`);
     }
     
     saveSession();
+    
+    // CRÍTICO: Actualizar visibilidad del botón al cambiar de página
+    updateFloatingButtonVisibility();
 }
 
-/**
- * (ARREGLO) Valida si se puede avanzar desde la página actual.
- * @param {string} paginaId - La página actual (ej. 'pagina-2', 'pagina-sotano-1')
- * @param {string} grupo - El grupo actual (ej. 'torres', 'sotanos')
- */
 function validarPagina(paginaId, grupo) {
     let esValido = true;
     let areaId = '';
@@ -2085,7 +2239,7 @@ function validarPagina(paginaId, grupo) {
 
     if (grupo === 'torres') {
         switch (paginaId) {
-            case 'pagina-1': // Validado por el botón
+            case 'pagina-1': 
                 esValido = !$('#btn-pag1-siguiente').prop('disabled');
                 if (!esValido) Swal.fire('Campos Incompletos', 'Debe seleccionar Fecha, Edificio y Nivel.', 'warning');
                 break;
@@ -2182,7 +2336,6 @@ function validarPagina(paginaId, grupo) {
         }
     }
     
-    // Validación genérica para áreas "simples" (no-múltiples)
     if (areaId) {
         const $preguntas = $(`${areaId} .pregunta-supervision`);
         let todasRespondidas = true;
@@ -2217,7 +2370,10 @@ function limpiarFormularioOficina() {
     $tituloFormOficina.text('Nueva Oficina');
     $oficinaNumInput.val('');
     QUESTIONS_CONFIG.oficina.forEach((q, index) => {
-        $(`[name="oficina-p${index}"]`).prop('checked', false);
+        const name = `oficina-p${index}`;
+        $(`[name="${name}"]`).prop('checked', false);
+        $(`#obs-${name}`).val('');
+        $(`#comentario-${name}`).hide();
     });
     selectedFiles['preview-oficina'] = [];
     $('#preview-oficina').empty();
@@ -2230,7 +2386,10 @@ function limpiarFormularioElevador() {
     $tituloFormElevador.text('Nuevo Elevador');
     $elevadorNumInput.val('');
     QUESTIONS_CONFIG.elevador.forEach((q, index) => {
-        $(`[name="elevador-p${index}"]`).prop('checked', false);
+        const name = `elevador-p${index}`;
+        $(`[name="${name}"]`).prop('checked', false);
+        $(`#obs-${name}`).val('');
+        $(`#comentario-${name}`).hide();
     });
     selectedFiles['preview-elevador'] = [];
     $('#preview-elevador').empty();
@@ -2267,7 +2426,10 @@ function limpiarFormularioSotanoSeccion() {
     $tituloFormSotanoSeccion.text('Nueva Sección');
     $sotanoSeccionNumInput.val('');
     QUESTIONS_CONFIG.sotano_seccion.forEach((q, index) => {
-        $(`[name="sotano-seccion-p${index}"]`).prop('checked', false);
+        const name = `sotano-seccion-p${index}`;
+        $(`[name="${name}"]`).prop('checked', false);
+        $(`#obs-${name}`).val('');
+        $(`#comentario-${name}`).hide();
     });
     selectedFiles['preview-sotano-seccion'] = [];
     $('#preview-sotano-seccion').empty();
@@ -2280,7 +2442,10 @@ function limpiarFormularioSotanoBano() {
     $tituloFormSotanoBano.text('Nuevo Baño');
     $sotanoBanoNumInput.val('');
     QUESTIONS_CONFIG.sotano_bano.forEach((q, index) => {
-        $(`[name="sotano-bano-p${index}"]`).prop('checked', false);
+        const name = `sotano-bano-p${index}`;
+        $(`[name="${name}"]`).prop('checked', false);
+        $(`#obs-${name}`).val('');
+        $(`#comentario-${name}`).hide();
     });
     selectedFiles['preview-sotano-bano'] = [];
     $('#preview-sotano-bano').empty();
@@ -2311,12 +2476,6 @@ function renderListaSotanoBano() {
 
 
 // --- (REQ 1) INICIO: Función de render genérica ---
-/**
- * Crea el HTML para un ítem de lista (oficina, elevador, etc.)
- * @param {string} type - El tipo (ej. 'oficina', 'sotano-seccion')
- * @param {number} index - El índice en el array
- * @param {string} name - El nombre a mostrar
- */
 function createListItemHTML(type, index, name) {
     return `
         <a href="#" class="list-group-item list-group-item-action btn-editar-${type}" data-index="${index}">
@@ -2340,26 +2499,24 @@ function createListItemHTML(type, index, name) {
 // --- (REQ 1) FIN: Función de render genérica ---
 
 
-// --- INICIO: (Req 2) Funciones de Sesión (REQ 1: ACTUALIZADAS) ---
+// --- INICIO: (Req 2) Funciones de Sesión (ACTUALIZADAS PARA COMENTARIOS) ---
 function saveSession() {
     if (!db) return;
-    
-    // (REQ 1) Verificar que todos los formularios "sucios" estén listos
-    // (ARREGLO) Añadir cheques de nulidad por si se llama antes
-    if (!$formOficina || !$formElevador || !$formSotanoSeccion || !$formSotanoBano) {
-        // Aún no estamos listos para guardar, probablemente
-        return;
-    }
+    if (!$formOficina || !$formElevador || !$formSotanoSeccion || !$formSotanoBano) return;
 
-    // 1. Recolectar radios C/NC/NA de áreas "simples"
+    // 1. Recolectar radios y comentarios de áreas simples
     const radioGroups = {};
+    const comentariosPreguntas = {}; // Nuevo: Guardar texto de observaciones
+
     $('.auto-save.btn-group').each(function() {
-        // Excluir TODOS los formularios reutilizables
         if ($(this).closest('.formulario-item').length === 0) {
             const name = $(this).find('.btn-check').first().attr('name');
             if (name) {
                 const value = $(`[name="${name}"]:checked`).val();
                 radioGroups[name] = value || null;
+                // Capturar comentario asociado
+                const commentVal = $(`#obs-${name}`).val();
+                if (commentVal) comentariosPreguntas[name] = commentVal;
             }
         }
     });
@@ -2371,53 +2528,55 @@ function saveSession() {
         edificio: $('#select-edificio').val(),
         nivel: $('#select-nivel').val(),
         
-        // --- Toggles de Torres ---
+        // Toggles
         calificarBanos: $('[name="calificar-banos"]:checked').val(),
         calificarElevadores: $('[name="calificar-elevadores"]:checked').val(),
         calificarEspacios: $('[name="calificar-espacios"]:checked').val(),
         calificarJuntas: $('[name="calificar-juntas"]:checked').val(),
         calificarComunes: $('[name="calificar-comunes"]:checked').val(),
         calificarOficinas: $('[name="calificar-oficinas"]:checked').val(),
-        
-        // --- (REQ 1) Toggles Nuevos ---
         calificarSotanoSeccion: $('[name="calificar-sotano-seccion"]:checked').val(),
         calificarSotanoBano: $('[name*="calificar-sotano-bano"]:checked').val(),
         calificarPlazaDemocracia: $('[name="calificar-plaza-democracia"]:checked').val(),
         calificarPlazaEtnias: $('[name="calificar-plaza-etnias"]:checked').val(),
         calificarExteriores: $('[name="calificar-exteriores"]:checked').val(),
         
-        radios: radioGroups, // Radios de áreas simples
-        fotos: selectedFiles, // (Solo IDs)
+        radios: radioGroups, 
+        comentariosPreguntas: comentariosPreguntas, // Nuevo
+        fotos: selectedFiles,
         
-        // --- Listas de "Múltiples" ---
+        // Listas
         oficinas: oficinasGuardadas,
         elevadores: elevadoresGuardados,
         sotanoSecciones: sotanoSeccionesGuardadas,
         sotanoBanos: sotanoBanosGuardados,
         
-        // --- Formularios "Sucios" ---
+        // Formularios "Sucios" (Guardando también las observaciones actuales)
         currentOffice: {
             numero: $oficinaNumInput.val(),
             editIndex: $oficinaEditIndex.val(),
-            respuestas: QUESTIONS_CONFIG.oficina.map((q, i) => $(`[name="oficina-p${i}"]:checked`).val() || null)
+            respuestas: QUESTIONS_CONFIG.oficina.map((q, i) => $(`[name="oficina-p${i}"]:checked`).val() || null),
+            observaciones: QUESTIONS_CONFIG.oficina.map((q, i) => $(`#obs-oficina-p${i}`).val() || "")
         },
         currentElevador: {
             numero: $elevadorNumInput.val(),
             editIndex: $elevadorEditIndex.val(),
-            respuestas: QUESTIONS_CONFIG.elevador.map((q, i) => $(`[name="elevador-p${i}"]:checked`).val() || null)
+            respuestas: QUESTIONS_CONFIG.elevador.map((q, i) => $(`[name="elevador-p${i}"]:checked`).val() || null),
+            observaciones: QUESTIONS_CONFIG.elevador.map((q, i) => $(`#obs-elevador-p${i}`).val() || "")
         },
         currentSotanoSeccion: {
             numero: $sotanoSeccionNumInput.val(),
             editIndex: $sotanoSeccionEditIndex.val(),
-            respuestas: QUESTIONS_CONFIG.sotano_seccion.map((q, i) => $(`[name="sotano-seccion-p${i}"]:checked`).val() || null)
+            respuestas: QUESTIONS_CONFIG.sotano_seccion.map((q, i) => $(`[name="sotano-seccion-p${i}"]:checked`).val() || null),
+            observaciones: QUESTIONS_CONFIG.sotano_seccion.map((q, i) => $(`#obs-sotano-seccion-p${i}`).val() || "")
         },
         currentSotanoBano: {
             numero: $sotanoBanoNumInput.val(),
             editIndex: $sotanoBanoEditIndex.val(),
-            respuestas: QUESTIONS_CONFIG.sotano_bano.map((q, i) => $(`[name="sotano-bano-p${i}"]:checked`).val() || null)
+            respuestas: QUESTIONS_CONFIG.sotano_bano.map((q, i) => $(`[name="sotano-bano-p${i}"]:checked`).val() || null),
+            observaciones: QUESTIONS_CONFIG.sotano_bano.map((q, i) => $(`#obs-sotano-bano-p${i}`).val() || "")
         },
         
-        // --- Comentarios ---
         comentarios: $('#comentarios-finales').val(),
         comentariosSotanos: $('#comentarios-finales-sotanos').val(),
         comentariosPlazas: $('#comentarios-finales-plazas').val(),
@@ -2435,17 +2594,13 @@ async function loadSession() {
     try {
         const data = JSON.parse(dataString);
         
-        // Página 1
         $('#fecha-supervision').val(data.fecha);
         $('#select-edificio').val(data.edificio);
-        actualizarNiveles(); // Poblar
-        $('#select-nivel').val(data.nivel); // Setear
-        validarPagina1(); // Esta función ahora depende de variables globales asignadas en DOMContentLoaded
-        
-        // (REQ 1) Mostrar el grupo de páginas correcto
+        actualizarNiveles();
+        $('#select-nivel').val(data.nivel);
+        validarPagina1();
         gestionarVistasDePagina();
         
-        // (REQ 1) Cargar TODOS los toggles
         const toggles = {
             'calificar-banos': data.calificarBanos,
             'calificar-elevadores': data.calificarElevadores,
@@ -2460,38 +2615,36 @@ async function loadSession() {
             'calificar-exteriores': data.calificarExteriores,
         };
 
-for (const name in toggles) {
-    if (toggles[name] === 'si') {
-        // 1. Selecciona el radio button "si"
-        const $radioSi = $(`[name="${name}"][value="si"]`);
-
-        // 2. Márcalo como "checked"
-        $radioSi.prop('checked', true);
-
-        // 3. Obtén su data-target (el ID del área a mostrar)
-        const targetId = $radioSi.data('target');
-
-        // 4. Muestra el área manualmente
-        if (targetId) {
-            $(targetId).show(); // Usamos .show() que es instantáneo
+        for (const name in toggles) {
+            if (toggles[name] === 'si') {
+                const $radioSi = $(`[name="${name}"][value="si"]`);
+                $radioSi.prop('checked', true);
+                const targetId = $radioSi.data('target');
+                if (targetId) $(targetId).show();
+            } else {
+                 $(`[name="${name}"][value="no"]`).prop('checked', true);
+            }
         }
-    } else {
-        // Si es "no" o nulo, solo marca el "no"
-         $(`[name="${name}"][value="no"]`).prop('checked', true);
-         // No es necesario ocultar el área, ya está oculta por defecto
-    }
-}
         
-        // Radios C/NC/NA (Áreas Simples)
+        // Cargar Respuestas Simples y Mostrar Comentarios
         if (data.radios) {
             for (const name in data.radios) {
                 if (data.radios[name]) {
                     $(`[name="${name}"]`).val([data.radios[name]]);
+                    // Si es NC, mostrar caja
+                    if (data.radios[name] === 'NC') {
+                        $(`#comentario-${name}`).show();
+                    }
                 }
             }
         }
+        // Cargar Textos de Comentarios Simples
+        if (data.comentariosPreguntas) {
+            for (const name in data.comentariosPreguntas) {
+                $(`#obs-${name}`).val(data.comentariosPreguntas[name]);
+            }
+        }
         
-        // (REQ 1) Cargar IDs de fotos (TODAS)
         if (data.fotos) {
             selectedFiles = data.fotos;
             for (const previewId in selectedFiles) {
@@ -2499,39 +2652,26 @@ for (const name in toggles) {
             }
         }
 
-        // Cargar Listas (Múltiples)
         if (data.oficinas) { oficinasGuardadas = data.oficinas; renderListaOficinas(); }
         if (data.elevadores) { elevadoresGuardados = data.elevadores; renderListaElevadores(); }
         if (data.sotanoSecciones) { sotanoSeccionesGuardadas = data.sotanoSecciones; renderListaSotanoSeccion(); }
         if (data.sotanoBanos) { sotanoBanosGuardados = data.sotanoBanos; renderListaSotanoBano(); }
         
-        // Cargar formularios "sucios"
-        if (data.currentOffice) {
-            loadDirtyForm(data.currentOffice, $oficinaNumInput, $oficinaEditIndex, $tituloFormOficina, 'oficina', $listaOficinas);
-        }
-        if (data.currentElevador) {
-            loadDirtyForm(data.currentElevador, $elevadorNumInput, $elevadorEditIndex, $tituloFormElevador, 'elevador', $listaElevadores);
-        }
-        if (data.currentSotanoSeccion) {
-            loadDirtyForm(data.currentSotanoSeccion, $sotanoSeccionNumInput, $sotanoSeccionEditIndex, $tituloFormSotanoSeccion, 'sotano-seccion', $listaSotanoSeccion);
-        }
-        if (data.currentSotanoBano) {
-            loadDirtyForm(data.currentSotanoBano, $sotanoBanoNumInput, $sotanoBanoEditIndex, $tituloFormSotanoBano, 'sotano-bano', $listaSotanoBano);
-        }
+        // Cargar formularios "sucios" con sus observaciones
+        if (data.currentOffice) loadDirtyForm(data.currentOffice, $oficinaNumInput, $oficinaEditIndex, $tituloFormOficina, 'oficina', $listaOficinas);
+        if (data.currentElevador) loadDirtyForm(data.currentElevador, $elevadorNumInput, $elevadorEditIndex, $tituloFormElevador, 'elevador', $listaElevadores);
+        if (data.currentSotanoSeccion) loadDirtyForm(data.currentSotanoSeccion, $sotanoSeccionNumInput, $sotanoSeccionEditIndex, $tituloFormSotanoSeccion, 'sotano-seccion', $listaSotanoSeccion);
+        if (data.currentSotanoBano) loadDirtyForm(data.currentSotanoBano, $sotanoBanoNumInput, $sotanoBanoEditIndex, $tituloFormSotanoBano, 'sotano-bano', $listaSotanoBano);
         
-        // Comentarios
         $('#comentarios-finales').val(data.comentarios);
         $('#comentarios-finales-sotanos').val(data.comentariosSotanos);
         $('#comentarios-finales-plazas').val(data.comentariosPlazas);
         $('#comentarios-finales-exteriores').val(data.comentariosExteriores);
         
-        // Página Actual
         $('.pagina').removeClass('active');
         const paginaGuardada = data.paginaActual || 'pagina-1';
         $(`#${paginaGuardada}`).addClass('active');
         
-        // Actualizar barra de progreso
-        // (ARREGLO) LLamar a la función global navegarPagina
         navegarPagina(paginaGuardada); 
 
     } catch (e) {
@@ -2540,11 +2680,7 @@ for (const name in toggles) {
     }
 }
 
-/**
- * (REQ 1) Función auxiliar para cargar formularios "sucios"
- */
 function loadDirtyForm(data, $numInput, $editIndex, $titulo, prefix, $lista) {
-    // (ARREGLO) Chequeo de nulidad
     if (!$numInput || !$editIndex || !$titulo || !$lista) return;
     
     $numInput.val(data.numero);
@@ -2559,9 +2695,19 @@ function loadDirtyForm(data, $numInput, $editIndex, $titulo, prefix, $lista) {
     
     if(data.respuestas && data.respuestas.length > 0) {
         data.respuestas.forEach((answer, index) => {
+            const name = `${prefix.replace('_', '-')}-p${index}`;
             if (answer) {
-                $(`[name="${prefix.replace('_', '-')}-p${index}"]`).val([answer]);
+                $(`[name="${name}"]`).val([answer]);
+                // Mostrar caja si es NC
+                const $comment = $(`#comentario-${name}`);
+                if (answer === 'NC') $comment.show(); else $comment.hide();
             }
+        });
+    }
+    // Cargar observaciones del form sucio
+    if(data.observaciones && data.observaciones.length > 0) {
+        data.observaciones.forEach((obs, index) => {
+            $(`#obs-${prefix.replace('_', '-')}-p${index}`).val(obs);
         });
     }
 }
@@ -2570,7 +2716,6 @@ function loadDirtyForm(data, $numInput, $editIndex, $titulo, prefix, $lista) {
 async function clearSession() {
     localStorage.removeItem(SESSION_KEY);
     
-    // (REQ 1) Limpiar todos los arrays
     selectedFiles = {
         'preview-banos': [], 'preview-elevador': [], 'preview-espacios': [],
         'preview-juntas': [], 'preview-comunes': [], 'preview-oficina': [],
@@ -2687,7 +2832,7 @@ async function handleFileInput(event, previewId) {
 }
 async function renderFotosPreview(previewId) {
     const previewContainer = document.getElementById(previewId);
-    if (!previewContainer) return; // (REQ 1) Seguridad por si el ID no existe
+    if (!previewContainer) return; 
     
     previewContainer.innerHTML = '';
     const idArray = selectedFiles[previewId] || [];
@@ -2745,9 +2890,8 @@ async function deleteImage(buttonElement, previewId, id) {
 // --- FIN: LÓGICA FOTOS ---
 
 
-// --- INICIO: LÓGICA DE GENERACIÓN DE PDF ---
+// --- INICIO: LÓGICA DE GENERACIÓN DE PDF (ACTUALIZADA) ---
 
-// (Sin cambios)
 async function getLogoBase64() {
     if (logoBase64_Cache) { return Promise.resolve(logoBase64_Cache); }
     console.warn("El logo local no se cargó. Intentando de nuevo...");
@@ -2836,24 +2980,69 @@ const addPhotos = async (doc, imageIds, yPosRef) => {
     const rowsUsed = Math.ceil(imgCount / 3);
     yPosRef.y = yPos + (rowsUsed * spacingY); 
 };
+
+// (REQ 4) Modificado: Se quitó columna NA, se añadió Observaciones, letra pequeña
+// (REQ 1 & 2) Modificado: Ocultar filas NA y colorear celdas C (Verde) / NC (Rojo)
+// (REQ 1, 2 & Grid) Modificado: Ocultar NA, Colores C/NC, Letra Pequeña y CUADRÍCULA
 const addQuestionsTable = (doc, areaPrefix, config, data, yPosRef) => {
     const pageHeight = doc.internal.pageSize.height;
     const margin = 40;
     const body = [];
+    
     config.forEach((pregunta, index) => {
         const name = `${areaPrefix.replace('_', '-')}-p${index}`;
-        const respuesta = data.radios[name] || 'N/A';
-        const c = (respuesta === 'C') ? 'X' : '';
-        const nc = (respuesta === 'NC') ? 'X' : '';
-        const na = (respuesta === 'NA') ? 'X' : '';
-        body.push([pregunta, c, nc, na]);
+        const respuesta = data.radios[name] || '';
+        
+        // 1. Si la respuesta es "No Aplica", saltamos esta pregunta
+        if (respuesta === 'NA') {
+            return; 
+        }
+
+        const obs = data.comentariosPreguntas ? (data.comentariosPreguntas[name] || '') : '';
+        
+        // 2. Lógica de colores para las celdas
+        let celdaC = '';
+        let celdaNC = '';
+
+        if (respuesta === 'C') {
+            celdaC = { 
+                content: 'X', 
+                styles: { fillColor: [46, 204, 113], textColor: [255, 255, 255], halign: 'center', fontStyle: 'bold' } 
+            };
+        } else if (respuesta === 'NC') {
+            celdaNC = { 
+                content: 'X', 
+                styles: { fillColor: [231, 76, 60], textColor: [255, 255, 255], halign: 'center', fontStyle: 'bold' } 
+            };
+        }
+        
+        body.push([pregunta, celdaC, celdaNC, obs]);
     });
+
+    // Si todas eran NA, no imprimimos nada
+    if (body.length === 0) return;
+
     doc.autoTable({
         startY: yPosRef.y,
-        head: [['Pregunta', 'Cumple', 'No Cumple', 'No Aplica']],
+        head: [['Pregunta', 'C', 'NC', 'Observaciones']],
         body: body,
-        headStyles: { fillColor: [44, 62, 80], halign: 'center', valign: 'middle' },
-        columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 50, halign: 'center' }, 2: { cellWidth: 60, halign: 'center' }, 3: { cellWidth: 60, halign: 'center' }},
+        
+        // --- INICIO MODIFICACIÓN CUADRÍCULA ---
+        theme: 'grid', // Activa las líneas de la tabla
+        styles: { 
+            lineColor: [200, 200, 200], // Color de línea gris suave
+            lineWidth: 0.1,             // Grosor de línea fino
+        },
+        // --- FIN MODIFICACIÓN CUADRÍCULA ---
+
+        headStyles: { fillColor: [44, 62, 80], halign: 'center', valign: 'middle', fontSize: 8 },
+        bodyStyles: { fontSize: 8, valign: 'middle' }, 
+        columnStyles: { 
+            0: { cellWidth: 'auto' }, 
+            1: { cellWidth: 25, halign: 'center' }, 
+            2: { cellWidth: 25, halign: 'center' }, 
+            3: { cellWidth: 150, halign: 'left' } 
+        },
         didDrawPage: (hookData) => {
             if (hookData.pageNumber > hookData.settings.pageNumber) { yPosRef.y = margin; }
         },
@@ -2861,6 +3050,8 @@ const addQuestionsTable = (doc, areaPrefix, config, data, yPosRef) => {
     });
     yPosRef.y = doc.autoTable.previous.finalY + 15;
 };
+
+
 const addSectionTitle = (doc, title, yPosRef, forceNewPage = false) => {
     const pageHeight = doc.internal.pageSize.height;
     const pageWidth = doc.internal.pageSize.width;
@@ -2881,23 +3072,65 @@ const addSectionTitle = (doc, title, yPosRef, forceNewPage = false) => {
     doc.setTextColor(51, 51, 51);
     yPosRef.y += rectHeight + spacingAfter;
 };
-// (REQ 1) Función auxiliar para tablas de "Múltiples" (Oficinas, Sótanos)
+
+// (REQ 4) Modificado: Se quitó columna NA, se añadió Observaciones, letra pequeña para Múltiples
+// (REQ 1, 2 & Grid) Modificado: Ocultar NA, Colores, Letra Pequeña y CUADRÍCULA (Múltiples)
 const addMultipleItemTable = (doc, item, config, yPosRef) => {
     const margin = 40;
     const body = [];
+    
     config.forEach((pregunta, qIndex) => {
-        const respuesta = item.respuestas[qIndex] || 'N/A';
-        const c = (respuesta === 'C') ? 'X' : '';
-        const nc = (respuesta === 'NC') ? 'X' : '';
-        const na = (respuesta === 'NA') ? 'X' : '';
-        body.push([pregunta, c, nc, na]);
+        const respuesta = item.respuestas[qIndex] || '';
+        
+        // 1. Si es NA, no agregamos la fila
+        if (respuesta === 'NA') {
+            return;
+        }
+
+        const obs = (item.observaciones && item.observaciones[qIndex]) ? item.observaciones[qIndex] : '';
+
+        // 2. Lógica de colores
+        let celdaC = '';
+        let celdaNC = '';
+
+        if (respuesta === 'C') {
+            celdaC = { 
+                content: 'X', 
+                styles: { fillColor: [46, 204, 113], textColor: [255, 255, 255], halign: 'center', fontStyle: 'bold' } 
+            };
+        } else if (respuesta === 'NC') {
+            celdaNC = { 
+                content: 'X', 
+                styles: { fillColor: [231, 76, 60], textColor: [255, 255, 255], halign: 'center', fontStyle: 'bold' } 
+            };
+        }
+        
+        body.push([pregunta, celdaC, celdaNC, obs]);
     });
+
+    if (body.length === 0) return;
+
     doc.autoTable({
         startY: yPosRef.y,
-        head: [['Pregunta', 'Cumple', 'No Cumple', 'No Aplica']],
+        head: [['Pregunta', 'C', 'NC', 'Observaciones']],
         body: body,
-        headStyles: { fillColor: [52, 73, 94], halign: 'center', valign: 'middle' },
-        columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 50, halign: 'center' }, 2: { cellWidth: 60, halign: 'center' }, 3: { cellWidth: 60, halign: 'center' }},
+
+        // --- INICIO MODIFICACIÓN CUADRÍCULA ---
+        theme: 'grid', // Activa las líneas de la tabla
+        styles: { 
+            lineColor: [200, 200, 200], // Color de línea gris suave
+            lineWidth: 0.1,             // Grosor de línea fino
+        },
+        // --- FIN MODIFICACIÓN CUADRÍCULA ---
+
+        headStyles: { fillColor: [52, 73, 94], halign: 'center', valign: 'middle', fontSize: 8 },
+        bodyStyles: { fontSize: 8, valign: 'middle' }, 
+        columnStyles: { 
+            0: { cellWidth: 'auto' }, 
+            1: { cellWidth: 25, halign: 'center' }, 
+            2: { cellWidth: 25, halign: 'center' }, 
+            3: { cellWidth: 150, halign: 'left' }
+        },
         didDrawPage: (hookData) => { if (hookData.pageNumber > hookData.settings.pageNumber) { yPosRef.y = margin; } },
         margin: { top: margin }
     });
@@ -3143,15 +3376,11 @@ async function generatePDF() {
                         text: `Reporte de ${data.edificio}`,
                         files: [pdfFile]
                     });
-                    // Opcional: Limpiar al compartir
-                    // await clearSession(); window.location.reload();
                 } catch (err) {
                     Swal.fire('Cancelado', 'No se pudo compartir.', 'info');
                 }
             } else if (result.dismiss === Swal.DismissReason.cancel) {
                 doc.save(nombreArchivoFinal);
-                // Opcional: Limpiar al descargar
-                // await clearSession(); window.location.reload();
             }
         });
     } else {
@@ -3161,14 +3390,31 @@ async function generatePDF() {
             confirmButtonText: '<i class="fas fa-download me-2"></i> Descargar',
         }).then(async (result) => {
             doc.save(nombreArchivoFinal);
-            // Opcional: Limpiar al descargar
-            // await clearSession(); window.location.reload();
         });
     }
 }
 
 
 // --- FIN: LÓGICA DE GENERACIÓN DE PDF ---
+
+
+/**
+ * Controla la visibilidad del botón flotante basándose en si hay un área de carga de fotos visible.
+ */
+function updateFloatingButtonVisibility() {
+    const $activePage = $('.pagina.active');
+    // Buscamos un área de supervisión que esté visible (display != none)
+    // y que dentro tenga un input file
+    const $visibleUploadArea = $activePage.find('.area-supervision').filter(':visible').find('input[type="file"]');
+    
+    if ($visibleUploadArea.length > 0) {
+        $('#btn-camara-flotante').fadeIn();
+    } else {
+        $('#btn-camara-flotante').fadeOut();
+    }
+}
+
+
 </script>
 </body>
 </html>

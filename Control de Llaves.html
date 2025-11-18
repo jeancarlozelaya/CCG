@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pisos Brillantes - Control de Llaves</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --success-color: #2ecc71;
+            --dark-color: #34495e;
+            --insumos-primary: #3f7b57; 
+            --insumos-light-gray: #f0f2f5;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--insumos-light-gray);
+            padding-bottom: 80px;
+            color: var(--dark-color);
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+            color: white;
+            padding: 18px 0;
+            text-align: center;
+            box-shadow: var(--shadow);
+            margin-bottom: 25px;
+        }
+
+        .container { max-width: 900px; margin-top: 20px; }
+
+        .card-custom {
+            background: white;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            padding: 25px;
+            margin-bottom: 25px;
+            border: none;
+            border-top: 5px solid var(--insumos-primary);
+        }
+
+        .form-title {
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            font-weight: bold;
+            font-size: 1.2rem;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .btn-custom {
+            border: none;
+            font-weight: 600;
+            padding: 10px 25px;
+            border-radius: 50px;
+            transition: transform 0.2s;
+            color: white !important;
+        }
+        .btn-custom:active { transform: scale(0.98); }
+        .btn-primary-custom { background: linear-gradient(45deg, var(--secondary-color), #5dade2); }
+        .btn-success-custom { background: linear-gradient(45deg, #2ecc71, #58d68d); }
+        .btn-secondary-custom { background: linear-gradient(45deg, var(--dark-color), var(--primary-color)); }
+
+        .camera-btn-start {
+            border: 2px dashed var(--secondary-color);
+            border-radius: 8px;
+            background-color: #f0f8ff;
+            color: var(--secondary-color);
+            height: 80px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: 0.3s;
+            font-size: 0.85rem;
+            position: relative;
+        }
+        .camera-btn-start:hover { background-color: #e1f0fa; }
+
+        .camera-btn-end {
+            border: none;
+            background-color: transparent;
+            color: var(--accent-color);
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .camera-btn-end:active { transform: scale(0.95); }
+
+        .btn-loading::after {
+            content: "";
+            position: absolute;
+            width: 25px;
+            height: 25px;
+            border: 3px solid #ccc;
+            border-top-color: var(--secondary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .preview-container-compact {
+            border: 2px dashed #ccc;
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            position: relative;
+            width: 100%;
+        }
+        .preview-img-compact {
+            height: 80px;
+            width: auto;
+            max-width: 100%;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .btn-remove-photo {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background-color: var(--accent-color);
+            color: white;
+            border: 2px solid white;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            font-size: 14px;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        .table-container-scroll {
+            max-height: 400px;
+            overflow-y: auto;
+            border-radius: 8px;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.05);
+        }
+        .table-container-scroll::-webkit-scrollbar { width: 8px; }
+        .table-container-scroll::-webkit-scrollbar-track { background: #f1f1f1; }
+        .table-container-scroll::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+
+        .table-custom thead { position: sticky; top: 0; z-index: 1; background-color: var(--primary-color); color: white; }
+        .text-location { color: #000 !important; font-weight: bold; }
+        .thumb-img { width: 50px; height: 50px; object-fit: cover; border-radius: 6px; border: 1px solid #ddd; }
+        .badge-pendiente { background-color: #ffecec; color: var(--accent-color); border: 1px solid var(--accent-color); padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
+
+        .modal-content { border-radius: 15px; overflow: hidden; }
+        .modal-header { background: var(--primary-color); color: white; }
+        .modal-img-full { width: 100%; height: auto; border-radius: 8px; border: 1px solid #eee; }
+        .preview-wrapper-modal { position: relative; display: inline-block; width: 100%; text-align: center; }
+        .preview-img-modal { width: 100%; height: 200px; object-fit: cover; border-radius: 8px; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h2>Pisos Brillantes</h2>
+    </div>
+
+    <div class="container">
+        
+        <div class="card-custom">
+            <div class="form-title"><i class="fas fa-key me-2"></i>Control de Manejo de Llaves</div>
+            
+            <div class="row g-3">
+                <div class="col-6">
+                    <label class="form-label fw-bold small">Edificio</label>
+                    <select id="edificio" class="form-select form-select-sm">
+                        <option value="">Seleccione...</option>
+                        <option value="CBA">CBA</option>
+                        <option value="CBB">CBB</option>
+                        <option value="CBC">CBC</option>
+                        <option value="Torre #1">Torre #1</option>
+                        <option value="Torre #2">Torre #2</option>
+                    </select>
+                </div>
+                <div class="col-6">
+                    <label class="form-label fw-bold small">Nivel</label>
+                    <input type="number" id="nivel" class="form-control form-control-sm" placeholder="Ej: 8">
+                </div>
+
+                <div class="col-12 mt-3">
+                    <label class="form-label fw-bold small text-primary">Foto Inicio (Apertura)</label>
+                    
+                    <div id="camara-container-inicio">
+                        <div id="btn-start-cam" class="camera-btn-start" onclick="triggerCamera('inicio')">
+                            <i class="fas fa-camera fs-3 mb-1"></i>
+                            <span>Tomar Foto</span>
+                        </div>
+                    </div>
+
+                    <div id="preview-container-inicio" class="preview-container-compact" style="display:none;">
+                        <button class="btn-remove-photo" onclick="eliminarFotoBorrador()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                        <img id="img-inicio" class="preview-img-compact">
+                    </div>
+
+                    <input type="file" id="input-inicio" accept="image/*" capture="environment" style="display:none;" onchange="procesarFotoInicio(this)">
+                </div>
+
+                <div class="col-12 mt-4">
+                    <button class="btn btn-custom btn-primary-custom w-100 shadow" onclick="guardarInicio()">
+                        <i class="fas fa-save me-2"></i> Guardar Apertura
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-custom p-0 overflow-hidden">
+            <div class="p-3 border-bottom bg-light d-flex justify-content-between align-items-center">
+                <h6 class="m-0 text-dark fw-bold"><i class="fas fa-list me-2"></i>Registros del Mes</h6>
+                <button class="btn btn-sm btn-outline-danger" onclick="borrarHistorial()">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+            
+            <div class="table-container-scroll">
+                <table class="table table-custom table-hover mb-0 align-middle">
+                    <thead>
+                        <tr>
+                            <th style="width: 20%">Fecha</th>
+                            <th style="width: 25%">Edificio</th>
+                            <th style="width: 15%">Nivel</th>
+                            <th style="width: 20%" class="text-center">Inicio</th>
+                            <th style="width: 20%" class="text-center">Fin</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-registros">
+                        </tbody>
+                </table>
+            </div>
+            <div id="empty-msg" class="text-center text-muted p-4 small" style="display:none;">
+                No hay registros.
+            </div>
+        </div>
+        
+        <div class="d-grid gap-2 mt-4">
+             <button class="btn btn-custom btn-success-custom shadow" onclick="generarPDFMejorado()">
+                <i class="fas fa-file-pdf me-2"></i> Generar Reporte
+            </button>
+        </div>
+
+    </div>
+
+    <div class="modal fade" id="modalDetalle" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" id="contenidoModal">
+                <div class="modal-header py-2">
+                    <h5 class="modal-title fs-6">Detalle de Registro</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" onclick="limpiarBorradorFin()"></button>
+                </div>
+                <div class="modal-body bg-white">
+                    <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                        <div>
+                            <div class="fw-bold text-dark fs-5" id="modalUbicacionCompleta"></div>
+                        </div>
+                        <div class="text-end small text-muted">
+                            <div id="modalFecha" class="fw-bold"></div>
+                            <div id="modalHora"></div>
+                        </div>
+                    </div>
+
+                    <div class="row g-0 align-items-center" style="min-height: 200px;">
+                        <div class="col-6 text-center p-1 border-end">
+                            <span class="fw-bold text-primary small d-block mb-2">INICIO</span>
+                            <div class="border rounded p-1 bg-light">
+                                <img id="modalImgInicio" src="" class="modal-img-full">
+                            </div>
+                        </div>
+
+                        <div class="col-6 text-center p-1">
+                            <span class="fw-bold text-success small d-block mb-2">CIERRE</span>
+                            
+                            <div id="viewImgFin" class="border rounded p-1 bg-light" style="display:none;">
+                                <img id="modalImgFinSaved" src="" class="modal-img-full">
+                            </div>
+                            
+                            <div id="btnTomarFinContainer" style="height: 150px; display: flex; align-items: center; justify-content: center;">
+                                <div id="btn-end-cam" class="camera-btn-end" onclick="triggerCamera('fin')">
+                                    <i class="fas fa-camera fa-2x mb-2"></i>
+                                    <span class="fw-bold small">Tomar Cierre</span>
+                                </div>
+                            </div>
+
+                            <div id="previewFinBorrador" style="display:none;">
+                                <div class="preview-wrapper-modal mb-2">
+                                    <button class="btn-remove-photo" onclick="cancelarBorradorFin()">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                    <img id="imgFinPreview" class="preview-img-modal">
+                                </div>
+                                <button class="btn btn-success btn-sm w-100 fw-bold" onclick="confirmarGuardadoFin()">
+                                    <i class="fas fa-check me-1"></i> CONFIRMAR
+                                </button>
+                            </div>
+
+                            <input type="file" id="input-fin-modal" accept="image/*" capture="environment" style="display:none;" onchange="procesarFotoFin(this)">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer p-2 bg-light justify-content-center">
+                    <button type="button" class="btn btn-custom btn-secondary-custom w-100 btn-sm" id="btnShare" onclick="compartirPantalla()">
+                        <i class="fas fa-share-alt me-2"></i> Compartir Imagen
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const DB_NAME = 'PisosBrillantesKeysDB';
+    const STORE_NAME = 'imagenes';
+    let db;
+    let registros = JSON.parse(localStorage.getItem('pb_registros_llaves')) || [];
+    let fotoInicioBorrador = null, fotoFinBorrador = null, registroSeleccionadoId = null, modalDetalleBS = null;
+
+    $(document).ready(function() {
+        const modalEl = document.getElementById('modalDetalle');
+        if (modalEl) {
+            modalDetalleBS = new bootstrap.Modal(modalEl);
+            modalEl.addEventListener('hidden.bs.modal', limpiarBorradorFin);
+        }
+        initDB().then(() => { restaurarBorrador(); renderizarTabla(); });
+        $('#edificio, #nivel').on('input change', function() {
+            localStorage.setItem('draft_edificio', $('#edificio').val());
+            localStorage.setItem('draft_nivel', $('#nivel').val());
+        });
+    });
+
+    function initDB() {
+        return new Promise((resolve) => {
+            const request = indexedDB.open(DB_NAME, 1);
+            request.onupgradeneeded = (e) => {
+                const d = e.target.result;
+                if (!d.objectStoreNames.contains(STORE_NAME)) d.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+            };
+            request.onsuccess = (e) => { db = e.target.result; resolve(); };
+        });
+    }
+    function saveImageToDB(base64) {
+        return new Promise((resolve) => {
+            const tx = db.transaction([STORE_NAME], 'readwrite');
+            tx.objectStore(STORE_NAME).add({ image: base64 }).onsuccess = (e) => resolve(e.target.result);
+        });
+    }
+    function getImageFromDB(id) {
+        return new Promise((resolve) => {
+            if(!id) return resolve(null);
+            const tx = db.transaction([STORE_NAME], 'readonly');
+            tx.objectStore(STORE_NAME).get(id).onsuccess = (e) => resolve(e.target.result ? e.target.result.image : null);
+        });
+    }
+    function clearDB() {
+        return new Promise((resolve) => {
+            const tx = db.transaction([STORE_NAME], 'readwrite');
+            tx.objectStore(STORE_NAME).clear().onsuccess = resolve;
+        });
+    }
+
+    function triggerCamera(type) {
+        const btnId = type === 'inicio' ? '#btn-start-cam' : '#btn-end-cam';
+        const inputId = type === 'inicio' ? 'input-inicio' : 'input-fin-modal';
+        $(btnId).addClass('btn-loading');
+        setTimeout(() => document.getElementById(inputId).click(), 100);
+    }
+
+    function estamparFecha(file, callback) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const maxWidth = 800;
+                const scale = maxWidth / img.width;
+                canvas.width = maxWidth;
+                canvas.height = img.height * scale;
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                const fechaStr = new Date().toLocaleDateString('es-HN') + ' ' + new Date().toLocaleTimeString('es-HN', {hour: '2-digit', minute:'2-digit'});
+                ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+                ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
+                ctx.font = "bold 30px Arial";
+                ctx.fillStyle = "#ffffff";
+                ctx.textAlign = "right";
+                ctx.fillText(fechaStr, canvas.width - 20, canvas.height - 15);
+                callback(canvas.toDataURL('image/jpeg', 0.8));
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function procesarFotoInicio(input) {
+        $('#btn-start-cam').removeClass('btn-loading');
+        if (input.files && input.files[0]) {
+            estamparFecha(input.files[0], (base64) => {
+                fotoInicioBorrador = base64;
+                localStorage.setItem('draft_img_inicio', base64);
+                $('#img-inicio').attr('src', base64);
+                $('#camara-container-inicio').hide();
+                $('#preview-container-inicio').show();
+            });
+        }
+    }
+    function eliminarFotoBorrador() {
+        fotoInicioBorrador = null;
+        localStorage.removeItem('draft_img_inicio');
+        $('#input-inicio').val('');
+        $('#preview-container-inicio').hide();
+        $('#camara-container-inicio').show();
+    }
+    function restaurarBorrador() {
+        const ed = localStorage.getItem('draft_edificio');
+        const niv = localStorage.getItem('draft_nivel');
+        if(ed) $('#edificio').val(ed);
+        if(niv) $('#nivel').val(niv);
+        const img = localStorage.getItem('draft_img_inicio');
+        if (img) {
+            fotoInicioBorrador = img;
+            $('#img-inicio').attr('src', img);
+            $('#camara-container-inicio').hide();
+            $('#preview-container-inicio').show();
+        }
+    }
+
+    async function guardarInicio() {
+        const edificio = $('#edificio').val();
+        const nivel = $('#nivel').val();
+        if (!edificio || !nivel) return Swal.fire('Error', 'Complete Edificio y Nivel', 'warning');
+        if (!fotoInicioBorrador) return Swal.fire('Error', 'Tome la foto de inicio', 'warning');
+        Swal.fire({ title: 'Guardando...', didOpen: () => Swal.showLoading() });
+        try {
+            const idImg = await saveImageToDB(fotoInicioBorrador);
+            const nuevo = {
+                id: Date.now(),
+                fecha: new Date().toLocaleDateString('es-HN'),
+                hora: new Date().toLocaleTimeString('es-HN', {hour:'2-digit', minute:'2-digit'}),
+                edificio: edificio,
+                nivel: nivel,
+                fotoInicioId: idImg,
+                fotoFinId: null
+            };
+            registros.push(nuevo);
+            localStorage.setItem('pb_registros_llaves', JSON.stringify(registros));
+            eliminarFotoBorrador();
+            localStorage.removeItem('draft_edificio');
+            localStorage.removeItem('draft_nivel');
+            $('#edificio').val('');
+            $('#nivel').val('');
+            renderizarTabla();
+            Swal.close();
+            Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 2000}).fire({icon: 'success', title: 'Guardado'});
+        } catch (e) { Swal.fire('Error', 'No se pudo guardar', 'error'); }
+    }
+
+    async function renderizarTabla() {
+        const $tbody = $('#tabla-registros');
+        $tbody.empty();
+        if (registros.length === 0) { $('#empty-msg').show(); return; }
+        $('#empty-msg').hide();
+
+        const lista = [...registros].reverse();
+        for (const reg of lista) {
+            const imgInicio = await getImageFromDB(reg.fotoInicioId);
+            let cellFin = `<span class="badge-pendiente">PENDIENTE</span>`;
+            if (reg.fotoFinId) {
+                const imgFin = await getImageFromDB(reg.fotoFinId);
+                if (imgFin) cellFin = `<img src="${imgFin}" class="thumb-img">`;
+            }
+            // CAMBIO 2: Celda Nivel en Negrita (fw-bold)
+            const row = `
+                <tr onclick="abrirModalDetalle(${reg.id})">
+                    <td>
+                        <div class="fw-bold small">${reg.fecha}</div>
+                        <div class="small text-muted" style="font-size:0.7rem">${reg.hora}</div>
+                    </td>
+                    <td>
+                        <div class="text-location small">${reg.edificio}</div>
+                    </td>
+                    <td class="fw-bold">
+                         #${reg.nivel}
+                    </td>
+                    <td class="text-center"><img src="${imgInicio || ''}" class="thumb-img"></td>
+                    <td class="text-center">${cellFin}</td>
+                </tr>
+            `;
+            $tbody.append(row);
+        }
+    }
+
+    async function abrirModalDetalle(id) {
+        registroSeleccionadoId = id;
+        limpiarBorradorFin();
+        const reg = registros.find(r => r.id === id);
+        if(!reg) return;
+        $('#modalUbicacionCompleta').text(`${reg.edificio}, Nivel #${reg.nivel}`);
+        $('#modalFecha').text(reg.fecha);
+        $('#modalHora').text(reg.hora);
+        const imgStart = await getImageFromDB(reg.fotoInicioId);
+        $('#modalImgInicio').attr('src', imgStart);
+        if (reg.fotoFinId) {
+            const imgEnd = await getImageFromDB(reg.fotoFinId);
+            $('#modalImgFinSaved').attr('src', imgEnd);
+            $('#viewImgFin').show();
+            $('#btnTomarFinContainer').hide();
+        } else {
+            $('#viewImgFin').hide();
+            $('#btnTomarFinContainer').show();
+        }
+        if (modalDetalleBS) modalDetalleBS.show();
+    }
+
+    function procesarFotoFin(input) {
+        $('#btn-end-cam').removeClass('btn-loading');
+        if (input.files && input.files[0]) {
+            estamparFecha(input.files[0], (base64) => {
+                fotoFinBorrador = base64;
+                $('#imgFinPreview').attr('src', base64);
+                $('#btnTomarFinContainer').hide();
+                $('#previewFinBorrador').show();
+                $('#input-fin-modal').val('');
+            });
+        }
+    }
+    function cancelarBorradorFin() {
+        fotoFinBorrador = null;
+        $('#previewFinBorrador').hide();
+        $('#btnTomarFinContainer').show();
+    }
+    async function confirmarGuardadoFin() {
+        if (!fotoFinBorrador || !registroSeleccionadoId) return;
+        try {
+            const idFin = await saveImageToDB(fotoFinBorrador);
+            const idx = registros.findIndex(r => r.id === registroSeleccionadoId);
+            if (idx !== -1) {
+                registros[idx].fotoFinId = idFin;
+                localStorage.setItem('pb_registros_llaves', JSON.stringify(registros));
+            }
+            renderizarTabla();
+            abrirModalDetalle(registroSeleccionadoId);
+            Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 2000}).fire({icon: 'success', title: 'Cierre OK'});
+        } catch(e) { Swal.fire('Error', 'No se pudo guardar', 'error'); }
+    }
+    function limpiarBorradorFin() {
+        fotoFinBorrador = null;
+        $('#previewFinBorrador').hide();
+        $('#btn-end-cam').removeClass('btn-loading');
+    }
+
+    async function generarPDFMejorado() {
+        if(!registros.length) return Swal.fire('Vacío', 'No hay registros', 'info');
+        
+        Swal.fire({title: 'Generando PDF...', didOpen: ()=>Swal.showLoading()});
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        doc.setFillColor(44, 62, 80);
+        doc.rect(0, 0, 210, 25, 'F');
+        doc.setFontSize(18);
+        doc.setTextColor(255, 255, 255);
+        doc.text("Control de Manejo de Llaves", 105, 16, { align: 'center' });
+        doc.setTextColor(100);
+        doc.setFontSize(10);
+        doc.text("Generado: " + new Date().toLocaleString(), 14, 32);
+
+        const rowsWithImages = [];
+        for (const r of registros) {
+            const imgStart = await getImageFromDB(r.fotoInicioId);
+            const imgEnd = r.fotoFinId ? await getImageFromDB(r.fotoFinId) : null;
+            rowsWithImages.push({
+                data: [
+                    r.fecha + "\n" + r.hora,
+                    r.edificio,
+                    "#" + r.nivel,
+                    '', 
+                    ''
+                ],
+                imgStart: imgStart,
+                imgEnd: imgEnd
+            });
+        }
+        const bodyData = rowsWithImages.map(item => item.data);
+
+        doc.autoTable({
+            head: [['Fecha', 'Edificio', 'Nivel', 'Apertura', 'Cierre']],
+            body: bodyData,
+            startY: 40,
+            theme: 'grid',
+            styles: { fontSize: 9, valign: 'middle', cellPadding: 2 },
+            headStyles: { fillColor: [44, 62, 80], textColor: 255, halign: 'center' },
+            bodyStyles: { minCellHeight: 35 }, 
+            rowPageBreak: 'avoid',
+            columnStyles: {
+                0: { cellWidth: 30, halign: 'center' },
+                1: { cellWidth: 35, halign: 'center' },
+                2: { cellWidth: 15, halign: 'center' },
+                3: { cellWidth: 50, halign: 'center' },
+                4: { cellWidth: 50, halign: 'center' }
+            },
+            didDrawCell: function(data) {
+                if (data.section === 'body') {
+                    const rowImages = rowsWithImages[data.row.index];
+                    if (!rowImages) return;
+
+                    if (data.column.index === 3 && rowImages.imgStart) {
+                        doc.addImage(rowImages.imgStart, 'JPEG', data.cell.x + 2, data.cell.y + 2, 45, 30);
+                    }
+                    if (data.column.index === 4) {
+                        if (rowImages.imgEnd) {
+                            doc.addImage(rowImages.imgEnd, 'JPEG', data.cell.x + 2, data.cell.y + 2, 45, 30);
+                        } else {
+                            doc.setFontSize(8);
+                            doc.setTextColor(200, 50, 50);
+                            doc.text("PENDIENTE", data.cell.x + 25, data.cell.y + 18, {align: 'center'});
+                        }
+                    }
+                }
+            }
+        });
+
+        Swal.close();
+
+        // CAMBIO 3: Nombre del Archivo Actualizado
+        const nombreArchivo = "Historial de Manejo de Llaves.pdf";
+
+        // CAMBIO 1: SweetAlert con X y sin botón Cancelar inferior
+        Swal.fire({
+            title: 'Reporte Generado',
+            text: '¿Qué desea hacer con el archivo?',
+            icon: 'success',
+            showDenyButton: true,
+            showCancelButton: false, // Sin botón cancelar abajo
+            showCloseButton: true,   // X arriba
+            confirmButtonText: '<i class="fas fa-share-alt"></i> Compartir',
+            denyButtonText: '<i class="fas fa-download"></i> Descargar',
+            confirmButtonColor: '#2ecc71',
+            denyButtonColor: '#3498db'
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                const pdfBlob = doc.output('blob');
+                const file = new File([pdfBlob], nombreArchivo, { type: "application/pdf" });
+                if (navigator.share) {
+                    try {
+                        await navigator.share({
+                            files: [file],
+                            title: 'Reporte de Llaves',
+                            text: 'Adjunto el reporte mensual.'
+                        });
+                    } catch (err) {
+                        console.log('Compartir cancelado');
+                    }
+                } else {
+                    Swal.fire('Info', 'Dispositivo no soporta compartir. Se descargará.', 'info');
+                    doc.save(nombreArchivo);
+                }
+            } else if (result.isDenied) {
+                doc.save(nombreArchivo);
+            }
+        });
+    }
+
+    function compartirPantalla() {
+        const btnShare = document.getElementById('btnShare');
+        const btnClose = document.querySelector('.btn-close');
+        btnShare.style.display = 'none';
+        btnClose.style.display = 'none';
+        const element = document.getElementById('contenidoModal');
+
+        html2canvas(element, { scale: 2, backgroundColor: "#ffffff", useCORS: true }).then(canvas => {
+            btnShare.style.display = 'block';
+            btnClose.style.display = 'block';
+            canvas.toBlob(async (blob) => {
+                const file = new File([blob], "registro.png", { type: "image/png" });
+                if (navigator.share) {
+                    try { await navigator.share({ files: [file] }); } catch (e) {}
+                } else {
+                    const a = document.createElement('a');
+                    a.href = canvas.toDataURL("image/png");
+                    a.download = 'registro.png';
+                    a.click();
+                }
+            });
+        });
+    }
+
+    function borrarHistorial() {
+        Swal.fire({
+            title: 'Acceso Restringido',
+            html: 'Ingrese la contraseña para eliminar el historial.',
+            input: 'password',
+            inputPlaceholder: 'Contraseña',
+            confirmButtonText: 'Confirmar',
+            showCancelButton: true,
+            cancelButtonText: 'Cancelar',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            backdrop: `rgba(43, 62, 80, 0.8)`,
+            preConfirm: (password) => {
+                if (password !== 'pisos123') { 
+                    Swal.showValidationMessage('Contraseña incorrecta');
+                    return false;
+                }
+                return password;
+            }
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                registros = [];
+                localStorage.removeItem('pb_registros_llaves');
+                await clearDB();
+                renderizarTabla();
+                Swal.fire('Eliminado', 'El historial ha sido borrado correctamente.', 'success');
+            }
+        });
+    }
+</script>
+</body>
+</html>

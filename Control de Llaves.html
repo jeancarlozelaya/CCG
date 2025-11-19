@@ -174,9 +174,8 @@
         .table-custom thead { position: sticky; top: 0; z-index: 1; background-color: var(--primary-color); color: white; }
         .text-location { color: #000 !important; font-weight: bold; }
         .thumb-img { width: 50px; height: 50px; object-fit: cover; border-radius: 6px; border: 1px solid #ddd; }
-        /* CAMBIO 4: Nuevos colores para las insignias de estado */
+        /* MODIFICADO: Solo se usa la clase de pendiente (rojo) */
         .badge-pendiente { background-color: #ffecec; color: var(--accent-color); border: 1px solid var(--accent-color); padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
-        .badge-en-proceso { background-color: #fff9e6; color: var(--warning-color); border: 1px solid var(--warning-color); padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
 
         .modal-content { border-radius: 15px; overflow: hidden; }
         .modal-header { background: var(--primary-color); color: white; }
@@ -375,14 +374,12 @@
     const STORE_NAME = 'imagenes';
     let db;
     let registros = JSON.parse(localStorage.getItem('pb_registros_llaves')) || [];
-    // CAMBIO 7: Agregar fotoDuranteBorrador
     let fotoInicioBorrador = null, fotoDuranteBorrador = null, fotoFinBorrador = null, registroSeleccionadoId = null, modalDetalleBS = null;
 
     $(document).ready(function() {
         const modalEl = document.getElementById('modalDetalle');
         if (modalEl) {
             modalDetalleBS = new bootstrap.Modal(modalEl);
-            // CAMBIO 8: Limpiar borrador para ambos campos
             modalEl.addEventListener('hidden.bs.modal', limpiarBorradoresModal);
         }
         initDB().then(() => { restaurarBorrador(); renderizarTabla(); });
@@ -427,7 +424,7 @@
         if (type === 'inicio') {
             btnId = '#btn-start-cam';
             inputId = 'input-inicio';
-        } else if (type === 'durante') { // CAMBIO 9: Lógica para 'durante'
+        } else if (type === 'durante') {
             btnId = '#btn-during-cam';
             inputId = 'input-durante-modal';
         } else {
@@ -512,7 +509,6 @@
                 edificio: edificio,
                 nivel: nivel,
                 fotoInicioId: idImg,
-                // CAMBIO 10: Agregar fotoDuranteId
                 fotoDuranteId: null,
                 fotoFinId: null
             };
@@ -539,30 +535,23 @@
         for (const reg of lista) {
             const imgInicio = await getImageFromDB(reg.fotoInicioId);
             
-            // CAMBIO 11: Lógica para la celda "Durante"
+            // MODIFICADO: Lógica para la celda "Durante" ahora usa PENDIENTE (rojo)
             let cellDurante = `<span class="badge-pendiente">PENDIENTE</span>`;
             if (reg.fotoDuranteId) {
                 const imgDurante = await getImageFromDB(reg.fotoDuranteId);
                 if (imgDurante) cellDurante = `<img src="${imgDurante}" class="thumb-img">`;
             } else if (reg.fotoFinId) {
-                // Si ya está cerrado, no puede haber "Durante" pendiente.
+                // Si ya está cerrado, no puede haber "Durante" pendiente, se pone N/A
                 cellDurante = `<span class="small text-muted">N/A</span>`; 
-            } else if (reg.fotoInicioId) {
-                // Si ya inició y no ha cerrado ni ha tomado "Durante", está en proceso
-                cellDurante = `<span class="badge-en-proceso">EN PROCESO</span>`;
             }
-
-            // CAMBIO 12: Lógica para la celda "Fin"
+            
+            // Lógica para la celda "Fin"
             let cellFin = `<span class="badge-pendiente">PENDIENTE</span>`;
             if (reg.fotoFinId) {
                 const imgFin = await getImageFromDB(reg.fotoFinId);
                 if (imgFin) cellFin = `<img src="${imgFin}" class="thumb-img">`;
-            } else if (reg.fotoDuranteId) {
-                // Si tomó Durante, el Fin está Pendiente
-                cellFin = `<span class="badge-en-proceso">PENDIENTE</span>`;
             }
-            
-            // CAMBIO 13: Agregar columna en la fila
+
             const row = `
                 <tr onclick="abrirModalDetalle(${reg.id})">
                     <td>
@@ -595,7 +584,7 @@
         const imgStart = await getImageFromDB(reg.fotoInicioId);
         $('#modalImgInicio').attr('src', imgStart);
         
-        // CAMBIO 14: Lógica para la columna Durante en el modal
+        // Lógica para la columna Durante en el modal
         if (reg.fotoDuranteId) {
             const imgDuring = await getImageFromDB(reg.fotoDuranteId);
             $('#modalImgDuranteSaved').attr('src', imgDuring);
@@ -620,7 +609,6 @@
         if (modalDetalleBS) modalDetalleBS.show();
     }
 
-    // CAMBIO 15: Función para procesar foto Durante
     function procesarFotoDurante(input) {
         $('#btn-during-cam').removeClass('btn-loading');
         if (input.files && input.files[0]) {
@@ -634,14 +622,12 @@
         }
     }
 
-    // CAMBIO 16: Función para cancelar borrador Durante
     function cancelarBorradorDurante() {
         fotoDuranteBorrador = null;
         $('#previewDuranteBorrador').hide();
         $('#btnTomarDuranteContainer').show();
     }
 
-    // CAMBIO 17: Función para confirmar guardado Durante
     async function confirmarGuardadoDurante() {
         if (!fotoDuranteBorrador || !registroSeleccionadoId) return;
         try {
@@ -690,7 +676,6 @@
         } catch(e) { Swal.fire('Error', 'No se pudo guardar', 'error'); }
     }
 
-    // CAMBIO 18: Función unificada para limpiar borradores
     function limpiarBorradoresModal() {
         fotoDuranteBorrador = null;
         $('#previewDuranteBorrador').hide();
@@ -723,7 +708,6 @@
         const rowsWithImages = [];
         for (const r of registros) {
             const imgStart = await getImageFromDB(r.fotoInicioId);
-            // CAMBIO 19: Obtener imagen "Durante"
             const imgDuring = r.fotoDuranteId ? await getImageFromDB(r.fotoDuranteId) : null;
             const imgEnd = r.fotoFinId ? await getImageFromDB(r.fotoFinId) : null;
             rowsWithImages.push({
@@ -732,23 +716,22 @@
                     r.edificio,
                     "#" + r.nivel,
                     '', // Apertura
-                    '', // Durante (NUEVO)
+                    '', // Durante
                     '' // Cierre
                 ],
                 imgStart: imgStart,
-                imgDuring: imgDuring, // CAMBIO 20: Agregar al objeto
+                imgDuring: imgDuring,
                 imgEnd: imgEnd
             });
         }
         const bodyData = rowsWithImages.map(item => item.data);
 
         doc.autoTable({
-            // CAMBIO 21: Agregar columna "Durante" al encabezado
             head: [['Fecha', 'Edificio', 'Nivel', 'Apertura', 'Durante', 'Cierre']],
             body: bodyData,
             startY: 40,
             theme: 'grid',
-            styles: { fontSize: 8, valign: 'middle', cellPadding: 2 }, // Reducido el tamaño de fuente para que quepan 6 columnas
+            styles: { fontSize: 8, valign: 'middle', cellPadding: 2 },
             headStyles: { fillColor: [44, 62, 80], textColor: 255, halign: 'center' },
             bodyStyles: { minCellHeight: 35 }, 
             rowPageBreak: 'avoid',
@@ -757,7 +740,7 @@
                 1: { cellWidth: 30, halign: 'center' },
                 2: { cellWidth: 12, halign: 'center' },
                 3: { cellWidth: 40, halign: 'center' }, // Apertura
-                4: { cellWidth: 40, halign: 'center' }, // Durante (NUEVO)
+                4: { cellWidth: 40, halign: 'center' }, // Durante
                 5: { cellWidth: 40, halign: 'center' }  // Cierre
             },
             didDrawCell: function(data) {
@@ -770,14 +753,14 @@
                         doc.addImage(rowImages.imgStart, 'JPEG', data.cell.x + 2, data.cell.y + 2, 35, 30);
                     }
                     
-                    // Columna 4 (Durante) - CAMBIO 22: Lógica para la columna Durante en PDF
+                    // Columna 4 (Durante) - MODIFICADO: Muestra PENDIENTE si no hay imagen
                     if (data.column.index === 4) {
                         if (rowImages.imgDuring) {
                             doc.addImage(rowImages.imgDuring, 'JPEG', data.cell.x + 2, data.cell.y + 2, 35, 30);
                         } else if (!rowImages.imgEnd) {
                             doc.setFontSize(7);
-                            doc.setTextColor(231, 76, 60); // Color pendiente (rojo)
-                            doc.text("EN PROCESO", data.cell.x + 20, data.cell.y + 18, {align: 'center'});
+                            doc.setTextColor(231, 76, 60); // Rojo (Accent Color)
+                            doc.text("PENDIENTE", data.cell.x + 20, data.cell.y + 18, {align: 'center'});
                         } else {
                              doc.setFontSize(7);
                             doc.setTextColor(150, 150, 150); 
@@ -791,7 +774,7 @@
                             doc.addImage(rowImages.imgEnd, 'JPEG', data.cell.x + 2, data.cell.y + 2, 35, 30);
                         } else {
                             doc.setFontSize(7);
-                            doc.setTextColor(231, 76, 60); // Color pendiente (rojo)
+                            doc.setTextColor(231, 76, 60); // Rojo (Accent Color)
                             doc.text("PENDIENTE", data.cell.x + 20, data.cell.y + 18, {align: 'center'});
                         }
                     }

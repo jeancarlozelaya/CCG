@@ -1,0 +1,1684 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Registro de Participación - Momento de Valor</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<style>
+    /* ---------------------------------------------------------------------- */
+    /* --- COPIA DE ESTILOS DE 'Gestión de Equipos.html' PARA UNIFICAR UI --- */
+    /* ---------------------------------------------------------------------- */
+    
+    :root {
+        --primary-color: #2c3e50;
+        --secondary-color: #3498db;
+        --accent-color: #e74c3c;
+        --success-color: #2ecc71;
+        --warning-color: #f39c12;
+        --light-color: #ecf0f1;
+        --dark-color: #34495e;
+        --text-color: #333;
+        --border-color: #ddd;
+        --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        --transition: all 0.3s ease;
+    }
+
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
+
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f5f7fa;
+        color: var(--text-color);
+        line-height: 1.6;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        -khtml-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+        /* Asegurar que el cuerpo tome todo el espacio */
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+
+    .header {
+        background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+        color: white;
+        text-align: center;
+        padding: 18px 0;
+        font-size: 1.5rem;
+        font-weight: bold;
+        box-shadow: var(--shadow);
+        position: relative;
+        width: 100%;
+    }
+
+    .container {
+        width: 90%;
+        max-width: 800px;
+        margin: 25px auto;
+        padding: 25px;
+        background-color: white;
+        border-radius: 12px;
+        box-shadow: var(--shadow);
+        box-sizing: border-box;
+    }
+
+    h1 {
+        text-align: center;
+        color: var(--primary-color);
+        margin-bottom: 25px;
+        font-size: 1.8rem;
+        position: relative;
+        padding-bottom: 10px;
+    }
+
+    h1:after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 80px;
+        height: 4px;
+        background-color: var(--secondary-color);
+        border-radius: 2px;
+    }
+    
+    .question-container {
+        margin-bottom: 20px;
+        padding: 20px;
+        border-radius: 8px;
+        background-color: #f8f9fa;
+        border-left: 4px solid var(--secondary-color);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
+    }
+
+    .question-container label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: var(--dark-color);
+    }
+
+    .question-container input,
+    .question-container select,
+    .question-container textarea {
+        width: 100%;
+        padding: 12px 15px;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        font-size: 16px;
+        transition: var(--transition);
+        background-color: white;
+        box-sizing: border-box;
+    }
+
+    .question-container input:focus,
+    .question-container select:focus,
+    .question-container textarea:focus {
+        border-color: var(--secondary-color);
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+    }
+
+    .question-container select:disabled, 
+    .question-container input:disabled,
+    .question-container textarea:disabled {
+        background-color: #e9ecef;
+        cursor: not-allowed;
+    }
+    
+    .question-container.complete {
+        border-left: 4px solid var(--success-color);
+    }
+    
+    .question-container.incomplete {
+        border-left: 4px solid var(--accent-color);
+    }
+
+    .question-container textarea {
+        resize: vertical;
+        height: 150px; /* Altura ajustada para el tema */
+    }
+    
+    /* Estilos de firma */
+    .firma-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 15px;
+        border: 2px solid var(--border-color);
+        border-radius: 8px;
+        background-color: #fff;
+        min-height: 200px;
+    }
+
+    #firmaCanvas {
+        width: 100% !important;
+        height: 200px !important;
+        background: white;
+        border: 1px solid #ccc;
+        touch-action: none;
+        -ms-touch-action: none;
+        /* Estilo de validación visual */
+        border: 2px solid var(--border-color);
+    }
+    
+    #firmaCanvas.signed {
+        border-color: var(--success-color) !important;
+        border-width: 2px !important;
+    }
+
+    .icon-button {
+        background: #f8f9fa;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        padding: 8px 12px;
+        cursor: pointer;
+        font-size: 16px;
+        color: #333;
+        transition: var(--transition);
+    }
+
+    .icon-button.active {
+        background: var(--secondary-color);
+        color: #fff;
+        border-color: var(--secondary-color);
+    }
+
+    .icon-button:hover {
+        background: #e2e6ea;
+    }
+    
+    /* Botón de Enviar (Confirmar) */
+    .submit-button-container {
+        display: flex;
+        justify-content: center;
+        margin-top: 25px;
+    }
+    
+    #btnEnviar {
+        background: linear-gradient(to right, var(--success-color), #27ae60);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 14px 30px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: var(--transition);
+        box-shadow: var(--shadow);
+        width: 100%;
+        max-width: 300px;
+    }
+
+    #btnEnviar:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    #btnEnviar:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+    
+    /* Overlay y Spinner */
+    #overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(255, 255, 255, 0.95);
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        flex-direction: column;
+    }
+
+    .spinner {
+        width: 60px;
+        height: 60px;
+        border: 5px solid rgba(52, 152, 219, 0.2);
+        border-radius: 50%;
+        border-top-color: var(--secondary-color);
+        animation: spin 1s ease-in-out infinite;
+        margin-bottom: 20px;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    #loadingMessage {
+        text-align: center;
+        color: var(--dark-color);
+    }
+ 
+   
+    #loadingMessage p {
+        margin: 0;
+        color: #7f8c8d;
+    }
+
+    #loadingMessage h4 {
+        margin: 0 0 10px;
+        font-size: 1.3rem;
+    }
+
+    .respuesta-correcta-texto {
+        margin-top: 5px;
+        color: var(--accent-color);
+        font-weight: bold;
+        font-size: 14px;
+    }
+
+    .respuesta-correcta-texto i {
+        margin-right: 5px;
+    }
+
+
+    /* Estilos específicos del modo "Momento de Valor" */
+    #notac {
+        width: 100%;
+        padding: 20px;
+        background-color: #f8f8f8;
+        border-radius: 10px;
+        border: 2px solid var(--success-color);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        text-align: center;
+        margin-top: 20px;
+        transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+    
+    #notac input {
+        font-size: 24px;
+        padding: 10px;
+        width: 100%;
+        border: none;
+        border-radius: 5px;
+        text-align: center;
+        background-color: #fff;
+        box-shadow: 0 0 0 3px rgba(46, 204, 113, 0.2);
+        color: var(--primary-color);
+        font-weight: bold;
+        cursor: default;
+    }
+    
+    /* Estilos para autocomplete */
+    .autocomplete-container {
+        position: relative;
+        width: 100%;
+    }
+
+    .autocomplete-suggestions {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid var(--border-color);
+        border-top: none;
+        border-radius: 0 0 6px 6px;
+        max-height: 200px;
+        overflow-y: auto;
+        z-index: 1000;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        display: none;
+    }
+
+    .autocomplete-suggestion {
+        padding: 10px 12px;
+        cursor: pointer;
+        border-bottom: 1px solid #f0f0f0;
+        transition: var(--transition);
+    }
+
+    .autocomplete-suggestion:last-child {
+        border-bottom: none;
+    }
+
+    .autocomplete-suggestion:hover,
+    .autocomplete-suggestion.highlighted {
+        background-color: #f0f8ff;
+    }
+
+    @media (max-width: 768px) {
+        .container {
+            width: 95%;
+            padding: 15px;
+            margin: 15px auto;
+        }
+        
+        h1 {
+            font-size: 1.5rem;
+        }
+        
+        #btnEnviar {
+            width: 100%;
+        }
+    }
+    /* ---------------------------------------------------------------------- */
+    /* ----------------------- FIN COPIA DE ESTILOS ------------------------- */
+    /* ---------------------------------------------------------------------- */
+</style>
+
+
+</head>
+<body>
+    <div class="header">
+        Pisos Brillantes
+    </div>
+
+    <div class="container">
+        <h1>Registro de participación - Momento de Valor</h1>
+
+        <div class="form-container">
+
+            <div class="question-container">
+                <label for="fecha">Fecha:</label>
+                <input type="date" id="fecha" name="fecha" required readonly disabled class="auto-save">
+            </div>
+
+            <div class="question-container">
+                <label for="tema">Tema:</label>
+                <input type="text" id="tema" name="tema" readonly disabled class="auto-save">
+            </div>
+
+
+            <div class="question-container">
+                <label for="colaborador">Colaborador:</label>
+                <div class="autocomplete-container">
+                    <input type="text" id="colaborador" name="colaborador" placeholder="Escribe el nombre del colaborador" autocomplete="off" class="auto-save">
+                    <div class="autocomplete-suggestions" id="colaborador-suggestions"></div>
+                </div>
+            </div>
+
+            <div style="border-bottom: 1px solid var(--border-color); margin: 20px 0;"></div>
+
+            <div id="preguntas">
+                </div>
+
+            <div class="question-container">
+                <label for="firma">Firma del Responsable:</label>
+                <div id="firmaContainer" class="firma-container">
+                    <canvas id="firmaCanvas" width="400" height="200" style="border: 1px solid #ccc;"></canvas>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center; margin-top: 10px;">
+                    <button type="button" id="toggleEraser" title="Borrador" class="icon-button">
+                        <i class="fas fa-eraser"></i>
+                    </button>
+                    <button type="button" id="undo" title="Deshacer" class="icon-button">
+                        <i class="fas fa-undo"></i>
+                    </button>
+                    <button type="button" id="redo" title="Rehacer" class="icon-button">
+                        <i class="fas fa-redo"></i>
+                    </button>
+                    <button type="button" id="clearSignature" title="Limpiar" class="icon-button">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div id="notac" class="question-container" style="display: none;">
+                <input type="text" id="nota" readonly disabled>
+            </div>
+
+            <div class="submit-button-container">
+                <button type="button" id="btnEnviar" onclick="validarFormularioCompleto()" disabled title="Esperando la carga del tema...">Enviar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="overlay" style="display: none;">
+        <div class="spinner"></div>
+        <div id="loadingMessage">
+            <h4>Por favor espera un momento...</h4>
+            <p></p>
+        </div>
+    </div>
+
+
+<script>
+
+// ====================================================================
+// === INICIO: VARIABLES GLOBALES Y CONSTANTES ===
+// ====================================================================
+
+const SESSION_KEY = 'momentoValorSessionData'; 
+let isDrawing = false;
+let isErasing = false;
+let lastX = 0;
+let lastY = 0;
+const canvas = document.getElementById("firmaCanvas");
+const ctx = canvas.getContext("2d", { willReadFrequently: true });
+const undoStack = [];
+const redoStack = [];
+
+// Lista de colaboradores actualizada (Punto 6)
+const allColaboradores = [
+    "ADELFA ESPERANZA ROMERO",
+    "ALBA ROSA BAQUEDANO AMAYA",
+    "ALEXANDER MEJIA SANTOS",
+    "ALEXSI NOHEMI VALLECILLO BANEGAS",
+    "ANA ROSA FUNES RAMOS",
+    "ANDERSON STEVE ALEJANDRO ALVARADO ESPINAL",
+    "BELKIS CAROLINA VALLADARES MENDEZ",
+    "BELKIS WALDINA LOPEZ LOPEZ",
+    "BLANCA ROSA AGUILERA RAMIRES",
+    "BRENDA SUYAPA CANTILLANO HERNANDEZ",
+    "DANIEL ALBERTO APARICIO ZAMBRANO",
+    "DAUNLY ORDOÑEZ AMAYA",
+    "DAYSI YAKELIN HERNANDEZ MENDEZ",
+    "DEBORA HERNANDEZ MENDOZA",
+    "DELMI MERCEDES GAITAN REYES",
+    "DENIA LIZETH OSORTO GOMEZ",
+    "DIGNA JANAIRA FLORES MIRANDA",
+    "DILCIA BETZABETH CEBALLOS LAGOS",
+    "DUNIA YOLANDA SANCHEZ TORRES",
+    "EMMA YADIRA ALVARADO MARTINEZ",
+    "ERIKA MARISOL ORDOÑEZ VASQUEZ",
+    "ERLIN ELICEC SANCHEZ MARROQUIN",
+    "EVELIN ABIGAIL SALGADO FUNES",
+    "FANY LIZETH PERDOMO AGUILAR",
+    "GADIC SUBLET SEVILLA SALGADO",
+    "HECTOR MANUEL ALVAREZ ORTIZ",
+    "IRIS UNDINA IZAGUIRRE MEDINA",
+    "JENSY MARIELA ARGUETA ESCOBAR",
+    "JESSICA DANIELA ORTIZ SIERRA",
+    "JESSICA ESCOTO SANDOVAL",
+    "JESSICA SARAI LORENZO MARTINEZ",
+    "JESSY JOHANA JOFRE DIAZ",
+    "JIMMY NOE SIERRA AMADOR",
+    "KARIN JAQUELIN FIGUEROA PALMA",
+    "KEILIN YOJANA SANCHEZ DEBIS",
+    "LAURA MAYELI HERNANDEZ MARTINEZ",
+    "LESBY SALOMON WALDON",
+    "LESLY YAMILETH DIEGO ORDOÑEZ",
+    "LIDIA YARELI GOMEZ PALMA",
+    "LILIAN ESPERANZA CRUZ VARELA",
+    "LIXI MABEL GUNERA PEREZ",
+    "LUCY YESENIA COTO PONCE",
+    "LUIS ARTURO ULLOA PADILLA",
+    "MARIA DE LOS SANTOS GARCIA",
+    "MARIA DOLORES RAMOS AGUILAR",
+    "MARIA ESTHER BUSTAMANTE SOTO",
+    "MARIA SANTOS MARTINEZ HERNANDEZ",
+    "MARLENE ELIZABETH GODOY SIERRA",
+    "MARTHA LICETH ISIDRO PEREZ",
+    "MEYBI DINORA ORTIZ SANCHEZ",
+    "MILYN MERLY GOMEZ LOPEZ",
+    "MIRIAN LIZETH LOPEZ HERNANDEZ",
+    "MIRIAN YOLANDA HERNANDEZ CONTRERAS",
+    "NADALI NOHEMY HERNANDEZ MUÑOZ",
+    "NEYSIN NOHELIA GOMEZ PINEL",
+    "ODENIA MARICHEL ZUNIGA RODRIGUEZ",
+    "OMAR DARIO BAUTISTA ARCHAGA",
+    "OSCAR SAID ACOSTA SOTO",
+    "ROSA VALERIA LAINEZ LAGOS",
+    "RUBDA MARIZ GOMEZ GOMEZ",
+    "SALVADORA HERNANDEZ VELASQUEZ",
+    "SANDRA PATRICIA GARCIA MONTENEGRO",
+    "SHEYLA ISAMAR HERNANDEZ VASQUEZ",
+    "SINDY LISBETH GARCIA ACOSTA",
+    "SONIA LETICIA VELASQUEZ CANALES",
+    "TANIA SUYAPA PINEDA MAIRENA",
+    "TANIA YARELI CERRATO AVILES",
+    "VILMA VASQUEZ AVILA",
+    "VIVIAN DANIELA BACA SANCHEZ",
+    "WILDER ANAHEL HERNANDEZ MUNGUIA",
+    "WILMER ALEXANDER FUNEZ DIAZ",
+    "YUSTIN MARINA RODRIGUEZ FONSECA"
+];
+
+let selectedColaboradorIndex = -1;
+let filteredColaboradores = [];
+
+// ====================================================================
+// === FIN: VARIABLES GLOBALES Y CONSTANTES ===
+// ====================================================================
+
+
+// ====================================================================
+// === INICIO: LÓGICA DE SESIÓN (AUTOGUARDADO Y RECUPERACIÓN) ===
+// ====================================================================
+
+function saveSession() {
+    const colaboradorVal = $('#colaborador').val();
+    // NOTA: Se elimina la captura de temaVal aquí, ya que el tema es de solo lectura y debe ser cargado por el servidor.
+    const fechaVal = $('#fecha').val();
+    
+    // Si no hay campos clave, limpiamos la sesión de autoguardado para evitar recuperación de formularios vacíos.
+    if (!colaboradorVal) { // Ya no dependemos del tema para decidir si hay progreso
+         localStorage.removeItem(SESSION_KEY);
+         return; 
+    }
+    
+    const firmaData = isCanvasBlank(canvas) ? null : canvas.toDataURL();
+    
+    const respuestas = [];
+    $("#preguntas").find(".question-container").each(function(index, element) {
+        const respuestaElement = $(element).find("textarea, select, input:not([type='hidden'])").get(0);
+        if (respuestaElement) {
+            respuestas.push(respuestaElement.value);
+        } else {
+            respuestas.push(null);
+        }
+    });
+
+    const sessionData = {
+        fecha: fechaVal,
+        colaborador: colaboradorVal,
+        // Eliminamos el tema de la sesión: tema: temaVal, 
+        respuestas: respuestas,
+        
+        firmaData: firmaData,
+        
+        undoStackLength: undoStack.length,
+        redoStackLength: redoStack.length
+    };
+    
+    localStorage.setItem(SESSION_KEY, JSON.stringify(sessionData));
+    verificarFirma();
+}
+
+
+function loadSession() {
+    const dataString = localStorage.getItem(SESSION_KEY);
+    if (!dataString) return;
+    
+    try {
+        const data = JSON.parse(dataString);
+        
+        // 1. Cargar datos de formulario
+        $('#fecha').val(data.fecha); 
+        $('#colaborador').val(data.colaborador);
+        // Eliminamos la carga del tema de la sesión: $('#tema').val(data.tema); 
+        
+        // 2. Cargar respuestas de preguntas
+        if (data.respuestas) {
+            $("#preguntas").find(".question-container").each(function(index, element) {
+                if (data.respuestas[index] !== undefined && data.respuestas[index] !== null) {
+                    const respuestaElement = $(element).find("textarea, select, input:not([type='hidden'])").get(0);
+                    if (respuestaElement) {
+                        respuestaElement.value = data.respuestas[index];
+                        checkQuestionContainer(element); // Actualizar color del contenedor
+                    }
+                }
+            });
+        }
+        
+        // 3. Cargar Firma
+        if (data.firmaData) {
+            const img = new Image();
+            img.src = data.firmaData;
+            img.onload = () => {
+                const canvas = document.getElementById("firmaCanvas");
+                const ctx = canvas.getContext("2d");
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                
+                undoStack.length = data.undoStackLength || 0;
+                redoStack.length = data.redoStackLength || 0;
+                updateButtonStates();
+                verificarFirma();
+            };
+        }
+        
+        verificarFirma();
+        
+    } catch (e) {
+        console.error("Error al cargar sesión (datos corruptos):", e);
+        clearSession();
+    }
+}
+
+
+/**
+ * Función CLAVE: Ahora solo borra la llave de guardado local.
+ * La limpieza visual de los campos se maneja en el flujo de "Empezar de cero"
+ * o al cargar la página si no hay sesión.
+ */
+function clearSession() {
+    // Solo eliminamos la llave de localStorage. Esto borra la sesión autoguardada.
+    localStorage.removeItem(SESSION_KEY); 
+    
+    // NO limpiamos los campos visuales aquí para que el formulario se mantenga lleno
+    // después de un envío exitoso, para fines de revisión.
+}
+
+/**
+ * Función auxiliar para realizar la limpieza visual completa de los campos,
+ * que solo se llama cuando el usuario explícitamente quiere empezar de nuevo.
+ */
+function fullFormReset() {
+    // 1. Limpiar campos y respuestas
+    $('#colaborador').val('');
+    
+    $("#preguntas").find("textarea, select, input:not([type='hidden'])").each(function() {
+        this.value = this.tagName === 'SELECT' ? '' : '';
+        checkQuestionContainer(this.closest('.question-container'));
+    });
+    
+    // 2. Limpiar firma (visual y stacks)
+    clearSignature();
+    
+    // 3. Reestablecer la fecha actual
+    setTodayDate();
+}
+
+
+async function checkForSavedSession() {
+    return new Promise((resolve) => {
+        if (localStorage.getItem(SESSION_KEY)) {
+            Swal.fire({
+                title: 'Trabajo Pendiente',
+                text: 'Detectamos un progreso no enviado. ¿Deseas recuperarlo?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, recuperar',
+                cancelButtonText: 'No, empezar de cero',
+                allowOutsideClick: false
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    await loadSession();
+                    Swal.fire('¡Listo!', 'Tu sesión ha sido restaurada.', 'success');
+                } else if (result.isDismissed) { 
+                    // Si el usuario elige NO RECUPERAR, eliminamos la sesión y reiniciamos visualmente.
+                    Swal.fire({
+                        title: '¿Estás 100% seguro?',
+                        html: "Esta acción es irreversible y todo su progreso se perderá.",
+                        icon: 'error',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sí, borrar todo',
+                        cancelButtonText: 'Cancelar',
+                        confirmButtonColor: '#e74c3c'
+                    }).then(async (deleteResult) => {
+                        if (deleteResult.isConfirmed) {
+                            clearSession(); // Solo borra la llave de localStorage
+                            fullFormReset(); // Reinicia la UI
+                            Swal.fire('Eliminado', 'Se ha borrado el progreso anterior.', 'success');
+                        } else {
+                            await loadSession();
+                            Swal.fire('¡Restaurado!', 'Tu sesión ha sido restaurada.', 'success');
+                        }
+                        resolve();
+                    });
+                    return;
+                }
+                resolve();
+            });
+        } else {
+            resolve();
+        }
+    });
+}
+
+// ====================================================================
+// === FIN: LÓGICA DE SESIÓN ===
+// ====================================================================
+
+
+// ====================================================================
+// ===== CÓDIGO MEJORADO PARA LA FIRMA (de Gestión de Equipos) =====
+// ====================================================================
+
+function initializeCanvas() {
+    const container = canvas.parentElement;
+    const rect = container.getBoundingClientRect();
+    canvas.width = rect.width > 0 ? rect.width : 400;
+    canvas.height = rect.height > 0 ? rect.height : 200;
+    
+    ctx.strokeStyle = "#000000";
+    ctx.lineWidth = 4;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+function getCoordinates(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    if (e.touches && e.touches.length > 0) {
+        return {
+            x: (e.touches[0].clientX - rect.left) * scaleX,
+            y: (e.touches[0].clientY - rect.top) * scaleY
+        };
+    } else if (e.offsetX !== undefined) {
+        return {
+            x: e.offsetX * scaleX,
+            y: e.offsetY * scaleY
+        };
+    } else if (e.clientX !== undefined) {
+        return {
+            x: (e.clientX - rect.left) * scaleX,
+            y: (e.clientY - rect.top) * scaleY
+        };
+    }
+    
+    return { x: 0, y: 0 };
+}
+
+function startDrawing(e) {
+    e.preventDefault();
+    saveToUndoStack();
+    isDrawing = true;
+    const { x, y } = getCoordinates(e);
+    lastX = x;
+    lastY = y;
+    
+    ctx.beginPath();
+    ctx.arc(x, y, ctx.lineWidth/2, 0, Math.PI * 2);
+    ctx.fillStyle = isErasing ? "#FFFFFF" : "#000000";
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+}
+
+function draw(e) {
+    if (!isDrawing) return;
+    e.preventDefault();
+    
+    const { x, y } = getCoordinates(e);
+    
+    ctx.beginPath();
+    ctx.moveTo(lastX, lastY);
+    ctx.lineTo(x, y);
+    ctx.strokeStyle = isErasing ? "#FFFFFF" : "#000000";
+    ctx.lineWidth = isErasing ? 20 : 4;
+    ctx.stroke();
+    
+    lastX = x;
+    lastY = y;
+}
+
+function stopDrawing() {
+    if (isDrawing) {
+        isDrawing = false;
+        setTimeout(saveSession, 500); 
+        setTimeout(verificarFirma, 50);
+    }
+}
+
+function saveToUndoStack() {
+    undoStack.push(canvas.toDataURL());
+    redoStack.length = 0;
+    updateButtonStates();
+}
+
+function undo() {
+    if (undoStack.length > 0) {
+        redoStack.push(canvas.toDataURL());
+        const lastState = undoStack.pop();
+        const img = new Image();
+        img.src = lastState;
+        img.onload = () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
+            verificarFirma();
+            saveSession();
+        };
+        updateButtonStates();
+    }
+}
+
+function redo() {
+    if (redoStack.length > 0) {
+        undoStack.push(canvas.toDataURL());
+        const lastState = redoStack.pop();
+        const img = new Image();
+        img.src = lastState;
+        img.onload = () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
+            verificarFirma();
+            saveSession();
+        };
+        updateButtonStates();
+    }
+}
+
+function updateButtonStates() {
+    document.getElementById("undo").style.display = undoStack.length > 0 ? "inline-flex" : "none";
+    document.getElementById("redo").style.display = redoStack.length > 0 ? "inline-flex" : "none";
+}
+
+// Limpiar firma - MEJORADA
+function clearSignature() {
+    saveToUndoStack();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    setTimeout(() => {
+        verificarFirma();
+        saveSession();
+    }, 100);
+    
+    updateButtonStates();
+}
+
+function setupSignatureEvents() {
+    canvas.addEventListener("mousedown", startDrawing);
+    canvas.addEventListener("mousemove", draw);
+    canvas.addEventListener("mouseup", stopDrawing);
+    canvas.addEventListener("mouseout", stopDrawing);
+    
+    canvas.addEventListener("touchstart", function(e) {
+        startDrawing(e);
+        e.preventDefault();
+    }, { passive: false });
+    
+    canvas.addEventListener("touchmove", function(e) {
+        draw(e);
+        e.preventDefault();
+    }, { passive: false });
+    
+    canvas.addEventListener("touchend", stopDrawing);
+    canvas.addEventListener("touchcancel", stopDrawing);
+    
+    document.getElementById("toggleEraser").addEventListener("click", function() {
+        isErasing = !isErasing;
+        this.classList.toggle("active");
+        this.innerHTML = isErasing ? 
+            '<i class="fas fa-pen"></i>' : 
+            '<i class="fas fa-eraser"></i>';
+    });
+    
+    document.getElementById("undo").addEventListener("click", undo);
+    document.getElementById("redo").addEventListener("click", redo);
+    document.getElementById("clearSignature").addEventListener("click", clearSignature);
+    
+    canvas.addEventListener("contextmenu", function(e) { e.preventDefault(); });
+    
+    canvas.style.touchAction = "none";
+    canvas.style.msTouchAction = "none";
+}
+
+function isCanvasBlank(canvas) {
+    try {
+        const context = canvas.getContext('2d');
+        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        const pixelBuffer = new Uint32Array(imageData.data.buffer);
+        
+        let nonWhitePixels = 0;
+        for (let i = 0; i < pixelBuffer.length; i++) {
+            if (pixelBuffer[i] !== 0xFFFFFFFF && pixelBuffer[i] !== 0x00000000) {
+                nonWhitePixels++;
+            }
+        }
+        const hasContent = nonWhitePixels > 100;
+        return !hasContent;
+        
+    } catch (error) {
+        console.error('Error al verificar canvas:', error);
+        return true;
+    }
+}
+
+function verificarFirma() {
+    const hayFirma = !isCanvasBlank(canvas);
+    if (hayFirma) {
+        canvas.classList.add('signed');
+    } else {
+        canvas.classList.remove('signed');
+    }
+}
+
+// ====================================================================
+// === FIN: CÓDIGO MEJORADO PARA LA FIRMA ===
+// ====================================================================
+
+
+// ====================================================================
+// === INICIO: LÓGICA DE AUTOCOMPLETADO (Punto 6) ===
+// ====================================================================
+
+function initAutocomplete() {
+    const input = document.getElementById('colaborador');
+    
+    input.addEventListener('input', function(e) {
+        const value = e.target.value.toUpperCase();
+        filteredColaboradores = allColaboradores.filter(col => 
+            col.toUpperCase().includes(value)
+        );
+        
+        showSuggestions(filteredColaboradores);
+        verificarColaboradorValido();
+        saveSession();
+    });
+    
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            highlightSuggestion('down');
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            highlightSuggestion('up');
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            selectHighlightedSuggestion();
+        } else if (e.key === 'Escape') {
+            hideSuggestions();
+        }
+    });
+    
+    input.addEventListener('blur', function() {
+        setTimeout(hideSuggestions, 200);
+    });
+    
+    document.addEventListener('click', function(e) {
+        const suggestionsContainer = document.getElementById('colaborador-suggestions');
+        if (!input.contains(e.target) && !suggestionsContainer.contains(e.target)) {
+            hideSuggestions();
+        }
+    });
+}
+
+function showSuggestions(suggestions) {
+    const suggestionsContainer = document.getElementById('colaborador-suggestions');
+    suggestionsContainer.innerHTML = '';
+    
+    if (suggestions.length === 0) {
+        hideSuggestions();
+        return;
+    }
+    
+    suggestions.forEach((suggestion, index) => {
+        const div = document.createElement('div');
+        div.className = 'autocomplete-suggestion';
+        div.textContent = suggestion;
+        div.dataset.index = index;
+        
+        div.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            selectSuggestion(suggestion);
+        });
+        
+        div.addEventListener('mouseover', function() {
+            highlightSuggestionIndex(index);
+        });
+        
+        suggestionsContainer.appendChild(div);
+    });
+    
+    suggestionsContainer.style.display = 'block';
+    selectedColaboradorIndex = -1;
+}
+
+function hideSuggestions() {
+    const suggestionsContainer = document.getElementById('colaborador-suggestions');
+    suggestionsContainer.style.display = 'none';
+    selectedColaboradorIndex = -1;
+}
+
+function highlightSuggestion(direction) {
+    const suggestions = document.querySelectorAll('.autocomplete-suggestion');
+    if (suggestions.length === 0) return;
+    
+    suggestions.forEach(s => s.classList.remove('highlighted'));
+    
+    if (direction === 'down') {
+        selectedColaboradorIndex = (selectedColaboradorIndex + 1) % suggestions.length;
+    } else {
+        selectedColaboradorIndex = (selectedColaboradorIndex - 1 + suggestions.length) % suggestions.length;
+    }
+    
+    suggestions[selectedColaboradorIndex].classList.add('highlighted');
+    suggestions[selectedColaboradorIndex].scrollIntoView({ block: 'nearest' });
+}
+
+function highlightSuggestionIndex(index) {
+    const suggestions = document.querySelectorAll('.autocomplete-suggestion');
+    suggestions.forEach(s => s.classList.remove('highlighted'));
+    selectedColaboradorIndex = index;
+    
+    if (index >= 0 && index < suggestions.length) {
+        suggestions[index].classList.add('highlighted');
+    }
+}
+
+function selectHighlightedSuggestion() {
+    if (selectedColaboradorIndex >= 0 && filteredColaboradores[selectedColaboradorIndex]) {
+        selectSuggestion(filteredColaboradores[selectedColaboradorIndex]);
+    }
+}
+
+function selectSuggestion(suggestion) {
+    document.getElementById('colaborador').value = suggestion;
+    hideSuggestions();
+    verificarColaboradorValido();
+    saveSession();
+}
+
+function verificarColaboradorValido() {
+    const input = $("#colaborador");
+    const colaborador = input.val().trim().toUpperCase();
+    const esValido = allColaboradores.includes(colaborador);
+    
+    if (colaborador === '') {
+         input.css("border-color", "#ddd");
+    } else if (esValido) {
+        input.css("border-color", "#28a745");
+    } else {
+        input.css("border-color", "red");
+    }
+    return esValido;
+}
+
+// ====================================================================
+// === FIN: LÓGICA DE AUTOCOMPLETADO ===
+// ====================================================================
+
+
+// ====================================================================
+// === INICIO: LÓGICA DE CARGA, VALIDACIÓN Y ENVÍO ===
+// ====================================================================
+
+/**
+ * Función para controlar el estado del botón de Enviar basado en el tema.
+ */
+function checkTemaAndToggleSubmit(temaValue) {
+    const btnEnviar = document.getElementById('btnEnviar');
+    // Considerar el tema como inválido si es nulo, si es el mensaje de error o está vacío.
+    const isTemaInvalid = !temaValue || temaValue === "Tema no disponible" || temaValue.trim() === "";
+
+    if (isTemaInvalid) {
+        btnEnviar.disabled = true;
+        btnEnviar.title = 'No se puede enviar porque el tema no está disponible.';
+    } else {
+        // Solo re-habilitamos si no ha sido permanentemente deshabilitado (ej. post-envío)
+        if (btnEnviar.style.pointerEvents !== 'none') {
+            btnEnviar.disabled = false;
+        }
+        btnEnviar.title = '';
+    }
+}
+
+document.addEventListener("DOMContentLoaded", async function () {
+    // 1. Inicializar Canvas y Autocomplete
+    initializeCanvas();
+    setupSignatureEvents();
+    initAutocomplete();
+    verificarFirma();
+
+    // 2. Establecer fecha por defecto (Se ejecuta antes del loadSession)
+    setTodayDate();
+    
+    // PENDIENTE (Punto 4): Mostrar el mensaje de carga de la página
+    document.getElementById('loadingMessage').querySelector('p').textContent = '';
+
+
+    try {
+        // Mostrar overlay de espera
+        document.getElementById('overlay').style.display = 'flex';
+
+        // URL del script de Google Apps para obtener preguntas (Actualizado)
+        const response = await fetch(
+            "https://script.google.com/macros/s/AKfycbxJq5mQhE0LO3NVBPLy3xfUjiAwO9Efr1EYUFL-HDVRvJJsCTrinNJz7-HguuQV0p2YCQ/exec", 
+            {
+                method: "GET",
+            }
+        );
+
+        if (!response.ok) throw new Error("Error al obtener los datos del script");
+
+        const data = await response.json();
+        
+        // Ocultar overlay de espera
+        document.getElementById('overlay').style.display = 'none';
+
+        // 3. Cargar Tema y Preguntas
+        const temaInput = document.getElementById("tema");
+        if (data.tema) {
+            temaInput.value = data.tema;
+        } else {
+            temaInput.value = "Tema no disponible";
+        }
+
+        // **CLAVE:** Controlar el estado del botón 'Enviar' basado en la carga del tema
+        checkTemaAndToggleSubmit(temaInput.value);
+
+        generateQuestions(data.preguntas);
+        setupQuestionContainers(); // Configurar eventos de validación de preguntas
+
+        // 4. Revisar sesión guardada (Después de cargar las preguntas)
+        await checkForSavedSession();
+        
+        // 5. Configurar Eventos de Formulario (Autoguardado)
+        configurarEventos();
+
+    } catch (error) {
+        // Ocultar overlay de espera en caso de error
+        document.getElementById('overlay').style.display = 'none';
+        Swal.fire("Error", "Hubo un error al cargar las preguntas: " + error.message, "error");
+        
+        // **CLAVE:** Deshabilitar el botón si falla la carga.
+        checkTemaAndToggleSubmit(null);
+    } 
+});
+
+
+function setTodayDate() {
+    const fechaInput = document.getElementById("fecha");
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    let mm = today.getMonth() + 1;
+    let dd = today.getDate();
+
+    if (mm < 10) mm = '0' + mm;
+    if (dd < 10) dd = '0' + dd;
+
+    const formattedDate = yyyy + '-' + mm + '-' + dd;
+    fechaInput.value = formattedDate;
+}
+
+function configurarEventos() {
+    // Eventos para autoguardado en campos del formulario
+    $("#fecha, #tema").on("change input", function() {
+         saveSession();
+    });
+    
+    // El input del colaborador ya maneja el autoguardado en su propia lógica de autocomplete.
+    
+    // Eventos para autoguardado en las preguntas
+    $("#preguntas").on("change input", "textarea, select", function() {
+         saveSession();
+    });
+}
+
+
+function generateQuestions(preguntasData) {
+    const preguntasContainer = document.getElementById("preguntas");
+    preguntasContainer.innerHTML = "";
+
+    preguntasData.forEach((pregunta, index) => {
+        const preguntaDiv = document.createElement("div");
+        preguntaDiv.id = `pregunta${index + 1}`;
+        preguntaDiv.classList.add("question-container");
+        preguntaDiv.classList.add("auto-save-group");
+
+        const preguntaTexto = document.createElement("label");
+        preguntaTexto.textContent = pregunta.texto;
+        preguntaDiv.appendChild(preguntaTexto);
+
+        const respuestaCorrecta = document.createElement("input");
+        respuestaCorrecta.value = pregunta.respuestaCorrecta;
+        respuestaCorrecta.classList.add("respuesta-correcta");
+        respuestaCorrecta.type = "hidden";
+        preguntaDiv.appendChild(respuestaCorrecta);
+
+        if (pregunta.tipo === 1 || pregunta.tipo === 2) {
+            const select = document.createElement("select");
+            select.name = `pregunta${pregunta.id}`;
+            select.classList.add("auto-save");
+
+            const defaultOption = document.createElement("option");
+            defaultOption.value = "";
+            defaultOption.textContent = "Selecciona una opción";
+            defaultOption.selected = true;
+            select.appendChild(defaultOption);
+
+            let opciones = [];
+            if (pregunta.tipo === 1) {
+                opciones = ["Verdadero", "Falso"];
+            } else if (pregunta.tipo === 2) {
+                opciones = pregunta.opciones;
+            }
+
+            opciones.forEach((opcion) => {
+                const option = document.createElement("option");
+                option.value = opcion;
+                option.textContent = opcion;
+                select.appendChild(option);
+            });
+            preguntaDiv.appendChild(select);
+
+        } else if (pregunta.tipo === 3) {
+            const textoLibre = document.createElement("textarea");
+            textoLibre.name = `pregunta${pregunta.id}`;
+            textoLibre.placeholder = "Escribe tu respuesta aquí";
+            textoLibre.classList.add("auto-save");
+            preguntaDiv.appendChild(textoLibre);
+        }
+        
+        const respuestaCorrectaTexto = document.createElement("div");
+        respuestaCorrectaTexto.className = "respuesta-correcta-texto";
+        respuestaCorrectaTexto.style.display = 'none';
+        preguntaDiv.appendChild(respuestaCorrectaTexto);
+
+        preguntasContainer.appendChild(preguntaDiv);
+    });
+}
+
+function checkQuestionContainer(container) {
+    const inputs = container.querySelectorAll('input:not([type="hidden"]), textarea, select');
+    let isComplete = true;
+
+    inputs.forEach(input => {
+        // Ignorar campos deshabilitados (post-envío)
+        if (input.disabled) return;
+        
+        if (input.type === 'date' && !input.value.trim()) {
+            isComplete = false;
+        } else if (input.type === 'text' && !input.value.trim() && !input.readOnly) {
+            isComplete = false;
+        } else if (input.tagName === 'TEXTAREA' && !input.value.trim()) {
+            isComplete = false;
+        } else if (input.tagName === 'SELECT' && input.value === "") {
+            isComplete = false;
+        }
+    });
+
+    if (isComplete) {
+        container.classList.remove('incomplete');
+        container.classList.add('complete');
+    } else {
+        container.classList.remove('complete');
+        container.classList.add('incomplete');
+    }
+}
+
+function setupQuestionContainers() {
+    const questionContainers = document.querySelectorAll('.question-container');
+    questionContainers.forEach(container => {
+        const inputs = container.querySelectorAll('input:not([type="hidden"]), textarea, select');
+        inputs.forEach(input => {
+            input.addEventListener('input', () => checkQuestionContainer(container));
+            input.addEventListener('change', () => checkQuestionContainer(container));
+        });
+
+        checkQuestionContainer(container);
+    });
+}
+
+// Validación antes de generar PDF (Punto 5)
+function validarFormularioCompleto() {
+    const colaborador = $("#colaborador").val();
+    const tema = $("#tema").val();
+    const esColaboradorValido = verificarColaboradorValido();
+    
+    // 1. Validación obligatoria (Colaborador y Firma)
+    if (colaborador === "" || !esColaboradorValido) {
+        Swal.fire('Datos Incompletos', 'Por favor selecciona un Colaborador válido de la lista de sugerencias.', 'warning');
+        return;
+    }
+    
+    if (isCanvasBlank(canvas)) {
+        Swal.fire('Firma Faltante', 'La firma del responsable es obligatoria.', 'warning');
+        return;
+    }
+
+    // 2. Validación de preguntas (No es obligatoria, pero se advierte)
+    const preguntas = $("#preguntas").find(".question-container");
+    let totalPreguntas = 0;
+    let respuestasCompletas = 0;
+
+    preguntas.each(function() {
+        totalPreguntas++;
+        if ($(this).hasClass('complete')) {
+            respuestasCompletas++;
+        }
+    });
+    
+    if (respuestasCompletas !== totalPreguntas) {
+        // Advertir si hay preguntas sin responder
+        Swal.fire({
+            title: 'Cuestionario Incompleto',
+            html: `Hay <strong>${totalPreguntas - respuestasCompletas} de ${totalPreguntas}</strong> preguntas sin responder.<br>¿Deseas enviar el formulario de todas formas?`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, enviar incompleto',
+            cancelButtonText: 'No, quiero revisar',
+            confirmButtonColor: '#f39c12',
+            cancelButtonColor: '#6c757d',
+            width: '500px'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                mostrarConfirmacionFinal();
+            }
+        });
+        return;
+    }
+
+    // Si todo está OK (o completo), procede
+    mostrarConfirmacionFinal();
+}
+
+
+function mostrarConfirmacionFinal() {
+    const colaborador = $("#colaborador").val();
+    const tema = $("#tema").val();
+    const fecha = $("#fecha").val();
+
+    Swal.fire({
+        title: `Confirmar Envío`,
+        html: `
+            <div style="text-align: left;">
+                <p><strong>Tema:</strong> ${tema}</p>
+                <p><strong>Colaborador:</strong> ${colaborador}</p>
+                <p><strong>Fecha:</strong> ${fecha}</p>
+                <p style="margin-top: 15px;">¿Deseas enviar este registro?</p>
+            </div>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: `Sí, enviar`,
+        cancelButtonText: 'No, revisar',
+        confirmButtonColor: '#28a745',
+        cancelButtonColor: '#6c757d',
+        width: '500px'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            generarPDF();
+        } else {
+            console.log('Usuario decidió revisar.');
+        }
+    });
+}
+
+async function generarPDF() {
+    if (isCanvasBlank(canvas)) {
+         Swal.fire('Error', 'La firma es requerida.', 'error');
+         return;
+    }
+
+    // PENDIENTE (Punto 4): Mensaje de carga inicial
+    document.getElementById('overlay').style.display = 'flex';
+    document.getElementById('loadingMessage').querySelector('p').textContent = 'Analizando respuestas y preparando documento...';
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ format: 'letter' });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const marginLeft = 15;
+    const textWidth = pageWidth - (2 * marginLeft);
+    const lineSpacing = 8;
+    let cursorY = 15;
+
+    // Se capturan los valores que DEBEN persistir y usar
+    const fecha = document.getElementById('fecha').value;
+    const tema = document.getElementById('tema').value; // Usamos el valor actual del DOM (el correcto)
+    const colaborador = document.getElementById('colaborador').value;
+    const firmaDataUrl = canvas.toDataURL("image/png");
+    const preguntasContainer = document.getElementById("preguntas");
+
+    let totalPreguntas = 0;
+    let totalRespuestasCorrectas = 0;
+    let preguntasEnviadas = [];
+
+
+    // --- ENCABEZADO Y DATOS PRINCIPALES ---
+    pdf.setFont("times", "bold");
+    pdf.setFontSize(18);
+    pdf.setTextColor(34, 49, 63);
+    pdf.text("Registro de Participación", pageWidth / 2, cursorY, { align: 'center' });
+    cursorY += 8;
+    pdf.text("Momento de Valor", pageWidth / 2, cursorY, { align: 'center' });
+    cursorY += 10;
+    
+    pdf.setDrawColor(200, 200, 200);
+    pdf.line(marginLeft, cursorY, pageWidth - marginLeft, cursorY);
+    cursorY += 8;
+    
+    pdf.setFontSize(12);
+    pdf.setTextColor(50, 50, 50);
+    pdf.setFont("times", "bold");
+    pdf.text(`Tema:`, marginLeft, cursorY);
+    pdf.setFont("times", "normal");
+    pdf.text(tema, marginLeft + 15, cursorY, { maxWidth: textWidth - 15 });
+    cursorY += 6;
+    
+    pdf.setFont("times", "bold");
+    pdf.text(`Colaborador:`, marginLeft, cursorY);
+    pdf.setFont("times", "normal");
+    pdf.text(colaborador, marginLeft + 25, cursorY, { maxWidth: textWidth - 25 });
+    cursorY += 6;
+    
+    pdf.setFont("times", "bold");
+    pdf.text(`Fecha:`, marginLeft, cursorY);
+    pdf.setFont("times", "normal");
+    pdf.text(fecha, marginLeft + 15, cursorY);
+    cursorY += 8;
+    
+    pdf.line(marginLeft, cursorY, pageWidth - marginLeft, cursorY);
+    cursorY += 10;
+
+
+    // --- SECCIÓN DE PREGUNTAS ---
+    pdf.setFontSize(14);
+    pdf.setTextColor(34, 49, 63);
+    pdf.setFont("times", "bold");
+    pdf.text("Cuestionario de Evaluación", pageWidth / 2, cursorY, { align: 'center' });
+    cursorY += 8;
+    
+    
+    preguntasContainer.querySelectorAll(".question-container").forEach((preguntaDiv, index) => {
+        totalPreguntas++;
+
+        const preguntaTexto = preguntaDiv.querySelector("label").textContent;
+        let respuestaElement = preguntaDiv.querySelector("textarea, select, input:not([type='hidden'])");
+        let respuesta = respuestaElement?.value || "Sin respuesta";
+        const respuestaCorrecta = preguntaDiv.querySelector(".respuesta-correcta")?.value || "No especificada";
+
+        if (cursorY + 3 * lineSpacing > pageHeight - 20) {
+            pdf.addPage();
+            cursorY = 15;
+        }
+
+        // Agregar pregunta
+        pdf.setFont("times", "bold");
+        pdf.setFontSize(10);
+        const lineasPregunta = pdf.splitTextToSize(`${index + 1}. ${preguntaTexto}`, textWidth);
+        pdf.text(lineasPregunta, marginLeft, cursorY);
+        cursorY += lineasPregunta.length * 5; 
+        
+        const esCorrecta = respuesta.trim().toLowerCase() === respuestaCorrecta.trim().toLowerCase();
+        const colorRespuesta = esCorrecta ? [46, 204, 113] : [231, 76, 60]; 
+
+        if (esCorrecta) {
+            totalRespuestasCorrectas++;
+        }
+        
+        let respuestaDisplay = `R: ${respuesta}`;
+        if (!esCorrecta && respuesta.trim() !== "") {
+            respuestaDisplay += ` (Correcta: ${respuestaCorrecta})`;
+            
+            let respuestaCorrectaTextoDiv = preguntaDiv.querySelector(".respuesta-correcta-texto");
+            if (respuestaCorrectaTextoDiv) {
+                 respuestaCorrectaTextoDiv.innerHTML = `<i class="fas fa-times-circle"></i> Respuesta Correcta: ${respuestaCorrecta}`;
+                 respuestaCorrectaTextoDiv.style.display = 'block';
+            }
+        } else {
+             let respuestaCorrectaTextoDiv = preguntaDiv.querySelector(".respuesta-correcta-texto");
+             if (respuestaCorrectaTextoDiv) {
+                 respuestaCorrectaTextoDiv.style.display = 'none';
+             }
+        }
+        
+        // Deshabilitar campos y cambiar color de fondo (Punto 1 y 2)
+        $(respuestaElement).prop('disabled', true);
+        preguntaDiv.style.backgroundColor = esCorrecta ? "rgba(46, 204, 113, 0.1)" : "rgba(231, 76, 60, 0.1)";
+        preguntaDiv.style.border = esCorrecta ? "2px solid #2ecc71" : "2px solid #e74c3c";
+
+
+        // Agregar respuesta al PDF
+        pdf.setFont("times", "normal");
+        pdf.setTextColor(...colorRespuesta);
+        pdf.setFontSize(10);
+        const lineasRespuesta = pdf.splitTextToSize(respuestaDisplay, textWidth - 5);
+        pdf.text(lineasRespuesta, marginLeft + 5, cursorY);
+        cursorY += lineasRespuesta.length * 5.5;
+        
+        pdf.setTextColor(50, 50, 50);
+        
+        preguntasEnviadas.push({
+            id: index + 1,
+            pregunta: preguntaTexto,
+            respuesta: respuesta,
+            correcta: esCorrecta,
+            respuestaCorrecta: respuestaCorrecta
+        });
+        
+        cursorY += 3;
+    });
+    
+    // --- CALIFICACIÓN FINAL ---
+    const calificacion = totalPreguntas > 0 ? (totalRespuestasCorrectas * 100) / totalPreguntas : 0;
+    const calificacionTexto = `Nota: ${calificacion.toFixed(2)}%`;
+    
+    // Mostrar calificación en la UI y deshabilitar
+    document.getElementById('nota').value = calificacionTexto;
+    document.getElementById('notac').style.display = 'block';
+    document.getElementById('nota').disabled = true;
+
+    // Agregar calificación al PDF (arriba)
+    pdf.setPage(1);
+    pdf.setFontSize(28);
+    pdf.setTextColor(46, 204, 113); 
+    pdf.setFont("times", "bold");
+    
+    const calificacionWidth = pdf.getTextWidth(calificacionTexto);
+    const calificacionX = pageWidth - marginLeft - calificacionWidth;
+    pdf.text(calificacionTexto, calificacionX, 20);
+    
+    // Volver a la posición del cursor antes de la firma
+    pdf.setPage(pdf.internal.pages.length - 1);
+    
+    if (cursorY + 40 > pageHeight - 20) {
+        pdf.addPage();
+        cursorY = 15;
+    }
+    
+    // --- SECCIÓN DE FIRMA ---
+    cursorY += 10;
+    const firmaWidth = 60;
+    const firmaHeight = 25;
+    const firmaX = (pageWidth - firmaWidth) / 2;
+    
+    pdf.addImage(firmaDataUrl, 'PNG', firmaX, cursorY, firmaWidth, firmaHeight);
+    cursorY += firmaHeight + 2;
+    
+    pdf.line(firmaX, cursorY, firmaX + firmaWidth, cursorY);
+    cursorY += 4;
+    
+    pdf.setFontSize(12);
+    pdf.setTextColor(80, 80, 80);
+    pdf.setFont("times", "bold");
+    pdf.text(colaborador, pageWidth / 2, cursorY, { align: 'center' });
+    cursorY += 5;
+    
+    pdf.setFontSize(10);
+    pdf.setFont("times", "normal");
+    pdf.text("Firma del Colaborador", pageWidth / 2, cursorY, { align: 'center' });
+    cursorY += 10;
+
+    // **********************************************
+    // INICIO: CAMBIOS PARA BLOQUEAR POST-ENVÍO (Punto 1)
+    // **********************************************
+
+    // 1. Bloquear botón de envío (siempre)
+    document.getElementById('btnEnviar').disabled = true;
+    document.getElementById('btnEnviar').style.pointerEvents = 'none';
+
+    // 2. Deshabilitar el campo de Colaborador (Punto 1)
+    $("#colaborador").prop('disabled', true);
+    
+    // 3. Deshabilitar la firma (Punto 1)
+    canvas.style.pointerEvents = 'none'; // Deshabilita la interacción con el canvas
+    document.getElementById("toggleEraser").disabled = true;
+    document.getElementById("undo").disabled = true;
+    document.getElementById("redo").disabled = true;
+    document.getElementById("clearSignature").disabled = true;
+    
+    // 4. CLAVE: Borrar solo la llave de autoguardado de localStorage (la información visible se mantiene).
+    clearSession(); 
+    
+    // FIX CLAVE AÑADIDO: Re-establecer explícitamente el valor de tema y colaborador en la UI
+    // para asegurar que se muestren correctamente después de deshabilitarlos.
+    $("#colaborador").val(colaborador);
+    $("#tema").val(tema);
+
+    // **********************************************
+    // FIN: CAMBIOS PARA BLOQUEAR POST-ENVÍO
+    // **********************************************
+
+
+    // Crear un nombre para el archivo y enviarlo
+    document.getElementById('loadingMessage').querySelector('p').textContent = '';
+    
+    let nombreArchivo = `${fecha} - Participación - ${colaborador} - ${calificacion.toFixed(0)}%.pdf`;
+
+    const pdfBase64 = pdf.output('datauristring').split(',')[1];
+    
+    const dataToSend = {
+        fecha: fecha,
+        colaborador: colaborador,
+        tema: tema,
+        calificacion: calificacion.toFixed(2),
+        respuestas: JSON.stringify(preguntasEnviadas),
+        pdfFile: pdfBase64,
+        fileName: nombreArchivo
+    };
+    
+    try {
+        // URL del script de Google Apps para POST (Actualizado)
+        const response = await fetch('https://script.google.com/macros/s/AKfycbzxPK9saXbRxmp7HhG5B3nlORT9GZSg1VKmp_sVF7GWWHZP428OsWNXPzAas0xeAnk6/exec', {
+            method: 'POST',
+            body: new URLSearchParams(dataToSend)
+        });
+
+        const result = await response.text();
+        console.log('Archivo guardado con ID:', result);
+        
+        // Éxito
+        document.getElementById('overlay').style.display = 'none';
+
+        Swal.fire({
+            title: '¡Envío exitoso! 🥳🎉',
+            html: `<p>Se ha registrado la participación, su nota final es de: <strong>${calificacion.toFixed(2)}%</strong>.</p>`,
+            icon: 'success',
+            confirmButtonText: 'Aceptar',
+            width: '400px'
+        }).then(() => {
+            // No se hace nada aquí, la información permanece en pantalla.
+        });
+
+    } catch (error) {
+        document.getElementById('overlay').style.display = 'none';
+        Swal.fire('Error', 'Hubo un problema al enviar el registro. Por favor, intenta de nuevo.', 'error');
+    }
+}
+
+// ====================================================================
+// === FIN: LÓGICA DE CARGA, VALIDACIÓN Y ENVÍO ===
+// ====================================================================
+
+</script>
+
+</body>
+</html>

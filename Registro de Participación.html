@@ -274,15 +274,12 @@
         color: var(--dark-color);
     }
  
-   
     #loadingMessage p {
         margin: 0;
-        color: #7f8c8d;
-    }
-
-    #loadingMessage h4 {
-        margin: 0 0 10px;
-        font-size: 1.3rem;
+        /* Estilo de negrita restaurado */
+        color: var(--dark-color); 
+        font-size: 1.1em; 
+        font-weight: bold; 
     }
 
     .respuesta-correcta-texto {
@@ -362,6 +359,60 @@
         background-color: #f0f8ff;
     }
 
+    /* Botón flotante único para registros locales */
+    #participacion-pendiente-button {
+        background-color: var(--warning-color);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 60px;
+        height: 60px;
+        display: none;
+        justify-content: center;
+        align-items: center;
+        font-size: 1.5em;
+        cursor: pointer;
+        box-shadow: var(--shadow);
+        transition: var(--transition);
+        position: fixed;
+        left: 25px;
+        top: 80px;
+        z-index: 1000;
+    }
+
+    #participacion-pendiente-button:hover {
+        background-color: #e67e22;
+        transform: scale(1.1);
+    }
+
+    #participacion-pendiente-button.pendiente {
+        display: flex;
+        animation: pulse 2s infinite;
+    }
+
+    #participacion-pendiente-button .badge {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        background-color: var(--accent-color);
+        color: white;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        font-size: 0.8em;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-weight: bold;
+    }
+
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+        100% { transform: scale(1); }
+    }
+
+    /* Adjustments for mobile */
     @media (max-width: 768px) {
         .container {
             width: 95%;
@@ -375,6 +426,20 @@
         
         #btnEnviar {
             width: 100%;
+        }
+
+        #participacion-pendiente-button {
+            width: 55px;
+            height: 55px;
+            font-size: 1.3em;
+            left: 15px;
+            top: 70px;
+        }
+
+        #participacion-pendiente-button .badge {
+            width: 22px;
+            height: 22px;
+            font-size: 0.7em;
         }
     }
     /* ---------------------------------------------------------------------- */
@@ -452,10 +517,14 @@
     <div id="overlay" style="display: none;">
         <div class="spinner"></div>
         <div id="loadingMessage">
-            <h4>Por favor espera un momento...</h4>
-            <p></p>
+            <p>Por favor espera un momento...</p>
         </div>
     </div>
+
+    <button class="scroll-button" id="participacion-pendiente-button" onclick="mostrarTodasLasParticipaciones()" title="Registros Recientes" style="top: 80px; left: 25px; background-color: var(--warning-color); display: none;">
+        <i class="fa-solid fa-download"></i>
+        <span class="badge">0</span>
+    </button>
 
 
 <script>
@@ -465,6 +534,10 @@
 // ====================================================================
 
 const SESSION_KEY = 'momentoValorSessionData'; 
+const PARTICIPACION_STORAGE_KEY = 'participacionPdfsAlmacenados'; // Clave para guardar PDFs localmente
+const MAX_PDFS_ALMACENADOS = 5; // Limite de archivos guardados localmente
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzxPK9saXbRxmp7HhG5B3nlORT9GZSg1VKmp_sVF7GWWHZP428OsWNXPzAas0xeAnk6/exec';
+
 let isDrawing = false;
 let isErasing = false;
 let lastX = 0;
@@ -474,81 +547,11 @@ const ctx = canvas.getContext("2d", { willReadFrequently: true });
 const undoStack = [];
 const redoStack = [];
 
-// Lista de colaboradores actualizada (Punto 6)
-const allColaboradores = [
-    "ADELFA ESPERANZA ROMERO",
-    "ALBA ROSA BAQUEDANO AMAYA",
-    "ALEXANDER MEJIA SANTOS",
-    "ALEXSI NOHEMI VALLECILLO BANEGAS",
-    "ANA ROSA FUNES RAMOS",
-    "ANDERSON STEVE ALEJANDRO ALVARADO ESPINAL",
-    "BELKIS CAROLINA VALLADARES MENDEZ",
-    "BELKIS WALDINA LOPEZ LOPEZ",
-    "BLANCA ROSA AGUILERA RAMIRES",
-    "BRENDA SUYAPA CANTILLANO HERNANDEZ",
-    "DANIEL ALBERTO APARICIO ZAMBRANO",
-    "DAUNLY ORDOÑEZ AMAYA",
-    "DAYSI YAKELIN HERNANDEZ MENDEZ",
-    "DEBORA HERNANDEZ MENDOZA",
-    "DELMI MERCEDES GAITAN REYES",
-    "DENIA LIZETH OSORTO GOMEZ",
-    "DIGNA JANAIRA FLORES MIRANDA",
-    "DILCIA BETZABETH CEBALLOS LAGOS",
-    "DUNIA YOLANDA SANCHEZ TORRES",
-    "EMMA YADIRA ALVARADO MARTINEZ",
-    "ERIKA MARISOL ORDOÑEZ VASQUEZ",
-    "ERLIN ELICEC SANCHEZ MARROQUIN",
-    "EVELIN ABIGAIL SALGADO FUNES",
-    "FANY LIZETH PERDOMO AGUILAR",
-    "GADIC SUBLET SEVILLA SALGADO",
-    "HECTOR MANUEL ALVAREZ ORTIZ",
-    "IRIS UNDINA IZAGUIRRE MEDINA",
-    "JENSY MARIELA ARGUETA ESCOBAR",
-    "JESSICA DANIELA ORTIZ SIERRA",
-    "JESSICA ESCOTO SANDOVAL",
-    "JESSICA SARAI LORENZO MARTINEZ",
-    "JESSY JOHANA JOFRE DIAZ",
-    "JIMMY NOE SIERRA AMADOR",
-    "KARIN JAQUELIN FIGUEROA PALMA",
-    "KEILIN YOJANA SANCHEZ DEBIS",
-    "LAURA MAYELI HERNANDEZ MARTINEZ",
-    "LESBY SALOMON WALDON",
-    "LESLY YAMILETH DIEGO ORDOÑEZ",
-    "LIDIA YARELI GOMEZ PALMA",
-    "LILIAN ESPERANZA CRUZ VARELA",
-    "LIXI MABEL GUNERA PEREZ",
-    "LUCY YESENIA COTO PONCE",
-    "LUIS ARTURO ULLOA PADILLA",
-    "MARIA DE LOS SANTOS GARCIA",
-    "MARIA DOLORES RAMOS AGUILAR",
-    "MARIA ESTHER BUSTAMANTE SOTO",
-    "MARIA SANTOS MARTINEZ HERNANDEZ",
-    "MARLENE ELIZABETH GODOY SIERRA",
-    "MARTHA LICETH ISIDRO PEREZ",
-    "MEYBI DINORA ORTIZ SANCHEZ",
-    "MILYN MERLY GOMEZ LOPEZ",
-    "MIRIAN LIZETH LOPEZ HERNANDEZ",
-    "MIRIAN YOLANDA HERNANDEZ CONTRERAS",
-    "NADALI NOHEMY HERNANDEZ MUÑOZ",
-    "NEYSIN NOHELIA GOMEZ PINEL",
-    "ODENIA MARICHEL ZUNIGA RODRIGUEZ",
-    "OMAR DARIO BAUTISTA ARCHAGA",
-    "OSCAR SAID ACOSTA SOTO",
-    "ROSA VALERIA LAINEZ LAGOS",
-    "RUBDA MARIZ GOMEZ GOMEZ",
-    "SALVADORA HERNANDEZ VELASQUEZ",
-    "SANDRA PATRICIA GARCIA MONTENEGRO",
-    "SHEYLA ISAMAR HERNANDEZ VASQUEZ",
-    "SINDY LISBETH GARCIA ACOSTA",
-    "SONIA LETICIA VELASQUEZ CANALES",
-    "TANIA SUYAPA PINEDA MAIRENA",
-    "TANIA YARELI CERRATO AVILES",
-    "VILMA VASQUEZ AVILA",
-    "VIVIAN DANIELA BACA SANCHEZ",
-    "WILDER ANAHEL HERNANDEZ MUNGUIA",
-    "WILMER ALEXANDER FUNEZ DIAZ",
-    "YUSTIN MARINA RODRIGUEZ FONSECA"
-];
+// FIX 2: Variable global para almacenar los datos generados del PDF
+let generatedPdfData = null; 
+
+// Lista de colaboradores ahora se carga dinámicamente
+let allColaboradores = [];
 
 let selectedColaboradorIndex = -1;
 let filteredColaboradores = [];
@@ -564,14 +567,7 @@ let filteredColaboradores = [];
 
 function saveSession() {
     const colaboradorVal = $('#colaborador').val();
-    // NOTA: Se elimina la captura de temaVal aquí, ya que el tema es de solo lectura y debe ser cargado por el servidor.
     const fechaVal = $('#fecha').val();
-    
-    // Si no hay campos clave, limpiamos la sesión de autoguardado para evitar recuperación de formularios vacíos.
-    if (!colaboradorVal) { // Ya no dependemos del tema para decidir si hay progreso
-         localStorage.removeItem(SESSION_KEY);
-         return; 
-    }
     
     const firmaData = isCanvasBlank(canvas) ? null : canvas.toDataURL();
     
@@ -585,10 +581,19 @@ function saveSession() {
         }
     });
 
+    // FIX 1: Lógica de autoguardado mejorada.
+    const hasAnswers = respuestas.some(val => val && val.toString().trim() !== '' && val.toString().trim() !== 'Selecciona una opción');
+    const hasSignature = !isCanvasBlank(canvas);
+    
+    // Guardar la sesión si hay colaborador, o si hay respuestas, o si hay firma.
+    if (!colaboradorVal && !hasAnswers && !hasSignature) { 
+         localStorage.removeItem(SESSION_KEY);
+         return; 
+    }
+    
     const sessionData = {
         fecha: fechaVal,
         colaborador: colaboradorVal,
-        // Eliminamos el tema de la sesión: tema: temaVal, 
         respuestas: respuestas,
         
         firmaData: firmaData,
@@ -612,7 +617,6 @@ function loadSession() {
         // 1. Cargar datos de formulario
         $('#fecha').val(data.fecha); 
         $('#colaborador').val(data.colaborador);
-        // Eliminamos la carga del tema de la sesión: $('#tema').val(data.tema); 
         
         // 2. Cargar respuestas de preguntas
         if (data.respuestas) {
@@ -1129,14 +1133,10 @@ document.addEventListener("DOMContentLoaded", async function () {
     // 2. Establecer fecha por defecto (Se ejecuta antes del loadSession)
     setTodayDate();
     
-    // PENDIENTE (Punto 4): Mostrar el mensaje de carga de la página
-    document.getElementById('loadingMessage').querySelector('p').textContent = '';
-
+    // Mostrar el overlay de carga con mensaje fijo
+    document.getElementById('overlay').style.display = 'flex';
 
     try {
-        // Mostrar overlay de espera
-        document.getElementById('overlay').style.display = 'flex';
-
         // URL del script de Google Apps para obtener preguntas (Actualizado)
         const response = await fetch(
             "https://script.google.com/macros/s/AKfycbxJq5mQhE0LO3NVBPLy3xfUjiAwO9Efr1EYUFL-HDVRvJJsCTrinNJz7-HguuQV0p2YCQ/exec", 
@@ -1149,6 +1149,11 @@ document.addEventListener("DOMContentLoaded", async function () {
 
         const data = await response.json();
         
+        // Asignar lista de colaboradores
+        if (data.colaboradores) {
+             allColaboradores = data.colaboradores;
+        }
+
         // Ocultar overlay de espera
         document.getElementById('overlay').style.display = 'none';
 
@@ -1171,6 +1176,9 @@ document.addEventListener("DOMContentLoaded", async function () {
         
         // 5. Configurar Eventos de Formulario (Autoguardado)
         configurarEventos();
+
+        // 6. Mostrar botón de participaciones pendientes (NUEVO)
+        mostrarBotonesParticipacionPendiente();
 
     } catch (error) {
         // Ocultar overlay de espera en caso de error
@@ -1359,57 +1367,365 @@ function validarFormularioCompleto() {
             width: '500px'
         }).then((result) => {
             if (result.isConfirmed) {
-                mostrarConfirmacionFinal();
+                // Inicia el proceso de generación/envío
+                generarPDF();
             }
         });
         return;
     }
 
     // Si todo está OK (o completo), procede
-    mostrarConfirmacionFinal();
+    generarPDF();
 }
 
 
-function mostrarConfirmacionFinal() {
-    const colaborador = $("#colaborador").val();
-    const tema = $("#tema").val();
-    const fecha = $("#fecha").val();
+/**
+ * Función para bloquear la UI para revisión, mostrar nota y limpiar autoguardado.
+ */
+function lockFormForReview(colaborador, tema, calificacion) {
+    // 1. Bloquear botón de envío (siempre)
+    document.getElementById('btnEnviar').disabled = true;
+    document.getElementById('btnEnviar').style.pointerEvents = 'none';
 
-    Swal.fire({
-        title: `Confirmar Envío`,
-        html: `
-            <div style="text-align: left;">
-                <p><strong>Tema:</strong> ${tema}</p>
-                <p><strong>Colaborador:</strong> ${colaborador}</p>
-                <p><strong>Fecha:</strong> ${fecha}</p>
-                <p style="margin-top: 15px;">¿Deseas enviar este registro?</p>
+    // 2. Deshabilitar campos clave
+    $("#colaborador").prop('disabled', true);
+    
+    // 3. Deshabilitar la firma
+    canvas.style.pointerEvents = 'none'; 
+    document.getElementById("toggleEraser").disabled = true;
+    document.getElementById("undo").disabled = true;
+    document.getElementById("redo").disabled = true;
+    document.getElementById("clearSignature").disabled = true;
+    
+    // 4. Bloquear preguntas
+    $("#preguntas").find("textarea, select, input:not([type='hidden'])").prop('disabled', true);
+    
+    // 5. Mostrar y deshabilitar calificación
+    document.getElementById('nota').value = `Nota: ${calificacion.toFixed(2)}%`;
+    document.getElementById('notac').style.display = 'block';
+    document.getElementById('nota').disabled = true;
+
+    // 6. Mantener valores visibles (Corrección del problema de limpieza visual)
+    $("#colaborador").val(colaborador);
+    $("#tema").val(tema);
+    
+    // 7. Limpiar autoguardado de sesión (para no preguntar al recargar)
+    clearSession();
+}
+
+
+// ====================================================================
+// === INICIO: LÓGICA DE GUARDADO LOCAL Y GESTIÓN DE PENDIENTES ===
+// ====================================================================
+
+function dataUrlToBlob(dataUrl) {
+    const parts = dataUrl.split(';base64,');
+    const contentType = parts[0].split(':')[1];
+    const raw = window.atob(parts[1]);
+    const rawLength = raw.length;
+    const uInt8Array = new Uint8Array(rawLength);
+
+    for (let i = 0; i < rawLength; ++i) {
+        uInt8Array[i] = raw.charCodeAt(i);
+    }
+
+    return new Blob([uInt8Array], { type: contentType });
+}
+
+async function guardarPDFEnStorage(pdfBlob, pdfData) {
+    try {
+        let pdfsExistentes = JSON.parse(localStorage.getItem(PARTICIPACION_STORAGE_KEY) || '[]');
+        
+        const nuevoPDF = {
+            id: 'pdf_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+            name: pdfData.name,
+            colaborador: pdfData.colaborador,
+            fecha: pdfData.fecha,
+            timestamp: Date.now(),
+            size: pdfBlob.size
+        };
+
+        try {
+            // Convertir Blob a DataURL para almacenamiento local
+            const reader = new FileReader();
+            nuevoPDF.data = await new Promise((resolve, reject) => {
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(pdfBlob);
+            });
+            nuevoPDF.error = null;
+        } catch (error) {
+            nuevoPDF.data = null;
+            nuevoPDF.error = 'Error al convertir a DataURL.';
+        }
+
+        pdfsExistentes.unshift(nuevoPDF);
+
+        // Limitar el número de archivos
+        if (pdfsExistentes.length > MAX_PDFS_ALMACENADOS) {
+            pdfsExistentes.splice(MAX_PDFS_ALMACENADOS);
+        }
+
+        localStorage.setItem(PARTICIPACION_STORAGE_KEY, JSON.stringify(pdfsExistentes));
+        
+        mostrarBotonesParticipacionPendiente();
+        return true;
+
+    } catch (error) {
+        console.error('❌ Error crítico al guardar PDF localmente:', error);
+        return false;
+    }
+}
+
+function mostrarBotonesParticipacionPendiente() {
+    const pdfsAlmacenados = JSON.parse(localStorage.getItem(PARTICIPACION_STORAGE_KEY) || '[]');
+    const boton = document.getElementById('participacion-pendiente-button');
+    const badge = boton.querySelector('.badge');
+    
+    if (pdfsAlmacenados.length > 0) {
+        boton.classList.add('pendiente');
+        boton.style.display = 'flex';
+        badge.textContent = pdfsAlmacenados.length;
+        boton.title = `Tienes ${pdfsAlmacenados.length} registro(s) reciente(s)`;
+    } else {
+        boton.classList.remove('pendiente');
+        boton.style.display = 'none';
+    }
+}
+
+function mostrarTodasLasParticipaciones() {
+    const pdfsAlmacenados = JSON.parse(localStorage.getItem(PARTICIPACION_STORAGE_KEY) || '[]');
+    
+    if (pdfsAlmacenados.length === 0) {
+        Swal.fire('Información', 'No hay registros guardados localmente.', 'info');
+        return;
+    }
+    
+    let htmlContent = `
+        <div style="text-align: center;">
+            <p style="font-size: 1.2em; margin-bottom: 15px; color: var(--warning-color);">
+                <i class="fas fa-download"></i> Registros Recientes (${pdfsAlmacenados.length})
+            </p>
+            <div style="max-height: 400px; overflow-y: auto; margin-bottom: 20px;">
+    `;
+    
+    pdfsAlmacenados.forEach((pdf, index) => {
+        const fechaGenerado = new Date(pdf.timestamp).toLocaleString();
+        const tienePDF = pdf.data && !pdf.error;
+        
+        htmlContent += `
+            <div style="border: 2px solid ${tienePDF ? '#2ecc71' : '#e74c3c'}; border-radius: 10px; padding: 15px; margin-bottom: 12px; text-align: left; background-color: ${tienePDF ? '#f8fff8' : '#fff8f8'};">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                    <strong style="font-size: 1.1em;">${pdf.colaborador}</strong>
+                    <span style="font-size: 0.8em; color: #6c757d;">#${index + 1}</span>
+                </div>
+                
+                <div style="font-size: 0.9em; color: #555; margin-bottom: 8px;">
+                    <div><strong>Archivo:</strong> ${pdf.name}</div>
+                    <div><strong>Generado:</strong> ${fechaGenerado}</div>
+                </div>
+                
+                ${!tienePDF ? 
+                    '<div style="color: #dc3545; font-size: 0.8em; margin-bottom: 10px;"><i class="fas fa-exclamation-triangle"></i> Archivo PDF no almacenado. Solo metadatos.</div>' 
+                    : ''
+                }
+                
+                <div style="display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;">
+                    <button onclick="compartirParticipacion(${index})" class="swal2-confirm swal2-styled" style="background-color: #007bff; font-size: 12px; padding: 8px 12px; min-width: 110px;" ${!tienePDF ? 'disabled' : ''}>
+                        <i class="fas fa-share-alt"></i> Compartir
+                    </button>
+                    <button onclick="descargarParticipacion(${index})" class="swal2-confirm swal2-styled" style="background-color: #28a745; font-size: 12px; padding: 8px 12px; min-width: 110px;" ${!tienePDF ? 'disabled' : ''}>
+                        <i class="fas fa-download"></i> Descargar
+                    </button>
+                    <button onclick="eliminarParticipacion(${index})" class="swal2-cancel swal2-styled" style="background-color: #dc3545; font-size: 12px; padding: 8px 12px; min-width: 110px;">
+                        <i class="fas fa-trash"></i> Eliminar
+                    </button>
+                </div>
             </div>
-        `,
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonText: `Sí, enviar`,
-        cancelButtonText: 'No, revisar',
-        confirmButtonColor: '#28a745',
-        cancelButtonColor: '#6c757d',
-        width: '500px'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            generarPDF();
-        } else {
-            console.log('Usuario decidió revisar.');
+        `;
+    });
+    
+    htmlContent += `
+            </div>
+            <div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
+                <button id="eliminarTodasBtn" class="swal2-cancel swal2-styled" style="background-color: #dc3545; font-size: 12px; padding: 10px 15px;">
+                    <i class="fas fa-trash-alt"></i> Eliminar todos (${pdfsAlmacenados.length})
+                </button>
+                <button id="cerrarDialogoBtn" class="swal2-confirm swal2-styled" style="background-color: #6c757d; font-size: 12px; padding: 10px 15px;">
+                    <i class="fas fa-times"></i> Cerrar
+                </button>
+            </div>
+        </div>
+    `;
+    
+    Swal.fire({
+        html: htmlContent,
+        icon: 'info',
+        showConfirmButton: false,
+        showCloseButton: true,
+        allowOutsideClick: false,
+        width: '95%',
+        maxWidth: '700px',
+        didOpen: () => {
+            document.getElementById('eliminarTodasBtn').addEventListener('click', function() {
+                Swal.fire({
+                    title: '¿Eliminar todos los registros?',
+                    html: `
+                        <div style="text-align: center;">
+                            <p style="color: #dc3545; font-size: 3em; margin: 10px 0;">⚠️</p>
+                            <p>Esta acción eliminará <strong>${pdfsAlmacenados.length} registros</strong> permanentemente.</p>
+                            <p>¿Estás seguro de que quieres continuar?</p>
+                        </div>
+                    `,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Sí, eliminar todos',
+                    cancelButtonText: 'Cancelar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        localStorage.removeItem(PARTICIPACION_STORAGE_KEY);
+                        mostrarBotonesParticipacionPendiente();
+                        Swal.fire('Eliminados', `Se eliminaron ${pdfsAlmacenados.length} registros`, 'success').then(() => {
+                            Swal.close();
+                        });
+                    }
+                });
+            });
+            
+            document.getElementById('cerrarDialogoBtn').addEventListener('click', function() {
+                Swal.close();
+            });
         }
     });
 }
 
+function descargarParticipacion(indice) {
+    const pdfsAlmacenados = JSON.parse(localStorage.getItem(PARTICIPACION_STORAGE_KEY) || '[]');
+    const pdfData = pdfsAlmacenados[indice];
+    
+    if (!pdfData || !pdfData.data || pdfData.error) {
+        Swal.fire('Información', 'El archivo PDF no está disponible para descargar', 'info');
+        return;
+    }
+    
+    try {
+        const blob = dataUrlToBlob(pdfData.data);
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = pdfData.name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(link.href), 100);
+        
+        Swal.fire('Éxito', 'Registro descargado correctamente', 'success');
+        
+    } catch (error) {
+        console.error('Error al descargar acta:', error);
+        Swal.fire('Error', 'No se pudo descargar el registro', 'error');
+    }
+}
+
+async function compartirParticipacion(indice) {
+    const pdfsAlmacenados = JSON.parse(localStorage.getItem(PARTICIPACION_STORAGE_KEY) || '[]');
+    const pdfData = pdfsAlmacenados[indice];
+    
+    if (!pdfData || !pdfData.data || pdfData.error) {
+        Swal.fire('Información', 'El archivo PDF no está disponible para compartir', 'info');
+        return;
+    }
+    
+    try {
+        const blob = dataUrlToBlob(pdfData.data);
+        const pdfFile = new File([blob], pdfData.name, { type: 'application/pdf' });
+        
+        if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+            await navigator.share({
+                files: [pdfFile],
+                title: pdfData.name,
+                text: `Comparto el registro de participación para ${pdfData.colaborador}.`
+            });
+            Swal.fire('Éxito', 'Registro compartido correctamente', 'success');
+        } else {
+            descargarParticipacion(indice);
+        }
+        
+    } catch (error) {
+        if (error.name !== 'AbortError') {
+            console.error('Error al compartir registro:', error);
+            Swal.fire('Error', 'No se pudo compartir el registro', 'error');
+        }
+    }
+}
+
+function eliminarParticipacion(indice) {
+    const pdfsAlmacenados = JSON.parse(localStorage.getItem(PARTICIPACION_STORAGE_KEY) || '[]');
+    const pdfData = pdfsAlmacenados[indice];
+    
+    Swal.fire({
+        title: '¿Eliminar este registro?',
+        html: `
+            <div style="text-align: left;">
+                <p>¿Estás seguro de que quieres eliminar este registro?</p>
+                <p><strong>Colaborador:</strong> ${pdfData.colaborador}</p>
+                <p><strong>Archivo:</strong> ${pdfData.name}</p>
+            </div>
+        `,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            pdfsAlmacenados.splice(indice, 1);
+            localStorage.setItem(PARTICIPACION_STORAGE_KEY, JSON.stringify(pdfsAlmacenados));
+            mostrarBotonesParticipacionPendiente();
+            Swal.fire('Eliminado', 'El registro ha sido eliminado', 'success').then(() => {
+                // Volver a mostrar la ventana de pendientes si aún hay elementos
+                if (pdfsAlmacenados.length > 0) {
+                     Swal.close();
+                     setTimeout(() => { mostrarTodasLasParticipaciones(); }, 300);
+                } else {
+                    Swal.close();
+                }
+            });
+        }
+    });
+}
+// ====================================================================
+// === FIN: LÓGICA DE GUARDADO LOCAL Y GESTIÓN DE PENDIENTES ===
+// ====================================================================
+
+
+/**
+ * Función principal que inicia el proceso de generación y envío.
+ * Solo genera el PDF y lo guarda localmente en el primer intento.
+ */
 async function generarPDF() {
+    if (generatedPdfData === null) {
+        await processAndGeneratePdf();
+    }
+    // Intenta enviar los datos generados (maneja reintentos internamente)
+    await attemptSend(generatedPdfData);
+}
+
+/**
+ * Función que realiza la generación del PDF, el bloqueo de la UI, 
+ * el cálculo de la nota y el guardado local. 
+ * Se llama solo una vez.
+ */
+async function processAndGeneratePdf() {
     if (isCanvasBlank(canvas)) {
          Swal.fire('Error', 'La firma es requerida.', 'error');
          return;
     }
 
-    // PENDIENTE (Punto 4): Mensaje de carga inicial
+    // Mostrar overlay de carga con mensaje fijo
     document.getElementById('overlay').style.display = 'flex';
-    document.getElementById('loadingMessage').querySelector('p').textContent = 'Analizando respuestas y preparando documento...';
 
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ format: 'letter' });
@@ -1420,9 +1736,9 @@ async function generarPDF() {
     const lineSpacing = 8;
     let cursorY = 15;
 
-    // Se capturan los valores que DEBEN persistir y usar
+    // Se capturan los valores
     const fecha = document.getElementById('fecha').value;
-    const tema = document.getElementById('tema').value; // Usamos el valor actual del DOM (el correcto)
+    const tema = document.getElementById('tema').value;
     const colaborador = document.getElementById('colaborador').value;
     const firmaDataUrl = canvas.toDataURL("image/png");
     const preguntasContainer = document.getElementById("preguntas");
@@ -1469,7 +1785,7 @@ async function generarPDF() {
     cursorY += 10;
 
 
-    // --- SECCIÓN DE PREGUNTAS ---
+    // --- SECCIÓN DE PREGUNTAS (Calculo de calificación y coloración) ---
     pdf.setFontSize(14);
     pdf.setTextColor(34, 49, 63);
     pdf.setFont("times", "bold");
@@ -1520,8 +1836,7 @@ async function generarPDF() {
              }
         }
         
-        // Deshabilitar campos y cambiar color de fondo (Punto 1 y 2)
-        $(respuestaElement).prop('disabled', true);
+        // Aplicar color de fondo para la revisión
         preguntaDiv.style.backgroundColor = esCorrecta ? "rgba(46, 204, 113, 0.1)" : "rgba(231, 76, 60, 0.1)";
         preguntaDiv.style.border = esCorrecta ? "2px solid #2ecc71" : "2px solid #e74c3c";
 
@@ -1549,14 +1864,9 @@ async function generarPDF() {
     
     // --- CALIFICACIÓN FINAL ---
     const calificacion = totalPreguntas > 0 ? (totalRespuestasCorrectas * 100) / totalPreguntas : 0;
-    const calificacionTexto = `Nota: ${calificacion.toFixed(2)}%`;
     
-    // Mostrar calificación en la UI y deshabilitar
-    document.getElementById('nota').value = calificacionTexto;
-    document.getElementById('notac').style.display = 'block';
-    document.getElementById('nota').disabled = true;
-
     // Agregar calificación al PDF (arriba)
+    const calificacionTexto = `Nota: ${calificacion.toFixed(2)}%`;
     pdf.setPage(1);
     pdf.setFontSize(28);
     pdf.setTextColor(46, 204, 113); 
@@ -1598,79 +1908,110 @@ async function generarPDF() {
     cursorY += 10;
 
     // **********************************************
-    // INICIO: CAMBIOS PARA BLOQUEAR POST-ENVÍO (Punto 1)
+    // BLOQUEO DE UI Y GENERACIÓN DE DATOS
     // **********************************************
-
-    // 1. Bloquear botón de envío (siempre)
-    document.getElementById('btnEnviar').disabled = true;
-    document.getElementById('btnEnviar').style.pointerEvents = 'none';
-
-    // 2. Deshabilitar el campo de Colaborador (Punto 1)
-    $("#colaborador").prop('disabled', true);
     
-    // 3. Deshabilitar la firma (Punto 1)
-    canvas.style.pointerEvents = 'none'; // Deshabilita la interacción con el canvas
-    document.getElementById("toggleEraser").disabled = true;
-    document.getElementById("undo").disabled = true;
-    document.getElementById("redo").disabled = true;
-    document.getElementById("clearSignature").disabled = true;
+    // 1. Bloquear toda la UI para revisión
+    lockFormForReview(colaborador, tema, calificacion); 
     
-    // 4. CLAVE: Borrar solo la llave de autoguardado de localStorage (la información visible se mantiene).
-    clearSession(); 
-    
-    // FIX CLAVE AÑADIDO: Re-establecer explícitamente el valor de tema y colaborador en la UI
-    // para asegurar que se muestren correctamente después de deshabilitarlos.
-    $("#colaborador").val(colaborador);
-    $("#tema").val(tema);
-
-    // **********************************************
-    // FIN: CAMBIOS PARA BLOQUEAR POST-ENVÍO
-    // **********************************************
-
-
-    // Crear un nombre para el archivo y enviarlo
-    document.getElementById('loadingMessage').querySelector('p').textContent = '';
-    
-    let nombreArchivo = `${fecha} - Participación - ${colaborador} - ${calificacion.toFixed(0)}%.pdf`;
-
+    // 2. Generar datos para envío
+    const pdfBlob = pdf.output('blob');
     const pdfBase64 = pdf.output('datauristring').split(',')[1];
     
-    const dataToSend = {
-        fecha: fecha,
+    const pdfMetaData = {
+        name: `${fecha} - Participación - ${colaborador} - ${calificacion.toFixed(0)}%.pdf`,
         colaborador: colaborador,
-        tema: tema,
-        calificacion: calificacion.toFixed(2),
-        respuestas: JSON.stringify(preguntasEnviadas),
-        pdfFile: pdfBase64,
-        fileName: nombreArchivo
+        fecha: fecha,
+        tema: tema
     };
     
+    // 3. Guardar localmente (solo el primer archivo)
+    await guardarPDFEnStorage(pdfBlob, pdfMetaData);
+    
+    // 4. Poblar la variable global para reintentos
+    generatedPdfData = {
+        dataToSend: {
+            fecha: fecha,
+            colaborador: colaborador,
+            tema: tema,
+            calificacion: calificacion.toFixed(2),
+            respuestas: JSON.stringify(preguntasEnviadas),
+            pdfFile: pdfBase64,
+            fileName: pdfMetaData.name
+        }
+    };
+    
+    // Ocultar overlay después de la generación
+    document.getElementById('overlay').style.display = 'none';
+}
+
+/**
+ * Función que maneja el intento de envío por red y el flujo de reintento.
+ * Utiliza los datos generados por processAndGeneratePdf.
+ */
+async function attemptSend(generatedData) {
+    if (!generatedData) {
+        Swal.fire('Error', 'Error interno: Datos de PDF no generados.', 'error');
+        return;
+    }
+    
+    document.getElementById('overlay').style.display = 'flex'; // Mostrar overlay
+    
     try {
-        // URL del script de Google Apps para POST (Actualizado)
-        const response = await fetch('https://script.google.com/macros/s/AKfycbzxPK9saXbRxmp7HhG5B3nlORT9GZSg1VKmp_sVF7GWWHZP428OsWNXPzAas0xeAnk6/exec', {
+        const response = await fetch(SCRIPT_URL, {
             method: 'POST',
-            body: new URLSearchParams(dataToSend)
+            body: new URLSearchParams(generatedData.dataToSend)
         });
+
+        if (!response.ok) {
+            throw new Error(`Error en el servidor: ${response.statusText}`);
+        }
 
         const result = await response.text();
         console.log('Archivo guardado con ID:', result);
         
-        // Éxito
+        // Éxito: Limpiar la variable global para no reintentar
+        generatedPdfData = null;
+
+        // Ocultar overlay
         document.getElementById('overlay').style.display = 'none';
 
         Swal.fire({
             title: '¡Envío exitoso! 🥳🎉',
-            html: `<p>Se ha registrado la participación, su nota final es de: <strong>${calificacion.toFixed(2)}%</strong>.</p>`,
+            html: `<p>Se ha registrado la participación, su nota final es de: <strong>${generatedData.dataToSend.calificacion}%</strong>.</p>`,
             icon: 'success',
             confirmButtonText: 'Aceptar',
             width: '400px'
-        }).then(() => {
-            // No se hace nada aquí, la información permanece en pantalla.
         });
 
     } catch (error) {
+        // Falla de conexión o de script
+        console.error('Error durante el envío online:', error);
+        
+        // Ocultar overlay y mostrar error
         document.getElementById('overlay').style.display = 'none';
-        Swal.fire('Error', 'Hubo un problema al enviar el registro. Por favor, intenta de nuevo.', 'error');
+        
+        Swal.fire({
+            title: 'Error de Conexión o Envío',
+            html: `
+                <p>El envío falló debido a un problema de conexión o un error en el servidor. El PDF se ha guardado localmente.</p>
+                <p style="margin-top: 10px;">Puedes intentar enviarlo de nuevo o gestionar el archivo guardado.</p>
+            `,
+            icon: 'error',
+            showCancelButton: true,
+            confirmButtonText: 'Reintentar Envío',
+            cancelButtonText: 'Ver Recientes',
+            confirmButtonColor: '#3498db',
+            cancelButtonColor: '#f39c12'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Reintento: Llamar a attemptSend de nuevo con los datos ya generados
+                attemptSend(generatedData);
+            } else if (result.dismiss === Swal.DismissReason.cancel) {
+                // Mostrar pendientes
+                mostrarTodasLasParticipaciones();
+            }
+        });
     }
 }
 

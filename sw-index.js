@@ -8,7 +8,7 @@ const urlsToCacheIndex = [
     './Pag - Reportería.html',
     './Reporte de Supervisión.html',
     './Liberación.html',
-    './Imágenes/Otros/HojadeLiberación.jpg',
+    'Imágenes/Otros/HojadeLiberación.jpg',
     './Control de Llaves.html',
     './Pag - Residuos.html',
     './Registro de Residuos.html',

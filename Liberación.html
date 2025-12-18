@@ -320,12 +320,14 @@
         display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background-color: rgba(255, 255, 255, 0.95); justify-content: center; align-items: center; z-index: 9999;
         flex-direction: column;
+        text-align: center; /* CENTRADO DEL TEXTO */
     }
     .spinner {
         width: 60px; height: 60px; border: 5px solid rgba(52, 152, 219, 0.2);
         border-radius: 50%; border-top-color: var(--secondary-color);
         animation: spin 1s ease-in-out infinite; margin-bottom: 20px;
     }
+    #loadingMessage h4 { margin: 10px 0 5px 0; color: var(--primary-color); }
     @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
@@ -535,7 +537,7 @@
     function agregarPreview(b,i){const c=document.getElementById('previewContainer'),d=document.createElement('div');d.className='image-preview-item';d.dataset.index=i;d.innerHTML=`<img src="${b}"><div class="delete-icon" onclick="borrarFoto(this,'${b}')"><i class="fas fa-times"></i></div>`;c.appendChild(d);}
     function borrarFoto(e,b){const i=fotosSeleccionadas.indexOf(b);if(i>-1)fotosSeleccionadas.splice(i,1);e.parentElement.remove();validarYGuardar();}
 
-    // DB
+    // DB & RESTAURACIÓN MEJORADA
     function triggerAutoSave(){if(!cargandoDatos)guardarBorrador();}
     async function guardarBorrador(){
         if(cargandoDatos)return;
@@ -548,9 +550,92 @@
             firmaData:canvas.toDataURL(),fotos:fotosSeleccionadas
         });}catch(e){console.error(e);}
     }
+
     async function verificarBorrador(){
-        try{const b=await db.borrador.get(1);if(b){Swal.fire({title:'Trabajo Pendiente',text:'¿Recuperar borrador?',icon:'question',showCancelButton:true,confirmButtonText:'Sí',cancelButtonText:'No'}).then(r=>{if(r.isConfirmed)cargarDatosBorrador(b);else{db.borrador.delete(1);cargarFechaDefault();document.getElementById('checkSinFirma').checked=false;toggleSinFirma();setTimeout(()=>{cargandoDatos=false;validarTodosLosCampos();},100);}});}else{cargarFechaDefault();setTimeout(()=>{cargandoDatos=false;validarTodosLosCampos();},100);}}catch(e){cargarFechaDefault();setTimeout(()=>{cargandoDatos=false;validarTodosLosCampos();},100);}
+        try{
+            const borrador = await db.borrador.get(1);
+            if(borrador){
+                Swal.fire({
+                    title:'Trabajo Pendiente',text:'Tienes un registro sin finalizar. ¿Recuperar?',icon:'question',
+                    showCancelButton:true,confirmButtonText:'Sí, recuperar',cancelButtonText:'No, empezar nuevo',
+                    confirmButtonColor:'#3085d6',cancelButtonColor:'#d33'
+                }).then(result => {
+                    if(result.isConfirmed){
+                        cargarDatosBorrador(borrador);
+                        // --- MENSAJE AGREGADO AQUÍ ---
+                        Swal.fire({
+                            title: '¡Restaurado!',
+                            text: 'Tu sesión ha sido restaurada.',
+                            icon: 'success',
+                            confirmButtonText: 'OK'
+                        });
+                    } else if (result.dismiss === Swal.DismissReason.cancel) {
+                        confirmarBorradoDefinitivo(borrador);
+                    }
+                });
+            } else {
+                cargarFechaDefault();
+                setTimeout(()=>{cargandoDatos=false;validarTodosLosCampos();},100);
+            }
+        } catch(e) {
+            cargarFechaDefault();
+            setTimeout(()=>{cargandoDatos=false;validarTodosLosCampos();},100);
+        }
     }
+
+    function confirmarBorradoDefinitivo(borradorGuardado) {
+        Swal.fire({
+            title: '¿Estás 100% seguro?',
+            text: "Esta acción es irreversible y todo su progreso se perderá.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Si, borrar todo',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                db.borrador.delete(1);
+                cargarFechaDefault();
+                document.getElementById('checkSinFirma').checked = false;
+                toggleSinFirma();
+                // Limpiar campos visuales
+                document.getElementById('folio').value = '';
+                document.getElementById('dependencia').value = '';
+                document.getElementById('ticket').value = '';
+                document.getElementById('descripcion').value = '';
+                document.getElementById('usuario').value = '';
+                document.getElementById('motivoSinFirma').value = '';
+                document.getElementById('checkFolio').checked = false;
+                document.getElementById('checkTicket').checked = false;
+                document.getElementById('checkRepro').checked = false;
+                toggleInputState('folio','container-folio',document.getElementById('checkFolio'));
+                toggleInputState('ticket','container-ticket',document.getElementById('checkTicket'));
+                toggleInputState('fechaHoraReprogramacion','container-fechaRepro',document.getElementById('checkRepro'));
+                fotosSeleccionadas = [];
+                document.getElementById('previewContainer').innerHTML = '';
+                clearSignature(false);
+
+                Swal.fire({
+                    title: 'Eliminado',
+                    text: 'Se ha borrado el progreso anterior',
+                    icon: 'success',
+                    confirmButtonText: 'OK'
+                });
+                setTimeout(()=>{cargandoDatos=false;validarTodosLosCampos();},100);
+            } else {
+                // Canceló el borrado -> Restaurar
+                cargarDatosBorrador(borradorGuardado);
+                Swal.fire({
+                    title: '¡Restaurado!',
+                    text: 'Tu sesión ha sido restaurada.',
+                    icon: 'success',
+                    confirmButtonText: 'OK'
+                });
+            }
+        });
+    }
+
     function cargarDatosBorrador(d){
         if(d.fecha)document.getElementById('fecha').value=d.fecha;
         document.getElementById('checkFolio').checked=d.checkFolio; toggleInputState('folio','container-folio',document.getElementById('checkFolio')); if(d.folio)document.getElementById('folio').value=d.folio;
@@ -701,15 +786,13 @@
             }
 
             // --- NOMBRE DE ARCHIVO CON CONTADOR DIARIO ---
-            // 1. Obtener fecha actual YYYY-MM-DD
             const now = new Date();
             const year = now.getFullYear();
             const month = String(now.getMonth() + 1).padStart(2, '0');
             const day = String(now.getDate()).padStart(2, '0');
-            const todayISO = `${year}-${month}-${day}`; // Formato para filtro DB
-            const todayName = `${day}-${month}-${year}`; // Formato para nombre archivo
+            const todayISO = `${year}-${month}-${day}`; 
+            const todayName = `${day}-${month}-${year}`; 
             
-            // 2. Contar registros de hoy
             const registrosHoy = await db.registros.filter(r => r.timestamp && r.timestamp.startsWith(todayISO)).count();
             const consecutivo = registrosHoy + 1;
 
@@ -772,6 +855,22 @@
     window.descargarDesdeDB=async id=>{const i=await db.registros.get(id);if(i){const a=document.createElement('a');a.href=i.data;a.download=i.name;document.body.appendChild(a);a.click();document.body.removeChild(a);}};
     window.compartirDesdeDB=async id=>{if(!navigator.share)return;const i=await db.registros.get(id);if(i){try{const r=await fetch(i.data),b=await r.blob(),f=new File([b],i.name,{type:'application/pdf'});await navigator.share({files:[f]});}catch{}}};
     window.addEventListener('load', () => { initializeCanvas(); verificarBorrador(); });
+
+
+// Nuevo código para el Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('sw-index.js')
+                    .then(function(registration) {
+                        console.log('✅ Service Worker de Llaves registrado con éxito:', registration.scope);
+                    })
+                    .catch(function(error) {
+                        console.log('❌ Error al registrar Service Worker de Llaves:', error);
+                    });
+            });
+        }
+
+
 </script>
 </body>
 </html>

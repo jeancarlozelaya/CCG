@@ -1770,63 +1770,49 @@ function validarPagina(paginaId) {
 function openCamera(previewId) {
     currentPreviewId = previewId;
     
-    // Lista blanca de User Agents móviles REALES
+    // DETECCIÓN ROBUSTA DE DESKTOP
+    // 1. Verificar por User Agent primero
     const userAgent = navigator.userAgent.toLowerCase();
     
-    // Solo estos dispositivos pueden usar cámara nativa
-    const dispositivosPermitidos = [
-        'iphone', 'ipad', 'ipod',
-        'android', 
-        'blackberry',
-        'windows phone'
-    ];
+    // Lista de indicadores claros de DESKTOP (no móvil)
+    const esDesktopClaro = 
+        userAgent.includes('windows') ||
+        userAgent.includes('win32') ||
+        userAgent.includes('win64') ||
+        userAgent.includes('macintosh') ||
+        userAgent.includes('mac os') ||
+        userAgent.includes('macos') ||
+        (userAgent.includes('linux') && !userAgent.includes('android')) ||
+        userAgent.includes('x11'); // X11 es sistema de ventanas de Linux
     
-    // Verificar si es uno de los dispositivos permitidos
-    let esDispositivoPermitido = false;
-    for (const dispositivo of dispositivosPermitidos) {
-        if (userAgent.includes(dispositivo)) {
-            esDispositivoPermitido = true;
-            break;
-        }
+    // 2. Verificar por características del navegador
+    const tienePlugins = navigator.plugins && navigator.plugins.length > 0;
+    const tieneLenguajes = navigator.languages && navigator.languages.length > 0;
+    
+    // 3. Características típicas de desktop (no infalibles, pero útiles)
+    const pantallaAncha = window.screen.width >= 1024;
+    const ratioPixel = window.devicePixelRatio <= 2; // Móviles suelen tener mayor densidad
+    
+    // 4. Verificación final: si parece desktop, forzar modal
+    // Más estricto: si tiene ALGUNA característica de desktop, usar modal
+    if (esDesktopClaro || tienePlugins || (tieneLenguajes && pantallaAncha)) {
+        openCameraModal();
+        return;
     }
     
-    // También verificar plataforma
-    const plataforma = (navigator.platform || '').toLowerCase();
-    const esPlataformaMovil = /iphone|ipad|ipod|android/i.test(plataforma);
+    // 5. Solo si estamos 100% seguros de que es móvil, usar cámara nativa
+    // Verificación ultra-estricta para móvil
+    const esMovilReal = esDispositivoMovil();
+    const tieneTouch = 'ontouchstart' in window;
+    const orientacionMovil = 'orientation' in window;
     
-    // Solo usar cámara nativa si:
-    // 1. Es un dispositivo permitido EN LA LISTA BLANCA
-    // 2. Y tiene capacidades táctiles (casi todos los móviles)
-    // 3. Y no estamos en modo escritorio forzado
-    if (esDispositivoPermitido && 
-        esPlataformaMovil && 
-        'ontouchstart' in window &&
-        !esModoEscritorioForzado()) {
+    if (esMovilReal && (tieneTouch || orientacionMovil)) {
         openNativeCamera();
     } else {
-        // CUALQUIER otro caso, usar modal
+        // Por defecto, más seguro usar modal
         openCameraModal();
     }
 }
-
-/**
- * Detecta si se está forzando modo escritorio (como en herramientas de desarrollador)
- */
-function esModoEscritorioForzado() {
-    // Si el user agent contiene "mobile" pero también "safari" de escritorio, es emulación
-    const ua = navigator.userAgent.toLowerCase();
-    if (ua.includes('mobile') && (ua.includes('safari') && !ua.includes('version/'))) {
-        return true;
-    }
-    
-    // Si el ancho de pantalla es muy grande pero se reporta como móvil
-    if (window.innerWidth > 1024 && /mobile|android|iphone/i.test(navigator.userAgent)) {
-        return true;
-    }
-    
-    return false;
-}
-
 
 /**
  * Abre cámara nativa en dispositivos móviles

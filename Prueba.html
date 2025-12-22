@@ -1770,27 +1770,63 @@ function validarPagina(paginaId) {
 function openCamera(previewId) {
     currentPreviewId = previewId;
     
-    // VERIFICACIÓN DE SEGURIDAD EXTRA
-    // Si en desktop se detecta como móvil por error, forzar modal
+    // Lista blanca de User Agents móviles REALES
     const userAgent = navigator.userAgent.toLowerCase();
-    const esWindows = userAgent.includes('windows') || userAgent.includes('win32');
-    const esMac = userAgent.includes('macintosh') || userAgent.includes('mac os');
-    const esLinux = userAgent.includes('linux') && !userAgent.includes('android');
     
-    // Si es claramente desktop (Windows, Mac, Linux), usar modal siempre
-    if (esWindows || esMac || esLinux) {
-        openCameraModal();
-        return;
+    // Solo estos dispositivos pueden usar cámara nativa
+    const dispositivosPermitidos = [
+        'iphone', 'ipad', 'ipod',
+        'android', 
+        'blackberry',
+        'windows phone'
+    ];
+    
+    // Verificar si es uno de los dispositivos permitidos
+    let esDispositivoPermitido = false;
+    for (const dispositivo of dispositivosPermitidos) {
+        if (userAgent.includes(dispositivo)) {
+            esDispositivoPermitido = true;
+            break;
+        }
     }
     
-    if (esDispositivoMovil()) {
-        // En móvil: usar cámara nativa
+    // También verificar plataforma
+    const plataforma = (navigator.platform || '').toLowerCase();
+    const esPlataformaMovil = /iphone|ipad|ipod|android/i.test(plataforma);
+    
+    // Solo usar cámara nativa si:
+    // 1. Es un dispositivo permitido EN LA LISTA BLANCA
+    // 2. Y tiene capacidades táctiles (casi todos los móviles)
+    // 3. Y no estamos en modo escritorio forzado
+    if (esDispositivoPermitido && 
+        esPlataformaMovil && 
+        'ontouchstart' in window &&
+        !esModoEscritorioForzado()) {
         openNativeCamera();
     } else {
-        // En desktop: usar modal de cámara
+        // CUALQUIER otro caso, usar modal
         openCameraModal();
     }
 }
+
+/**
+ * Detecta si se está forzando modo escritorio (como en herramientas de desarrollador)
+ */
+function esModoEscritorioForzado() {
+    // Si el user agent contiene "mobile" pero también "safari" de escritorio, es emulación
+    const ua = navigator.userAgent.toLowerCase();
+    if (ua.includes('mobile') && (ua.includes('safari') && !ua.includes('version/'))) {
+        return true;
+    }
+    
+    // Si el ancho de pantalla es muy grande pero se reporta como móvil
+    if (window.innerWidth > 1024 && /mobile|android|iphone/i.test(navigator.userAgent)) {
+        return true;
+    }
+    
+    return false;
+}
+
 
 /**
  * Abre cámara nativa en dispositivos móviles

@@ -1770,46 +1770,24 @@ function validarPagina(paginaId) {
 function openCamera(previewId) {
     currentPreviewId = previewId;
     
-    // DETECCIÓN ROBUSTA DE DESKTOP
-    // 1. Verificar por User Agent primero
+    // VERIFICACIÓN DE SEGURIDAD EXTRA
+    // Si en desktop se detecta como móvil por error, forzar modal
     const userAgent = navigator.userAgent.toLowerCase();
+    const esWindows = userAgent.includes('windows') || userAgent.includes('win32');
+    const esMac = userAgent.includes('macintosh') || userAgent.includes('mac os');
+    const esLinux = userAgent.includes('linux') && !userAgent.includes('android');
     
-    // Lista de indicadores claros de DESKTOP (no móvil)
-    const esDesktopClaro = 
-        userAgent.includes('windows') ||
-        userAgent.includes('win32') ||
-        userAgent.includes('win64') ||
-        userAgent.includes('macintosh') ||
-        userAgent.includes('mac os') ||
-        userAgent.includes('macos') ||
-        (userAgent.includes('linux') && !userAgent.includes('android')) ||
-        userAgent.includes('x11'); // X11 es sistema de ventanas de Linux
-    
-    // 2. Verificar por características del navegador
-    const tienePlugins = navigator.plugins && navigator.plugins.length > 0;
-    const tieneLenguajes = navigator.languages && navigator.languages.length > 0;
-    
-    // 3. Características típicas de desktop (no infalibles, pero útiles)
-    const pantallaAncha = window.screen.width >= 1024;
-    const ratioPixel = window.devicePixelRatio <= 2; // Móviles suelen tener mayor densidad
-    
-    // 4. Verificación final: si parece desktop, forzar modal
-    // Más estricto: si tiene ALGUNA característica de desktop, usar modal
-    if (esDesktopClaro || tienePlugins || (tieneLenguajes && pantallaAncha)) {
+    // Si es claramente desktop (Windows, Mac, Linux), usar modal siempre
+    if (esWindows || esMac || esLinux) {
         openCameraModal();
         return;
     }
     
-    // 5. Solo si estamos 100% seguros de que es móvil, usar cámara nativa
-    // Verificación ultra-estricta para móvil
-    const esMovilReal = esDispositivoMovil();
-    const tieneTouch = 'ontouchstart' in window;
-    const orientacionMovil = 'orientation' in window;
-    
-    if (esMovilReal && (tieneTouch || orientacionMovil)) {
+    if (esDispositivoMovil()) {
+        // En móvil: usar cámara nativa
         openNativeCamera();
     } else {
-        // Por defecto, más seguro usar modal
+        // En desktop: usar modal de cámara
         openCameraModal();
     }
 }

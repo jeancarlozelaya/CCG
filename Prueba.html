@@ -1049,17 +1049,18 @@ let flashOn = false;
  * Detecta si es un dispositivo móvil
  */
 function esDispositivoMovil() {
-    // Detección por User Agent
-    const userAgent = navigator.userAgent || navigator.vendor || window.opera;
-    const esMovilUserAgent = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+    // Lista blanca de User Agents móviles
+    const userAgent = navigator.userAgent.toLowerCase();
     
-    // Detección por tamaño de pantalla
-    const esMovilPantalla = window.innerWidth <= 768 && window.innerHeight <= 1024;
+    // Solo dispositivos móviles claramente identificados
+    const esMovil = /android|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile/i.test(userAgent);
     
-    // Detección por características táctiles
-    const tieneTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    // Verificación adicional: plataforma
+    const plataforma = navigator.platform.toLowerCase();
+    const esPlataformaMovil = /android|iphone|ipad|ipod/i.test(plataforma);
     
-    return esMovilUserAgent || (esMovilPantalla && tieneTouch);
+    // Solo retorna true si es claramente un dispositivo móvil
+    return esMovil || esPlataformaMovil;
 }
 
 // =========================================================================
@@ -1768,6 +1769,19 @@ function validarPagina(paginaId) {
  */
 function openCamera(previewId) {
     currentPreviewId = previewId;
+    
+    // VERIFICACIÓN DE SEGURIDAD EXTRA
+    // Si en desktop se detecta como móvil por error, forzar modal
+    const userAgent = navigator.userAgent.toLowerCase();
+    const esWindows = userAgent.includes('windows') || userAgent.includes('win32');
+    const esMac = userAgent.includes('macintosh') || userAgent.includes('mac os');
+    const esLinux = userAgent.includes('linux') && !userAgent.includes('android');
+    
+    // Si es claramente desktop (Windows, Mac, Linux), usar modal siempre
+    if (esWindows || esMac || esLinux) {
+        openCameraModal();
+        return;
+    }
     
     if (esDispositivoMovil()) {
         // En móvil: usar cámara nativa

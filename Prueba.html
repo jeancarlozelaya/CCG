@@ -1771,25 +1771,23 @@ function openCamera(previewId) {
     currentPreviewId = previewId;
     
     // VERIFICACIÓN DE SEGURIDAD EXTRA
+    // Si en desktop se detecta como móvil por error, forzar modal
     const userAgent = navigator.userAgent.toLowerCase();
+    const esWindows = userAgent.includes('windows') || userAgent.includes('win32');
+    const esMac = userAgent.includes('macintosh') || userAgent.includes('mac os');
+    const esLinux = userAgent.includes('linux') && !userAgent.includes('android');
     
-    // Lista de sistemas operativos de desktop
-    const sistemasDesktop = ['windows', 'win32', 'win64', 'macintosh', 'mac os', 'linux'];
-    
-    // Si el user agent menciona claramente un SO de desktop
-    const esDesktopPorSO = sistemasDesktop.some(so => userAgent.includes(so));
-    
-    // Si es desktop por SO, usar modal SIEMPRE (incluso si detecta como móvil)
-    if (esDesktopPorSO) {
-        console.log("SO de desktop detectado - forzando modal");
+    // Si es claramente desktop (Windows, Mac, Linux), usar modal siempre
+    if (esWindows || esMac || esLinux) {
         openCameraModal();
         return;
     }
     
-    // Usar la detección mejorada
-    if (esDispositivoMovilReal()) {
+    if (esDispositivoMovil()) {
+        // En móvil: usar cámara nativa
         openNativeCamera();
     } else {
+        // En desktop: usar modal de cámara
         openCameraModal();
     }
 }
@@ -3234,72 +3232,6 @@ if ('serviceWorker' in navigator) {
             });
     });
 }
-
-/**
- * Detecta si debe usar cámara nativa (solo móviles REALES)
- * Distingue entre móvil real y simulación en desktop
- */
-function esDispositivoMovilReal() {
-    const userAgent = navigator.userAgent.toLowerCase();
-    
-    // 1. VERIFICACIÓN ANTI-SIMULACIÓN
-    
-    // Patrones que indican navegador de escritorio
-    const navegadoresDesktop = [
-        'chrome/', 'firefox/', 'safari/', 'edge/', 'opera/',
-        'windows', 'win32', 'win64', 'macintosh', 'mac os', 'linux x86_64'
-    ];
-    
-    // Si el user agent contiene indicadores claros de desktop
-    const esDesktopClaro = navegadoresDesktop.some(pattern => userAgent.includes(pattern));
-    
-    // Verificar diferencias entre pantalla y viewport (indicador de simulación)
-    const diferenciaAncho = screen.width - window.innerWidth;
-    const diferenciaAlto = screen.height - window.innerHeight;
-    
-    // Si es claramente desktop y hay una diferencia grande (probablemente herramientas abiertas)
-    if (esDesktopClaro && (diferenciaAncho > 200 || diferenciaAlto > 200)) {
-        console.log("Modo simulación detectado - usando cámara modal");
-        return false;
-    }
-    
-    // 2. VERIFICACIÓN DE MÓVIL REAL
-    
-    // Solo dispositivos móviles claramente identificados
-    const dispositivosMovilesReales = [
-        'android', 'iphone', 'ipad', 'ipod', 
-        'blackberry', 'iemobile', 'opera mini',
-        // Agregar modelos específicos si es necesario
-        'sm-', 'lg-', 'moto', 'nexus', 'pixel'
-    ];
-    
-    const esMovilReal = dispositivosMovilesReales.some(dispositivo => userAgent.includes(dispositivo));
-    
-    // Verificación adicional: características de hardware móvil
-    const tieneConectividadMovil = 'connection' in navigator && 
-                                   navigator.connection && 
-                                   navigator.connection.type !== 'wifi' && 
-                                   navigator.connection.type !== 'unknown';
-    
-    // 3. DECISIÓN FINAL
-    // Solo es móvil si: 
-    // a) Tiene user agent de móvil real, Y
-    // b) No estamos claramente en desktop con herramientas abiertas
-    
-    if (esMovilReal && !esDesktopClaro) {
-        return true;
-    }
-    
-    // Si tenemos conectividad móvil (celular) y no es claramente desktop
-    if (tieneConectividadMovil && !esDesktopClaro) {
-        return true;
-    }
-    
-    // Por defecto, asumir desktop (más seguro)
-    return false;
-}
-
-
 
 </script>
 </body>

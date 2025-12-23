@@ -743,8 +743,7 @@
                                 <label for="select-proyecto" class="form-label">Proyecto</label>
                                 <select class="form-select auto-save" id="select-proyecto" required>
                                     <option value="">Seleccionar...</option>
-                                    <option value="ARPIA">ARPIA</option>
-                                    <option value="ARRIO">ARRIO</option>
+                                    <!-- Las opciones se cargan dinámicamente -->
                                 </select>
                             </div>
                             <div class="col-md-4 mb-3">
@@ -1011,11 +1010,44 @@ const DB_NAME = 'SupervisionImageDB';
 const STORE_NAME = 'images';                
 let db; // Variable global para la base de datos
 
-// Mapa de ubicaciones por proyecto
-const ubicacionesPorProyecto = {
-    "ARPIA": ["Administración", "Sala de Control", "Enfermería"],
-    "ARRIO": ["Camerinos", "Lactancia", "Taller Eléctrico"]
+// CONFIGURACIÓN DINÁMICA DE PROYECTOS Y UBICACIONES
+// Aquí es donde puedes agregar o eliminar proyectos y ubicaciones
+const CONFIG_PROYECTOS = {
+    // Proyectos disponibles con sus ubicaciones
+    proyectos: {
+        "ARPIA": ["Administración", "Sala de Control", "Enfermería"],
+        "ARRIO": ["Camerinos", "Lactancia", "Taller Eléctrico"]
+    },
+    
+    // CONFIGURACIÓN DE FILTROS POR PROYECTO/UBICACIÓN
+    // Esto controla qué páginas se muestran según el proyecto y ubicación seleccionados
+    filtros: {
+        // Si no se especifica filtro, se muestran todas las páginas
+        // Ejemplo 1: Para ARPIA mostrar todas las ubicaciones y todas las páginas
+        'ARPIA': {
+            ubicaciones: null, // null = todas las ubicaciones
+            paginas: null // null = todas las páginas
+        },
+        // Ejemplo 2: Para ARRIO solo mostrar Camerinos y solo ciertas páginas
+        'ARRIO': {
+            ubicaciones: ['Camerinos'], // Solo Camerinos
+            paginas: ['pagina-banos', 'pagina-espacios'] // Solo estas páginas
+        },
+        'ARRIO': {
+            ubicaciones: ['Lactancia'], // Solo Camerinos
+            paginas: null // null = todas las páginas
+        }
+
+
+
+    }
 };
+
+// Variable global para las páginas disponibles según filtro
+let paginasDisponibles = [...PAGES_CONFIG];
+
+// Mapa de ubicaciones por proyecto (se inicializa dinámicamente)
+let ubicacionesPorProyecto = {};
 
 // =========================================================================
 // VARIABLES GLOBALES Y ESTADO
@@ -1066,6 +1098,56 @@ function esDispositivoMovil() {
 // =========================================================================
 // FUNCIONES DE INICIALIZACIÓN DINÁMICA
 // =========================================================================
+
+/**
+ * Inicializa los proyectos y ubicaciones desde la configuración
+ */
+function inicializarProyectosUbicaciones() {
+    // Actualizar ubicacionesPorProyecto desde la configuración
+    ubicacionesPorProyecto = { ...CONFIG_PROYECTOS.proyectos };
+    
+    // Llenar select de proyectos
+    $selectProyecto.empty();
+    $selectProyecto.append('<option value="">Seleccionar...</option>');
+    
+    Object.keys(ubicacionesPorProyecto).forEach(proyecto => {
+        $selectProyecto.append(`<option value="${proyecto}">${proyecto}</option>`);
+    });
+}
+
+/**
+ * Filtra las páginas disponibles según el proyecto y ubicación seleccionados
+ */
+function filtrarPaginasDisponibles(proyecto, ubicacion) {
+    const filtro = CONFIG_PROYECTOS.filtros[proyecto];
+    
+    if (!filtro) {
+        // Si no hay filtro para este proyecto, mostrar todas las páginas
+        paginasDisponibles = [...PAGES_CONFIG];
+        return;
+    }
+    
+    // Verificar filtro de ubicación
+    if (filtro.ubicaciones && filtro.ubicaciones.length > 0) {
+        if (!filtro.ubicaciones.includes(ubicacion)) {
+            // Si la ubicación no está en la lista permitida, no mostrar páginas
+            paginasDisponibles = PAGES_CONFIG.filter(p => p.id === 'pagina-1' || p.id === 'pagina-final');
+            return;
+        }
+    }
+    
+    // Verificar filtro de páginas
+    if (filtro.paginas && filtro.paginas.length > 0) {
+        paginasDisponibles = PAGES_CONFIG.filter(p => 
+            p.id === 'pagina-1' || 
+            p.id === 'pagina-final' || 
+            filtro.paginas.includes(p.id)
+        );
+    } else {
+        // Si no hay filtro de páginas, mostrar todas
+        paginasDisponibles = [...PAGES_CONFIG];
+    }
+}
 
 /**
  * Genera el HTML para una pregunta individual
@@ -1253,14 +1335,14 @@ function generateFinalPageHTML() {
 }
 
 /**
- * Genera TODAS las páginas dinámicamente
+ * Genera TODAS las páginas dinámicamente según las páginas disponibles
  */
 function generateAllPages() {
     const $container = $('#contenedor-paginas-dinamicas');
     $container.empty();
     
-    // Ordenar páginas por orden
-    const sortedPages = [...PAGES_CONFIG].sort((a, b) => a.orden - b.orden);
+    // Ordenar páginas disponibles por orden
+    const sortedPages = [...paginasDisponibles].sort((a, b) => a.orden - b.orden);
     
     // Generar cada página según su tipo
     sortedPages.forEach(pageConfig => {
@@ -1312,7 +1394,7 @@ function populateAllQuestions() {
  * Inicializa eventos para páginas múltiples
  */
 function initializeMultiplePages() {
-    PAGES_CONFIG.forEach(pageConfig => {
+    paginasDisponibles.forEach(pageConfig => {
         if (pageConfig.tipo === 'multiple') {
             const { areaKey, nombreItem, previewId } = pageConfig;
             
@@ -1615,6 +1697,11 @@ function actualizarUbicaciones() {
         $selectUbicacion.append('<option value="">Seleccione un proyecto primero...</option>');
         $selectUbicacion.prop('disabled', true);
     }
+    
+    // Filtrar páginas disponibles según el proyecto seleccionado
+    if (proyectoVal) {
+        filtrarPaginasDisponibles(proyectoVal, '');
+    }
 }
 
 /**
@@ -1638,7 +1725,7 @@ function validarPagina1() {
  * Obtiene la lista de IDs de páginas en orden
  */
 function getPageOrder() {
-    return PAGES_CONFIG.sort((a, b) => a.orden - b.orden).map(p => p.id);
+    return paginasDisponibles.sort((a, b) => a.orden - b.orden).map(p => p.id);
 }
 
 /**
@@ -1697,7 +1784,7 @@ function hayFormularioParcial(pageConfig) {
  * Valida una página antes de navegar
  */
 function validarPagina(paginaId) {
-    const pageConfig = PAGES_CONFIG.find(p => p.id === paginaId);
+    const pageConfig = paginasDisponibles.find(p => p.id === paginaId);
     if (!pageConfig) return true;
     
     // Página 1 tiene validación especial
@@ -2147,6 +2234,12 @@ document.addEventListener('DOMContentLoaded', async function() {
         $fechaInput = $('#fecha-supervision');
         $btnPag1Siguiente = $('#btn-pag1-siguiente');
         
+        // Inicializar proyectos y ubicaciones
+        inicializarProyectosUbicaciones();
+        
+        // Inicialmente, mostrar todas las páginas
+        paginasDisponibles = [...PAGES_CONFIG];
+        
         // Generar todas las páginas dinámicamente
         generateAllPages();
         
@@ -2176,6 +2269,16 @@ document.addEventListener('DOMContentLoaded', async function() {
             Swal.fire('Campos Incompletos', 'Debe seleccionar Fecha, Proyecto y Ubicación.', 'warning');
             return;
         }
+        
+        // Obtener proyecto y ubicación seleccionados
+        const proyecto = $selectProyecto.val();
+        const ubicacion = $selectUbicacion.val();
+        
+        // Filtrar páginas disponibles según proyecto y ubicación
+        filtrarPaginasDisponibles(proyecto, ubicacion);
+        
+        // Regenerar páginas con el filtro aplicado
+        generateAllPages();
         
         const pageOrder = getPageOrder();
         const nextPageIndex = pageOrder.indexOf('pagina-1') + 1;
@@ -2217,7 +2320,18 @@ document.addEventListener('DOMContentLoaded', async function() {
         validarPagina1();
     });
     $fechaInput.on('change', validarPagina1);
-    $selectUbicacion.on('change', validarPagina1);
+    $selectUbicacion.on('change', function() {
+        validarPagina1();
+        
+        // Cuando se selecciona una ubicación, filtrar páginas
+        const proyecto = $selectProyecto.val();
+        const ubicacion = $selectUbicacion.val();
+        
+        if (proyecto && ubicacion) {
+            filtrarPaginasDisponibles(proyecto, ubicacion);
+            // No regeneramos las páginas aquí, se hará al hacer clic en Siguiente
+        }
+    });
     
     // =========================================================================
     // EVENTOS GENERALES
@@ -2300,7 +2414,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     // =========================================================================
     // EVENTO DE ENVÍO FINAL
     // =========================================================================
-    $('#btn-enviar-supervision').on('click', async function(e) {
+    $(document).on('click', '#btn-enviar-supervision', async function(e) {
         e.preventDefault();
         await generatePDF();
     });
@@ -2344,7 +2458,10 @@ function saveSession() {
         dirtyForms: {},
         
         // Comentarios finales
-        comentarios: $('#comentarios-finales').val()
+        comentarios: $('#comentarios-finales').val(),
+        
+        // Configuración de páginas disponibles
+        paginasDisponibles: paginasDisponibles.map(p => p.id)
     };
     
     // Guardar toggles
@@ -2369,7 +2486,7 @@ function saveSession() {
     });
     
     // Guardar formularios "sucios" de páginas múltiples
-    PAGES_CONFIG.forEach(pageConfig => {
+    paginasDisponibles.forEach(pageConfig => {
         if (pageConfig.tipo === 'multiple') {
             const { areaKey } = pageConfig;
             const nombreInput = $(`#${areaKey}-num-reutilizable`).val();
@@ -2411,6 +2528,25 @@ async function loadSession() {
         actualizarUbicaciones();
         $('#select-ubicacion').val(data.ubicacion);
         validarPagina1();
+        
+        // Filtrar páginas disponibles según el proyecto y ubicación guardados
+        if (data.proyecto && data.ubicacion) {
+            filtrarPaginasDisponibles(data.proyecto, data.ubicacion);
+        } else {
+            // Si no hay proyecto/ubicación guardados, usar todas las páginas
+            paginasDisponibles = [...PAGES_CONFIG];
+        }
+        
+        // Restaurar páginas disponibles si están guardadas
+        if (data.paginasDisponibles) {
+            // Filtrar las páginas que existen en la configuración
+            paginasDisponibles = PAGES_CONFIG.filter(p => 
+                data.paginasDisponibles.includes(p.id)
+            );
+        }
+        
+        // Regenerar páginas con el filtro aplicado
+        generateAllPages();
         
         // Restaurar toggles
         if (data.toggles) {
@@ -2458,7 +2594,7 @@ async function loadSession() {
             multipleData = data.multipleData;
             
             // Renderizar listas
-            PAGES_CONFIG.forEach(pageConfig => {
+            paginasDisponibles.forEach(pageConfig => {
                 if (pageConfig.tipo === 'multiple') {
                     renderListaMultiple(pageConfig);
                 }
@@ -2469,7 +2605,7 @@ async function loadSession() {
         if (data.dirtyForms) {
             for (const areaKey in data.dirtyForms) {
                 const formData = data.dirtyForms[areaKey];
-                const pageConfig = PAGES_CONFIG.find(p => p.areaKey === areaKey);
+                const pageConfig = paginasDisponibles.find(p => p.areaKey === areaKey);
                 
                 if (pageConfig && formData) {
                     $(`#${areaKey}-num-reutilizable`).val(formData.numero || '');
@@ -3064,8 +3200,8 @@ async function generatePDFContent(doc, data, yPosRef) {
     const margin = 40;
     let isFirstSection = true;
     
-    // Procesar páginas simples
-    for (const pageConfig of PAGES_CONFIG) {
+    // Procesar páginas disponibles (ya filtradas)
+    for (const pageConfig of paginasDisponibles) {
         if (pageConfig.tipo === 'simple') {
             const { areaKey, titulo } = pageConfig;
             const toggleName = `calificar-${areaKey}`;
@@ -3084,8 +3220,8 @@ async function generatePDFContent(doc, data, yPosRef) {
         }
     }
     
-    // Procesar páginas múltiples
-    for (const pageConfig of PAGES_CONFIG) {
+    // Procesar páginas múltiples disponibles
+    for (const pageConfig of paginasDisponibles) {
         if (pageConfig.tipo === 'multiple') {
             const { areaKey, titulo } = pageConfig;
             const toggleName = `calificar-${areaKey}`;
@@ -3154,7 +3290,7 @@ async function generatePDF() {
     // 1. Añadir Cabecera y Comentarios
     await addHeaderAndComments(doc, data, yPosRef);
 
-    // 2. Generar contenido del PDF
+    // 2. Generar contenido del PDF (solo páginas disponibles)
     await generatePDFContent(doc, data, yPosRef);
 
     // 3. Añadir pies de página

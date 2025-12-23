@@ -1020,26 +1020,16 @@ const CONFIG_PROYECTOS = {
     },
     
     // CONFIGURACIÓN DE FILTROS POR PROYECTO/UBICACIÓN
-    // Esto controla qué páginas se muestran según el proyecto y ubicación seleccionados
     filtros: {
-        // Si no se especifica filtro, se muestran todas las páginas
-        // Ejemplo 1: Para ARPIA mostrar todas las ubicaciones y todas las páginas
-        'ARPIA': {
-            ubicaciones: null, // null = todas las ubicaciones
-            paginas: null // null = todas las páginas
-        },
-        // Ejemplo 2: Para ARRIO solo mostrar Camerinos y solo ciertas páginas
+        // ARPIA: No tiene filtro → todas las páginas para todas las ubicaciones
+        
+        // ARRIO: Solo Camerinos tiene filtro específico
         'ARRIO': {
-            ubicaciones: ['Camerinos'], // Solo Camerinos
-            paginas: ['pagina-banos', 'pagina-espacios'] // Solo estas páginas
-        },
-        'ARRIO': {
-            ubicaciones: ['Lactancia'], // Solo Camerinos
-            paginas: null // null = todas las páginas
+            ubicaciones: ['Camerinos'], // Solo Camerinos tiene este filtro
+            paginas: ['pagina-banos', 'pagina-espacios'] // Para Camerinos, solo estas páginas
         }
-
-
-
+        // Para otras ubicaciones de ARRIO (Lactancia, Taller Eléctrico): 
+        // No tienen filtro específico → todas las páginas
     }
 };
 
@@ -1121,23 +1111,30 @@ function inicializarProyectosUbicaciones() {
 function filtrarPaginasDisponibles(proyecto, ubicacion) {
     const filtro = CONFIG_PROYECTOS.filtros[proyecto];
     
+    // Si no hay filtro para este proyecto, mostrar todas las páginas
     if (!filtro) {
-        // Si no hay filtro para este proyecto, mostrar todas las páginas
         paginasDisponibles = [...PAGES_CONFIG];
+        console.log(`No hay filtro para proyecto ${proyecto}. Mostrando TODAS las páginas.`);
         return;
     }
     
     // Verificar filtro de ubicación
     if (filtro.ubicaciones && filtro.ubicaciones.length > 0) {
+        // Si hay ubicaciones especificadas en el filtro
         if (!filtro.ubicaciones.includes(ubicacion)) {
-            // Si la ubicación no está en la lista permitida, no mostrar páginas
-            paginasDisponibles = PAGES_CONFIG.filter(p => p.id === 'pagina-1' || p.id === 'pagina-final');
+            // Si la ubicación NO está en la lista de ubicaciones filtradas
+            // entonces NO aplica el filtro para esta ubicación → mostrar TODAS
+            console.log(`Ubicación ${ubicacion} no está en lista filtrada. Mostrando TODAS las páginas.`);
+            paginasDisponibles = [...PAGES_CONFIG];
             return;
         }
+        // Si la ubicación SÍ está en la lista, continuamos con el filtro de páginas
     }
     
     // Verificar filtro de páginas
     if (filtro.paginas && filtro.paginas.length > 0) {
+        // Solo mostrar las páginas especificadas en el filtro + páginas fijas
+        console.log(`Aplicando filtro de páginas para ${ubicacion}:`, filtro.paginas);
         paginasDisponibles = PAGES_CONFIG.filter(p => 
             p.id === 'pagina-1' || 
             p.id === 'pagina-final' || 
@@ -1145,6 +1142,7 @@ function filtrarPaginasDisponibles(proyecto, ubicacion) {
         );
     } else {
         // Si no hay filtro de páginas, mostrar todas
+        console.log(`No hay filtro de páginas para ${ubicacion}. Mostrando TODAS las páginas.`);
         paginasDisponibles = [...PAGES_CONFIG];
     }
 }
@@ -1698,10 +1696,8 @@ function actualizarUbicaciones() {
         $selectUbicacion.prop('disabled', true);
     }
     
-    // Filtrar páginas disponibles según el proyecto seleccionado
-    if (proyectoVal) {
-        filtrarPaginasDisponibles(proyectoVal, '');
-    }
+    // NO filtrar páginas aquí, solo cuando se seleccione ubicación
+    // y se haga clic en "Siguiente"
 }
 
 /**
@@ -2263,29 +2259,45 @@ document.addEventListener('DOMContentLoaded', async function() {
     // EVENTOS DE NAVEGACIÓN
     // =========================================================================
     
-    // Navegación desde página 1
-    $('#btn-pag1-siguiente').on('click', function() {
-        if (!validarPagina('pagina-1')) {
-            Swal.fire('Campos Incompletos', 'Debe seleccionar Fecha, Proyecto y Ubicación.', 'warning');
-            return;
+// Navegación desde página 1
+$('#btn-pag1-siguiente').on('click', function() {
+    if (!validarPagina('pagina-1')) {
+        Swal.fire('Campos Incompletos', 'Debe seleccionar Fecha, Proyecto y Ubicación.', 'warning');
+        return;
+    }
+    
+    // Obtener proyecto y ubicación seleccionados
+    const proyecto = $selectProyecto.val();
+    const ubicacion = $selectUbicacion.val();
+    
+    // Filtrar páginas disponibles según el proyecto y ubicación
+    filtrarPaginasDisponibles(proyecto, ubicacion);
+    
+    // Regenerar páginas con el filtro aplicado
+    generateAllPages();
+    
+    const pageOrder = getPageOrder();
+    const nextPageIndex = pageOrder.indexOf('pagina-1') + 1;
+    
+    // Verificar que haya más páginas además de la 1 y final
+    if (pageOrder.length <= 2) {
+        console.warn('Solo hay páginas fijas disponibles:', pageOrder);
+        
+        // Verificar si esto es intencional (filtro aplicado) o error
+        const filtro = CONFIG_PROYECTOS.filtros[proyecto];
+        if (filtro && filtro.ubicaciones && filtro.ubicaciones.includes(ubicacion)) {
+            // Si la ubicación SÍ está en la lista filtrada, esto es intencional
+            Swal.fire('Sin páginas de calificación', 
+                `No hay páginas de calificación disponibles para la ubicación "${ubicacion}" del proyecto "${proyecto}".`, 
+                'info');
         }
-        
-        // Obtener proyecto y ubicación seleccionados
-        const proyecto = $selectProyecto.val();
-        const ubicacion = $selectUbicacion.val();
-        
-        // Filtrar páginas disponibles según proyecto y ubicación
-        filtrarPaginasDisponibles(proyecto, ubicacion);
-        
-        // Regenerar páginas con el filtro aplicado
-        generateAllPages();
-        
-        const pageOrder = getPageOrder();
-        const nextPageIndex = pageOrder.indexOf('pagina-1') + 1;
-        if (nextPageIndex < pageOrder.length) {
-            navegarPagina(pageOrder[nextPageIndex]);
-        }
-    });
+        // Si NO está en la lista filtrada, se mostrarán todas las páginas (ya corregido)
+    }
+    
+    if (nextPageIndex < pageOrder.length) {
+        navegarPagina(pageOrder[nextPageIndex]);
+    }
+});
     
     // Navegación general
     $form.on('click', '.btn-navegacion:not(#btn-pag1-siguiente)', function() {
@@ -2323,14 +2335,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     $selectUbicacion.on('change', function() {
         validarPagina1();
         
-        // Cuando se selecciona una ubicación, filtrar páginas
-        const proyecto = $selectProyecto.val();
-        const ubicacion = $selectUbicacion.val();
-        
-        if (proyecto && ubicacion) {
-            filtrarPaginasDisponibles(proyecto, ubicacion);
-            // No regeneramos las páginas aquí, se hará al hacer clic en Siguiente
-        }
+        // NO filtrar páginas aquí, solo cuando se haga clic en "Siguiente"
+        // Esto evita cambios prematuros en la interfaz
     });
     
     // =========================================================================

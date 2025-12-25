@@ -561,6 +561,7 @@
         overflow: hidden;
         height: 100vh;
         width: 100vw;
+        touch-action: pinch-zoom pan-x pan-y; /* Permitir zoom táctil */
     }
     
     .camera-modal .modal-footer {
@@ -583,7 +584,6 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        touch-action: none; /* Permite zoom táctil */
     }
     
     .camera-view {
@@ -592,15 +592,14 @@
         background-color: #000;
         overflow: hidden;
         position: relative;
-        touch-action: none;
     }
     
     #camera-video {
         width: 100%;
         height: 100%;
         object-fit: cover;
-        transition: transform 0.3s ease;
         /* Eliminado transform: scaleX(-1) para móvil */
+        transition: transform 0.3s ease;
     }
     
     .camera-controls {
@@ -726,40 +725,6 @@
         z-index: 10003;
     }
     
-    /* Mensaje de confirmación de foto MEJORADO */
-    .photo-confirmation {
-        position: absolute;
-        bottom: 20px;
-        right: 20px;
-        background-color: rgba(0, 0, 0, 0.8);
-        color: white;
-        padding: 10px 20px;
-        border-radius: 50px;
-        font-size: 16px;
-        font-weight: 600;
-        z-index: 10004;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        animation: slideInRight 0.3s ease, fadeOut 0.3s ease 1.7s forwards;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-    }
-    
-    .photo-confirmation i {
-        color: #2ecc71;
-        font-size: 20px;
-    }
-    
-    @keyframes slideInRight {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-    }
-    
-    @keyframes fadeOut {
-        from { opacity: 1; }
-        to { opacity: 0; }
-    }
-    
     /* Estado cuando no hay cámara */
     .no-camera .camera-view {
         background-color: #333;
@@ -787,6 +752,50 @@
     /* Clase para esconder botón flotante cuando cámara está activa */
     .camera-active .btn-flotante {
         display: none !important;
+    }
+
+    /* --- Mensaje de foto tomada MEJORADO --- */
+    .photo-capture-toast {
+        position: absolute;
+        bottom: 100px;
+        right: 20px;
+        background-color: rgba(46, 204, 113, 0.9);
+        color: white;
+        padding: 12px 20px;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 16px;
+        z-index: 10004;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        animation: slideInRight 0.3s ease-out, fadeOut 0.3s ease-out 1.7s forwards;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+    
+    .photo-capture-toast i {
+        font-size: 20px;
+    }
+    
+    @keyframes slideInRight {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    @keyframes fadeOut {
+        from {
+            opacity: 1;
+        }
+        to {
+            opacity: 0;
+            visibility: hidden;
+        }
     }
 
 </style>
@@ -1140,8 +1149,8 @@ let flashOn = false;
 let isMobileDevice = false;
 
 // Variables para zoom táctil
-let initialPinchDistance = null;
-let initialZoomLevel = 1;
+let initialPinchDistance = 0;
+let lastZoomLevel = 1;
 
 // =========================================================================
 // FUNCIONES DE DETECCIÓN DE DISPOSITIVO
@@ -1951,7 +1960,7 @@ function openCamera(previewId) {
     
     if (isMobileDevice) {
         // En móvil: usar cámara nativa
-        openNativeCamera();
+        openCameraModal();
     } else {
         // En desktop: usar modal de cámara
         openCameraModal();
@@ -1994,9 +2003,8 @@ function openCameraModal() {
     // Inicializar cámara después de que el modal se muestre
     $('#cameraModal').on('shown.bs.modal', async function() {
         await initializeCamera();
-        
-        // Inicializar eventos táctiles para zoom
-        initTouchZoom();
+        // Agregar evento de zoom táctil
+        addTouchZoomEvents();
     });
     
     // Detener cámara cuando se cierra el modal
@@ -2006,9 +2014,8 @@ function openCameraModal() {
         // Mostrar botón flotante nuevamente
         $('body').removeClass('camera-active');
         updateFloatingButtonVisibility();
-        
-        // Limpiar eventos táctiles
-        removeTouchEvents();
+        // Remover eventos de zoom táctil
+        removeTouchZoomEvents();
     });
 }
 
@@ -2106,7 +2113,7 @@ function applyZoom() {
 }
 
 /**
- * Agrega fecha y hora MEJORADA (MÁS GRANDE) a una imagen
+ * Agrega fecha y hora MEJORADA a una imagen (TEXTO GRANDE, ESQUINA INFERIOR IZQUIERDA)
  */
 async function addDateTimeToImage(base64Data) {
     return new Promise((resolve) => {
@@ -2120,21 +2127,7 @@ async function addDateTimeToImage(base64Data) {
             // Dibujar la imagen original
             ctx.drawImage(img, 0, 0);
             
-            // Determinar si la imagen es horizontal
-            const isHorizontal = img.width > img.height;
-            
-            // Rotar si es horizontal
-            if (isHorizontal) {
-                // Rotar 90 grados para hacerla vertical
-                canvas.width = img.height;
-                canvas.height = img.width;
-                ctx.translate(canvas.width / 2, canvas.height / 2);
-                ctx.rotate(Math.PI / 2);
-                ctx.drawImage(img, -img.width / 2, -img.height / 2);
-                ctx.setTransform(1, 0, 0, 1, 0, 0);
-            }
-            
-            // Configurar texto de fecha/hora MEJORADO (MÁS GRANDE)
+            // Configurar texto de fecha/hora MEJORADO - ESQUINA INFERIOR IZQUIERDA
             const now = new Date();
             const dateStr = now.toLocaleDateString('es-ES', {
                 day: '2-digit',
@@ -2149,45 +2142,25 @@ async function addDateTimeToImage(base64Data) {
             });
             const dateTimeStr = `${dateStr} ${timeStr}`;
             
-            // Configurar fondo de barra horizontal semitransparente (MÁS GRANDE)
-            const barHeight = 50; // Aumentado de 40 a 50
-            const barY = canvas.height - barHeight;
-            
-            // Fondo negro semitransparente (barra horizontal)
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            ctx.fillRect(0, barY, canvas.width, barHeight);
-            
-            // Configurar estilo del texto MEJORADO (MÁS GRANDE)
-            ctx.font = 'bold 28px Arial, sans-serif'; // Aumentado de 20 a 28
+            // Configurar estilo del texto MEJORADO - TEXTO GRANDE Y BLANCO
+            ctx.font = 'bold 28px Arial, sans-serif'; // TEXTO MÁS GRANDE
             ctx.fillStyle = '#FFFFFF'; // Texto blanco
             ctx.strokeStyle = '#000000'; // Borde negro para contraste
-            ctx.lineWidth = 3; // Aumentado de 2 a 3
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
+            ctx.lineWidth = 3; // Borde más grueso
+            ctx.textAlign = 'left'; // Alineado a la izquierda
+            ctx.textBaseline = 'bottom'; // Alineado al fondo
             
-            // Calcular posición centrada en la barra
-            const textX = canvas.width / 2;
-            const textY = barY + (barHeight / 2);
+            // Calcular posición en esquina inferior izquierda
+            const padding = 15;
+            const textX = padding;
+            const textY = canvas.height - padding;
+            
+            // Medir el texto para saber su ancho
+            const textWidth = ctx.measureText(dateTimeStr).width;
             
             // Dibujar texto con borde para mejor legibilidad
             ctx.strokeText(dateTimeStr, textX, textY);
             ctx.fillText(dateTimeStr, textX, textY);
-            
-            // Opcional: Agregar icono de reloj pequeño
-            const iconSize = 22; // Aumentado de 16 a 22
-            const iconX = textX - (ctx.measureText(dateTimeStr).width / 2) - 35; // Aumentada distancia
-            const iconY = textY - (iconSize / 2);
-            
-            // Dibujar círculo para icono
-            ctx.fillStyle = '#3498db';
-            ctx.beginPath();
-            ctx.arc(iconX, iconY + iconSize/2, iconSize/2, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // Texto de icono (⏰)
-            ctx.fillStyle = 'white';
-            ctx.font = '18px Arial'; // Aumentado de 14 a 18
-            ctx.fillText('⏰', iconX - 5, iconY + iconSize/2 + 5); // Ajustada posición
             
             // Convertir a base64
             const newBase64 = canvas.toDataURL('image/jpeg', 0.9);
@@ -2196,6 +2169,35 @@ async function addDateTimeToImage(base64Data) {
         img.onerror = () => resolve(base64Data); // Si falla, devolver original
         img.src = base64Data;
     });
+}
+
+/**
+ * Muestra mensaje de foto tomada (MEJORADO - SIMPLE Y NO INTRUSIVO)
+ */
+function showPhotoCaptureToast() {
+    // Remover toast anterior si existe
+    $('.photo-capture-toast').remove();
+    
+    // Crear nuevo toast
+    const toast = document.createElement('div');
+    toast.className = 'photo-capture-toast';
+    toast.innerHTML = `
+        <i class="fas fa-check-circle"></i>
+        <span>Foto tomada</span>
+    `;
+    
+    // Agregar al contenedor de cámara
+    const cameraContainer = document.querySelector('.camera-container');
+    if (cameraContainer) {
+        cameraContainer.appendChild(toast);
+        
+        // Eliminar después de 2 segundos
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.remove();
+            }
+        }, 2000);
+    }
 }
 
 /**
@@ -2217,7 +2219,7 @@ async function handleCameraPhoto(file) {
     try {
         let base64Data = await fileToBase64(file);
         
-        // Agregar fecha y hora MEJORADA (MÁS GRANDE) a la imagen
+        // Agregar fecha y hora MEJORADA a la imagen
         base64Data = await addDateTimeToImage(base64Data);
         
         const newId = await saveImageToDB(base64Data);
@@ -2228,24 +2230,12 @@ async function handleCameraPhoto(file) {
         div.classList.add("image-preview-item");
         div.innerHTML = `
             <img src="${base64Data}" alt="Vista previa ${newId}">
-            <div class="delete-icon" onclick="deleteImage(this, '${currentPreviewId}', ${newId})">×</div>
+            <div class="delete-icon" onclick="deleteImage(this, '${currentPreviewId}', ${id})">×</div>
         `;
         previewContainer.appendChild(div);
         
-        // Mostrar mensaje de confirmación MEJORADO (solo si es modal)
-        if ($('#cameraModal').hasClass('show')) {
-            showPhotoConfirmation();
-        } else {
-            // Para cámara nativa en móvil, mostrar mensaje simple
-            Swal.fire({
-                icon: 'success',
-                title: 'Foto tomada',
-                toast: true,
-                position: 'top-end',
-                showConfirmButton: false,
-                timer: 1500
-            });
-        }
+        // Mostrar mensaje mejorado
+        showPhotoCaptureToast();
         
         saveSession();
     } catch (error) {
@@ -2253,32 +2243,6 @@ async function handleCameraPhoto(file) {
         tempSpinner.remove();
         Swal.fire('Error de Foto', 'No se pudo guardar la imagen.', 'error');
     }
-}
-
-/**
- * Muestra confirmación de foto en modal (MENOS INTRUSIVO)
- */
-function showPhotoConfirmation() {
-    // Remover confirmaciones anteriores
-    $('.photo-confirmation').remove();
-    
-    // Crear nueva confirmación
-    const confirmation = document.createElement('div');
-    confirmation.className = 'photo-confirmation';
-    confirmation.innerHTML = `
-        <i class="fas fa-check-circle"></i>
-        <span>Foto tomada</span>
-    `;
-    
-    // Añadir al modal
-    document.querySelector('.camera-container').appendChild(confirmation);
-    
-    // Remover después de 2 segundos
-    setTimeout(() => {
-        if (confirmation.parentNode) {
-            confirmation.remove();
-        }
-    }, 2000);
 }
 
 /**
@@ -2348,7 +2312,7 @@ async function processCapturedPhoto(imageData) {
     }
     
     try {
-        // Agregar fecha y hora MEJORADA (MÁS GRANDE) a la imagen
+        // Agregar fecha y hora MEJORADA a la imagen
         const imageWithDateTime = await addDateTimeToImage(imageData);
         
         // Guardar en la base de datos
@@ -2358,8 +2322,8 @@ async function processCapturedPhoto(imageData) {
         // Actualizar vista previa
         await renderFotosPreview(currentPreviewId);
         
-        // Mostrar mensaje de confirmación MEJORADO
-        showPhotoConfirmation();
+        // Mostrar mensaje mejorado
+        showPhotoCaptureToast();
         
         saveSession();
         
@@ -2433,93 +2397,78 @@ function zoomOut() {
 }
 
 /**
- * Inicializa eventos táctiles para zoom
+ * Agrega eventos de zoom táctil
  */
-function initTouchZoom() {
+function addTouchZoomEvents() {
     const cameraView = document.querySelector('.camera-view');
     if (!cameraView) return;
     
-    // Variables para control de gestos táctiles
-    let initialTouchDistance = null;
-    let initialZoom = zoomLevel;
-    
-    // Evento para gesto de pellizco (zoom)
-    cameraView.addEventListener('touchstart', function(e) {
-        if (e.touches.length === 2) {
-            initialTouchDistance = getTouchDistance(e.touches[0], e.touches[1]);
-            initialZoom = zoomLevel;
-            e.preventDefault();
-        }
-    });
-    
-    cameraView.addEventListener('touchmove', function(e) {
-        if (e.touches.length === 2 && initialTouchDistance !== null) {
-            const currentDistance = getTouchDistance(e.touches[0], e.touches[1]);
-            const scale = currentDistance / initialTouchDistance;
-            
-            // Calcular nuevo nivel de zoom
-            let newZoom = initialZoom * scale;
-            
-            // Limitar zoom entre 0.5 y 3
-            newZoom = Math.max(0.5, Math.min(3, newZoom));
-            
-            // Aplicar zoom suavizado
-            if (Math.abs(newZoom - zoomLevel) > 0.05) { // Evitar actualizaciones muy pequeñas
-                zoomLevel = newZoom;
-                applyZoom();
-            }
-            
-            e.preventDefault();
-        }
-    });
-    
-    cameraView.addEventListener('touchend', function(e) {
-        if (e.touches.length < 2) {
-            initialTouchDistance = null;
-        }
-    });
-    
-    // Evento para doble toque (zoom in/out alternado)
-    let lastTapTime = 0;
-    cameraView.addEventListener('touchend', function(e) {
-        const currentTime = new Date().getTime();
-        const tapLength = currentTime - lastTapTime;
-        
-        if (tapLength < 300 && tapLength > 0) {
-            // Doble toque detectado
-            if (zoomLevel === 1) {
-                zoomLevel = 2; // Zoom in
-            } else {
-                zoomLevel = 1; // Zoom out
-            }
-            applyZoom();
-            e.preventDefault();
-        }
-        
-        lastTapTime = currentTime;
-    });
+    // Eventos para zoom con pellizco
+    cameraView.addEventListener('touchstart', handleTouchStart, { passive: false });
+    cameraView.addEventListener('touchmove', handleTouchMove, { passive: false });
+    cameraView.addEventListener('touchend', handleTouchEnd, { passive: false });
 }
 
 /**
- * Calcula la distancia entre dos puntos táctiles
+ * Remueve eventos de zoom táctil
  */
-function getTouchDistance(touch1, touch2) {
+function removeTouchZoomEvents() {
+    const cameraView = document.querySelector('.camera-view');
+    if (!cameraView) return;
+    
+    cameraView.removeEventListener('touchstart', handleTouchStart);
+    cameraView.removeEventListener('touchmove', handleTouchMove);
+    cameraView.removeEventListener('touchend', handleTouchEnd);
+}
+
+/**
+ * Maneja inicio de toque para zoom
+ */
+function handleTouchStart(e) {
+    if (e.touches.length === 2) {
+        e.preventDefault();
+        initialPinchDistance = getPinchDistance(e.touches[0], e.touches[1]);
+        lastZoomLevel = zoomLevel;
+    }
+}
+
+/**
+ * Maneja movimiento de toque para zoom
+ */
+function handleTouchMove(e) {
+    if (e.touches.length === 2) {
+        e.preventDefault();
+        const currentDistance = getPinchDistance(e.touches[0], e.touches[1]);
+        const pinchRatio = currentDistance / initialPinchDistance;
+        
+        // Calcular nuevo nivel de zoom
+        let newZoomLevel = lastZoomLevel * pinchRatio;
+        
+        // Limitar zoom entre 0.5 y 3
+        newZoomLevel = Math.max(0.5, Math.min(3, newZoomLevel));
+        
+        // Aplicar zoom
+        zoomLevel = newZoomLevel;
+        applyZoom();
+    }
+}
+
+/**
+ * Maneja fin de toque para zoom
+ */
+function handleTouchEnd(e) {
+    if (e.touches.length < 2) {
+        initialPinchDistance = 0;
+    }
+}
+
+/**
+ * Calcula distancia entre dos puntos táctiles
+ */
+function getPinchDistance(touch1, touch2) {
     const dx = touch1.clientX - touch2.clientX;
     const dy = touch1.clientY - touch2.clientY;
     return Math.sqrt(dx * dx + dy * dy);
-}
-
-/**
- * Elimina eventos táctiles
- */
-function removeTouchEvents() {
-    const cameraView = document.querySelector('.camera-view');
-    if (!cameraView) return;
-    
-    // Reemplazar los event listeners con versiones vacías para eliminarlos
-    cameraView.removeEventListener('touchstart', () => {});
-    cameraView.removeEventListener('touchmove', () => {});
-    cameraView.removeEventListener('touchend', () => {});
 }
 
 // =========================================================================

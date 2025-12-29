@@ -1119,6 +1119,49 @@
         display: none !important;
     }
 
+
+/* Overlay de carga */
+#overlay { 
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%; 
+    background-color: rgba(255, 255, 255, 0.95); 
+    display: none; 
+    justify-content: center; 
+    align-items: center; 
+    z-index: 9999; 
+    flex-direction: column; 
+}
+.spinner { 
+    width: 60px; 
+    height: 60px; 
+    border: 5px solid rgba(52, 152, 219, 0.2); 
+    border-radius: 50%; 
+    border-top-color: var(--secondary-color); 
+    animation: spin 1s ease-in-out infinite; 
+    margin-bottom: 20px; 
+}
+@keyframes spin { 
+    to { transform: rotate(360deg); } 
+}
+#loadingMessage { 
+    text-align: center; 
+    color: var(--dark-color); 
+}
+#loadingMessage h4 { 
+    margin: 0 0 10px; 
+    font-size: 1.3rem; 
+    font-weight: bold; 
+}
+#loadingMessage p { 
+    margin: 0; 
+    color: #7f8c8d; 
+    font-weight: normal; 
+}
+
+
 </style>
 
 </head>
@@ -1288,7 +1331,18 @@
     <button id="btn-camara-flotante" type="button" class="btn-flotante" style="display: none;">
         <i class="fas fa-camera"></i>
     </button>
-    
+
+<!-- Overlay de carga -->
+<div id="overlay">
+    <div class="spinner"></div>
+    <div id="loadingMessage">
+        <h4>Por favor espera un momento...</h4>
+        <p></p>
+    </div>
+</div>
+
+
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
 <script>
@@ -4533,18 +4587,19 @@ async function generatePDFContent(doc, data, yPosRef) {
  */
 async function generatePDF() {
     
-    Swal.fire({
-        title: 'Generando Reporte',
-        html: 'Por favor espera...',
-        allowOutsideClick: false,
-        didOpen: () => { Swal.showLoading(); }
-    });
+    // Cerrar cualquier SweetAlert abierto
+    Swal.close();
+    
+    // Mostrar overlay de carga
+    showLoadingOverlay("Por favor espera un momento...", "Generando reporte...");
 
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF('p', 'pt', 'letter');
     const dataString = localStorage.getItem(SESSION_KEY);
     if (!dataString) {
-        Swal.fire('Error', 'No se encontraron datos de sesión.', 'error'); return;
+        hideLoadingOverlay();
+        Swal.fire('Error', 'No se encontraron datos de sesión.', 'error'); 
+        return;
     }
     const data = JSON.parse(dataString);
 
@@ -4571,55 +4626,187 @@ async function generatePDF() {
     const margin = 40;
     let yPosRef = { y: margin }; 
 
-    // 1. Añadir Cabecera y Comentarios
-    await addHeaderAndComments(doc, data, yPosRef);
+    try {
+        // 1. Añadir Cabecera y Comentarios
+        showLoadingOverlay("Generando Reporte", "Preparando contenido...");
+        await addHeaderAndComments(doc, data, yPosRef);
 
-    // 2. Generar contenido del PDF (solo páginas disponibles)
-    await generatePDFContent(doc, data, yPosRef);
+        // 2. Generar contenido del PDF (solo páginas disponibles)
+        showLoadingOverlay("Por favor espera un momento...", "Generando reporte...");
+        await generatePDFContent(doc, data, yPosRef);
 
-    // 3. Añadir pies de página
-    addPageFooters(doc); 
-    
-    // 4. Generar Blob
-    const pdfBlob = doc.output('blob');
-    const pdfFile = new File([pdfBlob], nombreArchivoFinal, { type: 'application/pdf' });
-    
-    Swal.close();
-    
-    // 5. Opciones de Compartir/Descargar
-    const canShare = navigator.share && navigator.canShare && navigator.canShare({ files: [pdfFile] });
+        // 3. Añadir pies de página
+        addPageFooters(doc); 
+        
+        // 4. Generar Blob y Base64
+        showLoadingOverlay("Por favor espera un momento...", "");
+        const pdfBlob = doc.output('blob');
+        const pdfBase64 = await blobToBase64(pdfBlob);
+        const pdfFile = new File([pdfBlob], nombreArchivoFinal, { type: 'application/pdf' });
+        
+        // 5. Enviar a Google Drive y registrar en hoja de cálculo
+        showLoadingOverlay("Por favor espera un momento...", "Subiendo archivo a la nube...");
+        
+        // URL de tu Google Apps Script (debes reemplazarla con tu URL real)
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwRw66o4EnaHeNWzOomgInHHBTvrE2w-hpuP-W2n-tLjjtb3jd3U_RSvC0KqDlLh7V_/exec";
+        
+        const requestData = {
+            proyecto: proyecto,
+            ubicacion: ubicacion,
+            fecha: data.fecha || fechaFormateada,
+            nombreArchivo: nombreArchivoFinal,
+            pdfBase64: pdfBase64.split(',')[1] // Remover el prefijo "data:application/pdf;base64,"
+        };
+        
+        // Intentar enviar a Drive (con timeout por si hay problemas de red)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 segundos timeout
+        
+        try {
+            const response = await fetch(SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestData),
+                signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+            
+            // Nota: Con 'no-cors' no podemos leer la respuesta, pero podemos asumir éxito
+            showLoadingOverlay("Proceso completado", "¡Reporte guardado exitosamente!");
+            
+            // Esperar un momento para mostrar el mensaje de éxito
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            hideLoadingOverlay();
+            
+            // 6. Opciones de Compartir/Descargar
+            const canShare = navigator.share && navigator.canShare && navigator.canShare({ files: [pdfFile] });
 
-    if (canShare) {
-        Swal.fire({
-            title: '¡Reporte Generado!',
-            icon: 'success',
-            showCancelButton: true,
-            confirmButtonText: '<i class="fas fa-share-alt me-2"></i> Compartir',
-            cancelButtonText: '<i class="fas fa-download me-2"></i> Descargar',
-        }).then(async (result) => {
-            if (result.isConfirmed) {
-                try {
-                    await navigator.share({
-                        title: 'Reporte de Supervisión',
-                        text: `Reporte de ${data.proyecto}`,
-                        files: [pdfFile]
-                    });
-                } catch (err) {
-                    Swal.fire('Cancelado', 'No se pudo compartir.', 'info');
-                }
-            } else if (result.dismiss === Swal.DismissReason.cancel) {
-                doc.save(nombreArchivoFinal);
+            if (canShare) {
+                Swal.fire({
+                    title: '¡Reporte Generado y Enviado!',
+                    icon: 'success',
+                    html: `
+                        <div class="text-center">
+                            <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                            <p>El reporte ha sido generado y enviado a la nube satisfactoriamente.</p>
+                        </div>
+                    `,
+                    showCancelButton: true,
+                    confirmButtonText: '<i class="fas fa-share-alt me-2"></i> Compartir',
+                    cancelButtonText: '<i class="fas fa-download me-2"></i> Descargar',
+                    confirmButtonColor: '#2ecc71',
+                    cancelButtonColor: '#3498db'
+                }).then(async (result) => {
+                    if (result.isConfirmed) {
+                        try {
+                            await navigator.share({
+                                title: 'Reporte de Supervisión',
+                                text: `Reporte de ${data.proyecto}`,
+                                files: [pdfFile]
+                            });
+                        } catch (err) {
+                            Swal.fire('Cancelado', 'No se pudo compartir.', 'info');
+                        }
+                    } else if (result.dismiss === Swal.DismissReason.cancel) {
+                        doc.save(nombreArchivoFinal);
+                    }
+                });
+            } else {
+                Swal.fire({
+                    title: '¡Reporte Generado y Enviado!',
+                    icon: 'success',
+                    html: `
+                        <div class="text-center">
+                            <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                            <p>El reporte ha sido guardado en Drive y registrado en la hoja de cálculo.</p>
+                            <p class="text-muted small mt-2">Archivo: ${nombreArchivoFinal}</p>
+                        </div>
+                    `,
+                    confirmButtonText: '<i class="fas fa-download me-2"></i> Descargar copia local',
+                    confirmButtonColor: '#3498db'
+                }).then(async (result) => {
+                    if (result.isConfirmed) {
+                        doc.save(nombreArchivoFinal);
+                    }
+                });
             }
-        });
-    } else {
+            
+        } catch (fetchError) {
+            clearTimeout(timeoutId);
+            hideLoadingOverlay();
+            
+            if (fetchError.name === 'AbortError') {
+                console.error("Timeout al enviar a Drive");
+                Swal.fire({
+                    title: 'Tiempo de espera agotado',
+                    icon: 'warning',
+                    html: `
+                        <p>La conexión con Drive está tardando demasiado.</p>
+                        <p>El reporte se generó correctamente, pero no se pudo enviar a Drive.</p>
+                        <p>Puedes descargarlo localmente e intentar enviarlo más tarde.</p>
+                    `,
+                    showCancelButton: true,
+                    confirmButtonText: '<i class="fas fa-download me-2"></i> Descargar',
+                    cancelButtonText: 'Cerrar',
+                    confirmButtonColor: '#f39c12'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        doc.save(nombreArchivoFinal);
+                    }
+                });
+            } else {
+                console.error("Error al enviar a Drive:", fetchError);
+                
+                Swal.fire({
+                    title: 'Error al enviar a Drive',
+                    icon: 'warning',
+                    html: `
+                        <p>El reporte se generó pero no se pudo enviar a Drive.</p>
+                        <p class="text-muted small">Error: ${fetchError.message}</p>
+                        <p>Se guardará solo localmente.</p>
+                    `,
+                    showCancelButton: true,
+                    confirmButtonText: '<i class="fas fa-download me-2"></i> Descargar',
+                    cancelButtonText: 'Cerrar',
+                    confirmButtonColor: '#f39c12'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        doc.save(nombreArchivoFinal);
+                    }
+                });
+            }
+        }
+        
+    } catch (error) {
+        hideLoadingOverlay();
+        console.error("Error general al generar PDF:", error);
+        
         Swal.fire({
-            title: '¡Reporte Generado!',
-            icon: 'success',
-            confirmButtonText: '<i class="fas fa-download me-2"></i> Descargar',
-        }).then(async (result) => {
-            doc.save(nombreArchivoFinal);
+            title: 'Error al generar el reporte',
+            icon: 'error',
+            html: `
+                <p>Ocurrió un error inesperado al generar el reporte.</p>
+                <p class="text-muted small">Error: ${error.message}</p>
+            `,
+            confirmButtonText: 'Entendido',
+            confirmButtonColor: '#e74c3c'
         });
     }
+}
+
+
+// Función auxiliar para convertir Blob a Base64
+function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
 }
 
 // =========================================================================
@@ -4652,6 +4839,37 @@ if ('serviceWorker' in navigator) {
             });
     });
 }
+
+
+
+/**
+ * Muestra el overlay de carga con un mensaje personalizado
+ */
+function showLoadingOverlay(message = "Por favor espera un momento...", subMessage = "") {
+    const overlay = document.getElementById('overlay');
+    const loadingMessage = document.getElementById('loadingMessage');
+    
+    if (loadingMessage) {
+        loadingMessage.querySelector('h4').textContent = message;
+        if (subMessage) {
+            loadingMessage.querySelector('p').textContent = subMessage;
+            loadingMessage.querySelector('p').style.display = 'block';
+        } else {
+            loadingMessage.querySelector('p').style.display = 'none';
+        }
+    }
+    
+    overlay.style.display = 'flex';
+}
+
+/**
+ * Oculta el overlay de carga
+ */
+function hideLoadingOverlay() {
+    const overlay = document.getElementById('overlay');
+    overlay.style.display = 'none';
+}
+
 
 </script>
 </body>

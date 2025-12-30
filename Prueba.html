@@ -4647,7 +4647,7 @@ async function generatePDF() {
         // 5. Enviar a Google Drive y registrar en hoja de cálculo
         showLoadingOverlay("Por favor espera un momento...", "Subiendo archivo a la nube...");
         
-        // URL de tu Google Apps Script (debes reemplazarla con tu URL real)
+        // URL de tu Google Apps Script
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwRw66o4EnaHeNWzOomgInHHBTvrE2w-hpuP-W2n-tLjjtb3jd3U_RSvC0KqDlLh7V_/exec";
         
         const requestData = {
@@ -4686,22 +4686,33 @@ async function generatePDF() {
             const canShare = navigator.share && navigator.canShare && navigator.canShare({ files: [pdfFile] });
 
             if (canShare) {
+                // CASO 1: DISPOSITIVO MOVIL (Con opción de Compartir)
                 Swal.fire({
                     title: '¡Reporte Generado y Enviado!',
                     icon: 'success',
+                    // --- INICIO CAMBIOS: Bloquear cierre y agregar X ---
+                    allowOutsideClick: false, 
+                    allowEscapeKey: false,
+                    showCloseButton: true, // Habilita la X
+                    // --------------------------------------------------
                     html: `
                         <div class="text-center">
                             <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
                             <p>El reporte ha sido generado y enviado a la nube satisfactoriamente.</p>
                         </div>
                     `,
-                    showCancelButton: true,
+                    // Usamos showDenyButton en lugar de Cancel para controlar el cierre
+                    showCancelButton: false, 
+                    showDenyButton: true, 
+                    
                     confirmButtonText: '<i class="fas fa-share-alt me-2"></i> Compartir',
-                    cancelButtonText: '<i class="fas fa-download me-2"></i> Descargar',
+                    denyButtonText: '<i class="fas fa-download me-2"></i> Descargar',
+                    
                     confirmButtonColor: '#2ecc71',
-                    cancelButtonColor: '#3498db'
-                }).then(async (result) => {
-                    if (result.isConfirmed) {
+                    denyButtonColor: '#3498db',
+                    
+                    // --- LÓGICA PARA QUE NO SE CIERRE ---
+                    preConfirm: async () => {
                         try {
                             await navigator.share({
                                 title: 'Reporte de Supervisión',
@@ -4709,16 +4720,27 @@ async function generatePDF() {
                                 files: [pdfFile]
                             });
                         } catch (err) {
-                            Swal.fire('Cancelado', 'No se pudo compartir.', 'info');
+                            // Si el usuario cancela el compartir nativo, no hacemos nada,
+                            // pero la alerta de SweetAlert se mantiene abierta.
+                            console.log('Compartir cancelado o fallido');
                         }
-                    } else if (result.dismiss === Swal.DismissReason.cancel) {
+                        return false; // IMPORTANTE: Esto evita que se cierre la alerta
+                    },
+                    preDeny: () => {
                         doc.save(nombreArchivoFinal);
+                        return false; // IMPORTANTE: Esto evita que se cierre la alerta
                     }
                 });
             } else {
+                // CASO 2: ESCRITORIO (Solo opción Descargar)
                 Swal.fire({
                     title: '¡Reporte Generado y Enviado!',
                     icon: 'success',
+                    // --- INICIO CAMBIOS: Bloquear cierre y agregar X ---
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    showCloseButton: true,
+                    // --------------------------------------------------
                     html: `
                         <div class="text-center">
                             <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
@@ -4727,10 +4749,12 @@ async function generatePDF() {
                         </div>
                     `,
                     confirmButtonText: '<i class="fas fa-download me-2"></i> Descargar copia local',
-                    confirmButtonColor: '#3498db'
-                }).then(async (result) => {
-                    if (result.isConfirmed) {
+                    confirmButtonColor: '#3498db',
+                    
+                    // --- LÓGICA PARA QUE NO SE CIERRE ---
+                    preConfirm: () => {
                         doc.save(nombreArchivoFinal);
+                        return false; // IMPORTANTE: Esto evita que se cierre la alerta
                     }
                 });
             }

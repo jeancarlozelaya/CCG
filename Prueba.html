@@ -1162,12 +1162,132 @@
 }
 
 
+/* NUEVO: Estilos para listas con scroll */
+    .lista-scrollable {
+        max-height: 350px; /* Altura máxima fija */
+        overflow-y: auto;  /* Scroll vertical automático */
+        border: 1px solid #dee2e6;
+        border-radius: 0.25rem;
+        background-color: #fff;
+    }
+
+    /* Estilo para la barra de herramientas (Seleccionar todos, eliminar) */
+    .toolbar-lista {
+        background-color: #f8f9fa;
+        padding: 10px;
+        border: 1px solid #dee2e6;
+        border-bottom: none; /* Se une con la lista */
+        border-top-left-radius: 0.25rem;
+        border-top-right-radius: 0.25rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .cursor-pointer { cursor: pointer; }
+
 </style>
 
 </head>
 <body>
     
     <div class="header">Pisos Brillantes</div>
+
+<div class="position-fixed top-0 end-0 p-3" style="z-index: 1050; margin-top: 5px;">
+    <button id="btn-sync-manager" class="btn btn-light position-relative shadow-sm" style="border-radius: 50px; border: 1px solid var(--primary-color); display: none;">
+        <i class="fas fa-cloud-upload-alt text-primary"></i>
+        <span class="d-none d-md-inline ms-2 fw-bold text-dark">Sincronizar</span>
+        <span id="badge-pendientes" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+            0
+            <span class="visually-hidden">reportes pendientes</span>
+        </span>
+    </button>
+</div>
+
+<div class="modal fade" id="modalSync" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-sync me-2"></i>Gestor de Envíos
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            
+            <div class="modal-body bg-light p-0">
+                <ul class="nav nav-tabs nav-justified" id="syncTabs" role="tablist" style="background: #fff; border-bottom: 1px solid #dee2e6;">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active fw-bold py-3" id="tab-pendientes" data-bs-toggle="tab" data-bs-target="#content-pendientes" type="button" role="tab">
+                            <i class="fas fa-hourglass-half me-2 text-warning"></i>Pendientes
+                            <span class="badge bg-danger ms-1" id="badge-tab-pendientes" style="display:none">0</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link fw-bold py-3 text-secondary" id="tab-sincronizados" data-bs-toggle="tab" data-bs-target="#content-sincronizados" type="button" role="tab">
+                            <i class="fas fa-check-circle me-2 text-success"></i>Sincronizados
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content p-3" id="syncTabsContent">
+                    
+                    <div class="tab-pane fade show active" id="content-pendientes" role="tabpanel">
+                        <div class="alert alert-info border-0 shadow-sm py-2 mb-2">
+                            <small><i class="fas fa-info-circle me-1"></i> Selecciona los registros para subir o eliminar.</small>
+                        </div>
+
+                        <div class="toolbar-lista">
+                            <div class="form-check mb-0">
+                                <input class="form-check-input" type="checkbox" id="check-all-pendientes">
+                                <label class="form-check-label small fw-bold" for="check-all-pendientes">Seleccionar Todos</label>
+                            </div>
+                            <button class="btn btn-outline-danger btn-sm" id="btn-delete-pendientes-sel" disabled>
+                                <i class="fas fa-trash-alt me-1"></i> Eliminar Selección
+                            </button>
+                        </div>
+
+                        <div class="list-group list-group-flush lista-scrollable mb-2" id="lista-pendientes">
+                            </div>
+
+                        <div class="d-grid gap-2 mt-3">
+                            <button type="button" class="btn btn-primary rounded-pill" id="btn-sincronizar-seleccionados" disabled>
+                                <i class="fas fa-cloud-upload-alt me-2"></i>Sincronizar Seleccionados
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="content-sincronizados" role="tabpanel">
+                        <div class="alert alert-light border shadow-sm text-muted py-2 mb-2">
+                            <small><i class="fas fa-check-double me-1"></i> Historial de envíos exitosos.</small>
+                        </div>
+
+                        <div class="toolbar-lista">
+                            <div class="form-check mb-0">
+                                <input class="form-check-input" type="checkbox" id="check-all-sincronizados">
+                                <label class="form-check-label small fw-bold" for="check-all-sincronizados">Seleccionar Todos</label>
+                            </div>
+                            <button class="btn btn-outline-danger btn-sm" id="btn-delete-sincronizados-sel" disabled>
+                                <i class="fas fa-trash-alt me-1"></i> Eliminar Selección
+                            </button>
+                        </div>
+
+                        <div class="list-group list-group-flush lista-scrollable mb-2" id="lista-sincronizados">
+                            </div>
+
+                        <div class="d-grid gap-2 mt-3">
+                            <button type="button" class="btn btn-outline-primary rounded-pill" id="btn-resync-seleccion" disabled>
+                                <i class="fas fa-redo me-2"></i> Volver a Sincronizar Seleccionados
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
 
     <img id="logo-loader" src="" style="display: none;" alt="Logo">
 
@@ -3284,9 +3404,11 @@ function setupPhotoPreviewEvents() {
 document.addEventListener('DOMContentLoaded', async function() {
     
     try {
+        // 1. Carga inicial de recursos y DB
         loadLogoCache();
         await initDB();
         
+        // 2. Referencias a elementos del DOM
         $form = $('#form-supervision');
         $progressBar = $('#progress-bar');
         
@@ -3295,18 +3417,34 @@ document.addEventListener('DOMContentLoaded', async function() {
         $fechaInput = $('#fecha-supervision');
         $btnPag1Siguiente = $('#btn-pag1-siguiente');
         
+        // 3. Inicializar lógica de negocio
         inicializarProyectosUbicaciones();
         
         paginasDisponibles = [...PAGES_CONFIG];
         
-        generateAllPages();
+        // Generar el HTML de las preguntas
+        await generateAllPages();
         
+        // Verificar si hay una sesión guardada a medias
         await checkForSavedSession();
+        
+        // Actualizar el contador rojo del botón flotante
+        await actualizarContadorPendientes();
+
+        // 4. Lógica para abrir el modal automáticamente tras guardar un reporte
+        if (sessionStorage.getItem('openSyncModal') === 'true') {
+            sessionStorage.removeItem('openSyncModal');
+            setTimeout(() => {
+                renderizarModalPendientes();
+                $('#modalSync').modal('show');
+            }, 800);
+        }
 
     } catch (error) {
         console.error("Error en inicialización:", error);
     }
     
+    // 5. Poner fecha de hoy si está vacía
     if ($('#fecha-supervision').val() === '') {
         const today = new Date();
         const yyyy = today.getFullYear();
@@ -3316,7 +3454,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     
     // =========================================================================
-    // EVENTOS DE NAVEGACIÓN
+    // EVENTOS DE NAVEGACIÓN (PÁGINAS)
     // =========================================================================
     
     $('#btn-pag1-siguiente').on('click', async function() {
@@ -3345,9 +3483,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (paginasCalificacion.length === 0) {
             const filtro = CONFIG_PROYECTOS.filtros[proyecto];
             const tieneFiltroUbicacion = filtro && 
-                                    filtro.ubicaciones && 
-                                    filtro.ubicaciones.length > 0 && 
-                                    filtro.ubicaciones.includes(ubicacion);
+                                        filtro.ubicaciones && 
+                                        filtro.ubicaciones.length > 0 && 
+                                        filtro.ubicaciones.includes(ubicacion);
             
             if (tieneFiltroUbicacion) {
                 Swal.fire('Sin páginas disponibles', 
@@ -3388,7 +3526,6 @@ document.addEventListener('DOMContentLoaded', async function() {
                 window.isReconstruyendoPaginas = false;
             }
         } else {
-            console.log('No hubo cambios en proyecto/ubicación, manteniendo progreso...');
             const pageOrder = getPageOrder();
             const nextPageIndex = pageOrder.indexOf('pagina-1') + 1;
             if (nextPageIndex < pageOrder.length) {
@@ -3439,7 +3576,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     });
     
     // =========================================================================
-    // EVENTOS GENERALES
+    // EVENTOS DE FORMULARIO (TOGGLES Y RADIOS)
     // =========================================================================
     
     $form.on('change', '.toggle-area', function() {
@@ -3472,6 +3609,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         saveSession();
     });
     
+    // =========================================================================
+    // EVENTOS DE CÁMARA
+    // =========================================================================
+    
+    // Botón flotante de cámara
     $('#btn-camara-flotante').on('click', function(e) {
         e.preventDefault(); 
         e.stopPropagation();
@@ -3500,16 +3642,109 @@ document.addEventListener('DOMContentLoaded', async function() {
     $('#zoom-in').on('click', zoomIn);
     $('#zoom-out').on('click', zoomOut);
     
+    // =========================================================================
+    // EVENTO GUARDAR PDF
+    // =========================================================================
+    
     $(document).on('click', '#btn-enviar-supervision', async function(e) {
         e.preventDefault();
         await generatePDF();
     });
     
+    // Auto-save
     $form.on('change input', '.auto-save', saveSession);
     $form.on('change', '.btn-check', saveSession);
     $form.on('input', '.auto-save-comment', saveSession);
 
+    // =========================================================================
+    // NUEVOS EVENTOS: GESTOR DE ENVÍOS (OFFLINE / SYNC)
+    // =========================================================================
+
+    // 1. Abrir el Modal con el Botón Flotante
+    $('#btn-sync-manager').on('click', function() {
+        renderizarModalPendientes();
+        $('#modalSync').modal('show');
+    });
+
+    // 2. Checkboxes "Seleccionar Todos" (Pendientes y Sincronizados)
+    $(document).on('change', '#check-all-pendientes', function() {
+        $('.check-pendiente').prop('checked', $(this).is(':checked'));
+        actualizarBotonesSeleccion();
+    });
+
+    $(document).on('change', '#check-all-sincronizados', function() {
+        $('.check-sincronizado').prop('checked', $(this).is(':checked'));
+        actualizarBotonesSeleccion();
+    });
+
+    // 3. Checkboxes individuales (para habilitar/deshabilitar botones)
+    $(document).on('change', '.check-pendiente, .check-sincronizado', function() {
+        actualizarBotonesSeleccion();
+    });
+
+    // 4. Botón Sincronizar Selección (Pestaña Pendientes)
+    $('#btn-sincronizar-seleccionados').on('click', async function() {
+        const ids = [];
+        $('.check-pendiente:checked').each(function() { ids.push(parseInt($(this).val())); });
+        
+        if (ids.length === 0) return;
+
+        // Obtenemos todos, filtramos por los seleccionados y procesamos
+        const todos = await obtenerPendientes();
+        const listaEnviar = todos.filter(r => ids.includes(r.id));
+        
+        await procesarColaDeEnvio(listaEnviar, 'pendientes');
+    });
+
+    // 5. Botón Volver a Sincronizar Selección (Pestaña Sincronizados)
+    $('#btn-resync-seleccion').on('click', function() {
+        const ids = [];
+        $('.check-sincronizado:checked').each(function() { ids.push(parseInt($(this).val())); });
+        
+        if (ids.length === 0) return;
+        
+        moverAPendientesYEnviar(ids);
+    });
+
+    // 6. Botones Eliminar Selección (Pendientes y Sincronizados)
+    $('#btn-delete-pendientes-sel').on('click', function() {
+        eliminarRegistrosSeleccionados('check-pendiente');
+    });
+
+    $('#btn-delete-sincronizados-sel').on('click', function() {
+        eliminarRegistrosSeleccionados('check-sincronizado');
+    });
+    
+    // 7. Botones eliminar individuales (Icono de basura en cada fila)
+    $(document).on('click', '.btn-delete-registro', function() {
+        const id = parseInt($(this).data('id'));
+        
+        Swal.fire({
+            title: '¿Eliminar registro?',
+            text: "Esta acción borrará el reporte de este dispositivo permanentemente.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar'
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                await borrarPendiente(id);
+                // Si el modal está abierto, refrescamos la lista visualmente
+                if ($('#modalSync').hasClass('show')) {
+                    renderizarModalPendientes();
+                }
+                Swal.fire('Eliminado', 'El registro ha sido eliminado.', 'success');
+            }
+        });
+    });
+
 });
+
+
+
+
 
 // =========================================================================
 // FUNCIONES DE SESIÓN
@@ -3791,23 +4026,33 @@ async function checkForSavedSession() {
 // FUNCIONES DE FOTOS (INDEXEDDB)
 // =========================================================================
 
+const STORE_PENDING = 'pending_reports';
+
 function initDB() {
     return new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, 1);
+        const request = indexedDB.open(DB_NAME, 2); // IMPORTANTE: Subimos la versión a 2
+
         request.onupgradeneeded = function(event) {
             const db = event.target.result;
+            // Almacén de imágenes (ya existía)
             if (!db.objectStoreNames.contains(STORE_NAME)) {
                 db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
             }
+            // NUEVO: Almacén de reportes pendientes
+            if (!db.objectStoreNames.contains(STORE_PENDING)) {
+                db.createObjectStore(STORE_PENDING, { keyPath: 'id', autoIncrement: true });
+            }
         };
+
         request.onsuccess = function(event) {
             db = event.target.result;
-            console.log('IndexedDB abierta correctamente');
+            console.log('IndexedDB abierta correctamente (v2)');
+            actualizarContadorPendientes(); // Chequear si hay pendientes al iniciar
             resolve(db);
         };
+
         request.onerror = function(event) {
-            console.error('Error al abrir IndexedDB:', event.target.error);
-            Swal.fire('Error Crítico', 'No se pudo iniciar la base de datos local para fotos. La página no funcionará correctamente.', 'error');
+            console.error('Error DB:', event.target.error);
             reject(event.target.error);
         };
     });
@@ -4297,14 +4542,13 @@ async function generatePDFContent(doc, data, yPosRef) {
 
 
 async function generatePDF() {
-    
     Swal.close();
-    
-    showLoadingOverlay("Por favor espera un momento...", "Generando reporte...");
+    showLoadingOverlay("Procesando...", "Generando documento PDF...");
 
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF('p', 'pt', 'letter');
     const dataString = localStorage.getItem(SESSION_KEY);
+    
     if (!dataString) {
         hideLoadingOverlay();
         Swal.fire('Error', 'No se encontraron datos de sesión.', 'error'); 
@@ -4312,233 +4556,93 @@ async function generatePDF() {
     }
     const data = JSON.parse(dataString);
 
+    // --- [Misma lógica de Fechas, Proyecto, PDF Content que ya tenías...] ---
+    // (Resumido para brevedad, copia tu lógica de fechas/nombres aquí)
     let fechaFormateada = 'dd-mm-aaaa';
-    if (data.fecha) {
-        const parts = data.fecha.split('-'); 
-        if (parts.length === 3) {
-            fechaFormateada = `${parts[2]}-${parts[1]}-${parts[0]}`;
-        }
-    }
-    
+    if (data.fecha) { const parts = data.fecha.split('-'); if (parts.length === 3) fechaFormateada = `${parts[2]}-${parts[1]}-${parts[0]}`; }
     const proyecto = data.proyecto || 'Proyecto';
     const ubicacion = data.ubicacion || 'Ubicación';
-    
     let nombreArchivoBase = `${fechaFormateada} - Reporte de Supervisión - ${proyecto}`;
-    
-    if (ubicacion !== 'N/A') {
-        nombreArchivoBase += ` - ${ubicacion}`;
-    }
-    
+    if (ubicacion !== 'N/A') nombreArchivoBase += ` - ${ubicacion}`;
     const nombreArchivoFinal = `${nombreArchivoBase}.pdf`;
-
     const margin = 40;
     let yPosRef = { y: margin }; 
 
     try {
-        showLoadingOverlay("Generando Reporte", "Preparando contenido...");
+        showLoadingOverlay("Generando PDF", "Escribiendo contenido...");
         await addHeaderAndComments(doc, data, yPosRef);
-
-        showLoadingOverlay("Por favor espera un momento...", "Generando reporte...");
         await generatePDFContent(doc, data, yPosRef);
-
         addPageFooters(doc); 
         
-        showLoadingOverlay("Por favor espera un momento...", "");
         const pdfBlob = doc.output('blob');
         const pdfBase64 = await blobToBase64(pdfBlob);
-        const pdfFile = new File([pdfBlob], nombreArchivoFinal, { type: 'application/pdf' });
         
-        showLoadingOverlay("Por favor espera un momento...", "Subiendo archivo a la nube...");
-        
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwRw66o4EnaHeNWzOomgInHHBTvrE2w-hpuP-W2n-tLjjtb3jd3U_RSvC0KqDlLh7V_/exec";
-        
-// ==========================================
-        // RECOLECCIÓN DINÁMICA PARA COLUMNA D
-        // ==========================================
+        // Columna D Lógica
         let contenidoColumnaD = "";
-        
-        // 1. Buscamos la configuración
         let configAreas = CONFIG_COLUMNA_D[proyecto]?.[ubicacion];
-
-        // 2. Lógica para soportar una o varias áreas
         if (configAreas) {
-            // Si es un solo texto (ej: "oficina"), lo convertimos a lista ["oficina"]
-            // Si ya es lista ["oficina", "juntas"], lo dejamos igual.
             const areasAProcesar = Array.isArray(configAreas) ? configAreas : [configAreas];
-            
             let todosLosItems = [];
-
-            // Recorremos todas las áreas configuradas
             areasAProcesar.forEach(areaKey => {
                 if (data.multipleData && data.multipleData[areaKey]) {
-                    // Extraemos los nombres (.numero) de cada item guardado
                     const itemsDeEstaArea = data.multipleData[areaKey].map(item => item.numero);
-                    // Los agregamos a la lista total
                     todosLosItems = todosLosItems.concat(itemsDeEstaArea);
                 }
             });
-
-            // 3. Unimos todo con punto y coma
-            if (todosLosItems.length > 0) {
-                contenidoColumnaD = todosLosItems.join('; ');
-            }
+            if (todosLosItems.length > 0) contenidoColumnaD = todosLosItems.join('; ');
         }
-        
-        const requestData = {
+
+        const reporteParaGuardar = {
             proyecto: proyecto,
             ubicacion: ubicacion,
             fecha: data.fecha || fechaFormateada,
             nombreArchivo: nombreArchivoFinal,
             pdfBase64: pdfBase64.split(',')[1],
-            resumenExtra: contenidoColumnaD // Se envía el contenido dinámico
+            resumenExtra: contenidoColumnaD
         };
-        
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 60000); 
-        
-        try {
-            const response = await fetch(SCRIPT_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(requestData),
-                signal: controller.signal
-            });
-            
-            clearTimeout(timeoutId);
-            
-            showLoadingOverlay("Proceso completado", "¡Reporte guardado exitosamente!");
-            
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            hideLoadingOverlay();
-            
-            const canShare = navigator.share && navigator.canShare && navigator.canShare({ files: [pdfFile] });
 
-            if (canShare) {
-                Swal.fire({
-                    title: '¡Reporte Generado y Enviado!',
-                    icon: 'success',
-                    allowOutsideClick: false, 
-                    allowEscapeKey: false,
-                    showCloseButton: true,
-                    html: `
-                        <div class="text-center">
-                            <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
-                            <p>El reporte ha sido generado y enviado a la nube satisfactoriamente.</p>
-                        </div>
-                    `,
-                    showCancelButton: false, 
-                    showDenyButton: true, 
-                    
-                    confirmButtonText: '<i class="fas fa-share-alt me-2"></i> Compartir',
-                    denyButtonText: '<i class="fas fa-download me-2"></i> Descargar',
-                    
-                    confirmButtonColor: '#2ecc71',
-                    denyButtonColor: '#3498db',
-                    
-                    preConfirm: async () => {
-                        try {
-                            await navigator.share({
-                                title: 'Reporte de Supervisión',
-                                text: `Reporte de ${data.proyecto}`,
-                                files: [pdfFile]
-                            });
-                        } catch (err) {
-                            console.log('Compartir cancelado o fallido');
-                        }
-                        return false; 
-                    },
-                    preDeny: () => {
-                        doc.save(nombreArchivoFinal);
-                        return false; 
-                    }
-                });
-            } else {
-                Swal.fire({
-                    title: '¡Reporte Generado y Enviado!',
-                    icon: 'success',
-                    allowOutsideClick: false,
-                    allowEscapeKey: false,
-                    showCloseButton: true,
-                    html: `
-                        <div class="text-center">
-                            <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
-                            <p>El reporte ha sido guardado en Drive y registrado en la hoja de cálculo.</p>
-                            <p class="text-muted small mt-2">Archivo: ${nombreArchivoFinal}</p>
-                        </div>
-                    `,
-                    confirmButtonText: '<i class="fas fa-download me-2"></i> Descargar copia local',
-                    confirmButtonColor: '#3498db',
-                    
-                    preConfirm: () => {
-                        doc.save(nombreArchivoFinal);
-                        return false; 
-                    }
-                });
-            }
-            
-        } catch (fetchError) {
-            clearTimeout(timeoutId);
-            hideLoadingOverlay();
-            
-            if (fetchError.name === 'AbortError') {
-                console.error("Timeout al enviar a Drive");
-                Swal.fire({
-                    title: 'Tiempo de espera agotado',
-                    icon: 'warning',
-                    html: `
-                        <p>La conexión con Drive está tardando demasiado.</p>
-                        <p>El reporte se generó correctamente, pero no se pudo enviar a Drive.</p>
-                        <p>Puedes descargarlo localmente e intentar enviarlo más tarde.</p>
-                    `,
-                    showCancelButton: true,
-                    confirmButtonText: '<i class="fas fa-download me-2"></i> Descargar',
-                    cancelButtonText: 'Cerrar',
-                    confirmButtonColor: '#f39c12'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        doc.save(nombreArchivoFinal);
-                    }
-                });
-            } else {
-                console.error("Error al enviar a Drive:", fetchError);
-                
-                Swal.fire({
-                    title: 'Error al enviar a Drive',
-                    icon: 'warning',
-                    html: `
-                        <p>El reporte se generó pero no se pudo enviar a Drive.</p>
-                        <p class="text-muted small">Error: ${fetchError.message}</p>
-                        <p>Se guardará solo localmente.</p>
-                    `,
-                    showCancelButton: true,
-                    confirmButtonText: '<i class="fas fa-download me-2"></i> Descargar',
-                    cancelButtonText: 'Cerrar',
-                    confirmButtonColor: '#f39c12'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        doc.save(nombreArchivoFinal);
-                    }
-                });
-            }
-        }
+        // Guardamos en Pendientes
+        await guardarReportePendiente(reporteParaGuardar);
         
+        hideLoadingOverlay();
+
+        // AQUÍ CAMBIA: NO borramos sesión, NO recargamos.
+        // Solo mostramos alerta.
+        Swal.fire({
+            title: '¡Reporte Guardado Localmente!',
+            html: `
+                <div class="text-center">
+                    <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                    <p>El reporte está listo en la <strong>Bandeja de Salida</strong>.</p>
+                    <p class="small text-muted">Tu progreso actual sigue aquí por si necesitas editar algo más.</p>
+                </div>
+            `,
+            icon: 'success',
+            allowOutsideClick: false,
+            showCloseButton: true, // SOLICITUD 2: Botón X
+            
+            confirmButtonText: '<i class="fas fa-list-ul me-2"></i> Ver Pendientes',
+            confirmButtonColor: '#2c3e50',
+            
+            showCancelButton: true,
+            cancelButtonText: '<i class="fas fa-plus me-2"></i> Nuevo Reporte',
+            cancelButtonColor: '#3498db'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Opción: Ver Pendientes
+                renderizarModalPendientes();
+                $('#modalSync').modal('show');
+            } else if (result.dismiss === Swal.DismissReason.cancel) {
+                // Opción: Nuevo Reporte (Con confirmación de borrado)
+                confirmarNuevoReporte();
+            }
+            // Si cierra con X (result.dismiss === Swal.DismissReason.close), no hace nada, se queda en el formulario.
+        });
+
     } catch (error) {
         hideLoadingOverlay();
-        console.error("Error general al generar PDF:", error);
-        
-        Swal.fire({
-            title: 'Error al generar el reporte',
-            icon: 'error',
-            html: `
-                <p>Ocurrió un error inesperado al generar el reporte.</p>
-                <p class="text-muted small">Error: ${error.message}</p>
-            `,
-            confirmButtonText: 'Entendido',
-            confirmButtonColor: '#e74c3c'
-        });
+        console.error("Error al guardar PDF:", error);
+        Swal.fire('Error', 'No se pudo guardar el reporte localmente: ' + error.message, 'error');
     }
 }
 
@@ -4600,6 +4704,464 @@ function hideLoadingOverlay() {
     const overlay = document.getElementById('overlay');
     overlay.style.display = 'none';
 }
+
+
+// --- FUNCIONES DE SINCRONIZACIÓN ---
+
+function guardarReportePendiente(datosReporte) {
+    return new Promise((resolve, reject) => {
+        if (!db) return reject('DB no inicializada');
+        const transaction = db.transaction([STORE_PENDING], 'readwrite');
+        const store = transaction.objectStore(STORE_PENDING);
+        
+        datosReporte.creadoEn = new Date().getTime();
+        datosReporte.estado = 'pendiente'; // NUEVO: Estado inicial
+        
+        const request = store.add(datosReporte);
+        
+        request.onsuccess = () => {
+            actualizarContadorPendientes();
+            resolve();
+        };
+        request.onerror = (e) => reject(e.target.error);
+    });
+}
+
+function marcarComoSincronizado(id) {
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction([STORE_PENDING], 'readwrite');
+        const store = transaction.objectStore(STORE_PENDING);
+        
+        const getRequest = store.get(id);
+        
+        getRequest.onsuccess = () => {
+            const data = getRequest.result;
+            if (data) {
+                data.estado = 'sincronizado'; // Cambiamos estado
+                data.sincronizadoEn = new Date().getTime(); // Guardamos fecha de envío
+                store.put(data); // Actualizamos registro
+                actualizarContadorPendientes();
+                resolve();
+            } else {
+                resolve();
+            }
+        };
+        getRequest.onerror = (e) => reject(e);
+    });
+}
+
+function obtenerPendientes() {
+    return new Promise((resolve, reject) => {
+        if (!db) return resolve([]);
+        const transaction = db.transaction([STORE_PENDING], 'readonly');
+        const store = transaction.objectStore(STORE_PENDING);
+        const request = store.getAll();
+        
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject([]);
+    });
+}
+
+function borrarPendiente(id) {
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction([STORE_PENDING], 'readwrite');
+        const store = transaction.objectStore(STORE_PENDING);
+        const request = store.delete(id);
+        request.onsuccess = () => {
+            actualizarContadorPendientes();
+            resolve();
+        };
+        request.onerror = (e) => reject(e);
+    });
+}
+
+async function actualizarContadorPendientes() {
+    try {
+        const todos = await obtenerPendientes();
+        const pendientes = todos.filter(r => r.estado === 'pendiente').length; // Solo contamos pendientes reales
+        
+        const $btn = $('#btn-sync-manager');
+        const $badge = $('#badge-pendientes');
+        
+        $badge.text(pendientes);
+        
+        if (pendientes > 0) {
+            $btn.fadeIn();
+        } else {
+            // Opcional: Ocultar si no hay pendientes, o dejar visible para ver historial
+            // Por ahora lo ocultamos si es 0 para mantener lógica anterior, 
+            // pero podrías quitar el else if quieres ver el historial siempre.
+            if(todos.length > 0) $btn.fadeIn(); else $btn.fadeOut();
+        }
+    } catch (e) {
+        console.error("Error contando pendientes", e);
+    }
+}
+
+
+// =========================================================
+//  LÓGICA ACTUALIZADA DE GESTIÓN DE ENVÍOS (SCROLL + SELECCIÓN)
+// =========================================================
+
+async function renderizarModalPendientes() {
+    const todosLosRegistros = await obtenerPendientes();
+    
+    const pendientes = todosLosRegistros.filter(r => r.estado === 'pendiente').sort((a, b) => b.creadoEn - a.creadoEn);
+    const sincronizados = todosLosRegistros.filter(r => r.estado === 'sincronizado').sort((a, b) => b.sincronizadoEn - a.sincronizadoEn);
+
+    const $listaPendientes = $('#lista-pendientes');
+    const $listaSincronizados = $('#lista-sincronizados');
+    const $badgeTab = $('#badge-tab-pendientes');
+
+    $listaPendientes.empty();
+    $listaSincronizados.empty();
+    
+    // Resetear checkboxes maestros
+    $('#check-all-pendientes').prop('checked', false);
+    $('#check-all-sincronizados').prop('checked', false);
+    actualizarBotonesSeleccion(); // Deshabilita los botones de acción
+
+    // Badge
+    if (pendientes.length > 0) {
+        $badgeTab.text(pendientes.length).show();
+    } else {
+        $badgeTab.hide();
+    }
+
+    // --- RENDERIZAR PENDIENTES ---
+    if (pendientes.length === 0) {
+        $listaPendientes.html('<div class="text-center p-4 text-muted small">No hay reportes pendientes.</div>');
+    } else {
+        pendientes.forEach(reporte => {
+            const fechaObj = new Date(reporte.creadoEn);
+            const fechaStr = fechaObj.toLocaleDateString() + ' ' + fechaObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            
+            const html = `
+                <div class="list-group-item d-flex align-items-center" id="row-reporte-${reporte.id}">
+                    <div class="me-3">
+                        <input class="form-check-input check-pendiente fs-5" type="checkbox" value="${reporte.id}">
+                    </div>
+                    <div class="flex-grow-1">
+                        <h6 class="mb-0 fw-bold text-dark">${reporte.proyecto} - ${reporte.ubicacion}</h6>
+                        <small class="text-muted"><i class="far fa-calendar-alt me-1"></i>${fechaStr}</small>
+                    </div>
+                    <div class="status-indicator">
+                        <span class="badge bg-warning text-dark rounded-pill">Pendiente</span>
+                    </div>
+                </div>
+            `;
+            $listaPendientes.append(html);
+        });
+    }
+
+    // --- RENDERIZAR SINCRONIZADOS ---
+    if (sincronizados.length === 0) {
+        $listaSincronizados.html('<div class="text-center p-4 text-muted small">Historial vacío.</div>');
+    } else {
+        sincronizados.forEach(reporte => {
+            const fechaObj = new Date(reporte.sincronizadoEn || reporte.creadoEn);
+            const fechaStr = fechaObj.toLocaleDateString() + ' ' + fechaObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            
+            const html = `
+                <div class="list-group-item d-flex align-items-center">
+                    <div class="me-3">
+                        <input class="form-check-input check-sincronizado fs-5" type="checkbox" value="${reporte.id}">
+                    </div>
+                    <div class="flex-grow-1">
+                        <h6 class="mb-0 text-dark">${reporte.proyecto} - ${reporte.ubicacion}</h6>
+                        <small class="text-success"><i class="fas fa-check-double me-1"></i>Enviado: ${fechaStr}</small>
+                    </div>
+                </div>
+            `;
+            $listaSincronizados.append(html);
+        });
+    }
+}
+
+// Función auxiliar para habilitar/deshabilitar botones según selección
+function actualizarBotonesSeleccion() {
+    const pendSeleccionados = $('.check-pendiente:checked').length;
+    const sincSeleccionados = $('.check-sincronizado:checked').length;
+
+    $('#btn-sincronizar-seleccionados').prop('disabled', pendSeleccionados === 0);
+    $('#btn-delete-pendientes-sel').prop('disabled', pendSeleccionados === 0);
+
+    $('#btn-resync-seleccion').prop('disabled', sincSeleccionados === 0);
+    $('#btn-delete-sincronizados-sel').prop('disabled', sincSeleccionados === 0);
+}
+
+// Función MAESTRA de envío (Corregida para resetear botones al finalizar)
+async function procesarColaDeEnvio(listaDeReportes, origen = 'pendientes') {
+    if (listaDeReportes.length === 0) return;
+
+    // Referencias a botones según el origen
+    const $btnPrincipal = origen === 'pendientes' ? $('#btn-sincronizar-seleccionados') : $('#btn-resync-seleccion');
+    const originalText = $btnPrincipal.html();
+    
+    // Bloquear Interfaz
+    $btnPrincipal.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i> Procesando...');
+    $('.form-check-input, .btn').prop('disabled', true); // Bloquear todo para evitar conflictos
+
+    let errores = 0;
+    let exitos = 0;
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwRw66o4EnaHeNWzOomgInHHBTvrE2w-hpuP-W2n-tLjjtb3jd3U_RSvC0KqDlLh7V_/exec";
+
+    try {
+        for (const reporte of listaDeReportes) {
+            const $row = $(`#row-reporte-${reporte.id}`);
+            const $badge = $row.find('.status-indicator');
+            
+            if ($badge.length) $badge.html('<span class="badge bg-info text-dark"><i class="fas fa-spinner fa-spin"></i> Subiendo...</span>');
+            
+            // Scroll automático hacia el item actual
+            if ($row.length && $row[0].scrollIntoView) {
+                $row[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+
+            try {
+                const requestData = {
+                    proyecto: reporte.proyecto,
+                    ubicacion: reporte.ubicacion,
+                    fecha: reporte.fecha,
+                    nombreArchivo: reporte.nombreArchivo,
+                    pdfBase64: reporte.pdfBase64,
+                    resumenExtra: reporte.resumenExtra
+                };
+
+                await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestData)
+                });
+
+                await marcarComoSincronizado(reporte.id);
+                
+                if ($badge.length) $badge.html('<span class="badge bg-success"><i class="fas fa-check"></i> Enviado</span>');
+                if ($row.length) $row.addClass('list-group-item-success');
+                exitos++;
+
+            } catch (error) {
+                console.error("Error subiendo:", error);
+                if ($badge.length) $badge.html('<span class="badge bg-danger"><i class="fas fa-times"></i> Error</span>');
+                errores++;
+            }
+            
+            await new Promise(r => setTimeout(r, 500));
+        }
+
+        // Mensaje final
+        if (errores === 0) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Completado',
+                text: `${exitos} reportes enviados exitosamente.`,
+                timer: 1500, showConfirmButton: false
+            });
+        } else {
+            Swal.fire('Finalizado', `Enviados: ${exitos}. Errores: ${errores}.`, 'warning');
+        }
+
+    } catch (e) {
+        console.error("Error global en cola:", e);
+        Swal.fire('Error', 'Hubo un problema procesando la cola.', 'error');
+    } finally {
+        // CORRECCIÓN BUG: Siempre restaurar interfaz y recargar listas
+        await renderizarModalPendientes();
+        $('.btn').prop('disabled', false); // Desbloquear todo
+        actualizarBotonesSeleccion(); // Re-evaluar estado de botones
+    }
+}
+
+
+
+
+
+function confirmarNuevoReporte() {
+    Swal.fire({
+        title: '¿Iniciar nuevo reporte?',
+        text: "Esto borrará todo el formulario actual y las fotos NO guardadas en la bandeja de salida. Si ya guardaste el PDF, es seguro continuar.",
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, empezar de cero',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#2ecc71',
+        cancelButtonColor: '#7f8c8d'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            await clearSession(); // Borra localStorage, DB de fotos temporales, etc.
+            window.location.reload(); // Recarga limpia
+        }
+    });
+}
+
+// =========================================================
+//  NUEVA LÓGICA DE SINCRONIZACIÓN SELECTIVA
+// =========================================================
+
+// Función MAESTRA: Recibe una lista de reportes y los sube uno por uno
+async function procesarColaDeEnvio(listaDeReportes) {
+    if (listaDeReportes.length === 0) return;
+
+    // Deshabilitar botones para evitar conflictos
+    const $btnSync = $('#btn-sincronizar-todo');
+    const $btnReSync = $('#btn-resync-seleccion');
+    
+    $btnSync.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i> Trabajando...');
+    $btnReSync.prop('disabled', true);
+
+    let errores = 0;
+    let exitos = 0;
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwRw66o4EnaHeNWzOomgInHHBTvrE2w-hpuP-W2n-tLjjtb3jd3U_RSvC0KqDlLh7V_/exec";
+
+    for (const reporte of listaDeReportes) {
+        // Buscamos la fila en el HTML (puede estar en la pestaña pendientes ahora)
+        const $row = $(`#row-reporte-${reporte.id}`);
+        const $badge = $row.find('.status-indicator');
+        
+        // Indicador visual de carga
+        $badge.html('<span class="badge bg-info text-dark"><i class="fas fa-spinner fa-spin"></i> Subiendo...</span>');
+        
+        // Scroll suave hacia el elemento que se está subiendo
+        if ($row.length) {
+            $row[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        try {
+            const requestData = {
+                proyecto: reporte.proyecto,
+                ubicacion: reporte.ubicacion,
+                fecha: reporte.fecha,
+                nombreArchivo: reporte.nombreArchivo,
+                pdfBase64: reporte.pdfBase64,
+                resumenExtra: reporte.resumenExtra
+            };
+
+            await fetch(SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestData)
+            });
+
+            // ÉXITO: Cambiar estado a sincronizado
+            await marcarComoSincronizado(reporte.id);
+            
+            $badge.html('<span class="badge bg-success"><i class="fas fa-check"></i> Enviado</span>');
+            $row.addClass('list-group-item-success');
+            exitos++;
+
+        } catch (error) {
+            console.error("Error subiendo reporte:", error);
+            $badge.html('<span class="badge bg-danger"><i class="fas fa-times"></i> Error</span>');
+            errores++;
+        }
+        
+        // Pequeña pausa
+        await new Promise(r => setTimeout(r, 500));
+    }
+
+    // Restaurar botones
+    $btnSync.prop('disabled', false).html('<i class="fas fa-cloud-upload-alt me-2"></i> Sincronizar Todos los Pendientes');
+    $btnReSync.prop('disabled', false);
+
+    // Mensaje final
+    if (errores === 0) {
+        Swal.fire({
+            icon: 'success',
+            title: 'Proceso Completado',
+            text: `Se enviaron ${exitos} reportes correctamente.`,
+            timer: 1500,
+            showConfirmButton: false
+        }).then(() => {
+            renderizarModalPendientes(); // Refrescar listas (mover a historial)
+        });
+    } else {
+        Swal.fire('Proceso Finalizado', `Enviados: ${exitos}. Errores: ${errores}.`, 'warning');
+        renderizarModalPendientes();
+    }
+}
+
+// Función 1: Sincronizar TODO lo que esté pendiente (Botón pestaña 1)
+async function sincronizarTodo() {
+    const todos = await obtenerPendientes();
+    // Filtramos SOLO los que tienen estado 'pendiente'
+    const listaPendientes = todos.filter(r => r.estado === 'pendiente');
+    
+    if (listaPendientes.length === 0) {
+        Swal.fire('Nada pendiente', 'No hay registros pendientes para enviar.', 'info');
+        return;
+    }
+
+    await procesarColaDeEnvio(listaPendientes);
+}
+
+// Lógica para Mover a Pendientes y Enviar (Re-Sync)
+async function moverAPendientesYEnviar(ids) {
+    if (!db) return;
+    
+    // UI Loading
+    const $btn = $('#btn-resync-seleccion');
+    $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i> Preparando...');
+
+    // 1. Cambiar estado a pendiente
+    const transaction = db.transaction([STORE_PENDING], 'readwrite');
+    const store = transaction.objectStore(STORE_PENDING);
+
+    for (const id of ids) {
+        await new Promise((resolve) => {
+            const req = store.get(id);
+            req.onsuccess = () => {
+                const data = req.result;
+                if (data) {
+                    data.estado = 'pendiente';
+                    store.put(data);
+                }
+                resolve();
+            };
+        });
+    }
+
+    // 2. Obtener datos actualizados
+    const todos = await obtenerPendientes();
+    const listaParaEnviar = todos.filter(r => ids.includes(r.id));
+
+    // 3. Cambiar visualmente a Tab Pendientes
+    const tabPendientes = new bootstrap.Tab(document.getElementById('tab-pendientes'));
+    tabPendientes.show();
+    
+    // 4. Iniciar proceso (indicando origen 'historial' para control de UI)
+    await procesarColaDeEnvio(listaParaEnviar, 'historial');
+}
+
+// Nueva Función Genérica de Eliminación
+async function eliminarRegistrosSeleccionados(claseCheckbox) {
+    const ids = [];
+    $(`.${claseCheckbox}:checked`).each(function() {
+        ids.push(parseInt($(this).val()));
+    });
+
+    if (ids.length === 0) return;
+
+    Swal.fire({
+        title: '¿Eliminar seleccionados?',
+        text: `Se eliminarán ${ids.length} registros permanentemente.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            for (const id of ids) {
+                await borrarPendiente(id);
+            }
+            renderizarModalPendientes();
+            Swal.fire('Eliminados', 'Los registros han sido borrados.', 'success');
+        }
+    });
+}
+
 
 </script>
 </body>

@@ -391,6 +391,15 @@
         align-items: center;
         cursor: pointer;
     }
+
+/* Hacer que toda la fila parezca un botón */
+.list-group-item {
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.list-group-item:hover {
+    background-color: #f1f3f5;
+}
     
     /* 2. Efectos Hover y Active para todas las listas */
     .lista-calificadas .list-group-item:hover,
@@ -3740,6 +3749,27 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
     });
 
+// --- NUEVO: Clic en toda la fila para marcar checkbox ---
+    $(document).on('click', '.list-group-item', function(e) {
+        // Evitar conflicto si se hizo clic directamente en el checkbox o en un botón/badge
+        if ($(e.target).is('input[type="checkbox"]') || 
+            $(e.target).closest('button').length > 0 || 
+            $(e.target).closest('.badge').length > 0) {
+            return;
+        }
+
+        // Buscar el checkbox dentro de esta fila
+        const $checkbox = $(this).find('input[type="checkbox"]');
+        
+        if ($checkbox.length > 0) {
+            // Invertir estado
+            $checkbox.prop('checked', !$checkbox.prop('checked'));
+            // Disparar evento change manualmente para que se actualicen los botones
+            $checkbox.trigger('change');
+        }
+    });
+
+
 });
 
 
@@ -5100,11 +5130,13 @@ async function sincronizarTodo() {
 async function moverAPendientesYEnviar(ids) {
     if (!db) return;
     
-    // UI Loading
-    const $btn = $('#btn-resync-seleccion');
-    $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i> Preparando...');
+    // 1. UI Loading (Bloqueamos momentáneamente)
+    const $btn = $('#btn-resync-seleccionados, #btn-resync-seleccion'); // Aseguramos seleccionar el ID correcto
+    const originalText = '<i class="fas fa-redo me-2"></i> Volver a Sincronizar Seleccionados';
+    
+    $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i> Moviendo...');
 
-    // 1. Cambiar estado a pendiente
+    // 2. Cambiar estado a 'pendiente' en la BD
     const transaction = db.transaction([STORE_PENDING], 'readwrite');
     const store = transaction.objectStore(STORE_PENDING);
 
@@ -5115,6 +5147,7 @@ async function moverAPendientesYEnviar(ids) {
                 const data = req.result;
                 if (data) {
                     data.estado = 'pendiente';
+                    data.creadoEn = new Date().getTime(); // Actualizamos fecha para que salga arriba
                     store.put(data);
                 }
                 resolve();
@@ -5122,17 +5155,28 @@ async function moverAPendientesYEnviar(ids) {
         });
     }
 
-    // 2. Obtener datos actualizados
-    const todos = await obtenerPendientes();
-    const listaParaEnviar = todos.filter(r => ids.includes(r.id));
+    // 3. Restaurar el botón de la pestaña Historial (PARA QUE NO SE QUEDE PEGADO)
+    $btn.prop('disabled', false).html(originalText);
+    // Desmarcamos los checks de historial para que no queden activos
+    $('.check-sincronizado').prop('checked', false);
+    actualizarBotonesSeleccion();
 
-    // 3. Cambiar visualmente a Tab Pendientes
+    // 4. Actualizar visualmente las listas (Los items se moverán de pestaña)
+    await renderizarModalPendientes(); 
+    
+    // 5. Cambiar visualmente a Tab Pendientes
     const tabPendientes = new bootstrap.Tab(document.getElementById('tab-pendientes'));
     tabPendientes.show();
     
-    // 4. Iniciar proceso (indicando origen 'historial' para control de UI)
-    await procesarColaDeEnvio(listaParaEnviar, 'historial');
+    // 6. Obtener datos frescos de los que acabamos de mover
+    const todos = await obtenerPendientes();
+    const listaParaEnviar = todos.filter(r => ids.includes(r.id));
+
+    // 7. Iniciar proceso de subida en la pestaña de pendientes
+    // Usamos 'pendientes' como origen para que controle los botones de esa pestaña
+    await procesarColaDeEnvio(listaParaEnviar, 'pendientes');
 }
+
 
 // Nueva Función Genérica de Eliminación
 async function eliminarRegistrosSeleccionados(claseCheckbox) {

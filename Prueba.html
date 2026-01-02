@@ -1517,8 +1517,8 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             
-            <div class="modal-body bg-secondary d-flex justify-content-center" style="overflow-y: auto;">
-                <div id="pdf-render-container" class="d-flex flex-column align-items-center w-100 p-2">
+            <div class="modal-body bg-dark d-flex justify-content-center align-items-center" style="overflow: hidden; position: relative;">
+                <div id="pdf-render-container" style="touch-action: none; transform-origin: 0 0;">
                     </div>
             </div>
         </div>
@@ -5781,89 +5781,125 @@ $('#modalPdfPreview').on('hidden.bs.modal', function () {
 
 
 // =========================================================
-//  LÓGICA DE ZOOM (PELLIZCAR) PARA EL VISOR DE PDF
+//  LÓGICA AVANZADA: ZOOM Y MOVIMIENTO (PAN & ZOOM)
 // =========================================================
 
-let pdfZoomLevel = 1;
-let pdfInitialDistance = 0;
-let pdfLastZoomLevel = 1;
+// Variables de estado
+let pdfState = {
+    scale: 1,
+    panning: false,
+    pointX: 0,
+    pointY: 0,
+    startX: 0,
+    startY: 0,
+    startDist: 0,
+    lastScale: 1
+};
 
-// Configurar eventos cuando se abre el modal
+// Configurar eventos al abrir el modal
 $('#modalPdfPreview').on('shown.bs.modal', function () {
     const container = document.getElementById('pdf-render-container');
     
-    // Resetear zoom
-    pdfZoomLevel = 1;
-    container.style.transform = `scale(1)`;
-    container.style.transformOrigin = `top center`;
+    // Resetear valores iniciales
+    pdfState = {
+        scale: 1,
+        panning: false,
+        pointX: 0,
+        pointY: 0,
+        startX: 0,
+        startY: 0,
+        startDist: 0,
+        lastScale: 1
+    };
+    
+    // Centrar inicialmente
+    const modalBody = container.parentElement;
+    // Pequeño ajuste para centrar visualmente si el PDF es más angosto que la pantalla
+    const initialOffsetX = (modalBody.clientWidth - container.offsetWidth) / 2;
+    if (initialOffsetX > 0) {
+        pdfState.pointX = initialOffsetX;
+    }
+    
+    updateTransform();
 
-    // Agregar eventos táctiles
-    container.addEventListener('touchstart', handlePdfTouchStart, { passive: false });
-    container.addEventListener('touchmove', handlePdfTouchMove, { passive: false });
-    container.addEventListener('touchend', handlePdfTouchEnd, { passive: false });
+    // Agregar listeners
+    container.addEventListener('touchstart', handleGestureStart, { passive: false });
+    container.addEventListener('touchmove', handleGestureMove, { passive: false });
+    container.addEventListener('touchend', handleGestureEnd, { passive: false });
 });
 
 $('#modalPdfPreview').on('hidden.bs.modal', function () {
     const container = document.getElementById('pdf-render-container');
-    // Limpiar eventos para ahorrar memoria
-    container.removeEventListener('touchstart', handlePdfTouchStart);
-    container.removeEventListener('touchmove', handlePdfTouchMove);
-    container.removeEventListener('touchend', handlePdfTouchEnd);
+    container.removeEventListener('touchstart', handleGestureStart);
+    container.removeEventListener('touchmove', handleGestureMove);
+    container.removeEventListener('touchend', handleGestureEnd);
 });
 
-function handlePdfTouchStart(e) {
-    if (e.touches.length === 2) {
-        // Si hay 2 dedos, iniciamos gesto de zoom
-        // e.preventDefault(); // Opcional: descomentar si interfiere con el scroll
-        pdfInitialDistance = getPinchDistance(e.touches[0], e.touches[1]);
-        pdfLastZoomLevel = pdfZoomLevel;
+function handleGestureStart(e) {
+    e.preventDefault(); // Evitar scroll nativo del navegador
+
+    if (e.touches.length === 1) {
+        // UN DEDO: Comenzar a Mover (Pan)
+        pdfState.panning = true;
+        pdfState.startX = e.touches[0].clientX - pdfState.pointX;
+        pdfState.startY = e.touches[0].clientY - pdfState.pointY;
+
+    } else if (e.touches.length === 2) {
+        // DOS DEDOS: Comenzar a Zoom (Pinch)
+        pdfState.panning = false;
+        pdfState.startDist = getDistance(e.touches[0], e.touches[1]);
+        pdfState.lastScale = pdfState.scale;
     }
 }
 
-function handlePdfTouchMove(e) {
-    if (e.touches.length === 2) {
-        e.preventDefault(); // Evitar scroll mientras se hace zoom
-        
-        const currentDistance = getPinchDistance(e.touches[0], e.touches[1]);
-        if (pdfInitialDistance > 0) {
-            const pinchRatio = currentDistance / pdfInitialDistance;
+function handleGestureMove(e) {
+    e.preventDefault();
+
+    if (e.touches.length === 1 && pdfState.panning) {
+        // MOVER (Calculamos nueva posición)
+        pdfState.pointX = e.touches[0].clientX - pdfState.startX;
+        pdfState.pointY = e.touches[0].clientY - pdfState.startY;
+        updateTransform();
+
+    } else if (e.touches.length === 2) {
+        // ZOOM (Calculamos nueva escala)
+        const currentDist = getDistance(e.touches[0], e.touches[1]);
+        if (pdfState.startDist > 0) {
+            const ratio = currentDist / pdfState.startDist;
+            let newScale = pdfState.lastScale * ratio;
             
-            // Calcular nuevo zoom
-            let newZoom = pdfLastZoomLevel * pinchRatio;
-            
-            // Límites de zoom (entre 1x y 4x)
-            newZoom = Math.max(1, Math.min(4, newZoom));
-            
-            pdfZoomLevel = newZoom;
-            
-            // Aplicar transformación
-            const container = document.getElementById('pdf-render-container');
-            container.style.transform = `scale(${pdfZoomLevel})`;
-            
-            // Ajustar el margen para que al hacer zoom out no se corte
-            if(pdfZoomLevel > 1) {
-                container.style.marginBottom = `${(pdfZoomLevel - 1) * 50}%`; 
-            } else {
-                container.style.marginBottom = '0';
-            }
+            // Límites del Zoom (Mínimo 1x, Máximo 4x)
+            newScale = Math.max(1, Math.min(4, newScale));
+            pdfState.scale = newScale;
+            updateTransform();
         }
     }
 }
 
-function handlePdfTouchEnd(e) {
-    if (e.touches.length < 2) {
-        pdfInitialDistance = 0;
+function handleGestureEnd(e) {
+    // Si soltamos los dedos, dejamos de mover
+    pdfState.panning = false;
+
+    // Efecto "Rebote" simple: Si alejamos demasiado (menos de 1), volver a 1
+    if (pdfState.scale < 1) {
+        pdfState.scale = 1;
+        pdfState.pointX = 0;
+        pdfState.pointY = 0;
+        updateTransform();
     }
 }
 
-// Reutilizamos la función de distancia que ya tenías para la cámara
-// (Si no existe, el código fallaría, así que la aseguramos aquí por si acaso)
-if (typeof getPinchDistance !== 'function') {
-    function getPinchDistance(touch1, touch2) {
-        const dx = touch1.clientX - touch2.clientX;
-        const dy = touch1.clientY - touch2.clientY;
-        return Math.sqrt(dx * dx + dy * dy);
-    }
+function updateTransform() {
+    const container = document.getElementById('pdf-render-container');
+    // Aplicamos Movimiento (Translate) Y Zoom (Scale)
+    container.style.transform = `translate(${pdfState.pointX}px, ${pdfState.pointY}px) scale(${pdfState.scale})`;
+}
+
+// Función matemática de distancia
+function getDistance(touch1, touch2) {
+    const dx = touch1.clientX - touch2.clientX;
+    const dy = touch1.clientY - touch2.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
 }
 
 

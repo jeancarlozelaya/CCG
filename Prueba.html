@@ -5781,21 +5781,31 @@ $('#modalPdfPreview').on('hidden.bs.modal', function () {
 
 
 // =========================================================
-//  LÓGICA DE ZOOM (PELLIZCAR) PARA EL VISOR DE PDF
+//  LÓGICA DE ZOOM (PELLIZCAR) + MOVIMIENTO LATERAL
 // =========================================================
 
 let pdfZoomLevel = 1;
 let pdfInitialDistance = 0;
 let pdfLastZoomLevel = 1;
 
+// Variables para mover a los lados (Izquierda/Derecha)
+let pdfPanX = 0; 
+let pdfPanStartX = 0;
+let pdfPanStartY = 0;
+let isHorizontalMove = false;
+
 // Configurar eventos cuando se abre el modal
 $('#modalPdfPreview').on('shown.bs.modal', function () {
     const container = document.getElementById('pdf-render-container');
     
-    // Resetear zoom
+    // 1. Resetear todas las variables
     pdfZoomLevel = 1;
-    container.style.transform = `scale(1)`;
-    container.style.transformOrigin = `top center`;
+    pdfPanX = 0; 
+    
+    // Aplicar transformación inicial limpia
+    container.style.transform = `translate(0px, 0px) scale(1)`;
+    container.style.transformOrigin = `top center`; 
+    container.style.marginBottom = '0';
 
     // Agregar eventos táctiles
     container.addEventListener('touchstart', handlePdfTouchStart, { passive: false });
@@ -5805,44 +5815,75 @@ $('#modalPdfPreview').on('shown.bs.modal', function () {
 
 $('#modalPdfPreview').on('hidden.bs.modal', function () {
     const container = document.getElementById('pdf-render-container');
-    // Limpiar eventos para ahorrar memoria
     container.removeEventListener('touchstart', handlePdfTouchStart);
     container.removeEventListener('touchmove', handlePdfTouchMove);
     container.removeEventListener('touchend', handlePdfTouchEnd);
 });
 
 function handlePdfTouchStart(e) {
+    // UN DEDO: Preparamos para mover a los lados
+    if (e.touches.length === 1) {
+        pdfPanStartX = e.touches[0].clientX - pdfPanX;
+        pdfPanStartY = e.touches[0].clientY; // Guardamos Y para detectar si quiere scroll vertical
+        isHorizontalMove = false; 
+    }
+    
+    // DOS DEDOS: Zoom
     if (e.touches.length === 2) {
-        // Si hay 2 dedos, iniciamos gesto de zoom
-        // e.preventDefault(); // Opcional: descomentar si interfiere con el scroll
         pdfInitialDistance = getPinchDistance(e.touches[0], e.touches[1]);
         pdfLastZoomLevel = pdfZoomLevel;
     }
 }
 
 function handlePdfTouchMove(e) {
+    const container = document.getElementById('pdf-render-container');
+
+    // --- LÓGICA DE UN DEDO (MOVER IZQ/DER) ---
+    if (e.touches.length === 1) {
+        // Solo permitimos mover si hay zoom activo
+        if (pdfZoomLevel > 1) {
+            const currentY = e.touches[0].clientY;
+            const diffX = Math.abs((e.touches[0].clientX - pdfPanX) - pdfPanStartX);
+            const diffY = Math.abs(currentY - pdfPanStartY);
+
+            // Detectamos intención: ¿Quiere mover lateral o hacer scroll vertical?
+            // Si mueve más horizontalmente que verticalmente, bloqueamos el scroll y movemos el PDF
+            if (!isHorizontalMove && diffX > diffY && diffX > 5) {
+                isHorizontalMove = true;
+            }
+
+            if (isHorizontalMove) {
+                e.preventDefault(); // Bloquear scroll nativo vertical para mover lateralmente
+                pdfPanX = e.touches[0].clientX - pdfPanStartX;
+                updateTransform(container);
+            }
+            // Si es scroll vertical (else), dejamos que el navegador lo haga nativamente
+        }
+    }
+
+    // --- LÓGICA DE DOS DEDOS (ZOOM) ---
     if (e.touches.length === 2) {
         e.preventDefault(); // Evitar scroll mientras se hace zoom
         
         const currentDistance = getPinchDistance(e.touches[0], e.touches[1]);
         if (pdfInitialDistance > 0) {
             const pinchRatio = currentDistance / pdfInitialDistance;
-            
-            // Calcular nuevo zoom
             let newZoom = pdfLastZoomLevel * pinchRatio;
             
             // Límites de zoom (entre 1x y 4x)
             newZoom = Math.max(1, Math.min(4, newZoom));
-            
             pdfZoomLevel = newZoom;
             
-            // Aplicar transformación
-            const container = document.getElementById('pdf-render-container');
-            container.style.transform = `scale(${pdfZoomLevel})`;
+            // Si bajamos el zoom a 1, reseteamos la posición lateral para centrar
+            if (pdfZoomLevel === 1) {
+                pdfPanX = 0;
+            }
+
+            updateTransform(container);
             
-            // Ajustar el margen para que al hacer zoom out no se corte
+            // Ajustar el margen inferior para poder ver todo al hacer zoom
             if(pdfZoomLevel > 1) {
-                container.style.marginBottom = `${(pdfZoomLevel - 1) * 50}%`; 
+                container.style.marginBottom = `${(pdfZoomLevel - 1) * 60}%`; 
             } else {
                 container.style.marginBottom = '0';
             }
@@ -5856,8 +5897,12 @@ function handlePdfTouchEnd(e) {
     }
 }
 
-// Reutilizamos la función de distancia que ya tenías para la cámara
-// (Si no existe, el código fallaría, así que la aseguramos aquí por si acaso)
+// Función auxiliar para aplicar el movimiento y el zoom juntos
+function updateTransform(container) {
+    // Importante: Aplicamos Translate (Mover) Y Scale (Zoom)
+    container.style.transform = `translate(${pdfPanX}px, 0px) scale(${pdfZoomLevel})`;
+}
+
 if (typeof getPinchDistance !== 'function') {
     function getPinchDistance(touch1, touch2) {
         const dx = touch1.clientX - touch2.clientX;

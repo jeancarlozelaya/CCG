@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dashboard Supervisión</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <style>
+        /* ESTILOS BASE */
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --warning-color: #f39c12;
+            --success-color: #2ecc71;
+            --dark-color: #34495e;
+            --text-color: #333;
+            --border-color: #ddd;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+            --insumos-light-gray: #f0f2f5;
+        }
+
+        html, body {
+            touch-action: manipulation;
+            overflow-x: hidden;
+            width: 100%;
+            height: 100%;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--insumos-light-gray);
+            color: var(--dark-color);
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+            color: white;
+            text-align: center;
+            padding: 18px 0;
+            font-size: 1.5rem;
+            font-weight: bold;
+            box-shadow: var(--shadow);
+            margin-bottom: 25px;
+        }
+
+        .container-custom {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 15px 50px 15px;
+        }
+
+        .card-custom {
+            background-color: #fff;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            border: none;
+            margin-bottom: 25px;
+            border-top: 5px solid var(--secondary-color);
+            padding: 20px;
+            height: 100%;
+        }
+
+        .btn-custom {
+            border: none;
+            font-weight: 600;
+            padding: 10px 25px;
+            font-size: 0.95rem;
+            border-radius: 50px;
+            transition: var(--transition);
+            color: white !important;
+            background: linear-gradient(45deg, var(--secondary-color), #5dade2);
+            width: 100%;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .btn-custom:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.2); }
+
+        .form-control, .form-select {
+            border-radius: 8px; padding: 10px 15px; border: 1px solid var(--border-color);
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: var(--secondary-color); box-shadow: 0 0 0 0.25rem rgba(52, 152, 219, 0.25);
+        }
+
+        .kpi-value { font-size: 2.5rem; font-weight: 800; color: var(--primary-color); }
+        .kpi-label { font-size: 0.85rem; color: #7f8c8d; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+        .kpi-icon { font-size: 2rem; color: var(--secondary-color); margin-bottom: 15px; opacity: 0.8; }
+
+        .chart-box { position: relative; height: 300px; width: 100%; }
+
+        .table-responsive { border-radius: 8px; overflow: hidden; }
+        .table thead { background-color: var(--primary-color); color: white; }
+        
+        /* BOTONES DE ACCIÓN */
+        .btn-action {
+            border: none; border-radius: 50px;
+            width: 35px; height: 35px;
+            font-size: 0.85rem; margin: 0 2px;
+            transition: var(--transition);
+            display: inline-flex; justify-content: center; align-items: center;
+            color: white;
+        }
+        .btn-action:hover { transform: translateY(-2px); color: white; }
+
+        .btn-pdf { background: linear-gradient(45deg, var(--accent-color), #e74c3c); }
+        .btn-share { background: linear-gradient(45deg, #1abc9c, #16a085); }
+        .btn-download { background: linear-gradient(45deg, #27ae60, #2ecc71); }
+        .btn-delete { background: #7f8c8d; }
+        .btn-delete:hover { background: #c0392b; }
+
+        /* RANKING */
+        .ranking-item { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid #eee; }
+        .ranking-item:last-child { border-bottom: none; }
+        .rank-pos { width: 30px; font-weight: bold; color: #999; font-size: 0.9rem; }
+        .rank-info { flex-grow: 1; padding-right: 15px; }
+        .rank-name { font-weight: 600; color: var(--dark-color); display: block; margin-bottom: 4px; }
+        .rank-bar-bg { height: 6px; background: #eee; border-radius: 3px; width: 100%; overflow: hidden; }
+        .rank-bar-fill { height: 100%; border-radius: 3px; transition: width 1s ease; }
+        .rank-count { min-width: 80px; text-align: right; }
+        .badge-count { font-size: 0.9rem; padding: 5px 10px; border-radius: 50px; min-width: 40px; display: inline-block; text-align: center; }
+        .bg-high { background-color: var(--success-color); }
+        .bg-mid { background-color: var(--secondary-color); }
+        .bg-low { background-color: var(--warning-color); }
+        .bg-zero { background-color: #e74c3c1a; color: #c0392b; border: 1px solid #e74c3c40; }
+        .text-zero { color: #c0392b; font-style: italic; }
+
+        /* SUB-UBICACIONES */
+        .sub-ubicaciones-container {
+            max-height: 500px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        /* OVERLAY CARGA */
+        #overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(255, 255, 255, 0.95);
+            display: none; justify-content: center; align-items: center;
+            z-index: 9999; flex-direction: column;
+        }
+        .spinner {
+            width: 60px; height: 60px;
+            border: 5px solid rgba(52, 152, 219, 0.2);
+            border-radius: 50%; border-top-color: var(--secondary-color);
+            animation: spin 1s ease-in-out infinite; margin-bottom: 20px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #loadingMessage { text-align: center; color: var(--dark-color); }
+        #loadingMessage h4 { margin: 0 0 10px; font-size: 1.3rem; font-weight: bold; }
+        #loadingMessage p { margin: 0; color: #7f8c8d; font-weight: normal; }
+        
+        /* MODAL PDF FULLSCREEN */
+        .modal-pdf-body {
+            height: calc(100vh - 56px); 
+            padding: 0;
+            overflow: hidden;
+            background-color: #525659;
+        }
+        .modal-pdf-iframe { width: 100%; height: 100%; border: none; display: block; }
+        .modal-header { background-color: #f8f9fa; border-bottom: 1px solid #dee2e6; padding: 10px 20px; }
+        
+        /* MENSAJE SIN DATOS */
+        .sin-sub-ubicaciones {
+            text-align: center;
+            padding: 20px;
+            color: #7f8c8d;
+            font-style: italic;
+        }
+        
+        /* TOOLTIP PARA KPI */
+        .kpi-tooltip {
+            position: relative;
+            display: inline-block;
+            cursor: help;
+        }
+        
+        .kpi-tooltip .kpi-tooltiptext {
+            visibility: hidden;
+            width: 300px;
+            background-color: #2c3e50;
+            color: white;
+            text-align: center;
+            border-radius: 6px;
+            padding: 10px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -150px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.8rem;
+            font-weight: normal;
+            text-transform: none;
+            letter-spacing: normal;
+        }
+        
+        .kpi-tooltip:hover .kpi-tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        .kpi-tooltip .kpi-tooltiptext::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #2c3e50 transparent transparent transparent;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="overlay">
+        <div class="spinner"></div>
+        <div id="loadingMessage">
+            <h4>Cargando...</h4>
+            <p></p>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalPDF" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-fullscreen">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title text-secondary"><i class="fas fa-file-pdf me-2"></i>Visualizador de Reporte</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body modal-pdf-body">
+                    <iframe id="iframePDF" class="modal-pdf-iframe" src=""></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="header">
+        Pisos Brillantes
+    </div>
+
+    <div class="container-custom">
+        
+        <div class="card-custom">
+            <h5 class="mb-3 text-secondary border-bottom pb-2">
+                <i class="fas fa-sliders-h me-2"></i>Panel de Control
+            </h5>
+            <div class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">Proyecto</label>
+                    <select id="filtroProyecto" class="form-select">
+                        <option value="" selected disabled>Seleccionar...</option>
+                        <option value="ARPIA">ARPIA</option>
+                        <option value="ARRIO">ARRIO</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Mes</label>
+                    <select id="filtroMes" class="form-select"></select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Año</label>
+                    <select id="filtroAnio" class="form-select"></select>
+                </div>
+                <div class="col-md-2">
+                    <button class="btn-custom" onclick="consultarDatos()">
+                        <i class="fas fa-search me-1"></i> Consultar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="dashboardContent" style="display: none;">
+            
+            <div class="row g-4 mb-4">
+                <div class="col-md-3">
+                    <div class="card-custom text-center">
+                        <div class="kpi-icon"><i class="fas fa-clipboard-check"></i></div>
+                        <div class="kpi-value" id="kpiSupervisiones">0</div>
+                        <div class="kpi-label kpi-tooltip">
+                            Supervisiones del Mes
+                            <span class="kpi-tooltiptext">
+                                <strong>¿Cómo se calcula?</strong><br>
+                                • Sin sub-ubicaciones: +1 por la ubicación principal<br>
+                                • Con sub-ubicaciones: +1 por CADA sub-ubicación<br>
+                                <em>Ejemplo: "Biblioteca; Contabilidad" = 2 supervisiones</em>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card-custom text-center">
+                        <div class="kpi-icon"><i class="fas fa-file-signature"></i></div>
+                        <div class="kpi-value" id="kpiReportes">0</div>
+                        <div class="kpi-label">Reportes Realizados</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card-custom text-center">
+                        <div class="kpi-icon"><i class="fas fa-map-marked-alt"></i></div>
+                        <div class="kpi-value" id="kpiUbicaciones">0</div>
+                        <div class="kpi-label">Áreas Cubiertas</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card-custom text-center">
+                        <div class="kpi-icon"><i class="fas fa-calendar-day"></i></div>
+                        <div class="kpi-value" id="kpiDias">0</div>
+                        <div class="kpi-label">Días de Supervisión</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-4 mb-4">
+                <div class="col-md-6">
+                    <div class="card-custom">
+                        <div class="chart-box">
+                            <canvas id="chartMensual"></canvas>
+                        </div>
+                        <div class="text-center mt-2">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Este gráfico muestra las <strong>supervisiones</strong> por día (incluye sub-ubicaciones)
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card-custom">
+                        <div class="chart-box">
+                            <canvas id="chartAnual"></canvas>
+                        </div>
+                        <div class="text-center mt-2">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Esta tendencia anual muestra las <strong>supervisiones</strong> por mes
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card-custom">
+                        <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                            <h5 class="text-secondary mb-0">
+                                <i class="fas fa-sort-amount-down me-2"></i>Cobertura de Áreas
+                            </h5>
+                            <small class="text-muted">Ordenado de mayor a menor</small>
+                        </div>
+                        <div id="listaRanking" class="sub-ubicaciones-container"></div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card-custom">
+                        <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                            <h5 class="text-secondary mb-0">
+                                <i class="fas fa-map-marker-alt me-2"></i>Cobertura de Sub-Ubicaciones
+                            </h5>
+                            <small class="text-muted">Ordenado de mayor a menor</small>
+                        </div>
+                        <div id="listaSubUbicaciones" class="sub-ubicaciones-container"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-12">
+                    <div class="card-custom">
+                        <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-3 border-bottom pb-2">
+                            <h5 class="text-secondary mb-2 mb-md-0"><i class="fas fa-list me-2"></i>Historial de Reportes</h5>
+                            <div class="input-group" style="max-width: 400px; width: 100%;">
+                                <span class="input-group-text bg-light border-end-0">
+                                    <i class="fas fa-filter text-muted"></i>
+                                </span>
+                                <input type="text" id="filtroTabla" class="form-control border-start-0" placeholder="Buscar por área, sub-área o fecha...">
+                            </div>
+                        </div>
+
+                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                            <table class="table table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 100px;">Fecha</th>
+                                        <th>Área Supervisada</th>
+                                        <th>Sub-Ubicaciones</th>
+                                        <th class="text-center" style="width: 200px;">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaCuerpo"></tbody>
+                            </table>
+                            <div id="sinResultadosFiltro" class="text-center p-4 text-muted" style="display:none;">
+                                No se encontraron resultados con ese filtro.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div> 
+        <div id="alertNoData" class="alert alert-warning text-center mt-4 shadow-sm" style="display:none;">
+            <i class="fas fa-info-circle me-2"></i> No existen registros para el mes seleccionado, pero se muestra la lista de áreas pendientes.
+        </div>
+
+    </div>
+
+    <script>
+        const URL_SCRIPT_GOOGLE = "https://script.google.com/macros/s/AKfycbyAyo-xVcSJ0nELFPqduayiNaB9yJeFaAprQuvH2x_KInfA9b5Bio8VJocE3vtGrQrsbQ/exec";
+
+        let chartMensual = null;
+        let chartAnual = null;
+        let datosTablaGlobal = [];
+        let modalPDF = null;
+        let proyectoActual = "";
+
+        const mesesNombres = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+        
+        // Lista completa de sub-ubicaciones para ARPIA
+        const SUB_UBICACIONES_ARPIA = [
+            "Camerinos Contratistas",
+            "Camerinos Permanentes",
+
+            "Baño de Gerencia (Admin)",
+            "Baño de Mujeres (Admin)",
+            "Baño de Varones (Admin)",
+
+            "Biblioteca",
+            "Compras",
+            "Contabilidad",
+            "Coordinación de Ejecución Eléctrica",
+            "Coordinación de Ejecución Mecánica",
+            "CRO",
+            "Educa",
+            "Ejecutores de Mantenimiento",
+            "Gerencia",
+            "Gerencia de Calidad",
+            "Gerencia de Mantenimiento",
+            "Gerencia de Materias Primas",
+            "Gerencia de Procesos",
+            "Gestión Humana",
+            "Informática",
+            "Inspectores de Mantenimiento",
+            "Materias Primas",
+            "Oficina 121",
+            "Oficina de Supervisión",
+            "Oficina de Visitas",
+            "Procesos",
+            "Producción",
+            "Profesionales Eléctricos",
+            "Proyectos",
+            "Sala de Reuniones (Principal)",
+            "Sala de Reuniones de Mantenimiento",
+            "SISO",
+            "Sub Gerencia"
+        ];
+
+        function focusPDF() {
+            const iframe = document.getElementById('iframePDF');
+            if (iframe) {
+                iframe.focus();
+                try {
+                    iframe.contentWindow.focus();
+                } catch(e) {
+                    // Si falla por seguridad
+                }
+            }
+        }
+
+        window.onload = function() {
+            const modalEl = document.getElementById('modalPDF');
+            modalPDF = new bootstrap.Modal(modalEl);
+            
+            modalEl.addEventListener('shown.bs.modal', function () {
+                setTimeout(focusPDF, 100);
+            });
+
+            const selectMes = document.getElementById('filtroMes');
+            mesesNombres.forEach((m, i) => {
+                let opt = document.createElement('option');
+                opt.value = (i + 1).toString().padStart(2, '0');
+                opt.text = m;
+                if(i === new Date().getMonth()) opt.selected = true;
+                selectMes.appendChild(opt);
+            });
+
+            const selectAnio = document.getElementById('filtroAnio');
+            const currentYear = new Date().getFullYear();
+            const prevYear = currentYear - 1;
+            
+            let optPrev = document.createElement('option');
+            optPrev.value = prevYear;
+            optPrev.text = prevYear;
+            selectAnio.appendChild(optPrev);
+
+            let optCurr = document.createElement('option');
+            optCurr.value = currentYear;
+            optCurr.text = currentYear;
+            optCurr.selected = true;
+            selectAnio.appendChild(optCurr);
+
+            document.getElementById('filtroTabla').addEventListener('keyup', filtrarTablaLocal);
+            
+            // Cambiar visibilidad de sub-ubicaciones según proyecto
+            document.getElementById('filtroProyecto').addEventListener('change', function() {
+                proyectoActual = this.value;
+                const subUbicacionesTitle = document.querySelector('#listaSubUbicaciones').closest('.card-custom').querySelector('h5');
+                if (proyectoActual === "ARRIO") {
+                    subUbicacionesTitle.innerHTML = '<i class="fas fa-map-marker-alt me-2"></i>Cobertura de Sub-Ubicaciones <span class="badge bg-warning ms-2">Sin datos</span>';
+                } else {
+                    subUbicacionesTitle.innerHTML = '<i class="fas fa-map-marker-alt me-2"></i>Cobertura de Sub-Ubicaciones';
+                }
+            });
+        };
+
+        function showLoading(mensaje, submensaje = "") {
+            const overlay = document.getElementById('overlay');
+            const msgTitle = document.querySelector('#loadingMessage h4');
+            const msgSub = document.querySelector('#loadingMessage p');
+            if(msgTitle) msgTitle.textContent = mensaje;
+            if(msgSub) msgSub.textContent = submensaje;
+            overlay.style.display = 'flex';
+        }
+
+        function hideLoading() {
+            document.getElementById('overlay').style.display = 'none';
+        }
+
+        function consultarDatos() {
+            proyectoActual = document.getElementById('filtroProyecto').value;
+            const mesVal = document.getElementById('filtroMes').value;
+            const anio = document.getElementById('filtroAnio').value;
+
+            if (!proyectoActual) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Proyecto Requerido',
+                    text: 'Por favor, selecciona un proyecto para consultar.'
+                });
+                return;
+            }
+
+            showLoading("Por favor espera un momento...", "Esto puede tardar unos segundos");
+            
+            document.getElementById('dashboardContent').style.display = 'none';
+            document.getElementById('alertNoData').style.display = 'none';
+
+            fetch(URL_SCRIPT_GOOGLE, {
+                method: 'POST',
+                body: JSON.stringify({ action: "obtenerDatos", proyecto: proyectoActual, mes: mesVal, anio })
+            })
+            .then(res => res.json())
+            .then(data => {
+                hideLoading();
+                if (data.status === "error") {
+                    Swal.fire("Error", data.message, "error");
+                    return;
+                }
+                const info = data.data;
+                renderizarDashboard(info, mesVal, anio);
+                
+                if (!info.existeHoja || info.totalReportes === 0) {
+                     document.getElementById('alertNoData').style.display = 'block';
+                }
+            })
+            .catch(err => {
+                hideLoading();
+                Swal.fire("Error", "Problema de conexión con el servidor.", "error");
+            });
+        }
+
+        function renderizarDashboard(data, mesVal, anio) {
+            document.getElementById('dashboardContent').style.display = 'block';
+            datosTablaGlobal = data.listaReportes;
+
+            // Actualizar KPI's
+            document.getElementById('kpiSupervisiones').textContent = data.totalSupervisiones;
+            document.getElementById('kpiReportes').textContent = data.totalReportes;
+            document.getElementById('kpiUbicaciones').textContent = data.ubicacionesUnicas;
+            document.getElementById('kpiDias').textContent = data.diasConActividad;
+
+            const nombreMes = mesesNombres[parseInt(mesVal) - 1];
+            const commonOpts = (titulo) => ({
+                responsive: true, maintainAspectRatio: false,
+                plugins: { 
+                    title: { 
+                        display: true, 
+                        text: titulo, 
+                        font: {size: 14} 
+                    }, 
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `Supervisiones: ${context.raw}`;
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Gráfico mensual (con supervisiones, no reportes)
+            const ctxMensual = document.getElementById('chartMensual');
+            if (chartMensual) chartMensual.destroy();
+            chartMensual = new Chart(ctxMensual, {
+                type: 'bar',
+                data: {
+                    labels: data.datosGraficoDia.labels,
+                    datasets: [{ 
+                        label: 'Supervisiones', 
+                        data: data.datosGraficoDia.supervisiones || data.datosGraficoDia.data, 
+                        backgroundColor: '#3498db', 
+                        borderRadius: 4 
+                    }]
+                },
+                options: { 
+                    ...commonOpts(`Actividad Diaria - ${nombreMes} ${anio}`), 
+                    scales: { 
+                        x: { 
+                            title: {
+                                display: true, 
+                                text: 'Día del mes',
+                                font: { weight: 'bold' }
+                            } 
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Número de Supervisiones',
+                                font: { weight: 'bold' }
+                            },
+                            beginAtZero: true
+                        }
+                    } 
+                }
+            });
+
+            // Gráfico anual (con supervisiones, no reportes)
+            const ctxAnual = document.getElementById('chartAnual');
+            if (chartAnual) chartAnual.destroy();
+            chartAnual = new Chart(ctxAnual, {
+                type: 'line',
+                data: {
+                    labels: data.datosGraficoAnual.labels,
+                    datasets: [{ 
+                        label: 'Supervisiones', 
+                        data: data.datosGraficoAnual.supervisiones || data.datosGraficoAnual.data, 
+                        borderColor: '#2ecc71', 
+                        backgroundColor: 'rgba(46, 204, 113, 0.1)', 
+                        fill: true, 
+                        tension: 0.3,
+                        pointBackgroundColor: '#27ae60',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5
+                    }]
+                },
+                options: {
+                    ...commonOpts(`Tendencia Anual - ${anio}`),
+                    scales: {
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Supervisiones Totales',
+                                font: { weight: 'bold' }
+                            },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            renderizarRankingCompleto(data.rankingCompleto);
+            renderizarSubUbicaciones(data.subUbicaciones);
+            renderizarTabla(datosTablaGlobal);
+        }
+
+        function renderizarRankingCompleto(ranking) {
+            const container = document.getElementById('listaRanking');
+            container.innerHTML = '';
+            const maxVal = ranking.length > 0 ? Math.max(...ranking.map(r => r.visitas)) : 1;
+
+            ranking.forEach((item, index) => {
+                const porcentajeBarra = maxVal > 0 ? (item.visitas / maxVal) * 100 : 0;
+                let colorClass = 'bg-mid';
+                let badgeClass = 'bg-secondary text-white';
+                let nombreClass = '';
+
+                if (item.visitas === 0) {
+                    badgeClass = 'bg-zero'; colorClass = 'bg-danger'; nombreClass = 'text-zero fw-bold';
+                } else if (item.visitas >= 5) {
+                    colorClass = 'bg-high'; badgeClass = 'bg-success text-white';
+                }
+
+                const row = document.createElement('div');
+                row.className = 'ranking-item';
+                row.innerHTML = `
+                    <div class="rank-pos">${index + 1}</div>
+                    <div class="rank-info">
+                        <span class="rank-name ${nombreClass}">${item.area}</span>
+                        ${item.visitas > 0 ? `
+                        <div class="rank-bar-bg"><div class="rank-bar-fill ${colorClass}" style="width: ${porcentajeBarra}%"></div></div>` 
+                        : '<small class="text-danger"><i class="fas fa-exclamation-circle"></i> Sin supervisión</small>'}
+                    </div>
+                    <div class="rank-count"><span class="badge badge-count ${badgeClass}">${item.visitas}</span></div>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        function renderizarSubUbicaciones(subUbicacionesData) {
+            const container = document.getElementById('listaSubUbicaciones');
+            container.innerHTML = '';
+            
+            // Para ARRIO, mostrar mensaje especial
+            if (proyectoActual === "ARRIO") {
+                container.innerHTML = `
+                    <div class="sin-sub-ubicaciones">
+                        <i class="fas fa-info-circle fa-2x mb-3 text-warning"></i>
+                        <p class="mb-2">Este proyecto no tiene sub-ubicaciones configuradas</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Para ARPIA, usar la lista completa de sub-ubicaciones
+            let subUbicacionesArray = [];
+            
+            // Combinar las sub-ubicaciones del servidor con la lista maestra
+            SUB_UBICACIONES_ARPIA.forEach(sub => {
+                const cantidad = subUbicacionesData[sub] || 0;
+                subUbicacionesArray.push({ nombre: sub, cantidad: cantidad });
+            });
+            
+            // Ordenar por cantidad (descendente) y luego por nombre
+            subUbicacionesArray.sort((a, b) => {
+                if (b.cantidad !== a.cantidad) return b.cantidad - a.cantidad;
+                return a.nombre.localeCompare(b.nombre);
+            });
+            
+            // Encontrar el valor máximo para la barra
+            const maxVal = subUbicacionesArray.length > 0 ? 
+                Math.max(...subUbicacionesArray.map(r => r.cantidad)) : 1;
+
+            if (subUbicacionesArray.length === 0) {
+                container.innerHTML = '<div class="text-center p-3 text-muted"><i class="fas fa-info-circle me-2"></i>No hay sub-ubicaciones registradas</div>';
+                return;
+            }
+
+            subUbicacionesArray.forEach((item, index) => {
+                const porcentajeBarra = maxVal > 0 ? (item.cantidad / maxVal) * 100 : 0;
+                let colorClass = 'bg-mid';
+                let badgeClass = 'bg-secondary text-white';
+                let nombreClass = '';
+
+                if (item.cantidad === 0) {
+                    badgeClass = 'bg-zero'; colorClass = 'bg-danger'; nombreClass = 'text-zero fw-bold';
+                } else if (item.cantidad >= 5) {
+                    colorClass = 'bg-high'; badgeClass = 'bg-success text-white';
+                } else if (item.cantidad >= 3) {
+                    colorClass = 'bg-mid'; badgeClass = 'bg-primary text-white';
+                } else {
+                    colorClass = 'bg-low'; badgeClass = 'bg-warning text-dark';
+                }
+
+                const row = document.createElement('div');
+                row.className = 'ranking-item';
+                row.innerHTML = `
+                    <div class="rank-pos">${index + 1}</div>
+                    <div class="rank-info">
+                        <span class="rank-name ${nombreClass}">${item.nombre}</span>
+                        ${item.cantidad > 0 ? `
+                        <div class="rank-bar-bg"><div class="rank-bar-fill ${colorClass}" style="width: ${porcentajeBarra}%"></div></div>` 
+                        : '<small class="text-danger"><i class="fas fa-exclamation-circle"></i> Sin supervisión</small>'}
+                    </div>
+                    <div class="rank-count"><span class="badge badge-count ${badgeClass}">${item.cantidad}</span></div>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        function filtrarTablaLocal() {
+            const texto = document.getElementById('filtroTabla').value.toLowerCase();
+            const filasFiltradas = datosTablaGlobal.filter(item => 
+                item.ubicacion.toLowerCase().includes(texto) || 
+                item.subUbicaciones.toLowerCase().includes(texto) ||
+                item.fecha.includes(texto)
+            );
+            renderizarTabla(filasFiltradas);
+        }
+
+        function verPDF(url) {
+            if(!url) return;
+            let previewUrl = url;
+            if (url.includes('/view')) {
+                previewUrl = url.replace(/\/view.*/, '/preview');
+            }
+            document.getElementById('iframePDF').src = previewUrl;
+            modalPDF.show();
+        }
+
+        function getDriveId(url) {
+            if (!url) return null;
+            let match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+            if (match) return match[1];
+            match = url.match(/id=([a-zA-Z0-9-_]+)/);
+            return match ? match[1] : null;
+        }
+
+        function descargarPDF(url) {
+            const id = getDriveId(url);
+            if (id) {
+                const downloadLink = `https://drive.google.com/uc?export=download&id=${id}`;
+                window.open(downloadLink, '_blank');
+            } else {
+                Swal.fire('Error', 'No se pudo obtener el ID del archivo', 'error');
+            }
+        }
+
+        async function compartirPDF(url, ubicacion, fecha) {
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        title: `Reporte ${ubicacion}`,
+                        text: `Reporte de supervisión en ${ubicacion} del ${fecha}`,
+                        url: url
+                    });
+                } catch (err) {
+                    console.log('Error compartiendo:', err);
+                }
+            } else {
+                navigator.clipboard.writeText(url).then(() => {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Enlace copiado',
+                        text: 'El enlace del reporte se ha copiado al portapapeles.',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                });
+            }
+        }
+
+        function renderizarTabla(lista) {
+            const tbody = document.getElementById('tablaCuerpo');
+            const aviso = document.getElementById('sinResultadosFiltro');
+            tbody.innerHTML = '';
+            
+            if (lista.length === 0) {
+                aviso.style.display = 'block'; 
+                return;
+            }
+            aviso.style.display = 'none';
+
+            lista.forEach((item, index) => {
+                let botones = '<span class="text-muted small">-</span>';
+                
+                if (item.url && item.url.includes('http')) {
+                    const btnVer = `<button class="btn btn-action btn-pdf" onclick="verPDF('${item.url}')" title="Ver Reporte">
+                                        <i class="fas fa-eye"></i>
+                                    </button>`;
+                    
+                    const btnShare = `<button class="btn btn-action btn-share" onclick="compartirPDF('${item.url}', '${item.ubicacion}', '${item.fecha}')" title="Compartir">
+                                        <i class="fas fa-share-alt"></i>
+                                      </button>`;
+                    
+                    const btnDownload = `<button class="btn btn-action btn-download" onclick="descargarPDF('${item.url}')" title="Descargar">
+                                            <i class="fas fa-download"></i>
+                                         </button>`;
+                    
+                    const btnDelete = `<button class="btn btn-action btn-delete" onclick="confirmarEliminar(${index})" title="Eliminar">
+                                            <i class="fas fa-trash-alt"></i>
+                                       </button>`;
+
+                    botones = `<div class="d-flex justify-content-center">
+                                ${btnVer} ${btnShare} ${btnDownload} ${btnDelete}
+                               </div>`;
+                } else {
+                    botones = `<button class="btn btn-action btn-delete" onclick="confirmarEliminar(${index})" title="Eliminar">
+                                    <i class="fas fa-trash-alt"></i>
+                               </button>`;
+                }
+
+                // Mostrar sub-ubicaciones si existen
+                let subUbicacionesHTML = '<span class="text-muted small">-</span>';
+                if (item.subUbicaciones && item.subUbicaciones.trim() !== '') {
+                    const subUbicacionesArray = item.subUbicaciones.split(';').map(s => s.trim());
+                    subUbicacionesHTML = subUbicacionesArray.map(sub => 
+                        `<span class="badge bg-light text-dark border me-1 mb-1">${sub}</span>`
+                    ).join('');
+                }
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${item.fecha}</td>
+                    <td class="fw-bold text-secondary">${item.ubicacion}</td>
+                    <td>${subUbicacionesHTML}</td>
+                    <td class="text-center">
+                        ${botones}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function confirmarEliminar(index) {
+            const item = datosTablaGlobal[index];
+            if (!item) return;
+
+            Swal.fire({
+                title: 'Eliminar Reporte',
+                text: 'Ingresa la contraseña para confirmar la eliminación:',
+                input: 'password',
+                inputAttributes: {
+                    autocapitalize: 'off',
+                    placeholder: 'Contraseña'
+                },
+                showCancelButton: true,
+                confirmButtonText: 'Eliminar',
+                confirmButtonColor: '#e74c3c',
+                cancelButtonText: 'Cancelar',
+                allowOutsideClick: false,
+                backdrop: `rgba(43, 62, 80, 0.8)`,
+                preConfirm: (password) => {
+                    if (password !== 'argos123') {
+                        Swal.showValidationMessage('Contraseña incorrecta');
+                        return false;
+                    }
+                    return password;
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    ejecutarEliminacion(item.rowNumber, item.url);
+                }
+            });
+        }
+
+        function ejecutarEliminacion(rowNumber, fileUrl) {
+            const proyecto = document.getElementById('filtroProyecto').value;
+            const mesVal = document.getElementById('filtroMes').value;
+            const anio = document.getElementById('filtroAnio').value;
+
+            showLoading("Por favor espera un momento...", "Esto puede tardar unos segundos");
+
+            fetch(URL_SCRIPT_GOOGLE, {
+                method: 'POST',
+                body: JSON.stringify({ 
+                    action: "eliminarReporte", 
+                    proyecto, 
+                    mes: mesVal, 
+                    anio, 
+                    rowNumber, 
+                    fileUrl    
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                hideLoading();
+
+                if (data.status === "success") {
+                    Swal.fire("Eliminado", data.data.message, "success")
+                    .then(() => {
+                        consultarDatos(); 
+                    });
+                } else {
+                    Swal.fire("Error", data.message, "error");
+                }
+            })
+            .catch(err => {
+                hideLoading();
+                Swal.fire("Error", "No se pudo conectar con el servidor.", "error");
+            });
+        }
+    </script>
+</body>
+</html>

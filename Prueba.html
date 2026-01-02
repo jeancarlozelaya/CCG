@@ -5781,127 +5781,168 @@ $('#modalPdfPreview').on('hidden.bs.modal', function () {
 
 
 // =========================================================
-//  LÓGICA AVANZADA: ZOOM Y MOVIMIENTO (PAN & ZOOM)
+//  LÓGICA MAESTRA: ZOOM Y MOVIMIENTO (PC Y MÓVIL) - CORREGIDO
 // =========================================================
 
-// Variables de estado
 let pdfState = {
     scale: 1,
     panning: false,
     pointX: 0,
     pointY: 0,
     startX: 0,
-    startY: 0,
-    startDist: 0,
-    lastScale: 1
+    startY: 0
 };
 
-// Configurar eventos al abrir el modal
+// Configuración al abrir el modal
 $('#modalPdfPreview').on('shown.bs.modal', function () {
     const container = document.getElementById('pdf-render-container');
-    
-    // Resetear valores iniciales
+    const wrapper = container.parentElement; // El modal-body
+
+    // 1. Resetear valores
     pdfState = {
         scale: 1,
         panning: false,
         pointX: 0,
         pointY: 0,
         startX: 0,
-        startY: 0,
-        startDist: 0,
-        lastScale: 1
+        startY: 0
     };
-    
-    // Centrar inicialmente
-    const modalBody = container.parentElement;
-    // Pequeño ajuste para centrar visualmente si el PDF es más angosto que la pantalla
-    const initialOffsetX = (modalBody.clientWidth - container.offsetWidth) / 2;
+
+    // 2. Centrar inicialmente el PDF
+    const initialOffsetX = (wrapper.clientWidth - container.offsetWidth) / 2;
     if (initialOffsetX > 0) {
         pdfState.pointX = initialOffsetX;
     }
-    
+
+    // 3. Forzar origen arriba-izquierda
+    container.style.transformOrigin = "0 0";
+    container.style.cursor = "grab";
     updateTransform();
 
-    // Agregar listeners
-    container.addEventListener('touchstart', handleGestureStart, { passive: false });
-    container.addEventListener('touchmove', handleGestureMove, { passive: false });
-    container.addEventListener('touchend', handleGestureEnd, { passive: false });
+    // 4. EVENTOS TÁCTILES (Móvil)
+    wrapper.addEventListener('touchstart', handleTouchStart, { passive: false });
+    wrapper.addEventListener('touchmove', handleTouchMove, { passive: false });
+    wrapper.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+    // 5. EVENTOS MOUSE (Computadora)
+    wrapper.addEventListener('mousedown', handleMouseDown);
+    wrapper.addEventListener('mousemove', handleMouseMove);
+    wrapper.addEventListener('mouseup', handleMouseUp);
+    wrapper.addEventListener('mouseleave', handleMouseUp);
+    wrapper.addEventListener('wheel', handleWheel, { passive: false });
 });
 
 $('#modalPdfPreview').on('hidden.bs.modal', function () {
-    const container = document.getElementById('pdf-render-container');
-    container.removeEventListener('touchstart', handleGestureStart);
-    container.removeEventListener('touchmove', handleGestureMove);
-    container.removeEventListener('touchend', handleGestureEnd);
+    const wrapper = document.querySelector('#modalPdfPreview .modal-body');
+    if(wrapper) {
+        wrapper.removeEventListener('touchstart', handleTouchStart);
+        wrapper.removeEventListener('touchmove', handleTouchMove);
+        wrapper.removeEventListener('touchend', handleTouchEnd);
+        wrapper.removeEventListener('mousedown', handleMouseDown);
+        wrapper.removeEventListener('mousemove', handleMouseMove);
+        wrapper.removeEventListener('mouseup', handleMouseUp);
+        wrapper.removeEventListener('mouseleave', handleMouseUp);
+        wrapper.removeEventListener('wheel', handleWheel);
+    }
 });
 
-function handleGestureStart(e) {
-    e.preventDefault(); // Evitar scroll nativo del navegador
+// --- LÓGICA MÓVIL (TÁCTIL) ---
+// RENOMBRAMOS ESTAS VARIABLES PARA QUE NO CHOQUEN CON LA CÁMARA
+let pdfTouchStartDist = 0;
+let pdfTouchStartScale = 1;
 
+function handleTouchStart(e) {
     if (e.touches.length === 1) {
-        // UN DEDO: Comenzar a Mover (Pan)
+        // Un dedo: Mover
         pdfState.panning = true;
         pdfState.startX = e.touches[0].clientX - pdfState.pointX;
         pdfState.startY = e.touches[0].clientY - pdfState.pointY;
-
     } else if (e.touches.length === 2) {
-        // DOS DEDOS: Comenzar a Zoom (Pinch)
+        // Dos dedos: Zoom
+        e.preventDefault();
         pdfState.panning = false;
-        pdfState.startDist = getDistance(e.touches[0], e.touches[1]);
-        pdfState.lastScale = pdfState.scale;
+        // Usamos la función getDistance (asegúrate de que exista abajo)
+        pdfTouchStartDist = getDistance(e.touches[0], e.touches[1]);
+        pdfTouchStartScale = pdfState.scale;
     }
 }
 
-function handleGestureMove(e) {
-    e.preventDefault();
+function handleTouchMove(e) {
+    e.preventDefault(); 
 
     if (e.touches.length === 1 && pdfState.panning) {
-        // MOVER (Calculamos nueva posición)
+        // Mover
         pdfState.pointX = e.touches[0].clientX - pdfState.startX;
         pdfState.pointY = e.touches[0].clientY - pdfState.startY;
         updateTransform();
-
     } else if (e.touches.length === 2) {
-        // ZOOM (Calculamos nueva escala)
-        const currentDist = getDistance(e.touches[0], e.touches[1]);
-        if (pdfState.startDist > 0) {
-            const ratio = currentDist / pdfState.startDist;
-            let newScale = pdfState.lastScale * ratio;
-            
-            // Límites del Zoom (Mínimo 1x, Máximo 4x)
-            newScale = Math.max(1, Math.min(4, newScale));
+        // Zoom
+        const currentDistance = getDistance(e.touches[0], e.touches[1]);
+        if (pdfTouchStartDist > 0) {
+            const pinchRatio = currentDistance / pdfTouchStartDist;
+            let newScale = pdfTouchStartScale * pinchRatio;
+            newScale = Math.max(0.5, Math.min(5, newScale)); // Límites
             pdfState.scale = newScale;
             updateTransform();
         }
     }
 }
 
-function handleGestureEnd(e) {
-    // Si soltamos los dedos, dejamos de mover
+function handleTouchEnd(e) {
     pdfState.panning = false;
-
-    // Efecto "Rebote" simple: Si alejamos demasiado (menos de 1), volver a 1
-    if (pdfState.scale < 1) {
-        pdfState.scale = 1;
-        pdfState.pointX = 0;
-        pdfState.pointY = 0;
-        updateTransform();
-    }
+    if (e.touches.length < 2) pdfTouchStartDist = 0;
 }
+
+// --- LÓGICA PC (MOUSE) ---
+
+function handleMouseDown(e) {
+    e.preventDefault();
+    pdfState.panning = true;
+    pdfState.startX = e.clientX - pdfState.pointX;
+    pdfState.startY = e.clientY - pdfState.pointY;
+    document.getElementById('pdf-render-container').style.cursor = "grabbing";
+}
+
+function handleMouseMove(e) {
+    if (!pdfState.panning) return;
+    e.preventDefault();
+    pdfState.pointX = e.clientX - pdfState.startX;
+    pdfState.pointY = e.clientY - pdfState.startY;
+    updateTransform();
+}
+
+function handleMouseUp(e) {
+    pdfState.panning = false;
+    document.getElementById('pdf-render-container').style.cursor = "grab";
+}
+
+function handleWheel(e) {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    let newScale = pdfState.scale * delta;
+    newScale = Math.max(0.5, Math.min(5, newScale));
+    pdfState.scale = newScale;
+    updateTransform();
+}
+
+// --- UTILIDADES ---
 
 function updateTransform() {
     const container = document.getElementById('pdf-render-container');
-    // Aplicamos Movimiento (Translate) Y Zoom (Scale)
-    container.style.transform = `translate(${pdfState.pointX}px, ${pdfState.pointY}px) scale(${pdfState.scale})`;
+    if(container) {
+        container.style.transform = `translate(${pdfState.pointX}px, ${pdfState.pointY}px) scale(${pdfState.scale})`;
+    }
 }
 
-// Función matemática de distancia
-function getDistance(touch1, touch2) {
-    const dx = touch1.clientX - touch2.clientX;
-    const dy = touch1.clientY - touch2.clientY;
-    return Math.sqrt(dx * dx + dy * dy);
+// Aseguramos que getDistance exista y no choque si ya está declarada
+// Solo la definimos si NO existe previamente
+if (typeof getDistance !== 'function') {
+    function getDistance(touch1, touch2) {
+        const dx = touch1.clientX - touch2.clientX;
+        const dy = touch1.clientY - touch2.clientY;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
 }
-
 
 // =========================================================
 //  LÓGICA PARA COMPARTIR PDF (NATIVO)
@@ -5965,3 +6006,4 @@ $(document).on('click', '.btn-share-pdf', async function(e) {
 </script>
 </body>
 </html>
+

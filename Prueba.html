@@ -5259,12 +5259,12 @@ async function renderizarModalPendientes() {
     $listaPendientes.empty();
     $listaSincronizados.empty();
     
-    // Resetear checkboxes maestros y botones
+    // Resetear checkboxes y botones
     $('#check-all-pendientes').prop('checked', false);
     $('#check-all-sincronizados').prop('checked', false);
     actualizarBotonesSeleccion();
 
-    // Actualizar Badge Rojo
+    // Badge
     if (pendientes.length > 0) {
         $badgeTab.text(pendientes.length).show();
     } else {
@@ -5285,21 +5285,20 @@ async function renderizarModalPendientes() {
                         <input class="form-check-input check-pendiente fs-5" type="checkbox" value="${reporte.id}">
                     </div>
                     
-                    <div class="me-3">
+                    <div class="flex-grow-1 overflow-hidden">
+                        <h6 class="mb-0 fw-bold text-dark text-truncate">${reporte.proyecto} - ${reporte.ubicacion}</h6>
+                        <small class="text-muted d-block"><i class="far fa-calendar-alt me-1"></i>${fechaStr}</small>
+                        <span class="badge bg-warning text-dark rounded-pill mt-1" style="font-size: 0.7rem;">Pendiente</span>
+                    </div>
+
+                    <div class="ms-2 d-flex gap-1">
                         <button class="btn btn-sm btn-outline-primary btn-ver-pdf" data-id="${reporte.id}" title="Ver PDF">
                             <i class="fas fa-eye"></i>
                         </button>
-                    </div>
-
-                    <div class="flex-grow-1">
-                        <h6 class="mb-0 fw-bold text-dark">${reporte.proyecto} - ${reporte.ubicacion}</h6>
-                        <small class="text-muted"><i class="far fa-calendar-alt me-1"></i>${fechaStr}</small>
-                    </div>
-                    <div class="status-indicator ms-2">
-                        <span class="badge bg-warning text-dark rounded-pill">Pendiente</span>
-                    </div>
-                    <div class="ms-2">
-                         <button class="btn btn-sm btn-outline-danger btn-delete-registro" data-id="${reporte.id}" title="Eliminar">
+                        <button class="btn btn-sm btn-outline-success btn-share-pdf" data-id="${reporte.id}" title="Compartir">
+                            <i class="fas fa-share-alt"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger btn-delete-registro" data-id="${reporte.id}" title="Eliminar">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
@@ -5323,18 +5322,19 @@ async function renderizarModalPendientes() {
                         <input class="form-check-input check-sincronizado fs-5" type="checkbox" value="${reporte.id}">
                     </div>
                     
-                    <div class="me-3">
+                    <div class="flex-grow-1 overflow-hidden">
+                        <h6 class="mb-0 text-dark text-truncate">${reporte.proyecto} - ${reporte.ubicacion}</h6>
+                        <small class="text-success d-block"><i class="fas fa-check-double me-1"></i>${fechaStr}</small>
+                    </div>
+
+                    <div class="ms-2 d-flex gap-1">
                         <button class="btn btn-sm btn-outline-primary btn-ver-pdf" data-id="${reporte.id}" title="Ver PDF">
                             <i class="fas fa-eye"></i>
                         </button>
-                    </div>
-
-                    <div class="flex-grow-1">
-                        <h6 class="mb-0 text-dark">${reporte.proyecto} - ${reporte.ubicacion}</h6>
-                        <small class="text-success"><i class="fas fa-check-double me-1"></i>Enviado: ${fechaStr}</small>
-                    </div>
-                    <div class="ms-2">
-                         <button class="btn btn-sm btn-outline-danger btn-delete-registro" data-id="${reporte.id}" title="Eliminar Historial">
+                        <button class="btn btn-sm btn-outline-success btn-share-pdf" data-id="${reporte.id}" title="Compartir">
+                            <i class="fas fa-share-alt"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger btn-delete-registro" data-id="${reporte.id}" title="Eliminar Historial">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
@@ -5344,7 +5344,6 @@ async function renderizarModalPendientes() {
         });
     }
 }
-
 
 // Función auxiliar para habilitar/deshabilitar botones según selección
 function actualizarBotonesSeleccion() {
@@ -5776,6 +5775,155 @@ $(document).on('click', '.btn-ver-pdf', async function(e) {
 // Limpieza
 $('#modalPdfPreview').on('hidden.bs.modal', function () {
     document.getElementById('pdf-render-container').innerHTML = '';
+});
+
+
+
+
+// =========================================================
+//  LÓGICA DE ZOOM (PELLIZCAR) PARA EL VISOR DE PDF
+// =========================================================
+
+let pdfZoomLevel = 1;
+let pdfInitialDistance = 0;
+let pdfLastZoomLevel = 1;
+
+// Configurar eventos cuando se abre el modal
+$('#modalPdfPreview').on('shown.bs.modal', function () {
+    const container = document.getElementById('pdf-render-container');
+    
+    // Resetear zoom
+    pdfZoomLevel = 1;
+    container.style.transform = `scale(1)`;
+    container.style.transformOrigin = `top center`;
+
+    // Agregar eventos táctiles
+    container.addEventListener('touchstart', handlePdfTouchStart, { passive: false });
+    container.addEventListener('touchmove', handlePdfTouchMove, { passive: false });
+    container.addEventListener('touchend', handlePdfTouchEnd, { passive: false });
+});
+
+$('#modalPdfPreview').on('hidden.bs.modal', function () {
+    const container = document.getElementById('pdf-render-container');
+    // Limpiar eventos para ahorrar memoria
+    container.removeEventListener('touchstart', handlePdfTouchStart);
+    container.removeEventListener('touchmove', handlePdfTouchMove);
+    container.removeEventListener('touchend', handlePdfTouchEnd);
+});
+
+function handlePdfTouchStart(e) {
+    if (e.touches.length === 2) {
+        // Si hay 2 dedos, iniciamos gesto de zoom
+        // e.preventDefault(); // Opcional: descomentar si interfiere con el scroll
+        pdfInitialDistance = getPinchDistance(e.touches[0], e.touches[1]);
+        pdfLastZoomLevel = pdfZoomLevel;
+    }
+}
+
+function handlePdfTouchMove(e) {
+    if (e.touches.length === 2) {
+        e.preventDefault(); // Evitar scroll mientras se hace zoom
+        
+        const currentDistance = getPinchDistance(e.touches[0], e.touches[1]);
+        if (pdfInitialDistance > 0) {
+            const pinchRatio = currentDistance / pdfInitialDistance;
+            
+            // Calcular nuevo zoom
+            let newZoom = pdfLastZoomLevel * pinchRatio;
+            
+            // Límites de zoom (entre 1x y 4x)
+            newZoom = Math.max(1, Math.min(4, newZoom));
+            
+            pdfZoomLevel = newZoom;
+            
+            // Aplicar transformación
+            const container = document.getElementById('pdf-render-container');
+            container.style.transform = `scale(${pdfZoomLevel})`;
+            
+            // Ajustar el margen para que al hacer zoom out no se corte
+            if(pdfZoomLevel > 1) {
+                container.style.marginBottom = `${(pdfZoomLevel - 1) * 50}%`; 
+            } else {
+                container.style.marginBottom = '0';
+            }
+        }
+    }
+}
+
+function handlePdfTouchEnd(e) {
+    if (e.touches.length < 2) {
+        pdfInitialDistance = 0;
+    }
+}
+
+// Reutilizamos la función de distancia que ya tenías para la cámara
+// (Si no existe, el código fallaría, así que la aseguramos aquí por si acaso)
+if (typeof getPinchDistance !== 'function') {
+    function getPinchDistance(touch1, touch2) {
+        const dx = touch1.clientX - touch2.clientX;
+        const dy = touch1.clientY - touch2.clientY;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+}
+
+
+// =========================================================
+//  LÓGICA PARA COMPARTIR PDF (NATIVO)
+// =========================================================
+
+$(document).on('click', '.btn-share-pdf', async function(e) {
+    e.stopPropagation();
+    const id = parseInt($(this).data('id'));
+
+    if (!db) return;
+
+    const btn = $(this);
+    const originalHtml = btn.html();
+    btn.html('<i class="fas fa-spinner fa-spin"></i>').prop('disabled', true);
+
+    try {
+        const transaction = db.transaction([STORE_PENDING], 'readonly');
+        const store = transaction.objectStore(STORE_PENDING);
+        const request = store.get(id);
+
+        request.onsuccess = async function() {
+            const data = request.result;
+            if (data && data.pdfBase64) {
+                
+                // Convertir Base64 a Archivo (File Object)
+                const blob = base64ToBlob(data.pdfBase64, 'application/pdf');
+                const file = new File([blob], data.nombreArchivo || "reporte.pdf", { type: "application/pdf" });
+
+                // Verificar si el navegador soporta compartir archivos
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({
+                            files: [file],
+                            title: 'Reporte de Supervisión',
+                            text: `Adjunto reporte de ${data.proyecto} - ${data.ubicacion}`
+                        });
+                        // Éxito silencioso (o puedes poner un toast)
+                    } catch (error) {
+                        if (error.name !== 'AbortError') {
+                            console.error('Error al compartir:', error);
+                            Swal.fire('Error', 'No se pudo compartir.', 'error');
+                        }
+                    }
+                } else {
+                    // Fallback para PC o navegadores viejos: Descargar
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = data.nombreArchivo;
+                    link.click();
+                    Swal.fire('Descargando', 'Tu dispositivo no soporta compartir directo, se descargará el archivo.', 'info');
+                }
+            }
+            btn.html(originalHtml).prop('disabled', false);
+        };
+    } catch (error) {
+        console.error(error);
+        btn.html(originalHtml).prop('disabled', false);
+    }
 });
 
 </script>

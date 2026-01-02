@@ -5664,6 +5664,11 @@ function base64ToBlob(base64, type = 'application/pdf') {
 
 
 // CONFIGURACIÓN DEL WORKER DE PDF.JS (Necesario para que funcione)
+// =========================================================
+//  LÓGICA PARA VISTA PREVIA DE PDF (ALTA DEFINICIÓN)
+// =========================================================
+
+// CONFIGURACIÓN DEL WORKER
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
 $(document).on('click', '.btn-ver-pdf', async function(e) {
@@ -5688,49 +5693,57 @@ $(document).on('click', '.btn-ver-pdf', async function(e) {
             const data = request.result;
             if (data && data.pdfBase64) {
                 
-                // Limpiamos el contenedor anterior
+                // Limpiamos el contenedor
                 const container = document.getElementById('pdf-render-container');
                 container.innerHTML = ''; 
                 
-                // Abrir el Modal primero para que tenga dimensiones
+                // Abrimos el modal para que el contenedor tenga ancho real
                 $('#modalPdfPreview').modal('show');
 
-                // Convertir Base64 a datos binarios para PDF.js
                 const pdfData = atob(data.pdfBase64);
                 
                 try {
-                    // Cargar el documento PDF usando la librería
                     const loadingTask = pdfjsLib.getDocument({data: pdfData});
                     const pdf = await loadingTask.promise;
 
-                    // Recorrer todas las páginas y dibujarlas
                     for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
                         const page = await pdf.getPage(pageNum);
                         
-                        // Calcular escala para ajustar al ancho del móvil
-                        // Usamos un ancho base razonable o el ancho del contenedor si está disponible
-                        let scale = 1.5; 
-                        
-                        // Ajuste responsive: si es móvil, ajustamos al ancho de pantalla
-                        if (window.innerWidth < 768) {
-                             const viewportPre = page.getViewport({scale: 1});
-                             const availableWidth = window.innerWidth - 40; // Margen
-                             scale = availableWidth / viewportPre.width;
-                        }
+                        // 1. CALCULAR ESCALA VISUAL (Para que quepa en pantalla)
+                        const viewportOriginal = page.getViewport({scale: 1});
+                        // Obtenemos el ancho del contenedor (o de la ventana si es 0)
+                        const containerWidth = container.clientWidth || window.innerWidth;
+                        // Restamos un poco de margen (40px)
+                        const desiredWidth = containerWidth - 20; 
+                        const visualScale = desiredWidth / viewportOriginal.width;
 
-                        const viewport = page.getViewport({scale: scale});
+                        // 2. CALCULAR ESCALA DE RENDERIZADO (CALIDAD)
+                        // Usamos la densidad de pixeles del dispositivo (suele ser 2 o 3 en móviles)
+                        // Multiplicamos por 2 extra para asegurar nitidez máxima al hacer zoom
+                        const pixelRatio = (window.devicePixelRatio || 1) * 1.5; 
+                        const renderScale = visualScale * pixelRatio;
 
-                        // Crear el canvas para esta página
+                        const viewport = page.getViewport({scale: renderScale});
+
+                        // 3. CREAR CANVAS
                         const canvas = document.createElement('canvas');
                         const context = canvas.getContext('2d');
+
+                        // Dimensiones REALES (Alta resolución - Grandes)
                         canvas.height = viewport.height;
                         canvas.width = viewport.width;
-                        canvas.style.marginBottom = "20px"; // Espacio entre páginas
-                        canvas.style.boxShadow = "0 4px 8px rgba(0,0,0,0.3)"; // Sombrita bonita
+
+                        // Dimensiones VISUALES (CSS - Ajustadas a la pantalla)
+                        canvas.style.width = "100%"; 
+                        canvas.style.maxWidth = `${desiredWidth}px`; // Que no se pase del ancho
+                        canvas.style.height = "auto"; // Mantener proporción
+                        canvas.style.marginBottom = "20px";
+                        canvas.style.boxShadow = "0 4px 10px rgba(0,0,0,0.3)";
+                        canvas.style.borderRadius = "4px";
 
                         container.appendChild(canvas);
 
-                        // Renderizar
+                        // 4. RENDERIZAR
                         const renderContext = {
                             canvasContext: context,
                             viewport: viewport
@@ -5740,8 +5753,7 @@ $(document).on('click', '.btn-ver-pdf', async function(e) {
 
                 } catch (renderError) {
                     console.error(renderError);
-                    Swal.fire('Error Visualización', 'No se pudo renderizar el PDF en este dispositivo.', 'error');
-                    $('#modalPdfPreview').modal('hide');
+                    Swal.fire('Error Visualización', 'No se pudo renderizar el PDF.', 'error');
                 }
 
             } else {
@@ -5761,7 +5773,7 @@ $(document).on('click', '.btn-ver-pdf', async function(e) {
     }
 });
 
-// Limpiar memoria al cerrar
+// Limpieza
 $('#modalPdfPreview').on('hidden.bs.modal', function () {
     document.getElementById('pdf-render-container').innerHTML = '';
 });

@@ -10,6 +10,7 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
 
 <style>
     /* --- INICIO: Estilos Base --- */
@@ -1509,18 +1510,20 @@
 
 
 <div class="modal fade" id="modalPdfPreview" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
-    <div class="modal-dialog modal-fullscreen"> <div class="modal-content">
+    <div class="modal-dialog modal-fullscreen">
+        <div class="modal-content">
             <div class="modal-header bg-dark text-white">
-                <h5 class="modal-title"><i class="fas fa-file-pdf me-2"></i>Vista Previa del Reporte</h5>
+                <h5 class="modal-title"><i class="fas fa-file-pdf me-2"></i>Vista Previa</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body p-0">
-                <iframe id="iframe-pdf-viewer" src="" width="100%" height="100%" style="border: none;"></iframe>
+            
+            <div class="modal-body bg-secondary d-flex justify-content-center" style="overflow-y: auto;">
+                <div id="pdf-render-container" class="d-flex flex-column align-items-center w-100 p-2">
+                    </div>
             </div>
-            </div>
+        </div>
     </div>
 </div>
-
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
@@ -5646,57 +5649,6 @@ async function eliminarRegistrosSeleccionados(claseCheckbox) {
 //  LÓGICA PARA VISTA PREVIA DE PDF (PENDIENTES Y SYNC)
 // =========================================================
 
-$(document).on('click', '.btn-ver-pdf', async function(e) {
-    e.stopPropagation(); // Evita marcar el checkbox
-    const id = parseInt($(this).data('id'));
-
-    if (!db) {
-        Swal.fire('Error', 'Base de datos no inicializada', 'error');
-        return;
-    }
-
-    // Loading en el botón
-    const btn = $(this);
-    const originalHtml = btn.html();
-    btn.html('<i class="fas fa-spinner fa-spin"></i>').prop('disabled', true);
-
-    try {
-        const transaction = db.transaction([STORE_PENDING], 'readonly');
-        const store = transaction.objectStore(STORE_PENDING);
-        const request = store.get(id);
-
-        request.onsuccess = function() {
-            const data = request.result;
-            if (data && data.pdfBase64) {
-                
-                // Convertir Base64 a Blob
-                const blob = base64ToBlob(data.pdfBase64, 'application/pdf');
-                const blobUrl = URL.createObjectURL(blob);
-
-                // Poner el PDF en el iframe
-                $('#iframe-pdf-viewer').attr('src', blobUrl);
-
-                // Abrir Modal
-                $('#modalPdfPreview').modal('show');
-
-            } else {
-                Swal.fire('Error', 'No se encontró el PDF de este registro.', 'error');
-            }
-            // Restaurar botón
-            btn.html(originalHtml).prop('disabled', false);
-        };
-
-        request.onerror = function() {
-            Swal.fire('Error', 'No se pudo leer el registro.', 'error');
-            btn.html(originalHtml).prop('disabled', false);
-        };
-
-    } catch (error) {
-        console.error(error);
-        Swal.fire('Error', 'Ocurrió un error al procesar el PDF.', 'error');
-        btn.html(originalHtml).prop('disabled', false);
-    }
-});
 
 // Función auxiliar para convertir Base64 a Blob
 function base64ToBlob(base64, type = 'application/pdf') {
@@ -5709,14 +5661,110 @@ function base64ToBlob(base64, type = 'application/pdf') {
     return new Blob([arr], { type: type });
 }
 
-// Limpiar memoria cuando se cierra el modal
-$('#modalPdfPreview').on('hidden.bs.modal', function () {
-    const iframe = document.getElementById('iframe-pdf-viewer');
-    const url = iframe.src;
-    iframe.src = "";
-    if (url) URL.revokeObjectURL(url);
+
+
+// CONFIGURACIÓN DEL WORKER DE PDF.JS (Necesario para que funcione)
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+$(document).on('click', '.btn-ver-pdf', async function(e) {
+    e.stopPropagation();
+    const id = parseInt($(this).data('id'));
+
+    if (!db) {
+        Swal.fire('Error', 'Base de datos no inicializada', 'error');
+        return;
+    }
+
+    const btn = $(this);
+    const originalHtml = btn.html();
+    btn.html('<i class="fas fa-spinner fa-spin"></i>').prop('disabled', true);
+
+    try {
+        const transaction = db.transaction([STORE_PENDING], 'readonly');
+        const store = transaction.objectStore(STORE_PENDING);
+        const request = store.get(id);
+
+        request.onsuccess = async function() {
+            const data = request.result;
+            if (data && data.pdfBase64) {
+                
+                // Limpiamos el contenedor anterior
+                const container = document.getElementById('pdf-render-container');
+                container.innerHTML = ''; 
+                
+                // Abrir el Modal primero para que tenga dimensiones
+                $('#modalPdfPreview').modal('show');
+
+                // Convertir Base64 a datos binarios para PDF.js
+                const pdfData = atob(data.pdfBase64);
+                
+                try {
+                    // Cargar el documento PDF usando la librería
+                    const loadingTask = pdfjsLib.getDocument({data: pdfData});
+                    const pdf = await loadingTask.promise;
+
+                    // Recorrer todas las páginas y dibujarlas
+                    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                        const page = await pdf.getPage(pageNum);
+                        
+                        // Calcular escala para ajustar al ancho del móvil
+                        // Usamos un ancho base razonable o el ancho del contenedor si está disponible
+                        let scale = 1.5; 
+                        
+                        // Ajuste responsive: si es móvil, ajustamos al ancho de pantalla
+                        if (window.innerWidth < 768) {
+                             const viewportPre = page.getViewport({scale: 1});
+                             const availableWidth = window.innerWidth - 40; // Margen
+                             scale = availableWidth / viewportPre.width;
+                        }
+
+                        const viewport = page.getViewport({scale: scale});
+
+                        // Crear el canvas para esta página
+                        const canvas = document.createElement('canvas');
+                        const context = canvas.getContext('2d');
+                        canvas.height = viewport.height;
+                        canvas.width = viewport.width;
+                        canvas.style.marginBottom = "20px"; // Espacio entre páginas
+                        canvas.style.boxShadow = "0 4px 8px rgba(0,0,0,0.3)"; // Sombrita bonita
+
+                        container.appendChild(canvas);
+
+                        // Renderizar
+                        const renderContext = {
+                            canvasContext: context,
+                            viewport: viewport
+                        };
+                        await page.render(renderContext).promise;
+                    }
+
+                } catch (renderError) {
+                    console.error(renderError);
+                    Swal.fire('Error Visualización', 'No se pudo renderizar el PDF en este dispositivo.', 'error');
+                    $('#modalPdfPreview').modal('hide');
+                }
+
+            } else {
+                Swal.fire('Error', 'No se encontró el PDF.', 'error');
+            }
+            btn.html(originalHtml).prop('disabled', false);
+        };
+
+        request.onerror = function() {
+            Swal.fire('Error', 'Error al leer DB.', 'error');
+            btn.html(originalHtml).prop('disabled', false);
+        };
+
+    } catch (error) {
+        console.error(error);
+        btn.html(originalHtml).prop('disabled', false);
+    }
 });
 
+// Limpiar memoria al cerrar
+$('#modalPdfPreview').on('hidden.bs.modal', function () {
+    document.getElementById('pdf-render-container').innerHTML = '';
+});
 
 </script>
 </body>

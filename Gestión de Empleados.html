@@ -1258,6 +1258,9 @@
                             </button>
                         </li>
 
+
+
+
                     </ul>
                     
                     <div class="tab-content" id="myTabContent">
@@ -1973,28 +1976,6 @@
                                 </div>
                             </div>
 
-                            <div class="card mb-4">
-                                <div class="card-header">Distribución de Faltas por Motivo</div>
-                                <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-4">
-                                            <div class="chart-container" style="height: 350px;">
-                                                <canvas id="graficoDisciplinaMotivoActual"></canvas>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="chart-container" style="height: 350px;">
-                                                <canvas id="graficoDisciplinaMotivoHistorico"></canvas>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4" id="contenedorGraficoFiltradoDisciplina" style="display: none;">
-                                            <div class="chart-container" style="height: 350px;">
-                                                <canvas id="graficoDisciplinaMotivoFiltrado"></canvas>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
 
                             <div class="card">
                                 <div class="card-header d-flex justify-content-between align-items-center">
@@ -2485,7 +2466,8 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
-    <script>
+   
+ <script>
         // Variables globales
         let colaboradoresActivos = [];
         let colaboradoresIngresos = [];
@@ -2494,7 +2476,7 @@
         let disciplina = [];
         let evaluaciones = [];
         let nombresActivos = [];
-
+        let incidentes = [];
         // Gráficos Ausencias
         let graficoAusencias = null;
         let graficoAusenciasMotivoActual = null;
@@ -2636,8 +2618,6 @@ function cargarTodosLosDatos() {
         calcularEstadisticasDisciplina();
         popularFiltrosGrafico('#filtro-mes-disciplina', '#filtro-ano-disciplina', disciplina, 'fechaFalta');
         crearGraficoDisciplinaPorDia(hoy.getFullYear(), hoy.getMonth());
-        crearGraficoDisciplinaMotivoActual();
-        crearGraficoDisciplinaMotivoHistorico();
 
         // Pestaña Evaluaciones
         calcularEstadisticasEvaluaciones();
@@ -2670,16 +2650,29 @@ function cargarTodosLosDatos() {
     });
 }
 
-        function corregirFecha(item) {
-            const propiedadesFecha = ['fechaInicio', 'fechaNacimiento', 'fechaEgreso', 'fecha', 'fechaFin', 'fechaFalta', 'fechaLlamadoAtencion', 'fechaEvaluacion'];
-            propiedadesFecha.forEach(prop => {
-                if (item[prop] && typeof item[prop] === 'string' && item[prop].includes('T')) {
-                    const fecha = new Date(item[prop]);
-                    item[prop] = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`;
-                }
-            });
-            return item;
+function corregirFecha(item) {
+    const propiedadesFecha = ['fechaInicio', 'fechaNacimiento', 'fechaEgreso', 'fecha', 'fechaFin', 'fechaFalta', 'fechaLlamadoAtencion', 'fechaEvaluacion', 'fechaIncidente'];
+    propiedadesFecha.forEach(prop => {
+        if (item[prop] && typeof item[prop] === 'string' && item[prop].includes('T')) {
+            const fecha = new Date(item[prop]);
+            // Usar UTC para evitar problemas de zona horaria
+            item[prop] = `${fecha.getUTCFullYear()}-${String(fecha.getUTCMonth() + 1).padStart(2, '0')}-${String(fecha.getUTCDate()).padStart(2, '0')}`;
         }
+    });
+    return item;
+}
+
+// Función auxiliar para parsear fechas consistentemente
+function parsearFechaUTC(fechaStr) {
+    if (!fechaStr) return null;
+    try {
+        const fecha = new Date(fechaStr + 'T00:00:00Z');
+        return isNaN(fecha.getTime()) ? null : fecha;
+    } catch (error) {
+        console.error('Error parseando fecha:', fechaStr, error);
+        return null;
+    }
+}
         
 function configurarEventos() {
     // --- Eventos Generales y Formularios ---
@@ -2748,10 +2741,7 @@ function configurarEventos() {
         const ano = parseInt($('#filtro-ano-disciplina').val());
         const mes = parseInt($('#filtro-mes-disciplina').val());
         crearGraficoDisciplinaPorDia(ano, mes);
-        $('#contenedorGraficoFiltradoDisciplina').toggle(ano !== new Date().getFullYear() || mes !== new Date().getMonth());
-        if ($('#contenedorGraficoFiltradoDisciplina').is(':visible')) {
-            crearGraficoDisciplinaMotivoFiltrado(ano, mes);
-        }
+
     });
     $('#btn-filtrar-evaluaciones-grafico').on('click', function() {
         const ano = parseInt($('#filtro-ano-evaluaciones-grafico').val());
@@ -3296,6 +3286,8 @@ function registrarColaborador() {
     let esValido = true; // Validez global del lote
     const identidadRegex = /^\d{4}-\d{4}-\d{5}$/;
     let identidadesEnLote = new Set();
+    let identidadesDuplicadasEnLote = new Set(); // Nuevo: para rastrear duplicados dentro del lote
+    let identidadesDuplicadasConActivos = []; // Nuevo: para rastrear duplicados con activos
 
     $('#contenedor-formularios-colaborador .formulario-item').each(function(index) {
         const item = $(this);
@@ -3320,13 +3312,31 @@ function registrarColaborador() {
 
         // Validaciones adicionales específicas (formato, duplicados)
         if (itemValido) { // Solo si los campos básicos están llenos
-            // La validación de formato ya la hizo validarCampo
-            if (colaboradoresActivos.some(col => col.identidad === identidad) || identidadesEnLote.has(identidad)) {
-                item.find('.identidad').addClass('is-invalid').removeClass('is-valid'); // Marcar como inválido
-                Swal.fire('Error de Duplicado', `La identidad '${identidad}' del colaborador #${index + 1} ya está registrada o duplicada en este lote.`, 'error');
+            // Validar formato de identidad
+            if (!identidadRegex.test(identidad)) {
+                item.find('.identidad').addClass('is-invalid').removeClass('is-valid');
                 itemValido = false;
             } else {
-                 identidadesEnLote.add(identidad); // Añadir solo si es válido y no duplicado
+                // Verificar duplicados en colaboradores activos
+                const existeEnActivos = colaboradoresActivos.some(col => col.identidad === identidad);
+                if (existeEnActivos) {
+                    identidadesDuplicadasConActivos.push({
+                        identidad: identidad,
+                        nombre: nombre,
+                        numeroItem: index + 1
+                    });
+                    item.find('.identidad').addClass('is-invalid').removeClass('is-valid');
+                    itemValido = false;
+                }
+                
+                // Verificar duplicados dentro del mismo lote
+                if (identidadesEnLote.has(identidad)) {
+                    identidadesDuplicadasEnLote.add(identidad);
+                    item.find('.identidad').addClass('is-invalid').removeClass('is-valid');
+                    itemValido = false;
+                } else {
+                    identidadesEnLote.add(identidad);
+                }
             }
         }
 
@@ -3340,11 +3350,40 @@ function registrarColaborador() {
         }
     });
 
-    // Si hubo algún error en cualquier item, mostrar advertencia y no continuar
-    if (!esValido) {
-         Swal.fire('Formulario Incompleto', 'Revise los campos marcados en rojo en todos los registros de colaboradores.', 'warning');
-         return;
+    // Construir mensajes de error específicos
+    let mensajeError = '';
+    
+    if (identidadesDuplicadasConActivos.length > 0) {
+        mensajeError += '<strong>Identidades ya registradas en colaboradores activos:</strong><ul>';
+        identidadesDuplicadasConActivos.forEach(dup => {
+            mensajeError += `<li>Item #${dup.numeroItem}: Identidad "${dup.identidad}" (${dup.nombre}) ya existe</li>`;
+        });
+        mensajeError += '</ul>';
     }
+    
+    if (identidadesDuplicadasEnLote.size > 0) {
+        mensajeError += '<strong>Identidades duplicadas dentro de este lote:</strong><ul>';
+        identidadesDuplicadasEnLote.forEach(identidad => {
+            mensajeError += `<li>Identidad "${identidad}" aparece más de una vez en este formulario</li>`;
+        });
+        mensajeError += '</ul>';
+    }
+    
+    // Si hubo algún error en cualquier item, mostrar advertencia con mensajes específicos
+    if (!esValido) {
+        if (mensajeError) {
+            Swal.fire({
+                title: 'Error de Duplicados',
+                html: mensajeError,
+                icon: 'error',
+                confirmButtonText: 'Entendido'
+            });
+        } else {
+            Swal.fire('Formulario Incompleto', 'Revise los campos marcados en rojo en todos los registros de colaboradores.', 'warning');
+        }
+        return;
+    }
+    
     if (colaboradoresParaRegistrar.length === 0) return; // No hacer nada si no hay datos válidos
 
     // --- Pregunta de confirmación y envío (código existente) ---
@@ -3395,7 +3434,6 @@ function registrarColaborador() {
         }
     });
 }
-
 
         
         function agregarFormularioAusencia() {
@@ -3555,12 +3593,57 @@ function registrarAusencia() {
         }
     });
 }
+
+
+
+
+
+function calcularRotacionUnificada(fechaInicio, fechaFin) {
+    const inicio = new Date(fechaInicio);
+    const fin = new Date(fechaFin);
+    
+    // Calcular personal al inicio del período
+    const activosAlInicio = colaboradoresActivos.filter(col => {
+        const fechaInicioCol = new Date(col.fechaInicio + 'T00:00:00');
+        return fechaInicioCol < inicio;
+    }).length;
+    
+    // Calcular personal al final del período
+    const activosAlFinal = colaboradoresActivos.filter(col => {
+        const fechaInicioCol = new Date(col.fechaInicio + 'T00:00:00');
+        return fechaInicioCol <= fin;
+    }).length;
+    
+    // Calcular egresos en el período
+    const egresosPeriodo = colaboradoresEgresos.filter(e => {
+        const fechaEgreso = new Date(e.fechaEgreso + 'T00:00:00');
+        return fechaEgreso >= inicio && fechaEgreso <= fin;
+    }).length;
+    
+    // Calcular promedio de personal
+    const promedioPersonal = (activosAlInicio + activosAlFinal) / 2;
+    
+    // Calcular porcentaje de rotación
+    let porcentaje = 0;
+    if (promedioPersonal > 0) {
+        porcentaje = (egresosPeriodo / promedioPersonal) * 100;
+    }
+    
+    return {
+        porcentaje: porcentaje.toFixed(2),
+        egresos: egresosPeriodo,
+        activosInicio: activosAlInicio,
+        activosFin: activosAlFinal,
+        promedio: promedioPersonal.toFixed(2)
+    };
+}
+
         
 function actualizarDashboard() {
     const totalActivos = colaboradoresActivos.length;
     $('#total-activos').text(totalActivos);
     
-    // --- INICIO: LÓGICA MODIFICADA (Req 2 y 3) ---
+    // --- Demografía ---
     const hombres = colaboradoresActivos.filter(c => c.sexo === 'Masculino').length;
     const mujeres = totalActivos - hombres;
     
@@ -3577,15 +3660,14 @@ function actualizarDashboard() {
     });
     const edadPromedio = (colaboradoresConEdad > 0 ? Math.round(sumaEdades / colaboradoresConEdad) : 0);
 
-    // Poblar la nueva tarjeta de Demografía
     $('#dash-hombres').text(hombres);
     $('#dash-mujeres').text(mujeres);
     $('#dash-edad').text(edadPromedio);
     
-    // Poblar la nueva tarjeta de Días sin Incidentes
+    // Días sin incidentes
     $('#dashboard-dias-sin-incidentes').text(getDiasSinIncidentes());
-    // --- FIN: LÓGICA MODIFICADA ---
 
+    // --- Presentes y ausentes hoy ---
     const hoy = new Date();
     const yyyy = hoy.getFullYear();
     const mm = String(hoy.getMonth() + 1).padStart(2, '0');
@@ -3595,16 +3677,23 @@ function actualizarDashboard() {
     $('#ausencias-hoy').text(ausenciasHoy);
     $('#presentes-hoy').text(totalActivos - ausenciasHoy);
     
-    const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-    const egresosMes = colaboradoresEgresos.filter(e => new Date(e.fechaEgreso) >= inicioMes);
-    $('#rotacion-mes-dashboard').text(calcularPorcentajeRotacion(egresosMes).porcentaje + '%');
+    // --- Rotación del mes (USANDO FUNCIÓN UNIFICADA) ---
+    const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+    const rotacionMes = calcularRotacionUnificada(inicioMes, hoy);
+    $('#rotacion-mes-dashboard').text(rotacionMes.porcentaje + '%');
     
-    // KPIs (sin cambios)
+    // --- Otros KPIs ---
     if (totalActivos > 0) {
-        const accionesMes = disciplina.filter(d => new Date(d.fechaFalta) >= inicioMes).length;
+        const accionesMes = disciplina.filter(d => {
+            const fechaFalta = new Date(d.fechaFalta + 'T00:00:00');
+            return fechaFalta >= inicioMes;
+        }).length;
         $('#disciplina-mes-dashboard').text(((accionesMes / totalActivos) * 100).toFixed(2) + '%');
 
-        const evaluacionesMes = evaluaciones.filter(e => new Date(e.fechaEvaluacion) >= inicioMes);
+        const evaluacionesMes = evaluaciones.filter(e => {
+            const fechaEvaluacion = new Date(e.fechaEvaluacion + 'T00:00:00');
+            return fechaEvaluacion >= inicioMes;
+        });
         if (evaluacionesMes.length > 0) {
             const aprobadasMes = evaluacionesMes.filter(e => parseFloat(e.notaFinal) >= 70).length;
             $('#evaluacion-mes-dashboard').text(((aprobadasMes / evaluacionesMes.length) * 100).toFixed(2) + '%');
@@ -3616,13 +3705,31 @@ function actualizarDashboard() {
         $('#evaluacion-mes-dashboard').text('0.00%');
     }
     
-    // Tablas de últimos ingresos/egresos (sin cambios)
-    const ultimosIngresos = [...colaboradoresIngresos].sort((a, b) => new Date(b.fechaInicio) - new Date(a.fechaInicio)).slice(0, 5);
+    // --- Tablas de últimos ingresos/egresos ---
+    const ultimosIngresos = [...colaboradoresIngresos]
+        .sort((a, b) => new Date(b.fechaInicio) - new Date(a.fechaInicio))
+        .slice(0, 5);
     const tablaUltimosIngresos = $('#tabla-ultimos-ingresos tbody').empty();
-    ultimosIngresos.forEach(ing => tablaUltimosIngresos.append(`<tr><td>${formatearFecha(ing.fechaInicio)}</td><td>${ing.nombre}</td><td>${ing.identidad}</td><td>${formatearFecha(ing.fechaNacimiento)}</td><td>${ing.sexo}</td></tr>`));
-    const ultimosEgresos = [...colaboradoresEgresos].sort((a, b) => new Date(b.fechaEgreso) - new Date(a.fechaEgreso)).slice(0, 5);
+    ultimosIngresos.forEach(ing => tablaUltimosIngresos.append(`
+        <tr>
+            <td>${formatearFecha(ing.fechaInicio)}</td>
+            <td>${ing.nombre}</td>
+            <td>${ing.identidad}</td>
+            <td>${formatearFecha(ing.fechaNacimiento)}</td>
+            <td>${ing.sexo}</td>
+        </tr>`));
+    
+    const ultimosEgresos = [...colaboradoresEgresos]
+        .sort((a, b) => new Date(b.fechaEgreso) - new Date(a.fechaEgreso))
+        .slice(0, 5);
     const tablaUltimosEgresos = $('#tabla-ultimos-egresos tbody').empty();
-    ultimosEgresos.forEach(eg => tablaUltimosEgresos.append(`<tr><td>${formatearFecha(eg.fechaEgreso)}</td><td>${eg.nombre}</td><td>${eg.identidad}</td><td>${eg.razon}</td></tr>`));
+    ultimosEgresos.forEach(eg => tablaUltimosEgresos.append(`
+        <tr>
+            <td>${formatearFecha(eg.fechaEgreso)}</td>
+            <td>${eg.nombre}</td>
+            <td>${eg.identidad}</td>
+            <td>${eg.razon}</td>
+        </tr>`));
 }
 
 
@@ -3683,6 +3790,10 @@ function mostrarColaboradoresActivos() {
             </div>`);
     });
 
+    setTimeout(() => {
+        agregarPaginacionTabla('#tabla-activos', 10);
+    }, 100);
+
     // Los eventos ya están configurados con delegación en configurarEventos
 }
 
@@ -3692,22 +3803,33 @@ function mostrarColaboradoresActivos() {
 
 function filtrarActivos() {
     const texto = $('#buscador-activos').val().toLowerCase();
+    
+    if (!texto) {
+        // Mostrar todos si no hay texto
+        $('#tabla-activos tbody tr').show();
+        $('#grid-activos .empleado-card-grid-item').show();
+        return;
+    }
 
     // Filtrar Tabla
     $('#tabla-activos tbody tr').each(function() {
-        const nombre = $(this).find('td:eq(1)').text().toLowerCase();
-        const identidad = $(this).find('td:eq(2)').text().toLowerCase();
-        $(this).toggle(nombre.includes(texto) || identidad.includes(texto));
+        const $fila = $(this);
+        const nombre = $fila.find('td:eq(1)').text();
+        const identidad = $fila.find('td:eq(2)').text();
+        const coincide = nombre.toLowerCase().includes(texto) || identidad.toLowerCase().includes(texto);
+        $fila.toggle(coincide);
     });
 
     // Filtrar Grid
     $('#grid-activos .empleado-card-grid-item').each(function() {
-        const nombre = $(this).find('h6').text().toLowerCase();
-        const identidad = $(this).find('p').text().toLowerCase();
-        // Usamos .parent() si el filtro aplica a la columna (col-...)
-        $(this).toggle(nombre.includes(texto) || identidad.includes(texto));
+        const $item = $(this);
+        const nombre = $item.find('h6').text();
+        const identidad = $item.find('p').text();
+        const coincide = nombre.toLowerCase().includes(texto) || identidad.toLowerCase().includes(texto);
+        $item.toggle(coincide);
     });
 }
+
 
 function editarColaborador(index) {
     const colaborador = colaboradoresActivos[index];
@@ -3797,22 +3919,99 @@ function editarColaborador(index) {
             $('#detalle-general').text(egresos + ' egresos');
         }
 
-        function calcularRotacionPeriodos() {
-            const hoy = new Date();
-            [{ id: 'mes', meses: 0 }, { id: '3meses', meses: 3 }, { id: '6meses', meses: 6 }, { id: '12meses', meses: 12 }].forEach(p => {
-                const fechaInicio = new Date(hoy.getFullYear(), hoy.getMonth() - p.meses, 1);
-                const egresosPeriodo = colaboradoresEgresos.filter(e => new Date(e.fechaEgreso) >= fechaInicio);
-                const { porcentaje, egresos } = calcularPorcentajeRotacion(egresosPeriodo);
-                $(`#rotacion-${p.id}`).text(porcentaje + '%');
-                $(`#detalle-${p.id}`).text(egresos + ' egresos');
-            });
-        }
+function calcularRotacionPeriodos() {
+    const hoy = new Date();
+    
+    // Rotación del mes actual
+    const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+    const rotacionMes = calcularRotacionUnificada(inicioMes, hoy);
+    $('#rotacion-mes').text(rotacionMes.porcentaje + '%');
+    $('#detalle-mes').text(`${rotacionMes.egresos} egresos`);
+    
+    // Rotación últimos 3 meses
+    const inicio3Meses = new Date(hoy.getFullYear(), hoy.getMonth() - 3, 1);
+    const rotacion3Meses = calcularRotacionUnificada(inicio3Meses, hoy);
+    $('#rotacion-3meses').text(rotacion3Meses.porcentaje + '%');
+    $('#detalle-3meses').text(`${rotacion3Meses.egresos} egresos`);
+    
+    // Rotación últimos 6 meses
+    const inicio6Meses = new Date(hoy.getFullYear(), hoy.getMonth() - 6, 1);
+    const rotacion6Meses = calcularRotacionUnificada(inicio6Meses, hoy);
+    $('#rotacion-6meses').text(rotacion6Meses.porcentaje + '%');
+    $('#detalle-6meses').text(`${rotacion6Meses.egresos} egresos`);
+    
+    // Rotación últimos 12 meses
+    const inicio12Meses = new Date(hoy.getFullYear(), hoy.getMonth() - 12, 1);
+    const rotacion12Meses = calcularRotacionUnificada(inicio12Meses, hoy);
+    $('#rotacion-12meses').text(rotacion12Meses.porcentaje + '%');
+    $('#detalle-12meses').text(`${rotacion12Meses.egresos} egresos`);
+    
+    // Rotación general (desde el primer registro)
+    if (colaboradoresIngresos.length > 0) {
+        const primerIngreso = colaboradoresIngresos.reduce((min, col) => {
+            const fecha = new Date(col.fechaInicio + 'T00:00:00');
+            return fecha < min ? fecha : min;
+        }, new Date());
+        
+        const rotacionGeneral = calcularRotacionUnificada(primerIngreso, hoy);
+        $('#rotacion-general').text(rotacionGeneral.porcentaje + '%');
+        $('#detalle-general').text(`${rotacionGeneral.egresos} egresos`);
+    } else {
+        $('#rotacion-general').text('0%');
+        $('#detalle-general').text('0 egresos');
+    }
+}
 
-        function calcularPorcentajeRotacion(egresosPeriodo) {
-            const totalActivos = colaboradoresActivos.length, totalEgresos = egresosPeriodo.length;
-            const porcentaje = (totalActivos + totalEgresos > 0) ? (totalEgresos / (totalActivos + totalEgresos)) * 100 : 0;
-            return { porcentaje: porcentaje.toFixed(2), egresos: totalEgresos };
-        }
+
+function calcularPorcentajeRotacion(egresosPeriodo, fechaInicioPeriodo = null, fechaFinPeriodo = null) {
+    // Si no se proporcionan fechas específicas, asumimos el período actual
+    if (!fechaFinPeriodo) {
+        fechaFinPeriodo = new Date();
+    }
+    
+    if (!fechaInicioPeriodo) {
+        fechaInicioPeriodo = new Date(fechaFinPeriodo);
+        fechaInicioPeriodo.setMonth(fechaFinPeriodo.getMonth() - 1);
+    }
+    
+    // Filtrar colaboradores activos al inicio del período
+    const activosAlInicio = colaboradoresActivos.filter(col => {
+        const fechaInicio = new Date(col.fechaInicio + 'T00:00:00');
+        return fechaInicio <= fechaInicioPeriodo;
+    });
+    
+    // Filtrar colaboradores activos al final del período (incluyendo nuevos ingresos)
+    const activosAlFinal = colaboradoresActivos.filter(col => {
+        const fechaInicio = new Date(col.fechaInicio + 'T00:00:00');
+        return fechaInicio <= fechaFinPeriodo;
+    });
+    
+    // Calcular promedio de personal
+    const promedioPersonal = (activosAlInicio.length + activosAlFinal.length) / 2;
+    
+    // Filtrar egresos que ocurrieron en el período
+    const egresosEnPeriodo = colaboradoresEgresos.filter(e => {
+        const fechaEgreso = new Date(e.fechaEgreso + 'T00:00:00');
+        return fechaEgreso >= fechaInicioPeriodo && fechaEgreso <= fechaFinPeriodo;
+    });
+    
+    const totalEgresos = egresosEnPeriodo.length;
+    
+    // Calcular porcentaje de rotación
+    let porcentaje = 0;
+    if (promedioPersonal > 0) {
+        porcentaje = (totalEgresos / promedioPersonal) * 100;
+    }
+    
+    return { 
+        porcentaje: porcentaje.toFixed(2), 
+        egresos: totalEgresos,
+        activosInicio: activosAlInicio.length,
+        activosFin: activosAlFinal.length,
+        promedio: promedioPersonal.toFixed(2)
+    };
+}
+
 
         function calcularRotacionPersonalizado() {
             const inicio = $('#fecha-inicio-personalizado').val(), fin = $('#fecha-fin-personalizado').val();
@@ -4433,54 +4632,7 @@ function mostrarHistorialDisciplina(datos) {
             });
         }
         
-        function crearGraficoDisciplinaMotivo(canvasId, targetData) {
-             const conteo = {};
-             targetData.forEach(reg => {
-                reg.descripcionFaltas.split('; ').forEach(falta => {
-                    if(falta) conteo[falta] = (conteo[falta] || 0) + 1;
-                });
-             });
-             const labels = Object.keys(conteo);
-             const data = Object.values(conteo);
-             
-             const ctx = document.getElementById(canvasId).getContext('2d');
-             return new Chart(ctx, {
-                type: 'pie',
-                data: { labels, datasets: [{ data, backgroundColor: ['#e74c3c', '#f1c40f', '#3498db', '#9b59b6', '#2ecc71', '#e67e22', '#1abc9c', '#2c3e50', '#7f8c8d'] }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, title: { display: true, text: 'Distribución por Motivo' } } }
-            });
-        }
 
-        function crearGraficoDisciplinaMotivoActual() {
-            if (graficoDisciplinaMotivoActual) graficoDisciplinaMotivoActual.destroy();
-            const hoy = new Date(), mesActual = hoy.getMonth(), anoActual = hoy.getFullYear();
-            const datosMes = disciplina.filter(d => {
-                const fecha = new Date(d.fechaFalta + 'T00:00:00');
-                return fecha.getMonth() === mesActual && fecha.getFullYear() === anoActual;
-            });
-            graficoDisciplinaMotivoActual = crearGraficoDisciplinaMotivo('graficoDisciplinaMotivoActual', datosMes);
-            graficoDisciplinaMotivoActual.options.plugins.title.text = 'Distribución (Mes Actual)';
-            graficoDisciplinaMotivoActual.update();
-        }
-
-        function crearGraficoDisciplinaMotivoHistorico() {
-            if (graficoDisciplinaMotivoHistorico) graficoDisciplinaMotivoHistorico.destroy();
-            graficoDisciplinaMotivoHistorico = crearGraficoDisciplinaMotivo('graficoDisciplinaMotivoHistorico', disciplina);
-            graficoDisciplinaMotivoHistorico.options.plugins.title.text = 'Distribución (Histórica)';
-            graficoDisciplinaMotivoHistorico.update();
-        }
-
-        function crearGraficoDisciplinaMotivoFiltrado(ano, mes) {
-            if (graficoDisciplinaMotivoFiltrado) graficoDisciplinaMotivoFiltrado.destroy();
-            const datosFiltrados = disciplina.filter(d => {
-                const fecha = new Date(d.fechaFalta + 'T00:00:00');
-                return fecha.getMonth() === mes && fecha.getFullYear() === ano;
-            });
-            graficoDisciplinaMotivoFiltrado = crearGraficoDisciplinaMotivo('graficoDisciplinaMotivoFiltrado', datosFiltrados);
-            const nombreMes = new Date(ano, mes).toLocaleString('es-ES', { month: 'long' });
-            graficoDisciplinaMotivoFiltrado.options.plugins.title.text = `Distribución (${nombreMes} ${ano})`;
-            graficoDisciplinaMotivoFiltrado.update();
-        }
         
 function calcularEstadisticasAusencias() {
     const hoy = new Date();
@@ -4493,59 +4645,103 @@ function calcularEstadisticasAusencias() {
             : new Date(hoy.getFullYear(), hoy.getMonth() - p.meses + 1, 1);
         
         let diasAusentePeriodo = 0;
+        let diasLaborablesPosibles = 0;
+        
+        // Para cada colaborador activo, calcular días laborables en el período
+        colaboradoresActivos.forEach(col => {
+            const fechaInicio = new Date(col.fechaInicio + 'T00:00:00');
+            const fechaFinCalculo = fechaFinPeriodo;
+            
+            // Si el colaborador ingresó después del inicio del período, ajustar
+            const fechaInicioEfectiva = fechaInicio > fechaInicioPeriodo ? fechaInicio : fechaInicioPeriodo;
+            
+            // Calcular días laborables para este colaborador
+            if (fechaInicioEfectiva <= fechaFinCalculo) {
+                // Días entre fechas (incluyendo ambas)
+                const diffTiempo = fechaFinCalculo - fechaInicioEfectiva;
+                const diffDias = Math.ceil(diffTiempo / (1000 * 60 * 60 * 24)) + 1;
+                
+                // Calcular días laborables aproximados (asumiendo 22 días por mes)
+                const mesesTrabajados = (p.meses === 0) ? 1 : p.meses;
+                diasLaborablesPosibles += Math.min(diffDias, 22 * mesesTrabajados);
+            }
+        });
+        
+        // Calcular días ausentes en el período
         ausencias.forEach(a => { 
             const fechaAusenciaInicio = new Date(a.fecha + 'T00:00:00');
             const fechaAusenciaFin = new Date((a.fechaFin || a.fecha) + 'T00:00:00');
             
-            for (let d = new Date(fechaAusenciaInicio); d <= fechaAusenciaFin; d.setDate(d.getDate() + 1)) {
-                if (d >= fechaInicioPeriodo && d <= fechaFinPeriodo) {
-                    diasAusentePeriodo++; 
-                }
+            // Verificar que la ausencia esté dentro del período
+            if (fechaAusenciaFin < fechaInicioPeriodo || fechaAusenciaInicio > fechaFinPeriodo) {
+                return; // Ausencia fuera del período
+            }
+            
+            // Calcular días de ausencia que caen dentro del período
+            const fechaInicioInterseccion = fechaAusenciaInicio < fechaInicioPeriodo ? fechaInicioPeriodo : fechaAusenciaInicio;
+            const fechaFinInterseccion = fechaAusenciaFin > fechaFinPeriodo ? fechaFinPeriodo : fechaAusenciaFin;
+            
+            if (fechaInicioInterseccion <= fechaFinInterseccion) {
+                const diffTiempo = fechaFinInterseccion - fechaInicioInterseccion;
+                const diasEnPeriodo = Math.ceil(diffTiempo / (1000 * 60 * 60 * 24)) + 1;
+                diasAusentePeriodo += diasEnPeriodo;
             }
         });
         
-        const diasLaborablesPosibles = colaboradoresActivos.length * 22 * (p.meses === 0 ? 1 : p.meses);
         const porcentaje = diasLaborablesPosibles > 0 ? ((diasAusentePeriodo / diasLaborablesPosibles) * 100).toFixed(2) : '0.00';
         $(`#ausentismo-${p.id}`).text(porcentaje + '%');
         if(p.id === 'mes') $('#ausentismo-mes-dashboard').text(porcentaje + '%');
     });
 
-    // --- LÓGICA HISTÓRICA CORREGIDA ---
+    // --- CORREGIR CÁLCULO HISTÓRICO ---
     let totalDiasAusenciasHistorico = 0;
     ausencias.forEach(a => { 
         totalDiasAusenciasHistorico += (a.diasIncapacidad || 1); 
     });
 
-    // Construir una lista maestra de todos los que han sido contratados (activos + egresados)
-    // Asumimos que 'activos' y 'egresados' son listas distintas.
-    const todosLosEmpleadosHistorial = [...colaboradoresActivos];
-    colaboradoresEgresos.forEach(eg => {
-        if (!todosLosEmpleadosHistorial.some(act => act.identidad === eg.identidad)) {
-            // Asegurarnos que el egresado tiene fecha de inicio, si no, no podemos calcular
-            if (eg.fechaInicio) {
-                todosLosEmpleadosHistorial.push(eg);
-            }
-        }
-    });
-
+    // Calcular días laborables históricos
     let totalDiasLaborablesPosiblesHistorico = 0;
     
-    todosLosEmpleadosHistorial.forEach(col => {
-        const fechaInicio = new Date(col.fechaInicio + 'T00:00:00');
-        // El 'egreso' solo aplica a los de la lista de 'colaboradoresEgresos'
-        const egreso = colaboradoresEgresos.find(e => e.identidad === col.identidad);
-        let fechaFin = egreso ? new Date(egreso.fechaEgreso + 'T00:00:00') : new Date(hoy);
-
-        if (fechaFin > hoy) fechaFin = new Date(hoy);
-
-        if (fechaFin >= fechaInicio) {
-            let mesesDeTrabajo = (fechaFin.getFullYear() - fechaInicio.getFullYear()) * 12 - fechaInicio.getMonth() + fechaFin.getMonth();
-            totalDiasLaborablesPosiblesHistorico += (mesesDeTrabajo < 0 ? 0 : mesesDeTrabajo + 1) * 22;
+    // Considerar todos los colaboradores que han estado en la empresa (activos + egresados)
+    const todosEmpleados = [...colaboradoresActivos, ...colaboradoresEgresos];
+    const empleadosUnicos = [];
+    const idsVistos = new Set();
+    
+    // Filtrar empleados únicos
+    todosEmpleados.forEach(emp => {
+        if (!idsVistos.has(emp.identidad)) {
+            idsVistos.add(emp.identidad);
+            empleadosUnicos.push(emp);
         }
     });
-
-    $('#ausentismo-historico').text(totalDiasLaborablesPosiblesHistorico > 0 ? ((totalDiasAusenciasHistorico / totalDiasLaborablesPosiblesHistorico) * 100).toFixed(2) + '%' : '0.00%');
+    
+    empleadosUnicos.forEach(emp => {
+        const fechaInicio = new Date(emp.fechaInicio + 'T00:00:00');
+        const fechaFin = emp.fechaEgreso ? new Date(emp.fechaEgreso + 'T00:00:00') : new Date(hoy);
+        
+        // Asegurar que fechaFin no sea mayor a hoy
+        if (fechaFin > hoy) fechaFin = new Date(hoy);
+        
+        if (fechaFin >= fechaInicio) {
+            // Calcular días laborables aproximados
+            const diffTiempo = fechaFin - fechaInicio;
+            const diffDias = Math.ceil(diffTiempo / (1000 * 60 * 60 * 24)) + 1;
+            
+            // Asumir 22 días laborables por mes (promedio)
+            const mesesTrabajados = diffDias / 30.44; // Días promedio por mes
+            const diasLaborablesEstimados = Math.round(mesesTrabajados * 22);
+            
+            totalDiasLaborablesPosiblesHistorico += diasLaborablesEstimados;
+        }
+    });
+    
+    const porcentajeHistorico = totalDiasLaborablesPosiblesHistorico > 0 
+        ? ((totalDiasAusenciasHistorico / totalDiasLaborablesPosiblesHistorico) * 100).toFixed(2)
+        : '0.00';
+    
+    $('#ausentismo-historico').text(porcentajeHistorico + '%');
 }
+
 
 
         function popularFiltrosGrafico(mesSelector, anoSelector, datos, fechaKey = 'fecha') {
@@ -4563,12 +4759,14 @@ function calcularEstadisticasAusencias() {
 
 function crearGraficoAusencias(ano, mes) {
     // Destruir gráfico anterior si existe
-    const chartInstance = Chart.getChart('graficoAusencias');
+    const canvas = document.getElementById('graficoAusencias');
+    const chartInstance = Chart.getChart(canvas);
+    
     if (chartInstance) {
         chartInstance.destroy();
     }
 
-    const ctx = document.getElementById('graficoAusencias').getContext('2d');
+    const ctx = canvas.getContext('2d');
     // Usar UTC para obtener el número de días del mes correctamente
     const diasEnMes = new Date(Date.UTC(ano, mes + 1, 0)).getUTCDate();
     const labels = Array.from({ length: diasEnMes }, (_, i) => `${i + 1}/${mes + 1}`);
@@ -4622,11 +4820,34 @@ function crearGraficoAusencias(ano, mes) {
             responsive: true,
             maintainAspectRatio: false,
             scales: {
-                y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                y: { 
+                    beginAtZero: true, 
+                    ticks: { stepSize: 1 },
+                    title: {
+                        display: true,
+                        text: 'Número de Ausentes'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Días del Mes'
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `Ausentes: ${context.parsed.y}`;
+                        }
+                    }
+                }
             }
         }
     });
 }
+
 
         
 function crearGraficoAusenciasMotivo(canvasId, targetData) {
@@ -5360,50 +5581,68 @@ function mostrarHistorialEvaluaciones(datos) {
             });
         }
 
-        function actualizarAlertasBajoRendimiento() {
-            const container = $('#contenedor-bajo-rendimiento');
-            container.empty();
-            const ultimasEvaluaciones = {};
+function actualizarAlertasBajoRendimiento() {
+    const container = $('#contenedor-bajo-rendimiento');
+    container.empty();
+    const ultimasEvaluaciones = {};
 
-            evaluaciones.forEach(ev => {
-                if (!ultimasEvaluaciones[ev.identidad] || new Date(ev.fechaEvaluacion) > new Date(ultimasEvaluaciones[ev.identidad].fechaEvaluacion)) {
-                    ultimasEvaluaciones[ev.identidad] = ev;
-                }
-            });
-
-            const empleadosBajoRendimiento = Object.values(ultimasEvaluaciones)
-                .filter(e => parseFloat(e.notaFinal) < 70)
-                .sort((a, b) => parseFloat(a.notaFinal) - parseFloat(b.notaFinal));
-
-            if (empleadosBajoRendimiento.length === 0) {
-                container.html('<div class="text-center p-3 text-success"><i class="fas fa-check-circle fa-2x mb-2"></i><p class="mb-0">¡Excelente! Ningún colaborador presenta bajo rendimiento en su última evaluación.</p></div>');
-                return;
-            }
-
-            let listHtml = '';
-            empleadosBajoRendimiento.forEach(item => {
-                const colaboradorInfo = colaboradoresActivos.find(c => c.identidad === item.identidad) || { nombre: item.nombre, fotoUrl: '' };
-                const nota = parseFloat(item.notaFinal);
-                let color = 'bg-danger';
-                let texto = 'Insatisfactorio';
-                if (nota >= 60) {
-                    color = 'bg-warning text-dark';
-                    texto = 'Necesita Mejora';
-                }
-
-                const fotoSrc = colaboradorInfo.fotoUrl || `https://ui-avatars.com/api/?name=${colaboradorInfo.nombre.replace(/\s/g, "+")}&background=random`;
-                listHtml += `
-                    <div class="resumen-disciplina-item">
-                        <img src="${fotoSrc}" class="resumen-disciplina-img" onerror="this.src='https://ui-avatars.com/api/?name=${colaboradorInfo.nombre.replace(/\s/g, "+")}&background=random'">
-                        <div class="resumen-disciplina-info">
-                            <h6>${colaboradorInfo.nombre}</h6>
-                            <p class="mb-0 small">Última evaluación: ${formatearFecha(item.fechaEvaluacion)}</p>
-                        </div>
-                        <span class="badge ${color}">${texto}: ${item.notaFinal}</span>
-                    </div>`;
-            });
-            container.html(listHtml);
+    // Obtener la evaluación más reciente de cada colaborador
+    evaluaciones.forEach(ev => {
+        // Verificar si el colaborador está activo ANTES de agregarlo
+        const colaboradorActivo = colaboradoresActivos.find(c => c.identidad === ev.identidad);
+        if (!colaboradorActivo) {
+            return; // Saltar evaluaciones de colaboradores no activos
         }
+        
+        if (!ultimasEvaluaciones[ev.identidad] || new Date(ev.fechaEvaluacion) > new Date(ultimasEvaluaciones[ev.identidad].fechaEvaluacion)) {
+            ultimasEvaluaciones[ev.identidad] = ev;
+        }
+    });
+
+    // Filtrar solo evaluaciones de colaboradores activos con bajo rendimiento
+    const empleadosBajoRendimiento = Object.values(ultimasEvaluaciones)
+        .filter(e => parseFloat(e.notaFinal) < 70)
+        .sort((a, b) => parseFloat(a.notaFinal) - parseFloat(b.notaFinal));
+
+    if (empleadosBajoRendimiento.length === 0) {
+        container.html('<div class="text-center p-3 text-success"><i class="fas fa-check-circle fa-2x mb-2"></i><p class="mb-0">¡Excelente! Ningún colaborador activo presenta bajo rendimiento en su última evaluación.</p></div>');
+        return;
+    }
+
+    let listHtml = '';
+    empleadosBajoRendimiento.forEach(item => {
+        // Buscar información del colaborador (ya sabemos que está activo)
+        const colaboradorInfo = colaboradoresActivos.find(c => c.identidad === item.identidad);
+        if (!colaboradorInfo) return; // Seguridad adicional
+        
+        const nota = parseFloat(item.notaFinal);
+        let color = 'bg-danger';
+        let texto = 'Insatisfactorio';
+        if (nota >= 60) {
+            color = 'bg-warning text-dark';
+            texto = 'Necesita Mejora';
+        }
+
+        const fotoSrc = colaboradorInfo.fotoUrl || `https://ui-avatars.com/api/?name=${colaboradorInfo.nombre.replace(/\s/g, "+")}&background=random`;
+        listHtml += `
+            <div class="resumen-disciplina-item" data-identidad="${item.identidad}" style="cursor: pointer;">
+                <img src="${fotoSrc}" class="resumen-disciplina-img" onerror="this.src='https://ui-avatars.com/api/?name=${colaboradorInfo.nombre.replace(/\s/g, "+")}&background=random'">
+                <div class="resumen-disciplina-info">
+                    <h6>${colaboradorInfo.nombre}</h6>
+                    <p class="mb-0 small">Última evaluación: ${formatearFecha(item.fechaEvaluacion)}</p>
+                </div>
+                <span class="badge ${color}">${texto}: ${item.notaFinal}</span>
+            </div>`;
+    });
+    container.html(listHtml);
+    
+    // Agregar evento click para ver detalle
+    container.on('click', '.resumen-disciplina-item', function() {
+        const identidad = $(this).data('identidad');
+        mostrarDetalleEvaluacionesColaborador(identidad);
+    });
+}
+
 
 
 function mostrarCumpleanerosDelMes() {
@@ -5441,117 +5680,165 @@ function mostrarCumpleanerosDelMes() {
 
         
         // --- INICIO FUNCIONES PLANILLA ---
-        function generarPlanilla(fechaStr) {
-            const fecha = new Date(fechaStr + 'T00:00:00');
-            const dia = fecha.getDate();
-            const mes = fecha.getMonth();
-            const ano = fecha.getFullYear();
+function generarPlanilla(fechaStr) {
+    const fecha = parsearFechaUTC(fechaStr);
+    if (!fecha) return;
+    
+    const dia = fecha.getUTCDate();
+    const mes = fecha.getUTCMonth();
+    const ano = fecha.getUTCFullYear();
 
-            let inicioQuincena, finQuincena;
-            if (dia <= 15) {
-                inicioQuincena = new Date(ano, mes, 1);
-                finQuincena = new Date(ano, mes, 15);
-            } else {
-                inicioQuincena = new Date(ano, mes, 16);
-                finQuincena = new Date(ano, mes + 1, 0); // Último día del mes
-            }
+    let inicioQuincena, finQuincena;
+    if (dia <= 15) {
+        inicioQuincena = new Date(Date.UTC(ano, mes, 1));
+        finQuincena = new Date(Date.UTC(ano, mes, 15));
+    } else {
+        inicioQuincena = new Date(Date.UTC(ano, mes, 16));
+        finQuincena = new Date(Date.UTC(ano, mes + 1, 0)); // Último día del mes
+    }
 
-            const diasArray = [];
-            for (let d = new Date(inicioQuincena); d <= finQuincena; d.setDate(d.getDate() + 1)) {
-                diasArray.push(new Date(d));
-            }
+    const diasArray = [];
+    for (let d = new Date(inicioQuincena); d <= finQuincena; d.setUTCDate(d.getUTCDate() + 1)) {
+        diasArray.push(new Date(d));
+    }
 
-            const diasSemana = ['D', 'L', 'M', 'Mi', 'J', 'V', 'S'];
-            const thead = $('#tabla-planilla thead').empty();
-            let headerRow1 = '<tr><th class="table-dark" style="min-width: 200px;">Colaborador</th>';
-            let headerRow2 = '<tr><th class="table-dark" style="min-width: 200px;"></th>';
-            
-            diasArray.forEach(d => {
-                headerRow1 += `<th class="table-dark">${d.getDate()}</th>`;
-                headerRow2 += `<th class="table-dark">${diasSemana[d.getDay()]}</th>`;
-            });
-            headerRow1 += '</tr>';
-            headerRow2 += '</tr>';
-            thead.html(headerRow1 + headerRow2);
+    const diasSemana = ['D', 'L', 'M', 'Mi', 'J', 'V', 'S'];
+    const thead = $('#tabla-planilla thead').empty();
+    let headerRow1 = '<tr><th class="table-dark" style="min-width: 200px;">Colaborador</th>';
+    let headerRow2 = '<tr><th class="table-dark" style="min-width: 200px;"></th>';
+    
+    diasArray.forEach(d => {
+        headerRow1 += `<th class="table-dark">${d.getUTCDate()}</th>`;
+        headerRow2 += `<th class="table-dark">${diasSemana[d.getUTCDay()]}</th>`;
+    });
+    headerRow1 += '</tr>';
+    headerRow2 += '</tr>';
+    thead.html(headerRow1 + headerRow2);
 
-            const tbody = $('#tabla-planilla tbody').empty();
-            
-            // 1. Obtener todos los colaboradores que estuvieron activos o egresaron DURANTE esta quincena
-            let colaboradoresPlanilla = [];
-            colaboradoresActivos.forEach(col => {
-                const fechaInicio = new Date(col.fechaInicio + 'T00:00:00');
-                if (fechaInicio <= finQuincena) { // Si ingresó antes de que terminara la quincena
-                    colaboradoresPlanilla.push(col);
-                }
-            });
-            
-            colaboradoresEgresos.forEach(eg => {
-                const fechaInicio = new Date(eg.fechaInicio + 'T00:00:00');
-                const fechaEgreso = new Date(eg.fechaEgreso + 'T00:00:00');
-                // Si ingresó antes de que terminara la quincena Y egresó después de que iniciara
-                if (fechaInicio <= finQuincena && fechaEgreso >= inicioQuincena) {
-                    if (!colaboradoresPlanilla.some(c => c.identidad === eg.identidad)) {
-                        colaboradoresPlanilla.push(eg);
-                    }
-                }
-            });
-            
-            colaboradoresPlanilla.sort((a, b) => a.nombre.localeCompare(b.nombre));
-
-            colaboradoresPlanilla.forEach(col => {
-                let filaHtml = `<tr data-nombre="${col.nombre}"><td>${col.nombre}</td>`;
-                const egresadoInfo = colaboradoresEgresos.find(e => e.identidad === col.identidad);
-                const fechaInicio = new Date(col.fechaInicio + 'T00:00:00');
-                let egresoFlag = false;
-
-                for (let i = 0; i < diasArray.length; i++) {
-                    const fechaDia = diasArray[i];
-                    if (egresoFlag) break;
-
-                    let celda = '';
-
-                    // Comprobar Egreso
-                    if (egresadoInfo) {
-                        const fechaEgreso = new Date(egresadoInfo.fechaEgreso + 'T00:00:00');
-                        if (fechaDia >= fechaEgreso) {
-                            const colspan = diasArray.length - i;
-                            celda = `<td colspan="${colspan}" class="egreso-cell">${egresadoInfo.razon}</td>`;
-                            egresoFlag = true;
-                        }
-                    }
-
-                    // Comprobar Nuevo Ingreso
-                    if (!egresoFlag && fechaDia < fechaInicio) {
-                        celda = '<td class="nuevo-ingreso">NI</td>';
-                    }
-                    
-                    // Comprobar Ausencia
-                    if (!egresoFlag && !celda) {
-                        const ausencia = ausencias.find(a => 
-                            a.identidad === col.identidad &&
-                            fechaDia >= new Date(a.fecha + 'T00:00:00') &&
-                            fechaDia <= new Date((a.fechaFin || a.fecha) + 'T00:00:00') // Usar fechaFin si existe
-                        );
-                        if (ausencia) {
-                            if (ausencia.motivo === 'Incapacidad') celda = '<td class="incapacidad">I</td>';
-                            else if (ausencia.motivo === 'Falta Injustificada') celda = '<td class="falta">NSP</td>';
-                            else if (ausencia.motivo === 'Permiso') celda = '<td class="permiso">P</td>';
-                        }
-                    }
-
-                    // Marcar Asistencia (Default)
-                    if (!egresoFlag && !celda) {
-                        celda = '<td class="asistencia">✔</td>';
-                    }
-                    
-                    filaHtml += celda;
-                }
-                filaHtml += '</tr>';
-                tbody.append(filaHtml);
-            });
-            
-            generarSimbologiaPlanilla();
+    const tbody = $('#tabla-planilla tbody').empty();
+    
+    // 1. Obtener todos los colaboradores que estuvieron activos o egresaron DURANTE esta quincena
+    let colaboradoresPlanilla = [];
+    
+    // Optimización: Crear Maps para búsquedas rápidas
+    const ausenciasMap = new Map();
+    ausencias.forEach(a => {
+        const key = a.identidad;
+        if (!ausenciasMap.has(key)) {
+            ausenciasMap.set(key, []);
         }
+        ausenciasMap.get(key).push({
+            inicio: parsearFechaUTC(a.fecha),
+            fin: parsearFechaUTC(a.fechaFin || a.fecha),
+            motivo: a.motivo
+        });
+    });
+
+    const egresosMap = new Map();
+    colaboradoresEgresos.forEach(e => {
+        egresosMap.set(e.identidad, {
+            fechaEgreso: parsearFechaUTC(e.fechaEgreso),
+            razon: e.razon
+        });
+    });
+
+    // Procesar colaboradores activos
+    colaboradoresActivos.forEach(col => {
+        const fechaInicio = parsearFechaUTC(col.fechaInicio);
+        if (fechaInicio <= finQuincena) {
+            colaboradoresPlanilla.push({
+                ...col,
+                fechaInicio: fechaInicio,
+                esActivo: true
+            });
+        }
+    });
+    
+    // Procesar colaboradores egresados relevantes para esta quincena
+    colaboradoresEgresos.forEach(eg => {
+        const fechaInicio = parsearFechaUTC(eg.fechaInicio);
+        const fechaEgreso = parsearFechaUTC(eg.fechaEgreso);
+        
+        if (fechaInicio <= finQuincena && fechaEgreso >= inicioQuincena) {
+            // Verificar que no esté ya en la lista
+            const yaExiste = colaboradoresPlanilla.some(c => c.identidad === eg.identidad);
+            if (!yaExiste) {
+                colaboradoresPlanilla.push({
+                    ...eg,
+                    fechaInicio: fechaInicio,
+                    fechaEgreso: fechaEgreso,
+                    esActivo: false
+                });
+            }
+        }
+    });
+    
+    // Ordenar alfabéticamente
+    colaboradoresPlanilla.sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+    // Generar filas optimizadas
+    colaboradoresPlanilla.forEach(col => {
+        let filaHtml = `<tr data-nombre="${col.nombre}"><td>${col.nombre}</td>`;
+        
+        // Obtener información de egreso (si existe)
+        const egresoInfo = egresosMap.get(col.identidad);
+        let egresoFlag = false;
+
+        // Obtener ausencias para este colaborador
+        const ausenciasColaborador = ausenciasMap.get(col.identidad) || [];
+
+        for (let i = 0; i < diasArray.length; i++) {
+            const fechaDia = diasArray[i];
+            if (egresoFlag) break;
+
+            let celda = '';
+
+            // Comprobar Egreso
+            if (egresoInfo && egresoInfo.fechaEgreso) {
+                if (fechaDia >= egresoInfo.fechaEgreso) {
+                    const colspan = diasArray.length - i;
+                    celda = `<td colspan="${colspan}" class="egreso-cell">${egresoInfo.razon}</td>`;
+                    egresoFlag = true;
+                }
+            }
+
+            // Comprobar Nuevo Ingreso
+            if (!egresoFlag && fechaDia < col.fechaInicio) {
+                celda = '<td class="nuevo-ingreso">NI</td>';
+            }
+            
+            // Comprobar Ausencia (optimizado)
+            if (!egresoFlag && !celda && ausenciasColaborador.length > 0) {
+                for (const ausencia of ausenciasColaborador) {
+                    if (fechaDia >= ausencia.inicio && fechaDia <= ausencia.fin) {
+                        if (ausencia.motivo === 'Incapacidad') {
+                            celda = '<td class="incapacidad">I</td>';
+                        } else if (ausencia.motivo === 'Falta Injustificada') {
+                            celda = '<td class="falta">NSP</td>';
+                        } else if (ausencia.motivo === 'Permiso') {
+                            celda = '<td class="permiso">P</td>';
+                        }
+                        break; // Salir del loop de ausencias
+                    }
+                }
+            }
+
+            // Marcar Asistencia (Default)
+            if (!egresoFlag && !celda) {
+                celda = '<td class="asistencia">✔</td>';
+            }
+            
+            filaHtml += celda;
+        }
+        filaHtml += '</tr>';
+        tbody.append(filaHtml);
+    });
+    
+    generarSimbologiaPlanilla();
+}
+
+
+
         
         function filtrarPlanilla() {
             const texto = $('#buscador-planilla').val().toLowerCase();
@@ -5654,41 +5941,41 @@ function formatearIdentidad(input) {
 function filtrarAusenciasPersonalizado() {
     const inicio = $('#fecha-inicio-ausencias').val();
     const fin = $('#fecha-fin-ausencias').val();
-    let ausenciasFiltradas = ausencias;
-
-    if (inicio && fin) {
-        // --- INICIO DE LÓGICA CORREGIDA ---
-        // Queremos ausencias (A) que se solapen con el rango del filtro (F).
-        // Un solapamiento ocurre si:
-        // (Inicio de A <= Fin de F) Y (Fin de A >= Inicio de F)
-        ausenciasFiltradas = ausencias.filter(a => {
-            const absenceStart = a.fecha;
-            // Usar 'fechaFin' si existe; si no, es una ausencia de un día (usar 'fecha')
-            const absenceEnd = a.fechaFin || a.fecha; 
-            
-            return absenceStart <= fin && absenceEnd >= inicio;
-        });
-        // --- FIN DE LÓGICA CORREGIDA ---
-
-    } else if (inicio) {
-        // Si solo hay fecha "Desde", queremos cualquier ausencia que
-        // termine (absenceEnd) en o después de esa fecha.
-        ausenciasFiltradas = ausencias.filter(a => {
-            const absenceEnd = a.fechaFin || a.fecha;
-            return absenceEnd >= inicio;
-        });
-
-    } else if (fin) {
-        // Si solo hay fecha "Hasta", queremos cualquier ausencia que
-        // comience (absenceStart) en o antes de esa fecha.
-        ausenciasFiltradas = ausencias.filter(a => a.fecha <= fin);
+    
+    if (!inicio && !fin) {
+        mostrarAusencias(ausencias);
+        return;
     }
     
-    // Si no hay 'inicio' ni 'fin', 'ausenciasFiltradas' sigue siendo igual a 'ausencias' (muestra todo).
+    let ausenciasFiltradas = [];
+    
+    if (inicio && fin) {
+        const fechaInicio = new Date(inicio + 'T00:00:00');
+        const fechaFin = new Date(fin + 'T23:59:59');
+        
+        ausenciasFiltradas = ausencias.filter(a => {
+            const ausenciaInicio = new Date(a.fecha + 'T00:00:00');
+            const ausenciaFin = new Date((a.fechaFin || a.fecha) + 'T23:59:59');
+            
+            // Verificar solapamiento
+            return ausenciaInicio <= fechaFin && ausenciaFin >= fechaInicio;
+        });
+    } else if (inicio) {
+        const fechaInicio = new Date(inicio + 'T00:00:00');
+        ausenciasFiltradas = ausencias.filter(a => {
+            const ausenciaFin = new Date((a.fechaFin || a.fecha) + 'T23:59:59');
+            return ausenciaFin >= fechaInicio;
+        });
+    } else if (fin) {
+        const fechaFin = new Date(fin + 'T23:59:59');
+        ausenciasFiltradas = ausencias.filter(a => {
+            const ausenciaInicio = new Date(a.fecha + 'T00:00:00');
+            return ausenciaInicio <= fechaFin;
+        });
+    }
     
     mostrarAusencias(ausenciasFiltradas);
 }
-
 
 function filtrarDisciplinaPersonalizado() {
     const inicio = $('#fecha-inicio-disciplina').val();
@@ -5725,36 +6012,80 @@ function filtrarEvaluacionesPersonalizado() {
 
 function refrescarDatosGlobales(onSuccessCallback) {
     $('#overlay').css('display', 'flex');
-
-    $.get(SCRIPT_URL_OBTENER, function(data) {
+    
+    // Agregar timeout para evitar peticiones colgadas
+    const timeout = setTimeout(() => {
         $('#overlay').hide();
-        if (data.error) {
-            Swal.fire('Error', 'No se pudieron cargar los datos: ' + data.mensaje, 'error');
-            return;
-        }
+        Swal.fire('Advertencia', 'La solicitud está tomando más tiempo de lo esperado. Verifique su conexión.', 'warning');
+    }, 30000); // 30 segundos timeout
 
-        // Actualizar todas las variables globales
-        colaboradoresActivos = (data.activos || []).map(corregirFecha);
-        colaboradoresIngresos = (data.ingresos || []).map(corregirFecha);
-        colaboradoresEgresos = (data.egresos || []).map(corregirFecha);
-        ausencias = (data.ausencias || []).map(corregirFecha);
-        disciplina = (data.disciplina || []).map(corregirFecha);
-        evaluaciones = (data.evaluaciones || []).map(corregirFecha);
-        incidentes = (data.incidentes || []).map(corregirFecha); // <-- AÑADIDO
+    $.get(SCRIPT_URL_OBTENER)
+        .done(function(data) {
+            clearTimeout(timeout);
+            $('#overlay').hide();
+            
+            if (data.error) {
+                Swal.fire({
+                    title: 'Error',
+                    html: `No se pudieron cargar los datos:<br><small>${data.mensaje || 'Error desconocido'}</small>`,
+                    icon: 'error',
+                    confirmButtonText: 'Reintentar',
+                    showCancelButton: true,
+                    cancelButtonText: 'Cancelar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        refrescarDatosGlobales(onSuccessCallback);
+                    }
+                });
+                return;
+            }
 
-        nombresActivos = colaboradoresActivos.map(col => col.nombre);
+            // Actualizar todas las variables globales
+            colaboradoresActivos = (data.activos || []).map(corregirFecha);
+            colaboradoresIngresos = (data.ingresos || []).map(corregirFecha);
+            colaboradoresEgresos = (data.egresos || []).map(corregirFecha);
+            ausencias = (data.ausencias || []).map(corregirFecha);
+            disciplina = (data.disciplina || []).map(corregirFecha);
+            evaluaciones = (data.evaluaciones || []).map(corregirFecha);
+            incidentes = (data.incidentes || []).map(corregirFecha);
 
-        // Ejecutar el callback (las funciones de renderizado)
-        if (onSuccessCallback) {
-            onSuccessCallback();
-        }
+            nombresActivos = colaboradoresActivos.map(col => col.nombre);
 
-    }).fail(function(jqXHR, textStatus, errorThrown) {
-        $('#overlay').hide();
-        Swal.fire('Error', 'No se pudo conectar al servidor o hubo un error de red. ' + textStatus + ': ' + errorThrown, 'error');
-    });
+            // Ejecutar el callback (las funciones de renderizado)
+            if (onSuccessCallback) {
+                onSuccessCallback();
+            }
+
+        })
+        .fail(function(jqXHR, textStatus, errorThrown) {
+            clearTimeout(timeout);
+            $('#overlay').hide();
+            
+            let mensajeError = 'No se pudo conectar al servidor. ';
+            if (jqXHR.status === 0) {
+                mensajeError += 'Verifique su conexión a internet.';
+            } else if (jqXHR.status === 404) {
+                mensajeError += 'El servicio no está disponible (404).';
+            } else if (jqXHR.status === 500) {
+                mensajeError += 'Error interno del servidor (500).';
+            } else {
+                mensajeError += `Error: ${textStatus} - ${errorThrown}`;
+            }
+            
+            Swal.fire({
+                title: 'Error de Conexión',
+                text: mensajeError,
+                icon: 'error',
+                confirmButtonText: 'Reintentar',
+                showCancelButton: true,
+                cancelButtonText: 'Salir'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    refrescarDatosGlobales(onSuccessCallback);
+                }
+            });
+        });
 }
-
 
 function actualizarTabActual() {
     const tabActivaId = $('.tab-pane.fade.show.active').attr('id');
@@ -5814,8 +6145,6 @@ function actualizarTabActual() {
                 calcularEstadisticasDisciplina();
                 popularFiltrosGrafico('#filtro-mes-disciplina', '#filtro-ano-disciplina', disciplina, 'fechaFalta');
                 crearGraficoDisciplinaPorDia(hoy.getFullYear(), hoy.getMonth());
-                crearGraficoDisciplinaMotivoActual();
-                crearGraficoDisciplinaMotivoHistorico();
                 break;
             case 'evaluaciones':
                 mostrarHistorialEvaluaciones(); // Mostrar tabla principal
@@ -5832,18 +6161,20 @@ function actualizarTabActual() {
             case 'registrar-incidente':
                 // No necesita refrescar datos, es un formulario
                 break;
-            case 'historial-incidentes':
-                mostrarHistorialIncidentes();
-                filtrarIncidentesPersonalizado();
-                calcularEstadisticasIncidentes();
-                generarSimbologiaIncidentes(); 
-                popularFiltrosGraficoAnual('#filtro-ano-incidentes', incidentes, 'fechaIncidente');
-                crearGraficoIncidentesAnual(hoy.getFullYear());
-                crearGraficoPartesCuerpo(); // <-- AÑADIDO (Req 3)
-                popularFiltrosGrafico('#filtro-mes-incidentes', '#filtro-ano-incidentes-pie', incidentes, 'fechaIncidente'); 
-                crearGraficoIncidentesCategoriaActual();
-                crearGraficoIncidentesCategoriaHistorico();
-                break;
+case 'historial-incidentes':
+    if (typeof incidentes !== 'undefined') {
+        mostrarHistorialIncidentes();
+        filtrarIncidentesPersonalizado();
+        calcularEstadisticasIncidentes();
+        generarSimbologiaIncidentes(); 
+        popularFiltrosGraficoAnual('#filtro-ano-incidentes', incidentes, 'fechaIncidente');
+        crearGraficoIncidentesAnual(hoy.getFullYear());
+        crearGraficoPartesCuerpo();
+        popularFiltrosGrafico('#filtro-mes-incidentes', '#filtro-ano-incidentes-pie', incidentes, 'fechaIncidente'); 
+        crearGraficoIncidentesCategoriaActual();
+        crearGraficoIncidentesCategoriaHistorico();
+    }
+    break;
             // FIN: Casos Incidentes
 
             case 'cumpleaneros':
@@ -6289,7 +6620,9 @@ function mostrarResumenIncidentes() {
         showConfirmButton: false,
         didOpen: () => {
             renderResumenList(sorted);
-            $('#filtro-resumen-incidentes').on('input', function() {
+            
+            // Usar namespace para el event listener
+            $('#filtro-resumen-incidentes').off('input.resumen').on('input.resumen', function() {
                 const query = $(this).val().toLowerCase();
                 const filtered = sorted.filter(item =>
                     item.nombre.toLowerCase().includes(query) || item.identidad.toLowerCase().includes(query)
@@ -6297,16 +6630,20 @@ function mostrarResumenIncidentes() {
                 renderResumenList(filtered);
             });
 
-            $(document).on('click', '.resumen-disciplina-item', function() {
+            // Usar namespace también para el click
+            $(document).off('click.resumenIncidentes').on('click.resumenIncidentes', '.resumen-disciplina-item', function() {
                 const identidad = $(this).data('identidad');
                 mostrarDetalleIncidentesColaborador(identidad);
             });
         },
         willClose: () => {
-            $(document).off('click', '.resumen-disciplina-item');
+            // Limpiar todos los event listeners con namespace
+            $('#filtro-resumen-incidentes').off('input.resumen');
+            $(document).off('click.resumenIncidentes');
         }
     });
 }
+
 
 function mostrarDetalleIncidentesColaborador(identidad) {
     const historial = incidentes.filter(d => d.identidad === identidad).sort((a,b) => new Date(b.fechaIncidente) - new Date(a.fechaIncidente));
@@ -6605,30 +6942,87 @@ function validarCampo(campo) {
 
     // Quitar clases previas para revalidar
     $campo.removeClass('is-valid is-invalid');
+    
+    // Eliminar mensajes de error previos
+    $campo.next('.invalid-feedback').remove();
 
-    // Validación específica para identidad
+    // Si no es requerido y está vacío, no validar
+    if (!$campo.prop('required') && $campo.val().trim() === '') {
+        return;
+    }
+
+    // Validación específica por tipo de campo
     if ($campo.hasClass('identidad')) {
         const identidadRegex = /^\d{4}-\d{4}-\d{5}$/;
         esValido = identidadRegex.test($campo.val());
+    } 
+    else if ($campo.attr('type') === 'email') {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        esValido = emailRegex.test($campo.val());
     }
-    // Validación general para otros campos requeridos
-    else if ($campo.prop('required')) {
-        // Para selects, verificar que no sea el valor vacío ""
-        if ($campo.is('select')) {
-            esValido = $campo.val() !== "";
-        }
-        // Para checkboxes (si los hubiera requeridos)
-        else if ($campo.is(':checkbox')) {
-             esValido = $campo.is(':checked');
-        }
-         // Para inputs y textareas
-        else {
-             esValido = $campo.val().trim() !== "";
+    else if ($campo.attr('type') === 'date') {
+        const fecha = new Date($campo.val());
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        
+        if ($campo.hasClass('fecha-nacimiento')) {
+            // Fecha de nacimiento: no puede ser futura y debe ser válida
+            esValido = !isNaN(fecha.getTime()) && fecha <= hoy;
+        } else if ($campo.hasClass('fecha-inicio')) {
+            // Fecha de inicio: no puede ser futura
+            esValido = !isNaN(fecha.getTime()) && fecha <= hoy;
+        } else if ($campo.hasClass('fecha-ausencia')) {
+            // Fecha de ausencia: no puede ser futura
+            esValido = !isNaN(fecha.getTime()) && fecha <= hoy;
+        } else if ($campo.hasClass('fecha-incidente')) {
+            // Fecha de incidente: no puede ser futura
+            esValido = !isNaN(fecha.getTime()) && fecha <= hoy;
+        } else if ($campo.hasClass('fecha-evaluacion') || $campo.hasClass('fechaFalta')) {
+            // Fechas de evaluación o falta: no pueden ser futuras
+            esValido = !isNaN(fecha.getTime()) && fecha <= hoy;
+        } else {
+            // Para otras fechas, solo validar que sea una fecha válida
+            esValido = !isNaN(fecha.getTime());
         }
     }
-    // Si no es requerido, no se añaden clases
+    else if ($campo.attr('type') === 'number') {
+        const valor = parseFloat($campo.val());
+        const min = parseFloat($campo.attr('min')) || -Infinity;
+        const max = parseFloat($campo.attr('max')) || Infinity;
+        esValido = !isNaN(valor) && valor >= min && valor <= max;
+        
+        // Validación especial para días de ausencia
+        if ($campo.hasClass('dias-incapacidad') && esValido) {
+            esValido = valor >= 1 && valor <= 365; // Máximo 1 año de ausencia
+        }
+    }
+    else if ($campo.is('select')) {
+        esValido = $campo.val() !== "" && $campo.val() !== null;
+    }
+    else if ($campo.is(':checkbox') && $campo.prop('required')) {
+        esValido = $campo.is(':checked');
+    }
     else {
-        return;
+        // Validación básica para otros campos de texto
+        const valor = $campo.val().trim();
+        esValido = valor !== "";
+        
+        // Validaciones específicas para ciertos campos
+        if ($campo.hasClass('nombre-completo') && esValido) {
+            // Nombre debe tener al menos 2 palabras
+            const palabras = valor.split(/\s+/).filter(p => p.length > 0);
+            esValido = palabras.length >= 2;
+        }
+        
+        if ($campo.hasClass('observaciones') && esValido) {
+            // Observaciones no deben exceder 500 caracteres
+            esValido = valor.length <= 500;
+        }
+        
+        if (($campo.hasClass('causa-incidente') || $campo.hasClass('descripcion-incidente')) && esValido) {
+            // Causa y descripción no deben exceder 1000 caracteres
+            esValido = valor.length <= 1000;
+        }
     }
 
     // Aplicar clases Bootstrap
@@ -6636,11 +7030,258 @@ function validarCampo(campo) {
         $campo.addClass('is-valid');
     } else {
         $campo.addClass('is-invalid');
+        
+        // Agregar mensaje de error específico
+        const errorMessage = obtenerMensajeError($campo);
+        if (errorMessage) {
+            const feedback = $('<div>', {
+                class: 'invalid-feedback',
+                text: errorMessage
+            });
+            $campo.after(feedback);
+            
+            // Si es un campo dentro de un autocomplete-container, ajustar posición
+            if ($campo.closest('.autocomplete-container').length) {
+                feedback.css({
+                    'position': 'absolute',
+                    'z-index': '1001',
+                    'background': '#fff',
+                    'padding': '5px',
+                    'border': '1px solid #dc3545',
+                    'border-radius': '4px',
+                    'margin-top': '2px'
+                });
+            }
+        }
     }
 }
 
 
+function obtenerMensajeError($campo) {
+    if ($campo.hasClass('identidad')) {
+        return 'Formato de identidad inválido. Use: 0000-0000-00000';
+    }
+    if ($campo.attr('type') === 'email') {
+        return 'Correo electrónico inválido. Ejemplo: usuario@dominio.com';
+    }
+    if ($campo.attr('type') === 'date') {
+        if ($campo.hasClass('fecha-nacimiento')) {
+            return 'Fecha de nacimiento inválida o futura';
+        }
+        if ($campo.hasClass('fecha-inicio')) {
+            return 'Fecha de inicio inválida o futura';
+        }
+        if ($campo.hasClass('fecha-ausencia')) {
+            return 'Fecha de ausencia inválida o futura';
+        }
+        if ($campo.hasClass('fecha-incidente')) {
+            return 'Fecha de incidente inválida o futura';
+        }
+        return 'Fecha inválida';
+    }
+    if ($campo.attr('type') === 'number') {
+        const min = $campo.attr('min');
+        const max = $campo.attr('max');
+        
+        if ($campo.hasClass('dias-incapacidad')) {
+            if (min && max) {
+                return `Los días de ausencia deben estar entre ${min} y ${max}`;
+            }
+            return 'Los días de ausencia deben ser entre 1 y 365';
+        }
+        
+        if (min && max) {
+            return `El valor debe estar entre ${min} y ${max}`;
+        } else if (min) {
+            return `El valor mínimo es ${min}`;
+        } else if (max) {
+            return `El valor máximo es ${max}`;
+        }
+        return 'Valor numérico inválido';
+    }
+    if ($campo.is('select')) {
+        if ($campo.prop('required')) {
+            return 'Por favor, seleccione una opción';
+        }
+    }
+    if ($campo.is(':checkbox') && $campo.prop('required')) {
+        return 'Este campo es requerido';
+    }
+    if ($campo.hasClass('nombre-completo')) {
+        return 'Ingrese nombre y apellido (mínimo 2 palabras)';
+    }
+    if ($campo.hasClass('observaciones') && $campo.val().trim().length > 500) {
+        return 'Las observaciones no deben exceder 500 caracteres';
+    }
+    if (($campo.hasClass('causa-incidente') || $campo.hasClass('descripcion-incidente')) && $campo.val().trim().length > 1000) {
+        return 'Este campo no debe exceder 1000 caracteres';
+    }
+    
+    // Mensaje genérico para campos requeridos
+    if ($campo.prop('required')) {
+        return 'Este campo es requerido';
+    }
+    
+    return '';
+}
 
+function validarFormularioCompleto(selector) {
+    let esValido = true;
+    const $formulario = $(selector);
+    
+    // Validar todos los campos requeridos
+    $formulario.find('input[required], select[required], textarea[required]').each(function() {
+        validarCampo(this);
+        if ($(this).hasClass('is-invalid')) {
+            esValido = false;
+            
+            // Hacer scroll al primer campo inválido
+            if (esValido === false) {
+                $(this).get(0).scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
+                });
+            }
+        }
+    });
+    
+    // Validaciones adicionales específicas por formulario
+    if (selector === '#contenedor-formularios-colaborador') {
+        esValido = validarFormularioColaboradores();
+    } else if (selector === '#contenedor-formularios-ausencia') {
+        esValido = validarFormularioAusencias();
+    } else if (selector === '#contenedor-formularios-incidente') {
+        esValido = validarFormularioIncidentes();
+    }
+    
+    return esValido;
+}
+
+
+function validarFormularioColaboradores() {
+    let esValido = true;
+    const identidades = new Set();
+    
+    $('#contenedor-formularios-colaborador .formulario-item').each(function(index) {
+        const $item = $(this);
+        const identidad = $item.find('.identidad').val();
+        
+        // Verificar duplicados en el mismo formulario
+        if (identidad) {
+            if (identidades.has(identidad)) {
+                $item.find('.identidad').addClass('is-invalid').removeClass('is-valid');
+                esValido = false;
+                
+                // Agregar mensaje de error
+                if (!$item.find('.identidad').next('.invalid-feedback').length) {
+                    $item.find('.identidad').after('<div class="invalid-feedback">Esta identidad ya está en uso en este formulario</div>');
+                }
+            } else {
+                identidades.add(identidad);
+            }
+        }
+        
+        // Validar que fecha de nacimiento no sea anterior a 1900
+        const fechaNacimiento = $item.find('.fecha-nacimiento').val();
+        if (fechaNacimiento) {
+            const fecha = new Date(fechaNacimiento);
+            const fechaMinima = new Date('1900-01-01');
+            if (fecha < fechaMinima) {
+                $item.find('.fecha-nacimiento').addClass('is-invalid').removeClass('is-valid');
+                esValido = false;
+                
+                if (!$item.find('.fecha-nacimiento').next('.invalid-feedback').length) {
+                    $item.find('.fecha-nacimiento').after('<div class="invalid-feedback">La fecha de nacimiento no puede ser anterior a 1900</div>');
+                }
+            }
+        }
+    });
+    
+    return esValido;
+}
+
+
+
+function validarFormularioAusencias() {
+    let esValido = true;
+    
+    $('#contenedor-formularios-ausencia .formulario-item').each(function() {
+        const $item = $(this);
+        const fecha = $item.find('.fecha-ausencia').val();
+        const dias = parseInt($item.find('.dias-incapacidad').val()) || 0;
+        
+        // Validar que no haya ausencias de más de 90 días consecutivos
+        if (dias > 90) {
+            $item.find('.dias-incapacidad').addClass('is-invalid').removeClass('is-valid');
+            esValido = false;
+            
+            if (!$item.find('.dias-incapacidad').next('.invalid-feedback').length) {
+                $item.find('.dias-incapacidad').after('<div class="invalid-feedback">Las ausencias no pueden exceder 90 días consecutivos</div>');
+            }
+        }
+        
+        // Validar que la fecha de ausencia no sea domingo (opcional)
+        if (fecha) {
+            const fechaObj = new Date(fecha);
+            if (fechaObj.getDay() === 0) { // 0 = Domingo
+                // Solo advertencia, no error
+                if (!$item.find('.fecha-ausencia').next('.invalid-feedback').length) {
+                    $item.find('.fecha-ausencia').after('<div class="text-warning small">La ausencia comienza en domingo</div>');
+                }
+            }
+        }
+    });
+    
+    return esValido;
+}
+
+
+function validarFormularioIncidentes() {
+    let esValido = true;
+    
+    $('#contenedor-formularios-incidente .formulario-item').each(function() {
+        const $item = $(this);
+        const categoria = $item.find('.categoria-siso-incidente').val();
+        const partesSeleccionadas = $item.find('.parte-afectada-check:checked').length;
+        
+        // Validar que incidentes FAT tengan al menos una parte afectada
+        if (categoria === 'FAT' && partesSeleccionadas === 0) {
+            esValido = false;
+            $item.find('.parte-afectada-check').closest('.border').addClass('border-danger');
+            
+            if (!$item.find('.parte-afectada-check').closest('.border').next('.invalid-feedback').length) {
+                $item.find('.parte-afectada-check').closest('.border').after('<div class="invalid-feedback">Para incidentes FAT, debe especificar al menos una parte afectada</div>');
+            }
+        }
+    });
+    
+    return esValido;
+}
+
+/**
+ * Valida un campo en tiempo real mientras el usuario escribe
+ */
+$(document).on('input', 'input, textarea', function() {
+    // Usar debounce para no validar en cada tecla
+    clearTimeout($(this).data('timeout'));
+    $(this).data('timeout', setTimeout(() => {
+        validarCampo(this);
+    }, 500));
+});
+
+/**
+ * Valida un campo cuando pierde el foco
+ */
+$(document).on('blur', 'input, select, textarea', function() {
+    validarCampo(this);
+});
+
+/**
+ * Valida un campo cuando cambia (para selects y checkboxes)
+ */
+$(document).on('change', 'select, :checkbox', function() {
+    validarCampo(this);
+});
 
 
 /**
@@ -6671,38 +7312,114 @@ function toggleVistaEgresados(vista) {
  * @returns {number} - El número de días transcurridos.
  */
 function getDiasSinIncidentes() {
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0); // Normalizar a medianoche
-
-    let fechaBase;
-
-    if (incidentes.length > 0) {
-        // 1. Si hay incidentes, buscar el más reciente
-        const ultimaFecha = new Date(Math.max.apply(null, incidentes.map(e => new Date(e.fechaIncidente + 'T00:00:00'))));
-        fechaBase = ultimaFecha;
-    } else {
-        // 2. Si NO hay incidentes, usar la fecha de inicio de seguimiento definida (Req 1)
-        fechaBase = new Date('2025-10-01T00:00:00'); // 1 de Octubre 2025
+    if (!incidentes || incidentes.length === 0) {
+        // Si no hay incidentes, contar desde 1 de octubre 2025
+        const fechaBase = new Date('2025-10-01T00:00:00');
+        const hoy = new Date();
+        const diffTiempo = hoy - fechaBase;
+        return Math.max(0, Math.floor(diffTiempo / (1000 * 60 * 60 * 24)));
     }
-
-    // 3. Calcular la diferencia
-    if (fechaBase > hoy) {
-        return 0; // Prevenir conteos negativos si la fecha base es futura
-    }
-
-    const diffTime = Math.abs(hoy - fechaBase);
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
     
-    // Lógica: Si el último incidente fue hoy, diffDays es 0.
-    // Si fue ayer, diffDays es 1.
-    // Si la base es 1-Oct y hoy es 29-Oct, diffDays es 28.
-    // (El usuario esperaba 29, pero 28 es el número de días COMPLETOS transcurridos, que es la métrica estándar).
-    return diffDays;
+    // Encontrar el incidente más reciente
+    const fechasIncidentes = incidentes
+        .map(i => new Date(i.fechaIncidente + 'T00:00:00'))
+        .filter(d => !isNaN(d.getTime()));
+    
+    if (fechasIncidentes.length === 0) return 0;
+    
+    const ultimoIncidente = new Date(Math.max(...fechasIncidentes.map(d => d.getTime())));
+    const hoy = new Date();
+    
+    // Asegurar que hoy no sea menor que el último incidente
+    if (hoy < ultimoIncidente) return 0;
+    
+    const diffTiempo = hoy - ultimoIncidente;
+    return Math.floor(diffTiempo / (1000 * 60 * 60 * 24));
 }
+
+
+function agregarPaginacionTabla(tablaSelector, itemsPorPagina = 10) {
+    const $tabla = $(tablaSelector);
+    const $filas = $tabla.find('tbody tr');
+    const totalPaginas = Math.ceil($filas.length / itemsPorPagina);
+    
+    if ($filas.length <= itemsPorPagina) {
+        // Ocultar paginación si no es necesaria
+        $('.pagination-container').hide();
+        return;
+    }
+    
+    // Crear contenedor de paginación
+    let paginacionHTML = `
+        <div class="pagination-container mt-3">
+            <nav aria-label="Paginación">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item disabled" id="prev-page">
+                        <a class="page-link" href="#" tabindex="-1">Anterior</a>
+                    </li>`;
+    
+    for (let i = 1; i <= totalPaginas; i++) {
+        paginacionHTML += `
+            <li class="page-item ${i === 1 ? 'active' : ''}" data-page="${i}">
+                <a class="page-link" href="#">${i}</a>
+            </li>`;
+    }
+    
+    paginacionHTML += `
+                    <li class="page-item" id="next-page">
+                        <a class="page-link" href="#">Siguiente</a>
+                    </li>
+                </ul>
+            </nav>
+            <div class="text-center text-muted small">
+                Mostrando <span id="current-range">1-${Math.min(itemsPorPagina, $filas.length)}</span> de ${$filas.length} registros
+            </div>
+        </div>`;
+    
+    $tabla.after(paginacionHTML);
+    
+    // Función para mostrar página específica
+    function mostrarPagina(pagina) {
+        const inicio = (pagina - 1) * itemsPorPagina;
+        const fin = inicio + itemsPorPagina;
+        
+        $filas.hide();
+        $filas.slice(inicio, fin).show();
+        
+        // Actualizar paginación activa
+        $('.page-item').removeClass('active');
+        $(`.page-item[data-page="${pagina}"]`).addClass('active');
+        
+        // Actualizar botones anterior/siguiente
+        $('#prev-page').toggleClass('disabled', pagina === 1);
+        $('#next-page').toggleClass('disabled', pagina === totalPaginas);
+        
+        // Actualizar rango mostrado
+        $('#current-range').text(`${inicio + 1}-${Math.min(fin, $filas.length)}`);
+    }
+    
+    // Event listeners
+    $(document).on('click', '.page-item:not(.disabled)', function(e) {
+        e.preventDefault();
+        const $item = $(this);
+        
+        if ($item.attr('id') === 'prev-page') {
+            const paginaActual = parseInt($('.page-item.active').data('page'));
+            if (paginaActual > 1) mostrarPagina(paginaActual - 1);
+        } else if ($item.attr('id') === 'next-page') {
+            const paginaActual = parseInt($('.page-item.active').data('page'));
+            if (paginaActual < totalPaginas) mostrarPagina(paginaActual + 1);
+        } else if ($item.data('page')) {
+            mostrarPagina($item.data('page'));
+        }
+    });
+    
+    // Mostrar primera página
+    mostrarPagina(1);
+}
+
 
 
     </script>
 </body>
 </html>
-
-

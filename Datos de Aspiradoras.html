@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dashboard - Gestión de Aspiradoras</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <style>
+        /* ESTILOS BASE - MISMOS COLORES QUE EL ORIGINAL DE ASPIRADORAS */
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --warning-color: #f39c12;
+            --success-color: #2ecc71;
+            --dark-color: #34495e;
+            --text-color: #333;
+            --border-color: #ddd;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+            --light-bg: #f5f7fa;
+        }
+
+        html, body {
+            touch-action: manipulation;
+            overflow-x: hidden;
+            width: 100%;
+            height: 100%;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--light-bg);
+            color: var(--dark-color);
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+            color: white;
+            text-align: center;
+            padding: 18px 0;
+            font-size: 1.5rem;
+            font-weight: bold;
+            box-shadow: var(--shadow);
+            margin-bottom: 25px;
+        }
+
+        .container-custom {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 15px 50px 15px;
+        }
+
+        .card-custom {
+            background-color: #fff;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            border: none;
+            margin-bottom: 25px;
+            border-top: 5px solid var(--secondary-color);
+            padding: 20px;
+            height: 100%;
+        }
+
+        .btn-custom {
+            border: none;
+            font-weight: 600;
+            padding: 10px 25px;
+            font-size: 0.95rem;
+            border-radius: 50px;
+            transition: var(--transition);
+            color: white !important;
+            background: linear-gradient(45deg, var(--secondary-color), #5dade2);
+            width: 100%;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .btn-custom:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.2); }
+
+        .form-control, .form-select {
+            border-radius: 8px; padding: 10px 15px; border: 1px solid var(--border-color);
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: var(--secondary-color); box-shadow: 0 0 0 0.25rem rgba(52, 152, 219, 0.25);
+        }
+
+        .kpi-value { font-size: 2.5rem; font-weight: 800; color: var(--primary-color); }
+        .kpi-label { font-size: 0.85rem; color: #7f8c8d; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+        .kpi-icon { font-size: 2rem; color: var(--secondary-color); margin-bottom: 15px; opacity: 0.8; }
+
+        .chart-box { position: relative; height: 300px; width: 100%; }
+
+        .table-responsive { border-radius: 8px; overflow: hidden; }
+        .table thead { background-color: var(--primary-color); color: white; }
+        
+        /* BOTONES DE ACCIÓN */
+        .btn-action {
+            border: none; border-radius: 50px;
+            width: 35px; height: 35px;
+            font-size: 0.85rem; margin: 0 2px;
+            transition: var(--transition);
+            display: inline-flex; justify-content: center; align-items: center;
+            color: white;
+        }
+        .btn-action:hover { transform: translateY(-2px); color: white; }
+
+        .btn-pdf { background: linear-gradient(45deg, var(--accent-color), #e74c3c); }
+        .btn-share { background: linear-gradient(45deg, #1abc9c, #16a085); }
+        .btn-download { background: linear-gradient(45deg, #27ae60, #2ecc71); }
+        .btn-delete { background: #7f8c8d; }
+        .btn-delete:hover { background: #c0392b; }
+
+        /* RANKING */
+        .ranking-item { 
+            display: flex; 
+            align-items: center; 
+            padding: 12px 0; 
+            border-bottom: 1px solid #eee; 
+        }
+        .ranking-item:last-child { border-bottom: none; }
+        .rank-pos { 
+            width: 30px; 
+            font-weight: bold; 
+            color: #999; 
+            font-size: 0.9rem; 
+            text-align: center;
+        }
+        .rank-info { flex-grow: 1; padding-right: 15px; }
+        .rank-name { font-weight: 600; color: var(--dark-color); display: block; margin-bottom: 4px; }
+        .rank-bar-bg { height: 6px; background: #eee; border-radius: 3px; width: 100%; overflow: hidden; }
+        .rank-bar-fill { height: 100%; border-radius: 3px; transition: width 1s ease; }
+        .rank-count { min-width: 80px; text-align: right; }
+        .badge-count { 
+            font-size: 0.9rem; 
+            padding: 5px 10px; 
+            border-radius: 50px; 
+            min-width: 40px; 
+            display: inline-block; 
+            text-align: center; 
+        }
+        .bg-high { background-color: var(--success-color); color: white; }
+        .bg-mid { background-color: var(--secondary-color); color: white; }
+        .bg-low { background-color: var(--warning-color); color: white; }
+        .bg-zero { 
+            background-color: #e74c3c1a; 
+            color: #c0392b; 
+            border: 1px solid #e74c3c40; 
+        }
+
+        /* OVERLAY CARGA */
+        #overlay {
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.95);
+            display: none; 
+            justify-content: center; 
+            align-items: center;
+            z-index: 9999; 
+            flex-direction: column;
+        }
+        .spinner {
+            width: 60px; 
+            height: 60px;
+            border: 5px solid rgba(52, 152, 219, 0.2);
+            border-radius: 50%; 
+            border-top-color: var(--secondary-color);
+            animation: spin 1s ease-in-out infinite; 
+            margin-bottom: 20px;
+        }
+        @keyframes spin { 
+            to { transform: rotate(360deg); } 
+        }
+        
+        #loadingMessage { 
+            text-align: center; 
+            color: var(--dark-color); 
+        }
+        #loadingMessage h4 { 
+            margin: 0 0 10px; 
+            font-size: 1.3rem; 
+            font-weight: bold; 
+        }
+        #loadingMessage p { 
+            margin: 0; 
+            color: #7f8c8d; 
+            font-weight: normal; 
+        }
+        
+        /* MODAL PDF */
+        .modal-pdf-body {
+            height: calc(100vh - 56px); 
+            padding: 0;
+            overflow: hidden;
+            background-color: #525659;
+        }
+        .modal-pdf-iframe { 
+            width: 100%; 
+            height: 100%; 
+            border: none; 
+            display: block; 
+        }
+        
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+            .kpi-value { font-size: 2rem; }
+            .kpi-icon { font-size: 1.5rem; }
+            .chart-box { height: 250px; }
+            .btn-custom { padding: 8px 15px; font-size: 0.9rem; }
+        }
+        
+        @media (max-width: 480px) {
+            .header { font-size: 1.2rem; padding: 15px 0; }
+            .kpi-value { font-size: 1.8rem; }
+            .chart-box { height: 200px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="overlay">
+        <div class="spinner"></div>
+        <div id="loadingMessage">
+            <h4>Cargando...</h4>
+            <p></p>
+        </div>
+    </div>
+
+    <!-- MODAL PDF -->
+    <div class="modal fade" id="modalPDF" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-fullscreen">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title text-secondary">
+                        <i class="fas fa-file-pdf me-2"></i>Vista Previa del Acta
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body modal-pdf-body">
+                    <iframe id="iframePDF" class="modal-pdf-iframe" src=""></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CABECERA -->
+    <div class="header">
+        Pisos Brillantes
+    </div>
+
+    <div class="container-custom">
+        
+        <!-- PANEL DE CONTROL -->
+        <div class="card-custom">
+            <h5 class="mb-3 text-secondary border-bottom pb-2">
+                <i class="fas fa-filter me-2"></i>Panel de Control
+            </h5>
+            <div class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">Tipo de Movimiento</label>
+                    <select id="filtroTipo" class="form-select">
+                        <option value="" selected disabled>Seleccionar tipo</option>
+                        <option value="salidas">Salidas (Préstamos)</option>
+                        <option value="entradas">Entradas (Devoluciones)</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">Mes</label>
+                    <select id="filtroMes" class="form-select"></select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">Año</label>
+                    <select id="filtroAnio" class="form-select"></select>
+                </div>
+            </div>
+            
+            <div class="row mt-3">
+                <div class="col-md-12 text-center">
+                    <button class="btn-custom" onclick="consultarDatos()" style="max-width: 300px;">
+                        <i class="fas fa-chart-bar me-1"></i> Generar Reporte
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONTENIDO DEL DASHBOARD -->
+        <div id="dashboardContent" style="display: none;">
+            
+            <!-- KPI's -->
+            <div class="row g-4 mb-4">
+                <div class="col-md-6">
+                    <div class="card-custom text-center">
+                        <div class="kpi-icon"><i class="fas fa-sign-out-alt"></i></div>
+                        <div class="kpi-value" id="kpiTotal">0</div>
+                        <div class="kpi-label" id="kpiLabel">Movimientos</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card-custom text-center">
+                        <div class="kpi-icon"><i class="fas fa-vacuum"></i></div>
+                        <div class="kpi-value" id="kpiAspiradoras">0</div>
+                        <div class="kpi-label">Aspiradoras Usadas</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GRÁFICOS -->
+            <div class="row g-4 mb-4">
+                <div class="col-md-6">
+                    <div class="card-custom">
+                        <div class="chart-box">
+                            <canvas id="chartMovimientos"></canvas>
+                        </div>
+                        <div class="text-center mt-2">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Movimientos por día
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card-custom">
+                        <div class="chart-box">
+                            <canvas id="chartAspiradoras"></canvas>
+                        </div>
+                        <div class="text-center mt-2">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Aspiradoras más usadas (Top 10)
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TABLA DETALLADA -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card-custom">
+                        <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-3 border-bottom pb-2">
+                            <h5 class="text-secondary mb-2 mb-md-0">
+                                <i class="fas fa-history me-2"></i>Historial de Movimientos
+                            </h5>
+                            <div class="input-group" style="max-width: 400px; width: 100%;">
+                                <span class="input-group-text bg-light border-end-0">
+                                    <i class="fas fa-search text-muted"></i>
+                                </span>
+                                <input type="text" id="filtroTabla" class="form-control border-start-0" placeholder="Buscar por aspiradora, colaborador o área...">
+                            </div>
+                        </div>
+
+                        <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                            <table class="table table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 120px;">Fecha</th>
+                                        <th>Aspiradora</th>
+                                        <th>Colaborador</th>
+                                        <th>Área</th>
+                                        <th class="text-center" style="width: 200px;">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaCuerpo"></tbody>
+                            </table>
+                            <div id="sinResultadosFiltro" class="text-center p-4 text-muted" style="display:none;">
+                                No se encontraron movimientos con ese filtro.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div> <!-- FIN DASHBOARD CONTENT -->
+        
+        <!-- MENSAJE SIN DATOS -->
+        <div id="alertNoData" class="alert alert-info text-center mt-4 shadow-sm" style="display:none;">
+            <i class="fas fa-database me-2"></i> No existen registros para el mes seleccionado.
+        </div>
+
+    </div>
+
+    <script>
+        // =========================================================================
+        // CONFIGURACIÓN Y VARIABLES GLOBALES
+        // =========================================================================
+        const URL_SCRIPT_GOOGLE = "https://script.google.com/macros/s/AKfycbzGPVZhBkCWY1slly4ak4e4GlNo8QOj1ElePu406OZLyRf7RWRKyJseny5WyRybnzqg/exec";
+        const CONTRASENA_ELIMINAR = "pisos2026";
+        
+        let chartMovimientos = null;
+        let chartAspiradoras = null;
+        let datosTablaGlobal = [];
+        let datosFiltrados = [];
+        let tipoActual = '';
+        let mesActual = '';
+        let anioActual = '';
+        let modalPDF = null;
+        
+        const mesesNombres = [
+            "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", 
+            "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+        ];
+        
+        // =========================================================================
+        // FUNCIONES DE INICIALIZACIÓN
+        // =========================================================================
+        
+        function focusPDF() {
+            const iframe = document.getElementById('iframePDF');
+            if (iframe) {
+                iframe.focus();
+                try {
+                    iframe.contentWindow.focus();
+                } catch(e) {
+                    // Si falla por política de seguridad
+                }
+            }
+        }
+        
+        window.onload = function() {
+            // Inicializar modal PDF
+            const modalEl = document.getElementById('modalPDF');
+            modalPDF = new bootstrap.Modal(modalEl);
+            
+            modalEl.addEventListener('shown.bs.modal', function() {
+                setTimeout(focusPDF, 100);
+            });
+            
+            // Llenar select de mes
+            const selectMes = document.getElementById('filtroMes');
+            mesesNombres.forEach((m, i) => {
+                let opt = document.createElement('option');
+                opt.value = (i + 1).toString().padStart(2, '0');
+                opt.text = m;
+                selectMes.appendChild(opt);
+            });
+            
+            // Llenar select de año (año actual y anterior)
+            const selectAnio = document.getElementById('filtroAnio');
+            const currentYear = new Date().getFullYear();
+            
+            // Solo añadir año actual
+            let optCurr = document.createElement('option');
+            optCurr.value = currentYear;
+            optCurr.text = currentYear;
+            optCurr.selected = true;
+            selectAnio.appendChild(optCurr);
+            
+            // Evento para filtro de tabla
+            document.getElementById('filtroTabla').addEventListener('keyup', function() {
+                filtrarTabla();
+            });
+            
+            // NO cargar datos automáticamente - solo cuando el usuario haga clic en Generar Reporte
+        };
+        
+        // =========================================================================
+        // FUNCIONES DE INTERFAZ
+        // =========================================================================
+        
+        function showLoading(mensaje, submensaje = "") {
+            const overlay = document.getElementById('overlay');
+            const msgTitle = document.querySelector('#loadingMessage h4');
+            const msgSub = document.querySelector('#loadingMessage p');
+            if(msgTitle) msgTitle.textContent = mensaje;
+            if(msgSub) msgSub.textContent = submensaje;
+            overlay.style.display = 'flex';
+        }
+        
+        function hideLoading() {
+            document.getElementById('overlay').style.display = 'none';
+        }
+        
+        // =========================================================================
+        // FUNCIÓN PRINCIPAL PARA CONSULTAR DATOS
+        // =========================================================================
+        
+        function consultarDatos() {
+            const tipo = document.getElementById('filtroTipo').value;
+            const mesVal = document.getElementById('filtroMes').value;
+            const anio = document.getElementById('filtroAnio').value;
+            
+            if (!tipo) {
+                Swal.fire("Selección Requerida", "Por favor selecciona un tipo de movimiento.", "warning");
+                return;
+            }
+            
+            if (!mesVal || !anio) {
+                Swal.fire("Datos Incompletos", "Por favor selecciona mes y año.", "warning");
+                return;
+            }
+            
+            showLoading("Consultando datos...", "Por favor espera un momento");
+            
+            document.getElementById('dashboardContent').style.display = 'none';
+            document.getElementById('alertNoData').style.display = 'none';
+            
+            // Guardar valores actuales
+            tipoActual = tipo;
+            mesActual = mesVal;
+            anioActual = anio;
+            
+            fetch(URL_SCRIPT_GOOGLE, {
+                method: 'POST',
+                body: JSON.stringify({ 
+                    action: "obtenerDatos", 
+                    tipo: tipo, 
+                    mes: mesVal, 
+                    anio: anio 
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                hideLoading();
+                if (data.status === "error") {
+                    Swal.fire("Error", data.message, "error");
+                    return;
+                }
+                
+                renderizarDashboard(data.data, mesVal, anio, tipo);
+                
+                if (!data.data.existeHoja || data.data.totalMovimientos === 0) {
+                    document.getElementById('alertNoData').style.display = 'block';
+                }
+            })
+            .catch(err => {
+                hideLoading();
+                Swal.fire("Error", "Problema de conexión con el servidor.", "error");
+                console.error("Error:", err);
+            });
+        }
+        
+        // =========================================================================
+        // FUNCIÓN PARA RENDERIZAR EL DASHBOARD
+        // =========================================================================
+        
+        function renderizarDashboard(data, mesVal, anio, tipo) {
+            document.getElementById('dashboardContent').style.display = 'block';
+            datosTablaGlobal = data.listaMovimientos || [];
+            
+            // Actualizar KPI's según el tipo
+            const tipoTexto = tipo === 'salidas' ? 'Salidas' : 'Entradas';
+            document.getElementById('kpiLabel').textContent = tipoTexto;
+            document.getElementById('kpiTotal').textContent = data.totalMovimientos || 0;
+            document.getElementById('kpiAspiradoras').textContent = data.aspiradorasUnicas || 0;
+            
+            const nombreMes = mesesNombres[parseInt(mesVal) - 1];
+            
+            // Configuración común para gráficos
+            const commonOpts = (titulo) => ({
+                responsive: true, 
+                maintainAspectRatio: false,
+                plugins: { 
+                    title: { 
+                        display: true, 
+                        text: titulo, 
+                        font: {size: 14, weight: 'bold'},
+                        color: '#2c3e50',
+                        padding: {top: 10, bottom: 20}
+                    }, 
+                    legend: { 
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(44, 62, 80, 0.9)',
+                        titleColor: '#ecf0f1',
+                        bodyColor: '#ecf0f1',
+                        padding: 10,
+                        cornerRadius: 6
+                    }
+                }
+            });
+            
+            // Gráfico de movimientos por día
+            const ctxMovimientos = document.getElementById('chartMovimientos');
+            if (chartMovimientos) chartMovimientos.destroy();
+            
+            chartMovimientos = new Chart(ctxMovimientos, {
+                type: 'bar',
+                data: {
+                    labels: data.datosGraficoDia?.labels || [],
+                    datasets: [{
+                        label: tipoTexto,
+                        data: data.datosGraficoDia?.data || [],
+                        backgroundColor: tipo === 'salidas' ? 'rgba(231, 76, 60, 0.8)' : 'rgba(46, 204, 113, 0.8)',
+                        borderRadius: 4,
+                        borderWidth: 1,
+                        borderColor: tipo === 'salidas' ? '#c0392b' : '#27ae60'
+                    }]
+                },
+                options: { 
+                    ...commonOpts(`${tipoTexto} por Día - ${nombreMes} ${anio}`), 
+                    scales: { 
+                        x: { 
+                            grid: { display: false },
+                            title: {
+                                display: true, 
+                                text: 'Día del mes',
+                                font: { weight: 'bold' }
+                            } 
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: { stepSize: 1 },
+                            title: {
+                                display: true,
+                                text: 'Cantidad de Movimientos',
+                                font: { weight: 'bold' }
+                            },
+                            grid: { color: 'rgba(0,0,0,0.05)' }
+                        }
+                    } 
+                }
+            });
+            
+            // Gráfico de aspiradoras más usadas (solo para salidas)
+            const ctxAspiradoras = document.getElementById('chartAspiradoras');
+            if (chartAspiradoras) chartAspiradoras.destroy();
+            
+            if (tipo === 'salidas' && data.rankingAspiradoras && data.rankingAspiradoras.length > 0) {
+                const rankingTop10 = data.rankingAspiradoras.slice(0, 10);
+                
+                chartAspiradoras = new Chart(ctxAspiradoras, {
+                    type: 'bar',
+                    data: {
+                        labels: rankingTop10.map(item => item.nombre),
+                        datasets: [{
+                            label: 'Usos',
+                            data: rankingTop10.map(item => item.movimientos),
+                            backgroundColor: 'rgba(52, 152, 219, 0.8)',
+                            borderRadius: 4,
+                            borderWidth: 1,
+                            borderColor: '#2980b9'
+                        }]
+                    },
+                    options: { 
+                        ...commonOpts(`Aspiradoras Más Usadas - ${nombreMes} ${anio}`), 
+                        indexAxis: 'y',
+                        scales: { 
+                            x: { 
+                                beginAtZero: true,
+                                ticks: { stepSize: 1 },
+                                title: {
+                                    display: true, 
+                                    text: 'Cantidad de Usos',
+                                    font: { weight: 'bold' }
+                                },
+                                grid: { color: 'rgba(0,0,0,0.05)' }
+                            },
+                            y: {
+                                ticks: {
+                                    autoSkip: false,
+                                    maxRotation: 0
+                                },
+                                grid: { display: false }
+                            }
+                        } 
+                    }
+                });
+            } else if (tipo === 'entradas') {
+                // Para entradas, mostrar gráfico simple
+                chartAspiradoras = new Chart(ctxAspiradoras, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Entradas Registradas'],
+                        datasets: [{
+                            label: 'Devoluciones',
+                            data: [data.totalMovimientos || 0],
+                            backgroundColor: 'rgba(46, 204, 113, 0.8)',
+                            borderRadius: 4,
+                            borderWidth: 1,
+                            borderColor: '#27ae60'
+                        }]
+                    },
+                    options: { 
+                        ...commonOpts(`Resumen de Devoluciones - ${nombreMes} ${anio}`), 
+                        scales: { 
+                            x: { 
+                                grid: { display: false }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                ticks: { stepSize: 1 },
+                                title: {
+                                    display: true,
+                                    text: 'Cantidad de Devoluciones',
+                                    font: { weight: 'bold' }
+                                },
+                                grid: { color: 'rgba(0,0,0,0.05)' }
+                            }
+                        } 
+                    }
+                });
+            }
+            
+            // Renderizar tabla
+            datosFiltrados = [...datosTablaGlobal];
+            filtrarTabla();
+        }
+        
+        // =========================================================================
+        // FUNCIONES PARA FILTRAR TABLA
+        // =========================================================================
+        
+        function filtrarTabla() {
+            const textoBusqueda = document.getElementById('filtroTabla').value.toLowerCase();
+            
+            // Aplicar filtros
+            datosFiltrados = datosTablaGlobal.filter(item => {
+                // Filtro por texto de búsqueda
+                if (textoBusqueda) {
+                    const match = 
+                        (item.aspiradora && item.aspiradora.toLowerCase().includes(textoBusqueda)) ||
+                        (item.colaborador && item.colaborador.toLowerCase().includes(textoBusqueda)) ||
+                        (item.area && item.area.toLowerCase().includes(textoBusqueda)) ||
+                        (item.fecha && item.fecha.includes(textoBusqueda));
+                    
+                    if (!match) return false;
+                }
+                
+                return true;
+            });
+            
+            renderizarTabla(datosFiltrados);
+        }
+        
+        // =========================================================================
+        // FUNCIÓN PARA RENDERIZAR TABLA
+        // =========================================================================
+        
+        function renderizarTabla(lista) {
+            const tbody = document.getElementById('tablaCuerpo');
+            const aviso = document.getElementById('sinResultadosFiltro');
+            tbody.innerHTML = '';
+            
+            if (lista.length === 0) {
+                aviso.style.display = 'block'; 
+                return;
+            }
+            aviso.style.display = 'none';
+            
+            // Ordenar por fecha (más reciente primero)
+            lista.sort((a, b) => {
+                const fechaA = a.fecha_orden ? new Date(a.fecha_orden) : new Date(a.fecha.split('/').reverse().join('-'));
+                const fechaB = b.fecha_orden ? new Date(b.fecha_orden) : new Date(b.fecha.split('/').reverse().join('-'));
+                return fechaB - fechaA;
+            });
+            
+            lista.forEach((item, index) => {
+                // Botones de acciones
+                let botones = '';
+                
+                if (item.url && item.url.includes('http')) {
+                    const btnVer = `<button class="btn btn-action btn-pdf" onclick="verPDF('${item.url}')" title="Ver Acta">
+                                        <i class="fas fa-eye"></i>
+                                    </button>`;
+                    
+                    const btnDownload = `<button class="btn btn-action btn-download" onclick="descargarPDF('${item.url}')" title="Descargar">
+                                            <i class="fas fa-download"></i>
+                                         </button>`;
+                    
+                    const btnDelete = `<button class="btn btn-action btn-delete" onclick="confirmarEliminar(${index})" title="Eliminar">
+                                            <i class="fas fa-trash-alt"></i>
+                                       </button>`;
+                    
+                    botones = `<div class="d-flex justify-content-center">
+                                ${btnVer} ${btnDownload} ${btnDelete}
+                               </div>`;
+                } else {
+                    const btnDelete = `<button class="btn btn-action btn-delete" onclick="confirmarEliminar(${index})" title="Eliminar">
+                                            <i class="fas fa-trash-alt"></i>
+                                       </button>`;
+                    
+                    botones = `<div class="d-flex justify-content-center">
+                                ${btnDelete}
+                               </div>`;
+                }
+                
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="fw-bold">${item.fecha}</td>
+                    <td class="fw-bold">${item.aspiradora}</td>
+                    <td>${item.colaborador}</td>
+                    <td>${item.area}</td>
+                    <td class="text-center">
+                        ${botones}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+        
+        // =========================================================================
+        // FUNCIONES PARA MANEJO DE PDF
+        // =========================================================================
+        
+        function verPDF(url) {
+            if(!url) return;
+            
+            // Convertir URL de view a preview para mostrar dentro del iframe
+            let previewUrl = url;
+            if (url.includes('/view')) {
+                previewUrl = url.replace(/\/view.*/, '/preview');
+            }
+            
+            document.getElementById('iframePDF').src = previewUrl;
+            modalPDF.show();
+        }
+        
+        function getDriveId(url) {
+            if (!url) return null;
+            let match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+            if (match) return match[1];
+            match = url.match(/id=([a-zA-Z0-9-_]+)/);
+            return match ? match[1] : null;
+        }
+        
+        function descargarPDF(url) {
+            const id = getDriveId(url);
+            if (id) {
+                const downloadLink = `https://drive.google.com/uc?export=download&id=${id}`;
+                window.open(downloadLink, '_blank');
+            } else {
+                Swal.fire('Error', 'No se pudo obtener el ID del archivo', 'error');
+            }
+        }
+        
+        // =========================================================================
+        // FUNCIÓN PARA ELIMINAR REGISTRO
+        // =========================================================================
+        
+        function confirmarEliminar(index) {
+            const item = datosFiltrados[index];
+            if (!item) return;
+
+            Swal.fire({
+                title: 'Eliminar Reporte',
+                text: 'Ingresa la contraseña para confirmar la eliminación:',
+                input: 'password',
+                inputAttributes: {
+                    autocapitalize: 'off',
+                    placeholder: 'Contraseña'
+                },
+                showCancelButton: true,
+                confirmButtonText: 'Eliminar',
+                confirmButtonColor: '#e74c3c',
+                cancelButtonText: 'Cancelar',
+                allowOutsideClick: false,
+                backdrop: `rgba(43, 62, 80, 0.8)`,
+                preConfirm: (password) => {
+                    if (password !== CONTRASENA_ELIMINAR) {
+                        Swal.showValidationMessage('Contraseña incorrecta');
+                        return false;
+                    }
+                    return password;
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    ejecutarEliminacion(item);
+                }
+            });
+        }
+        
+        function ejecutarEliminacion(item) {
+            showLoading("Eliminando registro...", "Por favor espera");
+            
+            fetch(URL_SCRIPT_GOOGLE, {
+                method: 'POST',
+                body: JSON.stringify({ 
+                    action: "eliminarReporte", 
+                    tipo: tipoActual, 
+                    mes: mesActual, 
+                    anio: anioActual,
+                    fila: item.fila,
+                    url: item.url,
+                    contrasena: CONTRASENA_ELIMINAR
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                hideLoading();
+                
+                if (data.status === "success") {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Eliminado',
+                        text: data.data.message,
+                        timer: 2000,
+                        showConfirmButton: false
+                    }).then(() => {
+                        // Recargar datos
+                        consultarDatos();
+                    });
+                } else {
+                    Swal.fire("Error", data.message, "error");
+                }
+            })
+            .catch(err => {
+                hideLoading();
+                Swal.fire("Error", "Problema de conexión con el servidor.", "error");
+            });
+        }
+
+    </script>
+</body>
+</html>

@@ -539,169 +539,196 @@
         // FUNCIÓN PARA RENDERIZAR EL DASHBOARD
         // =========================================================================
         
-        function renderizarDashboard(data, mesVal, anio, tipo) {
-            document.getElementById('dashboardContent').style.display = 'block';
-            datosTablaGlobal = data.listaMovimientos || [];
-            
-            // Actualizar KPI's según el tipo
-            const tipoTexto = tipo === 'salidas' ? 'Salidas' : 'Entradas';
-            document.getElementById('kpiLabel').textContent = tipoTexto;
-            document.getElementById('kpiTotal').textContent = data.totalMovimientos || 0;
-            document.getElementById('kpiAspiradoras').textContent = data.aspiradorasUnicas || 0;
-            
-            const nombreMes = mesesNombres[parseInt(mesVal) - 1];
-            
-            // Configuración común para gráficos
-            const commonOpts = (titulo) => ({
-                responsive: true, 
-                maintainAspectRatio: false,
-                plugins: { 
-                    title: { 
-                        display: true, 
-                        text: titulo, 
-                        font: {size: 14, weight: 'bold'},
-                        color: '#2c3e50',
-                        padding: {top: 10, bottom: 20}
-                    }, 
-                    legend: { 
-                        display: false
-                    },
-                    tooltip: {
-                        backgroundColor: 'rgba(44, 62, 80, 0.9)',
-                        titleColor: '#ecf0f1',
-                        bodyColor: '#ecf0f1',
-                        padding: 10,
-                        cornerRadius: 6
-                    }
+function renderizarDashboard(data, mesVal, anio, tipo) {
+    document.getElementById('dashboardContent').style.display = 'block';
+    datosTablaGlobal = data.listaMovimientos || [];
+    
+    // Procesar datos para asegurar que tengan hora y orden correcto
+    if (datosTablaGlobal) {
+        datosTablaGlobal.forEach(mov => {
+            // Si no viene hora del servidor, intentar extraerla de fecha_orden
+            if (!mov.hora && mov.fecha_orden) {
+                const fechaObj = new Date(mov.fecha_orden);
+                if (!isNaN(fechaObj.getTime())) {
+                    mov.hora = fechaObj.toISOString();
                 }
-            });
-            
-            // Gráfico de movimientos por día
-            const ctxMovimientos = document.getElementById('chartMovimientos');
-            if (chartMovimientos) chartMovimientos.destroy();
-            
-            chartMovimientos = new Chart(ctxMovimientos, {
-                type: 'bar',
-                data: {
-                    labels: data.datosGraficoDia?.labels || [],
-                    datasets: [{
-                        label: tipoTexto,
-                        data: data.datosGraficoDia?.data || [],
-                        backgroundColor: tipo === 'salidas' ? 'rgba(231, 76, 60, 0.8)' : 'rgba(46, 204, 113, 0.8)',
-                        borderRadius: 4,
-                        borderWidth: 1,
-                        borderColor: tipo === 'salidas' ? '#c0392b' : '#27ae60'
-                    }]
-                },
-                options: { 
-                    ...commonOpts(`${tipoTexto} por Día - ${nombreMes} ${anio}`), 
-                    scales: { 
-                        x: { 
-                            grid: { display: false },
-                            title: {
-                                display: true, 
-                                text: 'Día del mes',
-                                font: { weight: 'bold' }
-                            } 
-                        },
-                        y: {
-                            beginAtZero: true,
-                            ticks: { stepSize: 1 },
-                            title: {
-                                display: true,
-                                text: 'Cantidad de Movimientos',
-                                font: { weight: 'bold' }
-                            },
-                            grid: { color: 'rgba(0,0,0,0.05)' }
-                        }
-                    } 
-                }
-            });
-            
-            // Gráfico de aspiradoras más usadas (solo para salidas)
-            const ctxAspiradoras = document.getElementById('chartAspiradoras');
-            if (chartAspiradoras) chartAspiradoras.destroy();
-            
-            if (tipo === 'salidas' && data.rankingAspiradoras && data.rankingAspiradoras.length > 0) {
-                const rankingTop10 = data.rankingAspiradoras.slice(0, 10);
-                
-                chartAspiradoras = new Chart(ctxAspiradoras, {
-                    type: 'bar',
-                    data: {
-                        labels: rankingTop10.map(item => item.nombre),
-                        datasets: [{
-                            label: 'Usos',
-                            data: rankingTop10.map(item => item.movimientos),
-                            backgroundColor: 'rgba(52, 152, 219, 0.8)',
-                            borderRadius: 4,
-                            borderWidth: 1,
-                            borderColor: '#2980b9'
-                        }]
-                    },
-                    options: { 
-                        ...commonOpts(`Aspiradoras Más Usadas - ${nombreMes} ${anio}`), 
-                        indexAxis: 'y',
-                        scales: { 
-                            x: { 
-                                beginAtZero: true,
-                                ticks: { stepSize: 1 },
-                                title: {
-                                    display: true, 
-                                    text: 'Cantidad de Usos',
-                                    font: { weight: 'bold' }
-                                },
-                                grid: { color: 'rgba(0,0,0,0.05)' }
-                            },
-                            y: {
-                                ticks: {
-                                    autoSkip: false,
-                                    maxRotation: 0
-                                },
-                                grid: { display: false }
-                            }
-                        } 
-                    }
-                });
-            } else if (tipo === 'entradas') {
-                // Para entradas, mostrar gráfico simple
-                chartAspiradoras = new Chart(ctxAspiradoras, {
-                    type: 'bar',
-                    data: {
-                        labels: ['Entradas Registradas'],
-                        datasets: [{
-                            label: 'Devoluciones',
-                            data: [data.totalMovimientos || 0],
-                            backgroundColor: 'rgba(46, 204, 113, 0.8)',
-                            borderRadius: 4,
-                            borderWidth: 1,
-                            borderColor: '#27ae60'
-                        }]
-                    },
-                    options: { 
-                        ...commonOpts(`Resumen de Devoluciones - ${nombreMes} ${anio}`), 
-                        scales: { 
-                            x: { 
-                                grid: { display: false }
-                            },
-                            y: {
-                                beginAtZero: true,
-                                ticks: { stepSize: 1 },
-                                title: {
-                                    display: true,
-                                    text: 'Cantidad de Devoluciones',
-                                    font: { weight: 'bold' }
-                                },
-                                grid: { color: 'rgba(0,0,0,0.05)' }
-                            }
-                        } 
-                    }
-                });
             }
             
-            // Renderizar tabla
-            datosFiltrados = [...datosTablaGlobal];
-            filtrarTabla();
+            // Crear fecha_orden_hora combinando fecha y hora
+            if (mov.hora) {
+                mov.fecha_orden_hora = mov.hora;
+            } else if (mov.fecha_orden) {
+                mov.fecha_orden_hora = mov.fecha_orden;
+            } else if (mov.fecha) {
+                // Parsear fecha en formato español (dd/mm/aaaa)
+                const partes = mov.fecha.split('/');
+                if (partes.length === 3) {
+                    mov.fecha_orden_hora = new Date(partes[2], partes[1] - 1, partes[0]).toISOString();
+                }
+            }
+        });
+    }
+    
+    // Actualizar KPI's según el tipo
+    const tipoTexto = tipo === 'salidas' ? 'Salidas' : 'Entradas';
+    document.getElementById('kpiLabel').textContent = tipoTexto;
+    document.getElementById('kpiTotal').textContent = data.totalMovimientos || 0;
+    document.getElementById('kpiAspiradoras').textContent = data.aspiradorasUnicas || 0;
+    
+    const nombreMes = mesesNombres[parseInt(mesVal) - 1];
+    
+    // Configuración común para gráficos
+    const commonOpts = (titulo) => ({
+        responsive: true, 
+        maintainAspectRatio: false,
+        plugins: { 
+            title: { 
+                display: true, 
+                text: titulo, 
+                font: {size: 14, weight: 'bold'},
+                color: '#2c3e50',
+                padding: {top: 10, bottom: 20}
+            }, 
+            legend: { 
+                display: false
+            },
+            tooltip: {
+                backgroundColor: 'rgba(44, 62, 80, 0.9)',
+                titleColor: '#ecf0f1',
+                bodyColor: '#ecf0f1',
+                padding: 10,
+                cornerRadius: 6
+            }
         }
+    });
+    
+    // Gráfico de movimientos por día
+    const ctxMovimientos = document.getElementById('chartMovimientos');
+    if (chartMovimientos) chartMovimientos.destroy();
+    
+    chartMovimientos = new Chart(ctxMovimientos, {
+        type: 'bar',
+        data: {
+            labels: data.datosGraficoDia?.labels || [],
+            datasets: [{
+                label: tipoTexto,
+                data: data.datosGraficoDia?.data || [],
+                backgroundColor: tipo === 'salidas' ? 'rgba(231, 76, 60, 0.8)' : 'rgba(46, 204, 113, 0.8)',
+                borderRadius: 4,
+                borderWidth: 1,
+                borderColor: tipo === 'salidas' ? '#c0392b' : '#27ae60'
+            }]
+        },
+        options: { 
+            ...commonOpts(`${tipoTexto} por Día - ${nombreMes} ${anio}`), 
+            scales: { 
+                x: { 
+                    grid: { display: false },
+                    title: {
+                        display: true, 
+                        text: 'Día del mes',
+                        font: { weight: 'bold' }
+                    } 
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: { stepSize: 1 },
+                    title: {
+                        display: true,
+                        text: 'Cantidad de Movimientos',
+                        font: { weight: 'bold' }
+                    },
+                    grid: { color: 'rgba(0,0,0,0.05)' }
+                }
+            } 
+        }
+    });
+    
+    // Gráfico de aspiradoras más usadas (solo para salidas)
+    const ctxAspiradoras = document.getElementById('chartAspiradoras');
+    if (chartAspiradoras) chartAspiradoras.destroy();
+    
+    if (tipo === 'salidas' && data.rankingAspiradoras && data.rankingAspiradoras.length > 0) {
+        const rankingTop10 = data.rankingAspiradoras.slice(0, 10);
+        
+        chartAspiradoras = new Chart(ctxAspiradoras, {
+            type: 'bar',
+            data: {
+                labels: rankingTop10.map(item => item.nombre),
+                datasets: [{
+                    label: 'Usos',
+                    data: rankingTop10.map(item => item.movimientos),
+                    backgroundColor: 'rgba(52, 152, 219, 0.8)',
+                    borderRadius: 4,
+                    borderWidth: 1,
+                    borderColor: '#2980b9'
+                }]
+            },
+            options: { 
+                ...commonOpts(`Aspiradoras Más Usadas - ${nombreMes} ${anio}`), 
+                indexAxis: 'y',
+                scales: { 
+                    x: { 
+                        beginAtZero: true,
+                        ticks: { stepSize: 1 },
+                        title: {
+                            display: true, 
+                            text: 'Cantidad de Usos',
+                            font: { weight: 'bold' }
+                        },
+                        grid: { color: 'rgba(0,0,0,0.05)' }
+                    },
+                    y: {
+                        ticks: {
+                            autoSkip: false,
+                            maxRotation: 0
+                        },
+                        grid: { display: false }
+                    }
+                } 
+            }
+        });
+    } else if (tipo === 'entradas') {
+        // Para entradas, mostrar gráfico simple
+        chartAspiradoras = new Chart(ctxAspiradoras, {
+            type: 'bar',
+            data: {
+                labels: ['Entradas Registradas'],
+                datasets: [{
+                    label: 'Devoluciones',
+                    data: [data.totalMovimientos || 0],
+                    backgroundColor: 'rgba(46, 204, 113, 0.8)',
+                    borderRadius: 4,
+                    borderWidth: 1,
+                    borderColor: '#27ae60'
+                }]
+            },
+            options: { 
+                ...commonOpts(`Resumen de Devoluciones - ${nombreMes} ${anio}`), 
+                scales: { 
+                    x: { 
+                        grid: { display: false }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1 },
+                        title: {
+                            display: true,
+                            text: 'Cantidad de Devoluciones',
+                            font: { weight: 'bold' }
+                        },
+                        grid: { color: 'rgba(0,0,0,0.05)' }
+                    }
+                } 
+            }
+        });
+    }
+    
+    // Renderizar tabla
+    datosFiltrados = [...datosTablaGlobal];
+    filtrarTabla();
+}
+
         
         // =========================================================================
         // FUNCIONES PARA FILTRAR TABLA
@@ -733,68 +760,114 @@
         // FUNCIÓN PARA RENDERIZAR TABLA
         // =========================================================================
         
-        function renderizarTabla(lista) {
-            const tbody = document.getElementById('tablaCuerpo');
-            const aviso = document.getElementById('sinResultadosFiltro');
-            tbody.innerHTML = '';
-            
-            if (lista.length === 0) {
-                aviso.style.display = 'block'; 
-                return;
-            }
-            aviso.style.display = 'none';
-            
-            // Ordenar por fecha (más reciente primero)
-            lista.sort((a, b) => {
-                const fechaA = a.fecha_orden ? new Date(a.fecha_orden) : new Date(a.fecha.split('/').reverse().join('-'));
-                const fechaB = b.fecha_orden ? new Date(b.fecha_orden) : new Date(b.fecha.split('/').reverse().join('-'));
-                return fechaB - fechaA;
-            });
-            
-            lista.forEach((item, index) => {
-                // Botones de acciones
-                let botones = '';
-                
-                if (item.url && item.url.includes('http')) {
-                    const btnVer = `<button class="btn btn-action btn-pdf" onclick="verPDF('${item.url}')" title="Ver Acta">
-                                        <i class="fas fa-eye"></i>
-                                    </button>`;
-                    
-                    const btnDownload = `<button class="btn btn-action btn-download" onclick="descargarPDF('${item.url}')" title="Descargar">
-                                            <i class="fas fa-download"></i>
-                                         </button>`;
-                    
-                    const btnDelete = `<button class="btn btn-action btn-delete" onclick="confirmarEliminar(${index})" title="Eliminar">
-                                            <i class="fas fa-trash-alt"></i>
-                                       </button>`;
-                    
-                    botones = `<div class="d-flex justify-content-center">
-                                ${btnVer} ${btnDownload} ${btnDelete}
-                               </div>`;
-                } else {
-                    const btnDelete = `<button class="btn btn-action btn-delete" onclick="confirmarEliminar(${index})" title="Eliminar">
-                                            <i class="fas fa-trash-alt"></i>
-                                       </button>`;
-                    
-                    botones = `<div class="d-flex justify-content-center">
-                                ${btnDelete}
-                               </div>`;
-                }
-                
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="fw-bold">${item.fecha}</td>
-                    <td class="fw-bold">${item.aspiradora}</td>
-                    <td>${item.colaborador}</td>
-                    <td>${item.area}</td>
-                    <td class="text-center">
-                        ${botones}
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
+function renderizarTabla(lista) {
+    const tbody = document.getElementById('tablaCuerpo');
+    const aviso = document.getElementById('sinResultadosFiltro');
+    tbody.innerHTML = '';
+    
+    if (lista.length === 0) {
+        aviso.style.display = 'block'; 
+        return;
+    }
+    aviso.style.display = 'none';
+    
+    // Ordenar por fecha Y hora (más reciente primero)
+    lista.sort((a, b) => {
+        // Si ya tenemos fecha_orden_hora, usarla (será la más precisa)
+        if (a.fecha_orden_hora && b.fecha_orden_hora) {
+            return new Date(b.fecha_orden_hora) - new Date(a.fecha_orden_hora);
         }
         
+        // Si no, construir fecha completa a partir de fecha y hora separadas
+        let fechaA, fechaB;
+        
+        if (a.fecha && a.hora) {
+            // Combinar fecha y hora
+            fechaA = new Date(`${a.fecha} ${a.hora}`);
+        } else if (a.fecha_orden) {
+            // Usar solo fecha
+            fechaA = new Date(a.fecha_orden);
+        } else if (a.fecha) {
+            // Parsear fecha en formato español
+            const partesA = a.fecha.split('/');
+            fechaA = new Date(partesA[2], partesA[1] - 1, partesA[0]);
+        } else {
+            fechaA = new Date(0); // Fecha muy antigua
+        }
+        
+        if (b.fecha && b.hora) {
+            fechaB = new Date(`${b.fecha} ${b.hora}`);
+        } else if (b.fecha_orden) {
+            fechaB = new Date(b.fecha_orden);
+        } else if (b.fecha) {
+            const partesB = b.fecha.split('/');
+            fechaB = new Date(partesB[2], partesB[1] - 1, partesB[2]);
+        } else {
+            fechaB = new Date(0);
+        }
+        
+        // Orden descendente (más reciente primero)
+        return fechaB - fechaA;
+    });
+    
+    lista.forEach((item, index) => {
+        // Botones de acciones
+        let botones = '';
+        
+        if (item.url && item.url.includes('http')) {
+            const btnVer = `<button class="btn btn-action btn-pdf" onclick="verPDF('${item.url}')" title="Ver Acta">
+                                <i class="fas fa-eye"></i>
+                            </button>`;
+            
+            const btnDownload = `<button class="btn btn-action btn-download" onclick="descargarPDF('${item.url}')" title="Descargar">
+                                    <i class="fas fa-download"></i>
+                                 </button>`;
+            
+            const btnDelete = `<button class="btn btn-action btn-delete" onclick="confirmarEliminar(${index})" title="Eliminar">
+                                    <i class="fas fa-trash-alt"></i>
+                               </button>`;
+            
+            botones = `<div class="d-flex justify-content-center">
+                        ${btnVer} ${btnDownload} ${btnDelete}
+                       </div>`;
+        } else {
+            const btnDelete = `<button class="btn btn-action btn-delete" onclick="confirmarEliminar(${index})" title="Eliminar">
+                                    <i class="fas fa-trash-alt"></i>
+                               </button>`;
+            
+            botones = `<div class="d-flex justify-content-center">
+                        ${btnDelete}
+                       </div>`;
+        }
+        
+        // Mostrar hora si está disponible
+        let fechaCompleta = item.fecha;
+        if (item.hora) {
+            // Formatear hora para mostrar
+            const horaObj = new Date(item.hora);
+            if (!isNaN(horaObj.getTime())) {
+                const horaFormateada = horaObj.toLocaleTimeString('es-ES', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                });
+                fechaCompleta = `${item.fecha} ${horaFormateada}`;
+            }
+        }
+        
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="fw-bold">${fechaCompleta}</td>
+            <td class="fw-bold">${item.aspiradora}</td>
+            <td>${item.colaborador}</td>
+            <td>${item.area}</td>
+            <td class="text-center">
+                ${botones}
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}        
+
         // =========================================================================
         // FUNCIONES PARA MANEJO DE PDF
         // =========================================================================

@@ -112,6 +112,21 @@
         .btn-download { background: linear-gradient(45deg, #27ae60, #2ecc71); }
         .btn-delete { background: #7f8c8d; }
         .btn-delete:hover { background: #c0392b; }
+        
+        /* BOTÓN PARA ELIMINAR DUPLICADOS */
+        .btn-danger-custom {
+            background: linear-gradient(45deg, var(--accent-color), #c0392b);
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 50px;
+            font-weight: 600;
+            transition: var(--transition);
+        }
+        .btn-danger-custom:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(231, 76, 60, 0.3);
+        }
 
         /* RANKING */
         .ranking-item { 
@@ -148,6 +163,16 @@
             background-color: #e74c3c1a; 
             color: #c0392b; 
             border: 1px solid #e74c3c40; 
+        }
+        
+        /* BADGE PARA DUPLICADOS */
+        .badge-duplicate {
+            background-color: var(--warning-color);
+            color: white;
+            font-size: 0.75rem;
+            padding: 3px 8px;
+            border-radius: 50px;
+            margin-left: 8px;
         }
 
         /* OVERLAY CARGA */
@@ -332,8 +357,49 @@
                         <div class="text-center mt-2">
                             <small class="text-muted">
                                 <i class="fas fa-info-circle me-1"></i>
-                                Aspiradoras más usadas (Top 10)
+                                <span id="chartAspiradorasLabel">Aspiradoras más usadas (Top 10)</span>
                             </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECCIÓN DUPLICADOS -->
+            <div class="row" id="seccionDuplicados" style="display: none;">
+                <div class="col-12">
+                    <div class="card-custom border-warning" style="border-top: 5px solid var(--warning-color);">
+                        <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-3 border-bottom pb-2">
+                            <h5 class="text-warning mb-2 mb-md-0">
+                                <i class="fas fa-exclamation-triangle me-2"></i>Registros Duplicados Detectados
+                                <span class="badge bg-warning text-dark ms-2" id="contadorDuplicados">0</span>
+                            </h5>
+                            <button class="btn btn-danger-custom" onclick="confirmarEliminarDuplicados()">
+                                <i class="fas fa-trash-alt me-1"></i> Eliminar Todos los Duplicados
+                            </button>
+                        </div>
+
+                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                            <table class="table table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 50px;">#</th>
+                                        <th style="width: 120px;">Fecha</th>
+                                        <th>Aspiradora</th>
+                                        <th>Colaborador</th>
+                                        <th>Área</th>
+                                        <th class="text-center" style="width: 100px;">Repeticiones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaDuplicadosCuerpo"></tbody>
+                            </table>
+                            <div id="sinDuplicados" class="text-center p-4 text-muted" style="display:none;">
+                                No se encontraron registros duplicados.
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3 text-muted small">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Se consideran duplicados aquellos registros con misma fecha, aspiradora, colaborador y área.
                         </div>
                     </div>
                 </div>
@@ -396,6 +462,7 @@
         let chartAspiradoras = null;
         let datosTablaGlobal = [];
         let datosFiltrados = [];
+        let duplicadosDetectados = [];
         let tipoActual = '';
         let mesActual = '';
         let anioActual = '';
@@ -477,6 +544,90 @@
         }
         
         // =========================================================================
+        // FUNCIÓN PARA DETECTAR DUPLICADOS
+        // =========================================================================
+        
+        function detectarDuplicados(listaMovimientos) {
+            const mapaDuplicados = new Map();
+            
+            // Crear clave única con fecha + aspiradora + colaborador + área
+            listaMovimientos.forEach((item, index) => {
+                const clave = `${item.fecha}|${item.aspiradora}|${item.colaborador}|${item.area}`;
+                
+                if (!mapaDuplicados.has(clave)) {
+                    mapaDuplicados.set(clave, {
+                        clave: clave,
+                        items: [item],
+                        indices: [index]
+                    });
+                } else {
+                    const grupo = mapaDuplicados.get(clave);
+                    grupo.items.push(item);
+                    grupo.indices.push(index);
+                }
+            });
+            
+            // Filtrar solo los que tienen más de un elemento
+            const duplicados = [];
+            for (const [clave, grupo] of mapaDuplicados.entries()) {
+                if (grupo.items.length > 1) {
+                    // Separar por /
+                    const partes = clave.split('|');
+                    duplicados.push({
+                        fecha: partes[0],
+                        aspiradora: partes[1],
+                        colaborador: partes[2],
+                        area: partes[3],
+                        items: grupo.items,
+                        indices: grupo.indices,
+                        count: grupo.items.length
+                    });
+                }
+            }
+            
+            return duplicados;
+        }
+        
+        // =========================================================================
+        // FUNCIÓN PARA MOSTRAR TABLA DE DUPLICADOS
+        // =========================================================================
+        
+        function mostrarTablaDuplicados(duplicados) {
+            const seccionDuplicados = document.getElementById('seccionDuplicados');
+            const tablaCuerpo = document.getElementById('tablaDuplicadosCuerpo');
+            const sinDuplicados = document.getElementById('sinDuplicados');
+            const contador = document.getElementById('contadorDuplicados');
+            
+            if (duplicados.length === 0) {
+                seccionDuplicados.style.display = 'none';
+                return;
+            }
+            
+            seccionDuplicados.style.display = 'block';
+            contador.textContent = duplicados.length;
+            tablaCuerpo.innerHTML = '';
+            sinDuplicados.style.display = 'none';
+            
+            duplicados.forEach((dup, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="fw-bold">${index + 1}</td>
+                    <td class="fw-bold">${dup.fecha}</td>
+                    <td>${dup.aspiradora}</td>
+                    <td>${dup.colaborador}</td>
+                    <td>${dup.area}</td>
+                    <td class="text-center">
+                        <span class="badge bg-danger">${dup.count} registros</span>
+                    </td>
+                `;
+                tablaCuerpo.appendChild(tr);
+            });
+            
+            // Guardar duplicados en variable global
+            duplicadosDetectados = duplicados;
+        }
+        
+        // =========================================================================
         // FUNCIÓN PRINCIPAL PARA CONSULTAR DATOS
         // =========================================================================
         
@@ -498,6 +649,7 @@
             showLoading("Consultando datos...", "Por favor espera un momento");
             
             document.getElementById('dashboardContent').style.display = 'none';
+            document.getElementById('seccionDuplicados').style.display = 'none';
             document.getElementById('alertNoData').style.display = 'none';
             
             // Guardar valores actuales
@@ -539,196 +691,285 @@
         // FUNCIÓN PARA RENDERIZAR EL DASHBOARD
         // =========================================================================
         
-function renderizarDashboard(data, mesVal, anio, tipo) {
-    document.getElementById('dashboardContent').style.display = 'block';
-    datosTablaGlobal = data.listaMovimientos || [];
-    
-    // Procesar datos para asegurar que tengan hora y orden correcto
-    if (datosTablaGlobal) {
-        datosTablaGlobal.forEach(mov => {
-            // Si no viene hora del servidor, intentar extraerla de fecha_orden
-            if (!mov.hora && mov.fecha_orden) {
-                const fechaObj = new Date(mov.fecha_orden);
-                if (!isNaN(fechaObj.getTime())) {
-                    mov.hora = fechaObj.toISOString();
+        function renderizarDashboard(data, mesVal, anio, tipo) {
+            document.getElementById('dashboardContent').style.display = 'block';
+            datosTablaGlobal = data.listaMovimientos || [];
+            
+            // Procesar datos para asegurar que tengan hora y orden correcto
+            if (datosTablaGlobal) {
+                datosTablaGlobal.forEach(mov => {
+                    // Si no viene hora del servidor, intentar extraerla de fecha_orden
+                    if (!mov.hora && mov.fecha_orden) {
+                        const fechaObj = new Date(mov.fecha_orden);
+                        if (!isNaN(fechaObj.getTime())) {
+                            mov.hora = fechaObj.toISOString();
+                        }
+                    }
+                    
+                    // Crear fecha_orden_hora combinando fecha y hora
+                    if (mov.hora) {
+                        mov.fecha_orden_hora = mov.hora;
+                    } else if (mov.fecha_orden) {
+                        mov.fecha_orden_hora = mov.fecha_orden;
+                    } else if (mov.fecha) {
+                        // Parsear fecha en formato español (dd/mm/aaaa)
+                        const partes = mov.fecha.split('/');
+                        if (partes.length === 3) {
+                            mov.fecha_orden_hora = new Date(partes[2], partes[1] - 1, partes[0]).toISOString();
+                        }
+                    }
+                });
+            }
+            
+            // Detectar duplicados
+            const duplicados = detectarDuplicados(datosTablaGlobal);
+            mostrarTablaDuplicados(duplicados);
+            
+            // Actualizar KPI's según el tipo
+            const tipoTexto = tipo === 'salidas' ? 'Salidas' : 'Entradas';
+            document.getElementById('kpiLabel').textContent = tipoTexto;
+            document.getElementById('kpiTotal').textContent = data.totalMovimientos || 0;
+            document.getElementById('kpiAspiradoras').textContent = data.aspiradorasUnicas || 0;
+            
+            const nombreMes = mesesNombres[parseInt(mesVal) - 1];
+            
+            // Configuración común para gráficos
+            const commonOpts = (titulo) => ({
+                responsive: true, 
+                maintainAspectRatio: false,
+                plugins: { 
+                    title: { 
+                        display: true, 
+                        text: titulo, 
+                        font: {size: 14, weight: 'bold'},
+                        color: '#2c3e50',
+                        padding: {top: 10, bottom: 20}
+                    }, 
+                    legend: { 
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(44, 62, 80, 0.9)',
+                        titleColor: '#ecf0f1',
+                        bodyColor: '#ecf0f1',
+                        padding: 10,
+                        cornerRadius: 6
+                    }
+                }
+            });
+            
+            // Gráfico de movimientos por día
+            const ctxMovimientos = document.getElementById('chartMovimientos');
+            if (chartMovimientos) chartMovimientos.destroy();
+            
+            chartMovimientos = new Chart(ctxMovimientos, {
+                type: 'bar',
+                data: {
+                    labels: data.datosGraficoDia?.labels || [],
+                    datasets: [{
+                        label: tipoTexto,
+                        data: data.datosGraficoDia?.data || [],
+                        backgroundColor: tipo === 'salidas' ? 'rgba(231, 76, 60, 0.8)' : 'rgba(46, 204, 113, 0.8)',
+                        borderRadius: 4,
+                        borderWidth: 1,
+                        borderColor: tipo === 'salidas' ? '#c0392b' : '#27ae60'
+                    }]
+                },
+                options: { 
+                    ...commonOpts(`${tipoTexto} por Día - ${nombreMes} ${anio}`), 
+                    scales: { 
+                        x: { 
+                            grid: { display: false },
+                            title: {
+                                display: true, 
+                                text: 'Día del mes',
+                                font: { weight: 'bold' }
+                            } 
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: { stepSize: 1 },
+                            title: {
+                                display: true,
+                                text: 'Cantidad de Movimientos',
+                                font: { weight: 'bold' }
+                            },
+                            grid: { color: 'rgba(0,0,0,0.05)' }
+                        }
+                    } 
+                }
+            });
+            
+            // Gráfico de aspiradoras - DIFERENTE PARA SALIDAS Y ENTRADAS
+            const ctxAspiradoras = document.getElementById('chartAspiradoras');
+            if (chartAspiradoras) chartAspiradoras.destroy();
+            
+            // Cambiar etiqueta según tipo
+            document.getElementById('chartAspiradorasLabel').textContent = 
+                tipo === 'salidas' ? 'Aspiradoras más usadas (Top 10)' : 'Aspiradoras devueltas (Top 10)';
+            
+            if (tipo === 'salidas' && data.rankingAspiradoras && data.rankingAspiradoras.length > 0) {
+                // Para salidas: Ranking de aspiradoras más usadas
+                const rankingTop10 = data.rankingAspiradoras.slice(0, 10);
+                
+                chartAspiradoras = new Chart(ctxAspiradoras, {
+                    type: 'bar',
+                    data: {
+                        labels: rankingTop10.map(item => item.nombre),
+                        datasets: [{
+                            label: 'Usos',
+                            data: rankingTop10.map(item => item.movimientos),
+                            backgroundColor: 'rgba(52, 152, 219, 0.8)',
+                            borderRadius: 4,
+                            borderWidth: 1,
+                            borderColor: '#2980b9'
+                        }]
+                    },
+                    options: { 
+                        ...commonOpts(`Aspiradoras Más Usadas - ${nombreMes} ${anio}`), 
+                        indexAxis: 'y',
+                        scales: { 
+                            x: { 
+                                beginAtZero: true,
+                                ticks: { stepSize: 1 },
+                                title: {
+                                    display: true, 
+                                    text: 'Cantidad de Usos',
+                                    font: { weight: 'bold' }
+                                },
+                                grid: { color: 'rgba(0,0,0,0.05)' }
+                            },
+                            y: {
+                                ticks: {
+                                    autoSkip: false,
+                                    maxRotation: 0
+                                },
+                                grid: { display: false }
+                            }
+                        } 
+                    }
+                });
+            } else if (tipo === 'entradas') {
+                // Para entradas: Mostrar gráfico de devoluciones por aspiradora
+                if (data.listaMovimientos && data.listaMovimientos.length > 0) {
+                    // Contar devoluciones por aspiradora
+                    const conteoDevoluciones = {};
+                    data.listaMovimientos.forEach(mov => {
+                        const aspiradora = mov.aspiradora;
+                        if (!conteoDevoluciones[aspiradora]) {
+                            conteoDevoluciones[aspiradora] = 0;
+                        }
+                        conteoDevoluciones[aspiradora]++;
+                    });
+                    
+                    // Convertir a array y ordenar
+                    const rankingDevoluciones = Object.entries(conteoDevoluciones)
+                        .map(([nombre, movimientos]) => ({ nombre, movimientos }))
+                        .sort((a, b) => b.movimientos - a.movimientos)
+                        .slice(0, 10); // Tomar solo top 10
+                    
+                    if (rankingDevoluciones.length > 0) {
+                        chartAspiradoras = new Chart(ctxAspiradoras, {
+                            type: 'bar',
+                            data: {
+                                labels: rankingDevoluciones.map(item => item.nombre),
+                                datasets: [{
+                                    label: 'Devoluciones',
+                                    data: rankingDevoluciones.map(item => item.movimientos),
+                                    backgroundColor: 'rgba(46, 204, 113, 0.8)',
+                                    borderRadius: 4,
+                                    borderWidth: 1,
+                                    borderColor: '#27ae60'
+                                }]
+                            },
+                            options: { 
+                                ...commonOpts(`Aspiradoras Devueltas - ${nombreMes} ${anio}`), 
+                                indexAxis: 'y',
+                                scales: { 
+                                    x: { 
+                                        beginAtZero: true,
+                                        ticks: { stepSize: 1 },
+                                        title: {
+                                            display: true, 
+                                            text: 'Cantidad de Devoluciones',
+                                            font: { weight: 'bold' }
+                                        },
+                                        grid: { color: 'rgba(0,0,0,0.05)' }
+                                    },
+                                    y: {
+                                        ticks: {
+                                            autoSkip: false,
+                                            maxRotation: 0
+                                        },
+                                        grid: { display: false }
+                                    }
+                                } 
+                            }
+                        });
+                    } else {
+                        // Si no hay datos, mostrar gráfico vacío
+                        mostrarGraficoVacio(ctxAspiradoras, `Devoluciones - ${nombreMes} ${anio}`);
+                    }
+                } else {
+                    // Si no hay datos, mostrar gráfico vacío
+                    mostrarGraficoVacio(ctxAspiradoras, `Devoluciones - ${nombreMes} ${anio}`);
                 }
             }
             
-            // Crear fecha_orden_hora combinando fecha y hora
-            if (mov.hora) {
-                mov.fecha_orden_hora = mov.hora;
-            } else if (mov.fecha_orden) {
-                mov.fecha_orden_hora = mov.fecha_orden;
-            } else if (mov.fecha) {
-                // Parsear fecha en formato español (dd/mm/aaaa)
-                const partes = mov.fecha.split('/');
-                if (partes.length === 3) {
-                    mov.fecha_orden_hora = new Date(partes[2], partes[1] - 1, partes[0]).toISOString();
-                }
-            }
-        });
-    }
-    
-    // Actualizar KPI's según el tipo
-    const tipoTexto = tipo === 'salidas' ? 'Salidas' : 'Entradas';
-    document.getElementById('kpiLabel').textContent = tipoTexto;
-    document.getElementById('kpiTotal').textContent = data.totalMovimientos || 0;
-    document.getElementById('kpiAspiradoras').textContent = data.aspiradorasUnicas || 0;
-    
-    const nombreMes = mesesNombres[parseInt(mesVal) - 1];
-    
-    // Configuración común para gráficos
-    const commonOpts = (titulo) => ({
-        responsive: true, 
-        maintainAspectRatio: false,
-        plugins: { 
-            title: { 
-                display: true, 
-                text: titulo, 
-                font: {size: 14, weight: 'bold'},
-                color: '#2c3e50',
-                padding: {top: 10, bottom: 20}
-            }, 
-            legend: { 
-                display: false
-            },
-            tooltip: {
-                backgroundColor: 'rgba(44, 62, 80, 0.9)',
-                titleColor: '#ecf0f1',
-                bodyColor: '#ecf0f1',
-                padding: 10,
-                cornerRadius: 6
-            }
+            // Renderizar tabla
+            datosFiltrados = [...datosTablaGlobal];
+            filtrarTabla();
         }
-    });
-    
-    // Gráfico de movimientos por día
-    const ctxMovimientos = document.getElementById('chartMovimientos');
-    if (chartMovimientos) chartMovimientos.destroy();
-    
-    chartMovimientos = new Chart(ctxMovimientos, {
-        type: 'bar',
-        data: {
-            labels: data.datosGraficoDia?.labels || [],
-            datasets: [{
-                label: tipoTexto,
-                data: data.datosGraficoDia?.data || [],
-                backgroundColor: tipo === 'salidas' ? 'rgba(231, 76, 60, 0.8)' : 'rgba(46, 204, 113, 0.8)',
-                borderRadius: 4,
-                borderWidth: 1,
-                borderColor: tipo === 'salidas' ? '#c0392b' : '#27ae60'
-            }]
-        },
-        options: { 
-            ...commonOpts(`${tipoTexto} por Día - ${nombreMes} ${anio}`), 
-            scales: { 
-                x: { 
-                    grid: { display: false },
-                    title: {
-                        display: true, 
-                        text: 'Día del mes',
-                        font: { weight: 'bold' }
-                    } 
-                },
-                y: {
-                    beginAtZero: true,
-                    ticks: { stepSize: 1 },
-                    title: {
-                        display: true,
-                        text: 'Cantidad de Movimientos',
-                        font: { weight: 'bold' }
-                    },
-                    grid: { color: 'rgba(0,0,0,0.05)' }
-                }
-            } 
-        }
-    });
-    
-    // Gráfico de aspiradoras más usadas (solo para salidas)
-    const ctxAspiradoras = document.getElementById('chartAspiradoras');
-    if (chartAspiradoras) chartAspiradoras.destroy();
-    
-    if (tipo === 'salidas' && data.rankingAspiradoras && data.rankingAspiradoras.length > 0) {
-        const rankingTop10 = data.rankingAspiradoras.slice(0, 10);
         
-        chartAspiradoras = new Chart(ctxAspiradoras, {
-            type: 'bar',
-            data: {
-                labels: rankingTop10.map(item => item.nombre),
-                datasets: [{
-                    label: 'Usos',
-                    data: rankingTop10.map(item => item.movimientos),
-                    backgroundColor: 'rgba(52, 152, 219, 0.8)',
-                    borderRadius: 4,
-                    borderWidth: 1,
-                    borderColor: '#2980b9'
-                }]
-            },
-            options: { 
-                ...commonOpts(`Aspiradoras Más Usadas - ${nombreMes} ${anio}`), 
-                indexAxis: 'y',
-                scales: { 
-                    x: { 
-                        beginAtZero: true,
-                        ticks: { stepSize: 1 },
-                        title: {
-                            display: true, 
-                            text: 'Cantidad de Usos',
-                            font: { weight: 'bold' }
-                        },
-                        grid: { color: 'rgba(0,0,0,0.05)' }
-                    },
-                    y: {
-                        ticks: {
-                            autoSkip: false,
-                            maxRotation: 0
-                        },
-                        grid: { display: false }
-                    }
-                } 
-            }
-        });
-    } else if (tipo === 'entradas') {
-        // Para entradas, mostrar gráfico simple
-        chartAspiradoras = new Chart(ctxAspiradoras, {
-            type: 'bar',
-            data: {
-                labels: ['Entradas Registradas'],
-                datasets: [{
-                    label: 'Devoluciones',
-                    data: [data.totalMovimientos || 0],
-                    backgroundColor: 'rgba(46, 204, 113, 0.8)',
-                    borderRadius: 4,
-                    borderWidth: 1,
-                    borderColor: '#27ae60'
-                }]
-            },
-            options: { 
-                ...commonOpts(`Resumen de Devoluciones - ${nombreMes} ${anio}`), 
-                scales: { 
-                    x: { 
-                        grid: { display: false }
-                    },
-                    y: {
-                        beginAtZero: true,
-                        ticks: { stepSize: 1 },
+        // =========================================================================
+        // FUNCIÓN PARA MOSTRAR GRÁFICO VACÍO
+        // =========================================================================
+        
+        function mostrarGraficoVacio(ctx, titulo) {
+            chartAspiradoras = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Sin datos'],
+                    datasets: [{
+                        label: 'Sin datos',
+                        data: [0],
+                        backgroundColor: 'rgba(149, 165, 166, 0.3)',
+                        borderRadius: 4,
+                        borderWidth: 1,
+                        borderColor: '#7f8c8d'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
                         title: {
                             display: true,
-                            text: 'Cantidad de Devoluciones',
-                            font: { weight: 'bold' }
+                            text: titulo,
+                            font: { size: 14, weight: 'bold' },
+                            color: '#2c3e50',
+                            padding: { top: 10, bottom: 20 }
                         },
-                        grid: { color: 'rgba(0,0,0,0.05)' }
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            enabled: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            max: 1,
+                            grid: { color: 'rgba(0,0,0,0.05)' }
+                        }
                     }
-                } 
-            }
-        });
-    }
-    
-    // Renderizar tabla
-    datosFiltrados = [...datosTablaGlobal];
-    filtrarTabla();
-}
-
+                }
+            });
+        }
         
         // =========================================================================
         // FUNCIONES PARA FILTRAR TABLA
@@ -760,114 +1001,125 @@ function renderizarDashboard(data, mesVal, anio, tipo) {
         // FUNCIÓN PARA RENDERIZAR TABLA
         // =========================================================================
         
-function renderizarTabla(lista) {
-    const tbody = document.getElementById('tablaCuerpo');
-    const aviso = document.getElementById('sinResultadosFiltro');
-    tbody.innerHTML = '';
-    
-    if (lista.length === 0) {
-        aviso.style.display = 'block'; 
-        return;
-    }
-    aviso.style.display = 'none';
-    
-    // Ordenar por fecha Y hora (más reciente primero)
-    lista.sort((a, b) => {
-        // Si ya tenemos fecha_orden_hora, usarla (será la más precisa)
-        if (a.fecha_orden_hora && b.fecha_orden_hora) {
-            return new Date(b.fecha_orden_hora) - new Date(a.fecha_orden_hora);
-        }
-        
-        // Si no, construir fecha completa a partir de fecha y hora separadas
-        let fechaA, fechaB;
-        
-        if (a.fecha && a.hora) {
-            // Combinar fecha y hora
-            fechaA = new Date(`${a.fecha} ${a.hora}`);
-        } else if (a.fecha_orden) {
-            // Usar solo fecha
-            fechaA = new Date(a.fecha_orden);
-        } else if (a.fecha) {
-            // Parsear fecha en formato español
-            const partesA = a.fecha.split('/');
-            fechaA = new Date(partesA[2], partesA[1] - 1, partesA[0]);
-        } else {
-            fechaA = new Date(0); // Fecha muy antigua
-        }
-        
-        if (b.fecha && b.hora) {
-            fechaB = new Date(`${b.fecha} ${b.hora}`);
-        } else if (b.fecha_orden) {
-            fechaB = new Date(b.fecha_orden);
-        } else if (b.fecha) {
-            const partesB = b.fecha.split('/');
-            fechaB = new Date(partesB[2], partesB[1] - 1, partesB[2]);
-        } else {
-            fechaB = new Date(0);
-        }
-        
-        // Orden descendente (más reciente primero)
-        return fechaB - fechaA;
-    });
-    
-    lista.forEach((item, index) => {
-        // Botones de acciones
-        let botones = '';
-        
-        if (item.url && item.url.includes('http')) {
-            const btnVer = `<button class="btn btn-action btn-pdf" onclick="verPDF('${item.url}')" title="Ver Acta">
-                                <i class="fas fa-eye"></i>
-                            </button>`;
+        function renderizarTabla(lista) {
+            const tbody = document.getElementById('tablaCuerpo');
+            const aviso = document.getElementById('sinResultadosFiltro');
+            tbody.innerHTML = '';
             
-            const btnDownload = `<button class="btn btn-action btn-download" onclick="descargarPDF('${item.url}')" title="Descargar">
-                                    <i class="fas fa-download"></i>
-                                 </button>`;
-            
-            const btnDelete = `<button class="btn btn-action btn-delete" onclick="confirmarEliminar(${index})" title="Eliminar">
-                                    <i class="fas fa-trash-alt"></i>
-                               </button>`;
-            
-            botones = `<div class="d-flex justify-content-center">
-                        ${btnVer} ${btnDownload} ${btnDelete}
-                       </div>`;
-        } else {
-            const btnDelete = `<button class="btn btn-action btn-delete" onclick="confirmarEliminar(${index})" title="Eliminar">
-                                    <i class="fas fa-trash-alt"></i>
-                               </button>`;
-            
-            botones = `<div class="d-flex justify-content-center">
-                        ${btnDelete}
-                       </div>`;
-        }
-        
-        // Mostrar hora si está disponible
-        let fechaCompleta = item.fecha;
-        if (item.hora) {
-            // Formatear hora para mostrar
-            const horaObj = new Date(item.hora);
-            if (!isNaN(horaObj.getTime())) {
-                const horaFormateada = horaObj.toLocaleTimeString('es-ES', { 
-                    hour: '2-digit', 
-                    minute: '2-digit' 
-                });
-                fechaCompleta = `${item.fecha} ${horaFormateada}`;
+            if (lista.length === 0) {
+                aviso.style.display = 'block'; 
+                return;
             }
+            aviso.style.display = 'none';
+            
+            // Ordenar por fecha Y hora (más reciente primero)
+            lista.sort((a, b) => {
+                // Si ya tenemos fecha_orden_hora, usarla (será la más precisa)
+                if (a.fecha_orden_hora && b.fecha_orden_hora) {
+                    return new Date(b.fecha_orden_hora) - new Date(a.fecha_orden_hora);
+                }
+                
+                // Si no, construir fecha completa a partir de fecha y hora separadas
+                let fechaA, fechaB;
+                
+                if (a.fecha && a.hora) {
+                    // Combinar fecha y hora
+                    fechaA = new Date(`${a.fecha} ${a.hora}`);
+                } else if (a.fecha_orden) {
+                    // Usar solo fecha
+                    fechaA = new Date(a.fecha_orden);
+                } else if (a.fecha) {
+                    // Parsear fecha en formato español
+                    const partesA = a.fecha.split('/');
+                    fechaA = new Date(partesA[2], partesA[1] - 1, partesA[0]);
+                } else {
+                    fechaA = new Date(0); // Fecha muy antigua
+                }
+                
+                if (b.fecha && b.hora) {
+                    fechaB = new Date(`${b.fecha} ${b.hora}`);
+                } else if (b.fecha_orden) {
+                    fechaB = new Date(b.fecha_orden);
+                } else if (b.fecha) {
+                    const partesB = b.fecha.split('/');
+                    fechaB = new Date(partesB[2], partesB[1] - 1, partesB[2]);
+                } else {
+                    fechaB = new Date(0);
+                }
+                
+                // Orden descendente (más reciente primero)
+                return fechaB - fechaA;
+            });
+            
+            lista.forEach((item, index) => {
+                // Botones de acciones
+                let botones = '';
+                
+                if (item.url && item.url.includes('http')) {
+                    const btnVer = `<button class="btn btn-action btn-pdf" onclick="verPDF('${item.url}')" title="Ver Acta">
+                                        <i class="fas fa-eye"></i>
+                                    </button>`;
+                    
+                    const btnDownload = `<button class="btn btn-action btn-download" onclick="descargarPDF('${item.url}')" title="Descargar">
+                                            <i class="fas fa-download"></i>
+                                         </button>`;
+                    
+                    const btnDelete = `<button class="btn btn-action btn-delete" onclick="confirmarEliminar(${index})" title="Eliminar">
+                                            <i class="fas fa-trash-alt"></i>
+                                       </button>`;
+                    
+                    botones = `<div class="d-flex justify-content-center">
+                                ${btnVer} ${btnDownload} ${btnDelete}
+                               </div>`;
+                } else {
+                    const btnDelete = `<button class="btn btn-action btn-delete" onclick="confirmarEliminar(${index})" title="Eliminar">
+                                            <i class="fas fa-trash-alt"></i>
+                                       </button>`;
+                    
+                    botones = `<div class="d-flex justify-content-center">
+                                ${btnDelete}
+                               </div>`;
+                }
+                
+                // Mostrar hora si está disponible
+                let fechaCompleta = item.fecha;
+                if (item.hora) {
+                    // Formatear hora para mostrar
+                    const horaObj = new Date(item.hora);
+                    if (!isNaN(horaObj.getTime())) {
+                        const horaFormateada = horaObj.toLocaleTimeString('es-ES', { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                        });
+                        fechaCompleta = `${item.fecha} ${horaFormateada}`;
+                    }
+                }
+                
+                // Verificar si este registro es duplicado
+                const esDuplicado = duplicadosDetectados.some(dup => 
+                    dup.fecha === item.fecha && 
+                    dup.aspiradora === item.aspiradora && 
+                    dup.colaborador === item.colaborador && 
+                    dup.area === item.area
+                );
+                
+                const badgeDuplicado = esDuplicado ? 
+                    `<span class="badge-duplicate"><i class="fas fa-copy me-1"></i>Duplicado</span>` : '';
+                
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="fw-bold">${fechaCompleta}</td>
+                    <td class="fw-bold">${item.aspiradora} ${badgeDuplicado}</td>
+                    <td>${item.colaborador}</td>
+                    <td>${item.area}</td>
+                    <td class="text-center">
+                        ${botones}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
         }
         
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td class="fw-bold">${fechaCompleta}</td>
-            <td class="fw-bold">${item.aspiradora}</td>
-            <td>${item.colaborador}</td>
-            <td>${item.area}</td>
-            <td class="text-center">
-                ${botones}
-            </td>
-        `;
-        tbody.appendChild(tr);
-    });
-}        
-
         // =========================================================================
         // FUNCIONES PARA MANEJO DE PDF
         // =========================================================================
@@ -904,7 +1156,7 @@ function renderizarTabla(lista) {
         }
         
         // =========================================================================
-        // FUNCIÓN PARA ELIMINAR REGISTRO
+        // FUNCIÓN PARA ELIMINAR REGISTRO INDIVIDUAL
         // =========================================================================
         
         function confirmarEliminar(index) {
@@ -964,6 +1216,120 @@ function renderizarTabla(lista) {
                         title: 'Eliminado',
                         text: data.data.message,
                         timer: 2000,
+                        showConfirmButton: false
+                    }).then(() => {
+                        // Recargar datos
+                        consultarDatos();
+                    });
+                } else {
+                    Swal.fire("Error", data.message, "error");
+                }
+            })
+            .catch(err => {
+                hideLoading();
+                Swal.fire("Error", "Problema de conexión con el servidor.", "error");
+            });
+        }
+        
+        // =========================================================================
+        // FUNCIÓN PARA ELIMINAR TODOS LOS DUPLICADOS
+        // =========================================================================
+        
+        function confirmarEliminarDuplicados() {
+            if (duplicadosDetectados.length === 0) {
+                Swal.fire("Sin duplicados", "No hay registros duplicados para eliminar.", "info");
+                return;
+            }
+            
+            // Calcular total de registros a eliminar (todos menos uno por grupo)
+            let totalAEliminar = 0;
+            duplicadosDetectados.forEach(dup => {
+                totalAEliminar += (dup.items.length - 1); // Dejamos uno, eliminamos los demás
+            });
+            
+            Swal.fire({
+                title: 'Eliminar Todos los Duplicados',
+                html: `Se eliminarán <strong>${totalAEliminar}</strong> registros duplicados.<br><br>
+                      <small class="text-muted">Se dejará solo un registro por cada grupo de duplicados.</small><br><br>
+                      Ingresa la contraseña para confirmar:`,
+                input: 'password',
+                inputAttributes: {
+                    autocapitalize: 'off',
+                    placeholder: 'Contraseña'
+                },
+                showCancelButton: true,
+                confirmButtonText: 'Eliminar Duplicados',
+                confirmButtonColor: '#e74c3c',
+                cancelButtonText: 'Cancelar',
+                allowOutsideClick: false,
+                backdrop: `rgba(43, 62, 80, 0.8)`,
+                preConfirm: (password) => {
+                    if (password !== CONTRASENA_ELIMINAR) {
+                        Swal.showValidationMessage('Contraseña incorrecta');
+                        return false;
+                    }
+                    return password;
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    ejecutarEliminacionDuplicados();
+                }
+            });
+        }
+        
+        function ejecutarEliminacionDuplicados() {
+            showLoading("Eliminando duplicados...", `Procesando ${duplicadosDetectados.length} grupos de duplicados`);
+            
+            // Preparar datos para eliminar
+            const registrosAEliminar = [];
+            
+            // Para cada grupo de duplicados, dejamos el primero (más reciente) y eliminamos los demás
+            duplicadosDetectados.forEach(grupo => {
+                // Ordenar por fecha/hora (más reciente primero)
+                const ordenados = [...grupo.items].sort((a, b) => {
+                    const fechaA = a.fecha_orden_hora ? new Date(a.fecha_orden_hora) : new Date(0);
+                    const fechaB = b.fecha_orden_hora ? new Date(b.fecha_orden_hora) : new Date(0);
+                    return fechaB - fechaA; // Descendente
+                });
+                
+                // Dejar el primero (más reciente), eliminar los demás
+                for (let i = 1; i < ordenados.length; i++) {
+                    registrosAEliminar.push(ordenados[i]);
+                }
+            });
+            
+            if (registrosAEliminar.length === 0) {
+                hideLoading();
+                Swal.fire("Operación completada", "No había duplicados para eliminar.", "success");
+                return;
+            }
+            
+            // Enviar solicitud al servidor para eliminar todos los duplicados
+            fetch(URL_SCRIPT_GOOGLE, {
+                method: 'POST',
+                body: JSON.stringify({ 
+                    action: "eliminarDuplicados", 
+                    tipo: tipoActual, 
+                    mes: mesActual, 
+                    anio: anioActual,
+                    registros: registrosAEliminar.map(r => ({
+                        fila: r.fila,
+                        url: r.url
+                    })),
+                    contrasena: CONTRASENA_ELIMINAR
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                hideLoading();
+                
+                if (data.status === "success") {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Duplicados Eliminados',
+                        html: `Se eliminaron <strong>${registrosAEliminar.length}</strong> registros duplicados.<br><br>
+                              <small class="text-muted">${data.data.message || ''}</small>`,
+                        timer: 3000,
                         showConfirmButton: false
                     }).then(() => {
                         // Recargar datos

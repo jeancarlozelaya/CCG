@@ -1573,11 +1573,7 @@
 
   function generarPDFGraficos() {
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4'
-    });
+    const doc = new jsPDF();
     
     doc.setFontSize(16);
     doc.text("Gráficos de Consumo", doc.internal.pageSize.getWidth() / 2, 15, { align: "center" });
@@ -1601,7 +1597,7 @@
     const chartIds = Object.keys(charts);
     
     // ============================================
-    // SECCIÓN 1: GRÁFICOS (CON MEJOR CALIDAD)
+    // SECCIÓN 1: GRÁFICOS
     // ============================================
     for (let i = 0; i < chartIds.length; i += 2) {
       // Verificar si necesitamos nueva página
@@ -1614,16 +1610,6 @@
       const canvas1 = document.getElementById(chartId1);
       
       if (canvas1) {
-        // MEJORA DE CALIDAD: Crear una copia del canvas a mayor resolución
-        const highResCanvas1 = document.createElement('canvas');
-        const scaleFactor = 3; // Factor de escala para mejor calidad
-        highResCanvas1.width = canvas1.width * scaleFactor;
-        highResCanvas1.height = canvas1.height * scaleFactor;
-        
-        const ctx1 = highResCanvas1.getContext('2d');
-        ctx1.scale(scaleFactor, scaleFactor);
-        ctx1.drawImage(canvas1, 0, 0);
-        
         // Título del primer gráfico con soporte multi-línea
         doc.setFontSize(10);
         doc.setTextColor(44, 62, 80);
@@ -1634,38 +1620,28 @@
         // Dividir título en líneas (máximo 35 caracteres por línea)
         const lineasTitulo1 = splitTextIntoLines(titulo1, 35);
         
-        // Posición inicial del título
+        // Posición inicial del título (separado del borde superior)
         let tituloYPos = yPos;
         
-        // Dibujar cada línea del título
+        // Dibujar cada línea del título con separación de 4mm entre líneas
         lineasTitulo1.forEach((linea, index) => {
           doc.text(linea, doc.internal.pageSize.getWidth() / 4, tituloYPos + (index * 4), { align: "center" });
         });
         
-        // Calcular altura total del título
+        // Calcular altura total del título (4mm por línea + espacio adicional)
         const alturaTitulo1 = (lineasTitulo1.length * 4) + 2;
         
         // Posición del gráfico (después del título)
         const graficoYPos = tituloYPos + alturaTitulo1;
         
-        // Usar la imagen de alta resolución
-        const imgData1 = highResCanvas1.toDataURL('image/png');
+        const imgData1 = canvas1.toDataURL('image/png');
         doc.addImage(imgData1, 'PNG', 15, graficoYPos, 85, 50);
         
         const chartId2 = chartIds[i + 1];
         const canvas2 = chartId2 ? document.getElementById(chartId2) : null;
         
         if (canvas2) {
-          // MEJORA DE CALIDAD: Crear una copia del segundo canvas a mayor resolución
-          const highResCanvas2 = document.createElement('canvas');
-          highResCanvas2.width = canvas2.width * scaleFactor;
-          highResCanvas2.height = canvas2.height * scaleFactor;
-          
-          const ctx2 = highResCanvas2.getContext('2d');
-          ctx2.scale(scaleFactor, scaleFactor);
-          ctx2.drawImage(canvas2, 0, 0);
-          
-          // Título del segundo gráfico
+          // Título del segundo gráfico con soporte multi-línea
           const titulo2 = canvas2.parentElement.querySelector('h3').textContent;
           
           // Dividir título en líneas
@@ -1676,17 +1652,24 @@
             doc.text(linea, (doc.internal.pageSize.getWidth() / 4) * 3, tituloYPos + (index * 4), { align: "center" });
           });
           
-          // Usar la imagen de alta resolución
-          const imgData2 = highResCanvas2.toDataURL('image/png');
+          // Calcular altura total del título (4mm por línea + espacio adicional)
+          const alturaTitulo2 = (lineasTitulo2.length * 4) + 2;
           
-          // Posición del segundo gráfico
+          // Usar la altura mayor de los dos títulos
+          const alturaMaxTitulo = Math.max(alturaTitulo1, alturaTitulo2);
+          
+          // Obtener imagen del segundo gráfico
+          const imgData2 = canvas2.toDataURL('image/png');
+          
+          // Posición del segundo gráfico (misma altura que el primero)
           doc.addImage(imgData2, 'PNG', 110, graficoYPos, 85, 50);
           
           // Actualizar yPos para el siguiente par de gráficos
-          yPos = graficoYPos + 50 + 15;
+          // Sumamos: altura del título + altura del gráfico + espacio entre gráficos
+          yPos = graficoYPos + 50 + 15; // 15mm de espacio después de los gráficos
         } else {
           // Actualizar yPos para un solo gráfico
-          yPos = graficoYPos + 50 + 10;
+          yPos = graficoYPos + 50 + 10; // 10mm de espacio después de un solo gráfico
         }
       }
     }
@@ -1709,7 +1692,7 @@
       doc.setFontSize(14);
       doc.setFont(undefined, 'bold');
       doc.text("PROMEDIO DE CONSUMO DIARIO POR PRODUCTO", doc.internal.pageSize.getWidth() / 2, yPos + 3, { align: "center" });
-      yPos += 15;
+      yPos += 15; // Espacio después del título
       
       // Calcular número de días en el rango seleccionado
       const fechaInicioStr = fechaInicio;
@@ -1821,6 +1804,7 @@
     
     doc.save(`Graficos_${fechaInicio}_al_${fechaFin}.pdf`);
   }
+
 
 
   // Función auxiliar para dividir texto en líneas

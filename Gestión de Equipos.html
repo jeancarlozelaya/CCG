@@ -3364,28 +3364,92 @@ function configurarEventos() {
     $('#buscador').on('input', filtrarEquipos);
 
     // Evento para el interruptor de sin revisión
-    $('#toggleSinRevision').on('change', function() {
-        const estadoActual = getEstadoActual();
-        estadoActual.sinRevision = $(this).is(':checked');
+$('#toggleSinRevision').on('change', function(e) {
+    const $checkbox = $(this);
+    
+    // Si están intentando ACTIVAR el interruptor
+    if ($checkbox.is(':checked')) {
+        e.preventDefault(); // Prevenir el cambio inmediato
         
-        // Actualizar la variable global correspondiente
+        // Pedir contraseña
+        Swal.fire({
+            title: 'Confirmar acción',
+            text: 'Esta opción permite entregar la aspiradora sin realizar el checklist. Ingrese la contraseña para continuar:',
+            input: 'password',
+            inputPlaceholder: 'Contraseña',
+            showCancelButton: true,
+            confirmButtonText: 'Verificar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#28a745',
+            cancelButtonColor: '#6c757d',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            preConfirm: (password) => {
+                // Validación en el mismo campo
+                if (!password) {
+                    Swal.showValidationMessage('Debes ingresar la contraseña');
+                    return false;
+                }
+                if (password !== 'brillantes123') {
+                    Swal.showValidationMessage('Contraseña incorrecta');
+                    return false;
+                }
+                return password;
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Contraseña correcta - ACTIVAR
+                $checkbox.prop('checked', true);
+                
+                const estadoActual = getEstadoActual();
+                estadoActual.sinRevision = true;
+                
+                if (modoActual === 'salidas') {
+                    estadoSalidas = estadoActual;
+                }
+                
+                actualizarVisibilidadSegunRevision();
+                
+                if (equipoSeleccionado) {
+                    ocultarChecklist();
+                }
+                
+                verificarFormulario();
+                saveSession();
+                
+                // Mensaje de éxito (opcional, puedes quitarlo si quieres)
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Modo sin revisión activado',
+                    showConfirmButton: false,
+                    timer: 1000,
+                    toast: true,
+                    position: 'top-end'
+                });
+            } else if (result.dismiss === Swal.DismissReason.cancel) {
+                // Cancelaron - DESACTIVAR
+                $checkbox.prop('checked', false);
+            }
+        });
+    } else {
+        // Están DESACTIVANDO el interruptor (sin pedir contraseña)
+        const estadoActual = getEstadoActual();
+        estadoActual.sinRevision = false;
+        
         if (modoActual === 'salidas') {
             estadoSalidas = estadoActual;
         }
         
-        // Actualizar visibilidad
         actualizarVisibilidadSegunRevision();
         
-        // Si hay equipo seleccionado y activamos sin revisión, ocultar checklist
-        if (equipoSeleccionado && estadoActual.sinRevision) {
-            ocultarChecklist();
-        } else if (equipoSeleccionado && !estadoActual.sinRevision) {
+        if (equipoSeleccionado) {
             mostrarChecklist();
         }
         
         verificarFormulario();
         saveSession();
-    });
+    }
+});
     
     // Eventos para guardar colaborador y área
     $("#colaborador, #area").on("change input", function() {
@@ -3497,15 +3561,16 @@ function cambiarModo(modo) {
     // 3. OBTENER ESTADO DEL NUEVO MODO
     const estadoNuevoModo = getEstadoActual();
     
-    // 4. MOSTRAR/OCULTAR INTERRUPTOR DE SIN REVISIÓN
-    if (modo === 'salidas') {
-        $('#sin-revision-container').show();
-        $('#toggleSinRevision').prop('checked', estadoNuevoModo.sinRevision || false);
-    } else {
-        $('#sin-revision-container').hide();
-        // Siempre desactivar para entradas
-        $('#toggleSinRevision').prop('checked', false);
-    }
+// 4. MOSTRAR/OCULTAR INTERRUPTOR DE SIN REVISIÓN
+if (modo === 'salidas') {
+    $('#sin-revision-container').show();
+    // SOLO establecer el estado visual, NO provocar el evento change
+    $('#toggleSinRevision').prop('checked', estadoNuevoModo.sinRevision || false);
+} else {
+    $('#sin-revision-container').hide();
+    // Siempre desactivar para entradas
+    $('#toggleSinRevision').prop('checked', false);
+}
     
     // Solo ocultar checklist si no hay equipo seleccionado
     if (!equipoSeleccionado) {

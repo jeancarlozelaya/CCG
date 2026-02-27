@@ -485,6 +485,51 @@
             background-color: #5a6268;
         }
 
+        .btn-responsable {
+            background-color: var(--warning-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 20px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn-responsable:hover {
+            background-color: #e67e22;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-responsable i {
+            font-size: 0.9em;
+        }
+
+        .responsable-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background-color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            font-size: 0.9em;
+        }
+
+        .responsable-info i {
+            color: var(--warning-color);
+        }
+
+        .responsable-info span {
+            font-weight: 600;
+            color: var(--dark-color);
+        }
+
         .empty-state {
             text-align: center;
             padding: 40px 20px;
@@ -507,6 +552,68 @@
 
         .scroll-indicator i {
             margin: 0 5px;
+        }
+
+        /* Modal para responsable */
+        .modal-small {
+            max-width: 400px !important;
+        }
+
+        .responsable-input-container {
+            padding: 20px;
+        }
+
+        .responsable-input-container input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 16px;
+            margin-bottom: 15px;
+            transition: var(--transition);
+        }
+
+        .responsable-input-container input:focus {
+            border-color: var(--warning-color);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(243, 156, 18, 0.2);
+        }
+
+        .responsable-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .btn-guardar-responsable {
+            background: linear-gradient(to right, var(--warning-color), #e67e22);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 20px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .btn-guardar-responsable:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-cancelar-responsable {
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 20px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .btn-cancelar-responsable:hover {
+            background-color: #5a6268;
         }
 
         /* ========== INDICADOR DE CONEXIÓN ========== */
@@ -688,7 +795,7 @@
                 justify-content: stretch;
             }
 
-            .btn-cerrar, .btn-sincronizar {
+            .btn-cerrar, .btn-sincronizar, .btn-responsable {
                 flex: 1;
                 min-width: 120px;
             }
@@ -733,7 +840,7 @@
                 padding: 4px 8px;
             }
 
-            .btn-cerrar, .btn-sincronizar {
+            .btn-cerrar, .btn-sincronizar, .btn-responsable {
                 padding: 8px 12px;
                 font-size: 0.9em;
             }
@@ -865,10 +972,39 @@
                         <i class="fas fa-wifi"></i>
                         <span>Conectado</span>
                     </div>
+                    <div class="responsable-info" id="responsable-info" style="display: none;">
+                        <i class="fas fa-user-check"></i>
+                        <span id="responsable-nombre"></span>
+                    </div>
                 </div>
                 <div class="modal-footer-buttons">
+                    <button class="btn-responsable" onclick="mostrarModalResponsable()" title="Configurar responsable">
+                        <i class="fas fa-user"></i> Responsable
+                    </button>
                     <button class="btn-cerrar" onclick="cerrarModal()">Cerrar</button>
                     <button class="btn-sincronizar" id="btn-sincronizar" onclick="sincronizarDatos()" disabled>Sincronizar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para responsable -->
+    <div class="modal" id="modal-responsable">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h2>Responsable</h2>
+                <button class="close-modal" onclick="cerrarModalResponsable()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="responsable-input-container">
+                    <label for="nombre-responsable" style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--dark-color);">
+                        <i class="fas fa-user"></i> Nombre del responsable:
+                    </label>
+                    <input type="text" id="nombre-responsable" placeholder="Ingrese el nombre completo" autocomplete="off">
+                    <div class="responsable-actions">
+                        <button class="btn-cancelar-responsable" onclick="cerrarModalResponsable()">Cancelar</button>
+                        <button class="btn-guardar-responsable" onclick="guardarResponsable()">Guardar</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -891,6 +1027,7 @@
         let estadoFisicoSeleccionado = "Sólido";
         let edificioSeleccionado = "";
         let registroEnEdicion = null;
+        let responsableActual = null;
         const scriptURL = "https://script.google.com/macros/s/AKfycbyEonibd5OZnnSMJidnlAWTcFjKJvH6TehqaYVdxGsIVi59z3W96qX9-OUEEKOuHeg7Xg/exec";
 
         // Variables para control de conexión
@@ -920,10 +1057,8 @@
                     status.innerHTML = '<i class="fas fa-wifi"></i><span>Conectado</span>';
                 }
 
-                // Habilitar botón de sincronizar si hay registros
-                if (btnSincronizar && datosLocales.length > 0) {
-                    btnSincronizar.disabled = false;
-                }
+                // Habilitar botón de sincronizar si hay registros y responsable
+                actualizarEstadoBotonSincronizar();
                 
                 console.log('✅ Conexión restaurada - Modo online');
             } else {
@@ -948,11 +1083,119 @@
             }
         }
 
+        // Función para actualizar el estado del botón de sincronizar
+        function actualizarEstadoBotonSincronizar() {
+            const btnSincronizar = document.getElementById('btn-sincronizar');
+            if (!btnSincronizar) return;
+            
+            if (!isOnline) {
+                btnSincronizar.disabled = true;
+                btnSincronizar.title = 'Sin conexión a internet';
+            } else if (!responsableActual) {
+                btnSincronizar.disabled = true;
+                btnSincronizar.title = 'Debe configurar un responsable primero';
+            } else if (datosLocales.length === 0) {
+                btnSincronizar.disabled = true;
+                btnSincronizar.title = 'No hay registros pendientes';
+            } else {
+                btnSincronizar.disabled = false;
+                btnSincronizar.title = 'Sincronizar datos';
+            }
+        }
+
+        // Función para cargar el responsable desde localStorage
+        function cargarResponsable() {
+            const responsableGuardado = localStorage.getItem('responsable');
+            if (responsableGuardado) {
+                try {
+                    responsableActual = JSON.parse(responsableGuardado);
+                } catch (e) {
+                    responsableActual = responsableGuardado;
+                }
+                actualizarInterfazResponsable();
+            }
+        }
+
+        // Función para guardar el responsable en localStorage
+        function guardarResponsable() {
+            const nombreInput = document.getElementById('nombre-responsable');
+            const nombre = nombreInput.value.trim();
+            
+            if (!nombre) {
+                Swal.fire({
+                    title: 'Campo requerido',
+                    text: 'Por favor ingrese el nombre del responsable',
+                    icon: 'warning',
+                    confirmButtonText: 'Entendido',
+                    confirmButtonColor: '#f39c12'
+                });
+                return;
+            }
+            
+            responsableActual = nombre;
+            localStorage.setItem('responsable', JSON.stringify(nombre));
+            
+            actualizarInterfazResponsable();
+            cerrarModalResponsable();
+            
+            Swal.fire({
+                title: 'Responsable guardado',
+                text: `El responsable ${nombre} ha sido guardado correctamente`,
+                icon: 'success',
+                confirmButtonText: 'Aceptar',
+                confirmButtonColor: '#28a745',
+                timer: 2000,
+                showConfirmButton: true
+            });
+        }
+
+        // Función para actualizar la interfaz con el responsable
+        function actualizarInterfazResponsable() {
+            const responsableInfo = document.getElementById('responsable-info');
+            const responsableNombre = document.getElementById('responsable-nombre');
+            const btnSincronizar = document.getElementById('btn-sincronizar');
+            
+            if (responsableActual) {
+                responsableInfo.style.display = 'flex';
+                responsableNombre.textContent = responsableActual;
+                
+                // Actualizar estado del botón de sincronizar
+                if (btnSincronizar) {
+                    btnSincronizar.disabled = !isOnline || datosLocales.length === 0;
+                }
+            } else {
+                responsableInfo.style.display = 'none';
+                if (btnSincronizar) {
+                    btnSincronizar.disabled = true;
+                }
+            }
+        }
+
+        // Función para mostrar el modal del responsable
+        function mostrarModalResponsable() {
+            const modal = document.getElementById('modal-responsable');
+            const nombreInput = document.getElementById('nombre-responsable');
+            
+            if (responsableActual) {
+                nombreInput.value = responsableActual;
+            } else {
+                nombreInput.value = '';
+            }
+            
+            modal.style.display = 'flex';
+        }
+
+        // Función para cerrar el modal del responsable
+        function cerrarModalResponsable() {
+            document.getElementById('modal-responsable').style.display = 'none';
+        }
+
         // Configuración inicial al cargar la página
         document.addEventListener('DOMContentLoaded', function() {
             console.log('🚀 Inicializando aplicación...');
             
             actualizarEstadoConexion();
+            cargarResponsable();
             
             var today = new Date();
             var dd = String(today.getDate()).padStart(2, '0');
@@ -1121,10 +1364,8 @@
                 badge.style.display = 'flex';
                 badge.textContent = datosLocales.length > 99 ? '99+' : datosLocales.length;
                 
-                // Habilitar botón de sincronizar solo si hay conexión
-                if (btnSincronizar && isOnline) {
-                    btnSincronizar.disabled = false;
-                }
+                // Actualizar estado del botón de sincronizar
+                actualizarEstadoBotonSincronizar();
             } else {
                 badge.style.display = 'none';
                 if (btnSincronizar) {
@@ -1142,9 +1383,7 @@
             contador.textContent = `${datosLocales.length} registro${datosLocales.length !== 1 ? 's' : ''} pendiente${datosLocales.length !== 1 ? 's' : ''}`;
             
             // Actualizar estado del botón de sincronizar
-            if (btnSincronizar) {
-                btnSincronizar.disabled = datosLocales.length === 0 || !isOnline;
-            }
+            actualizarEstadoBotonSincronizar();
             
             if (datosLocales.length === 0) {
                 modalBody.innerHTML = `
@@ -1334,6 +1573,25 @@
                 return;
             }
 
+            // Verificar que haya un responsable configurado
+            if (!responsableActual) {
+                Swal.fire({
+                    title: 'Responsable requerido',
+                    text: 'Debe configurar un responsable antes de sincronizar',
+                    icon: 'warning',
+                    confirmButtonText: 'Configurar',
+                    confirmButtonColor: '#f39c12',
+                    showCancelButton: true,
+                    cancelButtonText: 'Cancelar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        cerrarModal();
+                        mostrarModalResponsable();
+                    }
+                });
+                return;
+            }
+
             const datosBackup = [...datosLocales];
             const timestampBackup = new Date().getTime();
 
@@ -1350,11 +1608,18 @@
 
             const ajaxPromise = new Promise((resolve, reject) => {
                 console.log('📤 Enviando datos a Google Sheets...');
+                
+                // Agregar el responsable a los datos
+                const datosParaEnviar = datosLocales.map(registro => ({
+                    ...registro,
+                    responsable: responsableActual
+                }));
+                
                 $.ajax({
                     url: scriptURL,
                     type: "POST",
                     data: {
-                        registros: JSON.stringify(datosLocales)
+                        registros: JSON.stringify(datosParaEnviar)
                     },
                     success: function(response) {
                         console.log('✅ Respuesta recibida:', response);
@@ -1392,6 +1657,9 @@
                                 <p style="font-size: 0.9em; color: #28a745;">
                                     <i class="fas fa-check-circle"></i> Todos los registros fueron procesados correctamente
                                 </p>
+                                <p style="font-size: 0.9em; color: #3498db;">
+                                    <i class="fas fa-user"></i> Responsable: ${responsableActual}
+                                </p>
                                 <div style="color: #28a745; font-size: 2em; margin-top: 15px;">
                                     <i class="fas fa-cloud-upload-alt"></i>
                                 </div>
@@ -1411,6 +1679,10 @@
                                 <p style="font-size: 1.1em; margin-bottom: 15px;">${responseData.message}</p>
                                 <p style="font-size: 0.9em; color: #f39c12;">
                                     <i class="fas fa-exclamation-triangle"></i> Sincronización parcial
+                                </p>
+                                <p style="font-size: 0.9em; color: #3498db;">
+                                    <i class="fas fa-user"></i> Responsable: ${responsableActual}
+                                </p>
                         `;
                         
                         if (responseData.detalles && responseData.detalles.length > 0) {
@@ -1499,13 +1771,18 @@
         });
 
         window.onclick = function(event) {
-            const modal = document.getElementById('modal-registros');
-            if (event.target === modal) {
+            const modalRegistros = document.getElementById('modal-registros');
+            const modalResponsable = document.getElementById('modal-responsable');
+            
+            if (event.target === modalRegistros) {
                 cerrarModal();
+            }
+            if (event.target === modalResponsable) {
+                cerrarModalResponsable();
             }
         }
 
-// Nuevo código para el Service Worker
+        // Nuevo código para el Service Worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
                 navigator.serviceWorker.register('sw-index.js')
@@ -1520,4 +1797,3 @@
     </script>
 </body>
 </html>
-

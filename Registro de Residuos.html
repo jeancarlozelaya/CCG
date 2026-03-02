@@ -1109,10 +1109,18 @@
                         </div>
                     </div>
 
-                    <div class="question-container">
-                        <label for="destino-recoleccion"><strong>Destino:</strong></label>
-                        <textarea id="destino-recoleccion" name="destino" placeholder="Ingrese el destino de los residuos" rows="3"></textarea>
-                    </div>
+<div class="question-container">
+    <label><strong>Destino:</strong></label>
+    <div class="button-group" id="destino-recoleccion">
+        <button type="button" data-value="Basurero Municipal">Basurero Municipal</button>
+        <button type="button" data-value="Monsol">Monsol</button>
+        <button type="button" data-value="Recacel">Recacel</button>
+    </div>
+    <div id="destino-ayuda" style="margin-top: 10px; padding: 10px; background-color: #fff3cd; border-radius: 6px; font-size: 0.9em; display: none;">
+        <i class="fas fa-info-circle" style="color: #856404;"></i> 
+        <span id="mensaje-ayuda"></span>
+    </div>
+</div>
 
                     <div class="button-container">
                         <button type="button" id="registrar-recoleccion" disabled onclick="registrarEntradaRecoleccion()">Registrar Recolección</button>
@@ -1205,6 +1213,8 @@
         
         // Variables para selección múltiple en recolección
         let tiposResiduoRecoleccion = [];
+        let destinoSeleccionado = "";
+        let destinosPermitidos = [];
 
         // Variables para control de conexión
         let isOnline = navigator.onLine;
@@ -1406,6 +1416,19 @@
             
             $("#fecha-recoleccion").on("change", verificarFormularioRecoleccion);
             $("#destino-recoleccion").on("change input", verificarFormularioRecoleccion);
+
+// Eventos para destino (dentro de configurarEventos)
+$('#destino-recoleccion button').on('click', function() {
+    if (!$(this).prop('disabled')) {
+        $('#destino-recoleccion button').removeClass('active');
+        $(this).addClass('active');
+        destinoSeleccionado = $(this).data('value');
+        verificarFormularioRecoleccion();
+    }
+});
+
+
+
         }
 
         function verificarFormularioResiduos() {
@@ -1469,101 +1492,144 @@
         }
 
         // ========== FUNCIONES PARA REGISTRO DE RECOLECCIÓN (TAB 2) ==========
-        function actualizarTiposSeleccionados() {
-            tiposResiduoRecoleccion = [];
-            
-            $('#tipo-residuo-recoleccion button.selected').each(function() {
-                tiposResiduoRecoleccion.push($(this).data('value'));
-            });
-            
-            // Actualizar visualización de tags
-            const container = document.getElementById('tipos-seleccionados-container');
-            const tagsContainer = document.getElementById('tipos-seleccionados-tags');
-            
-            if (tiposResiduoRecoleccion.length > 0) {
-                container.style.display = 'flex';
-                tagsContainer.innerHTML = '';
-                
-                tiposResiduoRecoleccion.forEach(tipo => {
-                    const tag = document.createElement('span');
-                    tag.className = 'tipo-tag';
-                    tag.innerHTML = `${tipo} <i class="fas fa-times" onclick="eliminarTipoSeleccionado('${tipo}')"></i>`;
-                    tagsContainer.appendChild(tag);
-                });
-            } else {
-                container.style.display = 'none';
-            }
-        }
+function actualizarTiposSeleccionados() {
+    tiposResiduoRecoleccion = [];
+    
+    $('#tipo-residuo-recoleccion button.selected').each(function() {
+        tiposResiduoRecoleccion.push($(this).data('value'));
+    });
+    
+    // Actualizar visualización de tags
+    const container = document.getElementById('tipos-seleccionados-container');
+    const tagsContainer = document.getElementById('tipos-seleccionados-tags');
+    
+    if (tiposResiduoRecoleccion.length > 0) {
+        container.style.display = 'flex';
+        tagsContainer.innerHTML = '';
+        
+        tiposResiduoRecoleccion.forEach(tipo => {
+            const tag = document.createElement('span');
+            tag.className = 'tipo-tag';
+            tag.innerHTML = `${tipo} <i class="fas fa-times" onclick="eliminarTipoSeleccionado('${tipo}')"></i>`;
+            tagsContainer.appendChild(tag);
+        });
+    } else {
+        container.style.display = 'none';
+    }
+    
+    // AGREGAR ESTA LÍNEA:
+    actualizarDestinosPermitidos();
+}
 
-        function eliminarTipoSeleccionado(tipo) {
-            $(`#tipo-residuo-recoleccion button[data-value="${tipo}"]`).removeClass('selected');
-            actualizarTiposSeleccionados();
-            verificarFormularioRecoleccion();
-        }
 
-        function verificarFormularioRecoleccion() {
-            let fecha = $("#fecha-recoleccion").val();
-            let destino = $("#destino-recoleccion").val().trim();
+function eliminarTipoSeleccionado(tipo) {
+    $(`#tipo-residuo-recoleccion button[data-value="${tipo}"]`).removeClass('selected');
+    actualizarTiposSeleccionados();
+    actualizarDestinosPermitidos();
+    verificarFormularioRecoleccion();
+}
 
-            if (fecha && tiposResiduoRecoleccion.length > 0 && destino) {
-                $("#registrar-recoleccion").prop("disabled", false);
-            } else {
-                $("#registrar-recoleccion").prop("disabled", true);
-            }
-        }
+function verificarFormularioRecoleccion() {
+    let fecha = $("#fecha-recoleccion").val();
+    // QUITAR la validación de destino como textarea y agregar esta:
+    let destinoValido = destinoSeleccionado && destinoSeleccionado.trim() !== "";
 
-        function registrarEntradaRecoleccion() {
-            let fecha = $('#fecha-recoleccion').val();
-            let destino = $('#destino-recoleccion').val().trim();
-            
-            // Convertir fecha de YYYY-MM-DD a DD/MM/AAAA para consistencia
-            let fechaParts = fecha.split('-');
-            let fechaFormateada = fechaParts[2] + '/' + fechaParts[1] + '/' + fechaParts[0];
+    // Validación adicional: no permitir mezclas no válidas
+    const mezclaValida = !(tiposResiduoRecoleccion.includes('RPBI') && tiposResiduoRecoleccion.length > 1) &&
+                         !(tiposResiduoRecoleccion.includes('Común') && tiposResiduoRecoleccion.some(t => t !== 'Común'));
 
-            let registro = {
-                fechaSalida: fechaFormateada,
-                fechaOriginal: fecha, // Guardar también el formato original
-                tiposResiduo: tiposResiduoRecoleccion,
-                destino: destino,
-                timestamp: new Date().getTime()
-            };
+    if (fecha && tiposResiduoRecoleccion.length > 0 && destinoValido && mezclaValida) {
+        $("#registrar-recoleccion").prop("disabled", false);
+    } else {
+        $("#registrar-recoleccion").prop("disabled", true);
+    }
+}
 
-            datosRecoleccion.push(registro);
-            guardarDatosRecoleccion();
-            actualizarContadores();
 
-            Swal.fire({
-                title: 'Registro Exitoso',
-                html: `
-                    <div style="text-align: center;">
-                        <p style="font-size: 1.1em; margin-bottom: 15px;">El registro de recolección se ha guardado correctamente.</p>
-                        <p style="font-size: 0.9em; color: #7f8c8d;">Registros pendientes de sincronizar: ${datosRecoleccion.length}</p>
-                        <div style="color: #28a745; font-size: 2em;">
-                            <i class="fas fa-check-circle"></i>
-                        </div>
-                    </div>
-                `,
-                icon: 'success',
-                confirmButtonText: 'Aceptar',
-                confirmButtonColor: '#28a745'
-            }).then(() => {
-                // Limpiar selecciones
-                $('#tipo-residuo-recoleccion button').removeClass('selected');
-                tiposResiduoRecoleccion = [];
-                actualizarTiposSeleccionados();
-                
-                $('#destino-recoleccion').val('');
-                
-                // Resetear fecha al día actual
-                var today = new Date();
-                var year = today.getFullYear();
-                var month = String(today.getMonth() + 1).padStart(2, '0');
-                var day = String(today.getDate()).padStart(2, '0');
-                document.getElementById("fecha-recoleccion").value = year + '-' + month + '-' + day;
-                
-                verificarFormularioRecoleccion();
-            });
-        }
+function registrarEntradaRecoleccion() {
+    let fecha = $('#fecha-recoleccion').val();
+    let destino = destinoSeleccionado;
+    
+    // Validar que el destino sea válido según los tipos
+    if ((tiposResiduoRecoleccion.includes('Común') && destino !== 'Basurero Municipal') ||
+        (tiposResiduoRecoleccion.includes('RPBI') && destino !== 'Monsol') ||
+        (tiposResiduoRecoleccion.some(t => ['Plástico', 'Aluminio', 'Cartón', 'Vidrio'].includes(t)) && !tiposResiduoRecoleccion.includes('Común') && !tiposResiduoRecoleccion.includes('RPBI') && destino !== 'Recacel')) {
+        
+        Swal.fire({
+            title: 'Destino incorrecto',
+            text: 'El destino seleccionado no es válido para los tipos de residuo elegidos',
+            icon: 'error',
+            confirmButtonText: 'Entendido'
+        });
+        return;
+    }
+    
+    // Validar que no haya mezclas prohibidas (seguridad extra)
+    if ((tiposResiduoRecoleccion.includes('RPBI') && tiposResiduoRecoleccion.length > 1) ||
+        (tiposResiduoRecoleccion.includes('Común') && tiposResiduoRecoleccion.some(t => t !== 'Común'))) {
+        
+        Swal.fire({
+            title: 'Combinación no permitida',
+            text: 'No se pueden mezclar tipos de residuo con diferentes destinos',
+            icon: 'error',
+            confirmButtonText: 'Entendido'
+        });
+        return;
+    }
+    
+    // Convertir fecha de YYYY-MM-DD a DD/MM/AAAA para consistencia
+    let fechaParts = fecha.split('-');
+    let fechaFormateada = fechaParts[2] + '/' + fechaParts[1] + '/' + fechaParts[0];
+
+    let registro = {
+        fechaSalida: fechaFormateada,
+        fechaOriginal: fecha,
+        tiposResiduo: tiposResiduoRecoleccion,
+        destino: destino,
+        timestamp: new Date().getTime()
+    };
+
+    datosRecoleccion.push(registro);
+    guardarDatosRecoleccion();
+    actualizarContadores();
+
+    Swal.fire({
+        title: 'Registro Exitoso',
+        html: `
+            <div style="text-align: center;">
+                <p style="font-size: 1.1em; margin-bottom: 15px;">El registro de recolección se ha guardado correctamente.</p>
+                <p style="font-size: 0.9em; color: #7f8c8d;">Registros pendientes de sincronizar: ${datosRecoleccion.length}</p>
+                <div style="color: #28a745; font-size: 2em;">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+            </div>
+        `,
+        icon: 'success',
+        confirmButtonText: 'Aceptar',
+        confirmButtonColor: '#28a745'
+    }).then(() => {
+        // Limpiar selecciones de tipos
+        $('#tipo-residuo-recoleccion button').removeClass('selected');
+        tiposResiduoRecoleccion = [];
+        actualizarTiposSeleccionados();
+        
+        // Limpiar selección de destino
+        destinoSeleccionado = '';
+        $('#destino-recoleccion button').removeClass('active');
+        document.getElementById('destino-ayuda').style.display = 'none';
+        
+        // Resetear fecha al día actual
+        var today = new Date();
+        var year = today.getFullYear();
+        var month = String(today.getMonth() + 1).padStart(2, '0');
+        var day = String(today.getDate()).padStart(2, '0');
+        document.getElementById("fecha-recoleccion").value = year + '-' + month + '-' + day;
+        
+        verificarFormularioRecoleccion();
+    });
+}
+
+
 
         // ========== FUNCIONES PARA MODAL DE REGISTROS ==========
         function mostrarModalRegistros() {
@@ -2259,6 +2325,121 @@
                 cerrarModalResponsable();
             }
         }
+
+
+// Función para determinar los destinos permitidos según los tipos seleccionados
+function actualizarDestinosPermitidos() {
+    const botonesDestino = document.querySelectorAll('#destino-recoleccion button');
+    const destinoAyuda = document.getElementById('destino-ayuda');
+    const mensajeAyuda = document.getElementById('mensaje-ayuda');
+    
+    // Si no hay tipos seleccionados, habilitar todos los destinos pero mostrar ayuda
+    if (tiposResiduoRecoleccion.length === 0) {
+        botonesDestino.forEach(btn => {
+            btn.disabled = false;
+            btn.classList.remove('active');
+        });
+        destinoSeleccionado = "";
+        destinoAyuda.style.display = 'none';
+        verificarFormularioRecoleccion();
+        return;
+    }
+    
+    // Determinar reglas según los tipos seleccionados
+    const tieneComun = tiposResiduoRecoleccion.includes('Común');
+    const tieneRPBI = tiposResiduoRecoleccion.includes('RPBI');
+    const tieneReciclables = tiposResiduoRecoleccion.some(tipo => 
+        ['Plástico', 'Aluminio', 'Cartón', 'Vidrio'].includes(tipo)
+    );
+    
+    // Caso 1: Solo Común seleccionado
+    if (tieneComun && tiposResiduoRecoleccion.length === 1) {
+        // Solo permitir Basurero Municipal
+        botonesDestino.forEach(btn => {
+            const valor = btn.dataset.value;
+            if (valor === 'Basurero Municipal') {
+                btn.disabled = false;
+            } else {
+                btn.disabled = true;
+                btn.classList.remove('active');
+            }
+        });
+        destinoAyuda.style.display = 'block';
+        mensajeAyuda.textContent = 'Para residuos Común, el destino debe ser Basurero Municipal';
+        
+        // Si el destino seleccionado no es válido, limpiarlo
+        if (destinoSeleccionado !== 'Basurero Municipal') {
+            destinoSeleccionado = '';
+        }
+    }
+    // Caso 2: Solo RPBI seleccionado (y posiblemente otros, pero no debe permitirse)
+    else if (tieneRPBI) {
+        // Mostrar error si hay mezcla no permitida
+        if (tiposResiduoRecoleccion.length > 1) {
+            destinoAyuda.style.display = 'block';
+            mensajeAyuda.innerHTML = '<span style="color: #dc3545;"><i class="fas fa-exclamation-triangle"></i> Error: RPBI no puede combinarse con otros tipos de residuo</span>';
+            botonesDestino.forEach(btn => btn.disabled = true);
+            destinoSeleccionado = '';
+        } else {
+            // Solo permitir Monsol
+            botonesDestino.forEach(btn => {
+                const valor = btn.dataset.value;
+                if (valor === 'Monsol') {
+                    btn.disabled = false;
+                } else {
+                    btn.disabled = true;
+                    btn.classList.remove('active');
+                }
+            });
+            destinoAyuda.style.display = 'block';
+            mensajeAyuda.textContent = 'Para residuos RPBI, el destino debe ser Monsol';
+            
+            if (destinoSeleccionado !== 'Monsol') {
+                destinoSeleccionado = '';
+            }
+        }
+    }
+    // Caso 3: Solo residuos reciclables (Plástico, Aluminio, Cartón, Vidrio)
+    else if (tieneReciclables && !tieneComun && !tieneRPBI) {
+        // Solo permitir Recacel
+        botonesDestino.forEach(btn => {
+            const valor = btn.dataset.value;
+            if (valor === 'Recacel') {
+                btn.disabled = false;
+            } else {
+                btn.disabled = true;
+                btn.classList.remove('active');
+            }
+        });
+        destinoAyuda.style.display = 'block';
+        mensajeAyuda.textContent = 'Para residuos reciclables (Plástico, Aluminio, Cartón, Vidrio), el destino debe ser Recacel';
+        
+        if (destinoSeleccionado !== 'Recacel') {
+            destinoSeleccionado = '';
+        }
+    }
+    // Caso 4: Mezcla no permitida (Común con reciclables, etc.)
+    else {
+        destinoAyuda.style.display = 'block';
+        mensajeAyuda.innerHTML = '<span style="color: #dc3545;"><i class="fas fa-exclamation-triangle"></i> Error: No se pueden mezclar tipos de residuo con diferentes destinos</span>';
+        botonesDestino.forEach(btn => btn.disabled = true);
+        destinoSeleccionado = '';
+    }
+    
+    // Actualizar visualización del botón activo de destino
+    botonesDestino.forEach(btn => {
+        if (btn.dataset.value === destinoSeleccionado && !btn.disabled) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+    
+    verificarFormularioRecoleccion();
+}
+
+
+
 
         // Service Worker
         if ('serviceWorker' in navigator) {

@@ -991,8 +991,6 @@ function generarPDF() {
         const edificiosOrdenPDF = ["CBA", "CBB", "CBC", "Torre #1", "Torre #2"];
         const edificiosAProcesar = edificiosOrdenPDF.filter(e => datosAgrupados.hasOwnProperty(e));
 
-        let primerBloque = true;
-
         // Calcular y mostrar totales generales
         const grandTotals = { común: 0, plástico: 0, aluminio: 0, cartón: 0, vidrio: 0, rpbi: 0 };
         
@@ -1048,11 +1046,11 @@ function generarPDF() {
         // ===== SECCIÓN DE REGISTROS DE RECOLECCIÓN =====
         if (datosRecoleccion && datosRecoleccion.length > 0) {
             // Título de Recolección
-            const rectHeight = 10;
+            const rectHeight = 8;
             doc.setFillColor(46, 204, 113); // Verde
             doc.rect(margin, startY, pageWidth - (2 * margin), rectHeight, 'F'); 
             
-            doc.setFontSize(16);
+            doc.setFontSize(12);
             doc.setFont('helvetica', 'bold');
             doc.setTextColor(255, 255, 255);
             doc.text('REGISTROS DE RECOLECCIÓN DE RESIDUOS', pageWidth / 2, startY + (rectHeight / 2), { 
@@ -1061,7 +1059,7 @@ function generarPDF() {
             });
             startY += rectHeight + 10;
 
-            // Formatear nombres para el PDF
+            // Formatear datos
             const datosRecoleccionTabla = datosRecoleccion.map(reg => {
                 const tiposFormateados = reg.tiposResiduo.map(tipo => tipo.charAt(0).toUpperCase() + tipo.slice(1).toLowerCase());
                 const responsableFormateado = reg.responsable ? 
@@ -1076,6 +1074,9 @@ function generarPDF() {
                 ];
             });
 
+            // Calcular anchos de columna como porcentajes del ancho disponible
+            const availableWidth = pageWidth - (2 * margin);
+            
             doc.autoTable({
                 startY: startY,
                 head: [['Fecha Salida', 'Tipos de Residuo', 'Destino', 'Responsable']],
@@ -1085,27 +1086,28 @@ function generarPDF() {
                     fillColor: [46, 204, 113],
                     textColor: 255,
                     fontStyle: 'bold',
-                    fontSize: 8,
+                    fontSize: 9,
                     halign: 'center'
                 },
                 bodyStyles: {
-                    fontSize: 7,
+                    fontSize: 8,
                     textColor: 0,
-                    halign: 'left'
+                    halign: 'center'
                 },
                 margin: { left: margin, right: margin },
-                tableWidth: pageWidth - (2 * margin),
+                tableWidth: 'auto',
                 styles: {
                     cellPadding: 3,
-                    fontSize: 7,
+                    fontSize: 8,
                     lineColor: [0, 0, 0],
-                    lineWidth: 0.1
+                    lineWidth: 0.1,
+                    halign: 'center'
                 },
                 columnStyles: {
-                    0: { cellWidth: 20 },
-                    1: { cellWidth: 40 },
-                    2: { cellWidth: 70 },
-                    3: { cellWidth: 50 }
+                    0: { cellWidth: availableWidth * 0.15 }, // Fecha Salida (15%)
+                    1: { cellWidth: availableWidth * 0.35 }, // Tipos de Residuo (35%)
+                    2: { cellWidth: availableWidth * 0.35 }, // Destino (35%)
+                    3: { cellWidth: availableWidth * 0.15 }  // Responsable (15%)
                 },
                 didDrawPage: addFooter
             });
@@ -1113,7 +1115,13 @@ function generarPDF() {
             startY = doc.lastAutoTable.finalY + 15;
         }
         
+        // AÑADIR NUEVA PÁGINA ANTES DE CBA SIEMPRE
+        doc.addPage();
+        startY = 20;
+        
         // Procesar cada edificio
+        let primerEdificio = true;
+        
         for (const edificio of edificiosAProcesar) {
             const dataEdificio = datosAgrupados[edificio];
             
@@ -1121,13 +1129,10 @@ function generarPDF() {
                 continue; 
             }
             
-            // Añadir página nueva ANTES de cada edificio (excepto el primero)
-            if (!primerBloque) {
+            // Todos los edificios excepto CBA comienzan en nueva página
+            if (!primerEdificio) {
                 doc.addPage();
                 startY = 20;
-            }
-            if (primerBloque) {
-                primerBloque = false;
             }
             
             // Título del Edificio
@@ -1299,6 +1304,8 @@ function generarPDF() {
             } else {
                 startY += 15;
             }
+            
+            primerEdificio = false;
         }
 
         if (typeof doc.putTotalPages === 'function') {
@@ -1370,8 +1377,6 @@ function generarPDF() {
 
     }, 500);
 }
-
-
 
         // Función auxiliar para obtener el nombre del mes
         function obtenerNombreMes(numeroMes) {

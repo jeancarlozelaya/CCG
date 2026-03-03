@@ -1,7 +1,7 @@
 // Archivo: sw-index.js
 
 // CAMBIAMOS LA VERSIÓN PARA QUE EL NAVEGADOR ACTUALICE LA CACHÉ SÍ O SÍ
-const CACHE_NAME_INDEX = 'pibrisa-index-v4.0.1'; 
+const CACHE_NAME_INDEX = 'pibrisa-index-v5.0.1'; 
 
 const urlsToCacheIndex = [
     './',
@@ -15,7 +15,8 @@ const urlsToCacheIndex = [
     './Registro de Residuos.html',
     './Registro de Trazabilidad & Volumen de Residuos.html',   
     'Imágenes/Icono.png',
-    
+    'Control de PEPS de Insumos.html',
+
     // 1. LA IMAGEN DEL PDF (Asegúrate que la ruta sea exacta, mayúsculas y acentos importan)
     'https://raw.githubusercontent.com/jeancarlozelaya/CCG/refs/heads/main/Im%C3%A1genes/Otros/HojadeLiberaci%C3%B3n.jpg', 
 

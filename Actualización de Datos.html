@@ -294,9 +294,9 @@
             font-weight: bold;
         }
 
-        /* Contenido principal (inicialmente oculto) */
+        /* Contenido principal (siempre visible ahora) */
         #main-content {
-            display: none;
+            display: block;
         }
 
         /* Responsive */
@@ -327,7 +327,7 @@
     </style>
 </head>
 <body>
-    <!-- Contenido principal (protegido por contraseña) -->
+    <!-- Contenido principal (ahora sin protección de contraseña) -->
     <div id="main-content">
         <div class="header">
             Pisos Brillantes
@@ -441,22 +441,41 @@
         const SCRIPT_URL_OBTENER = "https://script.google.com/macros/s/AKfycbwV6UwcNpiC5FAahk3YPuOS-JSm7Fta5bNW_UoOwvqywTiS-a8LSqAMT32PKM1ydQJs/exec";
         const SCRIPT_URL_ENVIAR = "https://script.google.com/macros/s/AKfycbwP81lGExHp4d9tPRhNNgJ5rlcgXIXj2AsNDNTFcd8Gzdhujy_2UEO0x016YrccFMxU/exec";
 
-        // Contraseña de acceso (cámbiala aquí cuando quieras)
+        // =====================================================
+        // CONTROL DE CONTRASEÑA - MODIFICAR AQUÍ PARA ACTIVAR/DESACTIVAR
+        // =====================================================
+        // PASSWORD_REQUIRED = false  --> CONTRASEÑA DESHABILITADA (acceso directo)
+        // PASSWORD_REQUIRED = true   --> CONTRASEÑA HABILITADA (pide clave)
+        // =====================================================
+        const PASSWORD_REQUIRED = false;  // Cambia a true para activar la contraseña
+        
+        // Contraseña de acceso (solo se usa si PASSWORD_REQUIRED = true)
         const ACCESS_PASSWORD = "12345";
+        // =====================================================
 
         // Variables globales
         let colaboradoresActivos = [];
         let colaboradorSeleccionado = null;
         let datosOriginales = null;
 
-        // Al cargar la página, pedir contraseña primero
+        // Al cargar la página
         $(document).ready(function() {
-            promptForPassword();
+            if (PASSWORD_REQUIRED) {
+                // Si la contraseña está activada, la pedimos
+                promptForPassword();
+            } else {
+                // Si la contraseña está desactivada, mostramos directamente
+                $('#main-content').css('display', 'block');
+                
+                // Inicializar la aplicación
+                cargarColaboradoresActivos();
+                configurarEventos();
+            }
         });
 
         /**
          * Pide la contraseña para acceder a la página
-         * NO guarda sesión, siempre la pide
+         * Solo se ejecuta si PASSWORD_REQUIRED = true
          */
         function promptForPassword() {
             Swal.fire({

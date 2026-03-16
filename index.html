@@ -943,18 +943,43 @@
     }
     // --- FIN: NUEVA FUNCIÓN ---
 
-// Nuevo código para el Service Worker
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-                navigator.serviceWorker.register('sw-index.js')
-                    .then(function(registration) {
-                        console.log('✅ Service Worker de Llaves registrado con éxito:', registration.scope);
-                    })
-                    .catch(function(error) {
-                        console.log('❌ Error al registrar Service Worker de Llaves:', error);
-                    });
+// --- REGISTRO DE SERVICE WORKER CON ACTUALIZACIÓN AUTOMÁTICA ---
+if ('serviceWorker' in navigator) {
+    // Detectar cuando el Service Worker cambia y recargar
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        console.log('Nueva versión del Service Worker detectada. Recargando...');
+        window.location.reload();
+    });
+    
+    window.addEventListener('load', function() {
+        navigator.serviceWorker.register('sw-index.js')
+            .then(function(registration) {
+                console.log('Service Worker Index registrado con éxito:', registration.scope);
+                
+                // Verificar actualizaciones al cargar la página
+                registration.update();
+                
+                // Verificar actualizaciones cada hora
+                setInterval(() => {
+                    registration.update();
+                    console.log('Verificando actualizaciones del Service Worker...');
+                }, 60 * 60 * 1000);
+                
+            }, function(err) {
+                console.log('Fallo al registrar Service Worker Index:', err);
+            });
+    });
+    
+    // Verificar actualizaciones cuando la página recibe foco
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            navigator.serviceWorker.ready.then(registration => {
+                registration.update();
+                console.log('Verificando actualizaciones (página visible)');
             });
         }
+    });
+}
         
         
     </script>

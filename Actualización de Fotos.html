@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Actualización de Fotos - Pisos Brillantes</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --warning-color: #f39c12;
+            --success-color: #2ecc71;
+            --dark-color: #34495e;
+            --text-color: #333;
+            --border-color: #ddd;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+            color: white;
+            text-align: center;
+            padding: 18px 0;
+            font-size: 1.5rem;
+            font-weight: bold;
+            box-shadow: var(--shadow);
+            position: relative;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 30px auto;
+            padding: 0 20px;
+            flex: 1;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 25px;
+            font-size: 1.8rem;
+            position: relative;
+            padding-bottom: 10px;
+            font-weight: bold;
+        }
+
+        h1:after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 4px;
+            background-color: var(--secondary-color);
+            border-radius: 2px;
+        }
+
+        .card {
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            border: none;
+            margin-bottom: 25px;
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+            color: white;
+            border-radius: 12px 12px 0 0 !important;
+            padding: 15px 20px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card-header:before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--secondary-color), var(--accent-color));
+        }
+
+        .card-body {
+            padding: 25px;
+        }
+
+        /* Autocompletado */
+        .autocomplete-container {
+            position: relative;
+            width: 100%;
+        }
+
+        .autocomplete-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-top: none;
+            border-radius: 0 0 5px 5px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+
+        .autocomplete-item {
+            padding: 10px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .autocomplete-item:hover {
+            background-color: #f5f5f5;
+        }
+
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+
+        /* Foto actual */
+        .foto-actual-container {
+            text-align: center;
+            margin: 20px 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .foto-actual {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid var(--secondary-color);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .foto-actual:hover {
+            transform: scale(1.05);
+        }
+
+        .foto-placeholder {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background-color: #e9ecef;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 10px;
+            border: 4px solid var(--secondary-color);
+        }
+
+        .foto-placeholder i {
+            font-size: 70px;
+            color: #adb5bd;
+        }
+
+        /* Foto nueva (preview) */
+        .foto-nueva-container {
+            text-align: center;
+            margin: 20px 0;
+            padding: 20px;
+            background-color: #e8f4fd;
+            border-radius: 10px;
+            border: 2px dashed var(--secondary-color);
+        }
+
+        .foto-nueva {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid var(--success-color);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .foto-nueva:hover {
+            transform: scale(1.05);
+        }
+
+        /* Botones */
+        .btn-camara {
+            background: linear-gradient(45deg, var(--secondary-color), #5dade2);
+            border: none;
+            color: white;
+            font-weight: 600;
+            padding: 10px 20px;
+            border-radius: 50px;
+            transition: var(--transition);
+            margin: 5px;
+        }
+
+        .btn-camara:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+        }
+
+        .btn-limpiar {
+            background: linear-gradient(45deg, #95a5a6, #7f8c8d);
+            border: none;
+            color: white;
+            font-weight: 600;
+            padding: 10px 20px;
+            border-radius: 50px;
+            transition: var(--transition);
+            margin: 5px;
+        }
+
+        .btn-limpiar:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+        }
+
+        .btn-guardar-todas {
+            background: linear-gradient(45deg, #2ecc71, #27ae60);
+            border: none;
+            color: white;
+            font-weight: 600;
+            padding: 15px 40px;
+            border-radius: 50px;
+            font-size: 1.2rem;
+            transition: var(--transition);
+            box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3);
+        }
+
+        .btn-guardar-todas:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(46, 204, 113, 0.4);
+        }
+
+        .btn-guardar-todas:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-eliminar-pendiente {
+            background: none;
+            border: none;
+            color: var(--accent-color);
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 5px 10px;
+            transition: var(--transition);
+        }
+
+        .btn-eliminar-pendiente:hover {
+            color: #c0392b;
+            transform: scale(1.2);
+        }
+
+        /* Lista de pendientes */
+        .pendientes-container {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px;
+        }
+
+        .pendiente-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            background-color: #fff9e6;
+            border-radius: 5px;
+            margin-bottom: 5px;
+        }
+
+        .pendiente-item:last-child {
+            border-bottom: none;
+        }
+
+        .pendiente-item img {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-right: 15px;
+            border: 2px solid var(--success-color);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .pendiente-item img:hover {
+            transform: scale(1.1);
+        }
+
+        .pendiente-info {
+            flex-grow: 1;
+        }
+
+        .pendiente-info h6 {
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .pendiente-info small {
+            color: #7f8c8d;
+        }
+
+        .badge-pendiente {
+            background-color: var(--warning-color);
+            color: white;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            margin-right: 10px;
+        }
+
+        /* Overlay de carga */
+        #overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.95);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            flex-direction: column;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid rgba(52, 152, 219, 0.2);
+            border-radius: 50%;
+            border-top-color: var(--secondary-color);
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        #loadingMessage {
+            text-align: center;
+            color: var(--dark-color);
+        }
+
+        #loadingMessage h4 {
+            margin: 0 0 10px;
+            font-size: 1.3rem;
+            font-weight: bold;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .foto-actual, .foto-placeholder, .foto-nueva {
+                width: 120px;
+                height: 120px;
+            }
+            
+            .foto-placeholder i {
+                font-size: 50px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        Pisos Brillantes
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-camera me-2"></i>Actualización de Fotos
+            </div>
+            <div class="card-body">
+                <!-- Buscador -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-8">
+                        <label for="buscador-nombre" class="form-label">
+                            <i class="fas fa-user me-2"></i>Buscar colaborador
+                        </label>
+                        <div class="autocomplete-container">
+                            <input type="text" class="form-control" id="buscador-nombre" 
+                                   placeholder="Escribe el nombre..." autocomplete="off">
+                            <div class="autocomplete-list" id="autocomplete-list"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button class="btn btn-camara w-100" id="btn-buscar">
+                            <i class="fas fa-search me-2"></i>Buscar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Área de foto actual (se muestra cuando se busca un colaborador) -->
+                <div id="area-foto-actual" style="display: none;">
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5 class="text-center mb-3">Foto Actual</h5>
+                            <div class="foto-actual-container">
+                                <div id="foto-placeholder-actual" class="foto-placeholder">
+                                    <i class="fas fa-user-circle"></i>
+                                </div>
+                                <img id="foto-actual" class="foto-actual" style="display: none;" alt="Foto actual" onclick="mostrarFotoCompleta('actual')">
+                                <h6 id="nombre-colaborador" class="mt-3"></h6>
+                                <p id="identidad-colaborador" class="text-muted small"></p>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h5 class="text-center mb-3">Nueva Foto</h5>
+                            <div class="foto-nueva-container" id="area-nueva-foto" style="display: none;">
+                                <div id="foto-placeholder-nueva" class="foto-placeholder" style="border-color: var(--success-color);">
+                                    <i class="fas fa-camera"></i>
+                                </div>
+                                <img id="foto-nueva" class="foto-nueva" style="display: none;" alt="Nueva foto" onclick="mostrarFotoCompleta('nueva')">
+                                
+                                <div class="mt-3">
+                                    <button class="btn btn-camara" id="btn-tomar-foto" onclick="abrirCamara()">
+                                        <i class="fas fa-camera me-2"></i>Tomar Foto
+                                    </button>
+                                    <button class="btn btn-limpiar" id="btn-limpiar-foto" style="display: none;" onclick="limpiarFotoNueva()">
+                                        <i class="fas fa-times me-2"></i>Cancelar
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div id="area-sin-foto-nueva" class="text-center p-4" style="background-color: #f8f9fa; border-radius: 10px;">
+                                <i class="fas fa-info-circle fa-3x text-muted mb-3"></i>
+                                <p class="text-muted">Busca un colaborador y luego podrás tomar o reemplazar su foto.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lista de fotos pendientes por guardar -->
+                <div id="area-pendientes" style="display: none;">
+                    <hr class="my-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">
+                            <i class="fas fa-clock me-2 text-warning"></i>
+                            Fotos pendientes por guardar
+                        </h5>
+                        <span class="badge bg-warning" id="contador-pendientes">0</span>
+                    </div>
+                    
+                    <div class="pendientes-container" id="lista-pendientes"></div>
+                    
+                    <div class="text-center mt-4">
+                        <button class="btn btn-guardar-todas" id="btn-guardar-todas" disabled>
+                            <i class="fas fa-save me-2"></i>
+                            Guardar Todas las Fotos (<span id="contador-guardar">0</span>)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Input oculto para capturar foto -->
+                <input type="file" id="input-camara" accept="image/*" capture="environment" style="display: none;">
+            </div>
+        </div>
+    </div>
+
+    <!-- OVERLAY DE CARGA -->
+    <div id="overlay">
+        <div class="spinner"></div>
+        <div id="loadingMessage">
+            <h4>Por favor espera un momento...</h4>
+            <p></p>
+        </div>
+    </div>
+
+    <script>
+        // URLs de los scripts de Google Apps Script
+        const SCRIPT_URL_OBTENER = "https://script.google.com/macros/s/AKfycbwV6UwcNpiC5FAahk3YPuOS-JSm7Fta5bNW_UoOwvqywTiS-a8LSqAMT32PKM1ydQJs/exec";
+        const SCRIPT_URL_ENVIAR = "https://script.google.com/macros/s/AKfycbwP81lGExHp4d9tPRhNNgJ5rlcgXIXj2AsNDNTFcd8Gzdhujy_2UEO0x016YrccFMxU/exec";
+
+        // Variables globales
+        let colaboradoresActivos = [];
+        let colaboradorActual = null;
+        
+        // Objeto para almacenar las fotos pendientes
+        let fotosPendientes = {};
+
+        $(document).ready(function() {
+            cargarColaboradoresActivos();
+            configurarEventos();
+        });
+
+        /**
+         * Carga la lista de colaboradores activos
+         */
+        function cargarColaboradoresActivos() {
+            $('#overlay').css('display', 'flex');
+            $('#loadingMessage p').text('Cargando lista de colaboradores...');
+
+            $.get(SCRIPT_URL_OBTENER)
+                .done(function(data) {
+                    $('#overlay').hide();
+                    
+                    if (data.error) {
+                        Swal.fire({
+                            title: 'Error',
+                            text: 'No se pudo cargar la lista de colaboradores: ' + (data.mensaje || 'Error desconocido'),
+                            icon: 'error',
+                            confirmButtonText: 'Reintentar'
+                        }).then(() => {
+                            cargarColaboradoresActivos();
+                        });
+                        return;
+                    }
+
+                    colaboradoresActivos = (data.activos || []).map(col => ({
+                        ...col,
+                        fotoUrl: col.fotoUrl || ''
+                    }));
+
+                })
+                .fail(function() {
+                    $('#overlay').hide();
+                    Swal.fire({
+                        title: 'Error de Conexión',
+                        text: 'No se pudo conectar al servidor. Verifique su conexión a internet.',
+                        icon: 'error',
+                        confirmButtonText: 'Reintentar'
+                    }).then(() => {
+                        cargarColaboradoresActivos();
+                    });
+                });
+        }
+
+        /**
+         * Configura los eventos de la página
+         */
+        function configurarEventos() {
+            // Autocompletado al escribir
+            $('#buscador-nombre').on('input', function() {
+                const valor = $(this).val().toLowerCase();
+                const autocompleteList = $('#autocomplete-list');
+
+                if (valor.length < 1) {
+                    autocompleteList.hide();
+                    return;
+                }
+
+                if (!colaboradoresActivos || colaboradoresActivos.length === 0) return;
+
+                const sugerencias = colaboradoresActivos
+                    .filter(col => col.nombre.toLowerCase().includes(valor))
+                    .slice(0, 10);
+
+                autocompleteList.empty();
+                
+                if (sugerencias.length > 0) {
+                    sugerencias.forEach(sug => {
+                        autocompleteList.append(`<div class="autocomplete-item" data-nombre="${sug.nombre}">${sug.nombre}</div>`);
+                    });
+                    autocompleteList.show();
+                } else {
+                    autocompleteList.hide();
+                }
+            });
+
+            // Seleccionar del autocompletado
+            $(document).on('click', '.autocomplete-item', function() {
+                const nombre = $(this).data('nombre');
+                $('#buscador-nombre').val(nombre);
+                $('#autocomplete-list').hide();
+            });
+
+            // Ocultar autocompletado al hacer clic fuera
+            $(document).on('click', function(e) {
+                if (!$(e.target).closest('.autocomplete-container').length) {
+                    $('#autocomplete-list').hide();
+                }
+            });
+
+            // Botón Buscar
+            $('#btn-buscar').on('click', buscarColaborador);
+
+            // Permitir buscar con Enter
+            $('#buscador-nombre').on('keypress', function(e) {
+                if (e.which === 13) {
+                    e.preventDefault();
+                    buscarColaborador();
+                }
+            });
+
+            // Evento cuando se selecciona una foto
+            $('#input-camara').on('change', function(e) {
+                if (e.target.files && e.target.files[0]) {
+                    procesarFotoSeleccionada(e.target.files[0]);
+                }
+            });
+
+            // Botón Guardar Todas
+            $('#btn-guardar-todas').on('click', guardarTodasLasFotos);
+        }
+
+        /**
+         * Busca el colaborador seleccionado y muestra su información
+         */
+        function buscarColaborador() {
+            const nombreBuscado = $('#buscador-nombre').val().trim();
+            
+            if (!nombreBuscado) {
+                Swal.fire({
+                    title: 'Campo vacío',
+                    text: 'Por favor, escribe un nombre para buscar.',
+                    icon: 'warning',
+                    confirmButtonText: 'Entendido'
+                });
+                return;
+            }
+
+            colaboradorActual = colaboradoresActivos.find(col => 
+                col.nombre.toLowerCase() === nombreBuscado.toLowerCase()
+            );
+
+            if (!colaboradorActual) {
+                Swal.fire({
+                    title: 'No encontrado',
+                    text: 'No se encontró un colaborador con ese nombre.',
+                    icon: 'error',
+                    confirmButtonText: 'Entendido'
+                });
+                return;
+            }
+
+            // Mostrar área de fotos
+            $('#area-foto-actual').show();
+            
+            // Mostrar foto actual
+            mostrarFotoActual(colaboradorActual);
+            
+            // Mostrar información del colaborador
+            $('#nombre-colaborador').text(colaboradorActual.nombre);
+            $('#identidad-colaborador').text(colaboradorActual.identidad);
+            
+            // Verificar si ya hay una foto pendiente para este colaborador
+            if (fotosPendientes[colaboradorActual.identidad]) {
+                mostrarFotoPendienteExistente(colaboradorActual.identidad);
+            } else {
+                // Mostrar área para nueva foto
+                $('#area-sin-foto-nueva').hide();
+                $('#area-nueva-foto').show();
+                $('#foto-nueva').hide();
+                $('#foto-placeholder-nueva').show();
+                $('#btn-limpiar-foto').hide();
+            }
+            
+            // Actualizar contador de pendientes
+            actualizarListaPendientes();
+        }
+
+        /**
+         * Muestra la foto actual del colaborador
+         */
+        function mostrarFotoActual(colaborador) {
+            const fotoPlaceholder = $('#foto-placeholder-actual');
+            const fotoActual = $('#foto-actual');
+
+            if (colaborador.fotoUrl && colaborador.fotoUrl.trim() !== '') {
+                fotoPlaceholder.hide();
+                fotoActual.show();
+                fotoActual.attr('src', colaborador.fotoUrl);
+                
+                fotoActual.on('error', function() {
+                    $(this).hide();
+                    fotoPlaceholder.show();
+                });
+            } else {
+                fotoPlaceholder.show();
+                fotoActual.hide();
+            }
+        }
+
+        /**
+         * Muestra una foto pendiente existente cuando se vuelve a buscar al mismo colaborador
+         */
+        function mostrarFotoPendienteExistente(identidad) {
+            const pendiente = fotosPendientes[identidad];
+            
+            $('#area-sin-foto-nueva').hide();
+            $('#area-nueva-foto').show();
+            
+            if (pendiente.fotoData) {
+                $('#foto-placeholder-nueva').hide();
+                $('#foto-nueva').show();
+                $('#foto-nueva').attr('src', pendiente.fotoData);
+                $('#btn-limpiar-foto').show();
+            }
+        }
+
+        /**
+         * Abre la cámara del dispositivo
+         */
+        function abrirCamara() {
+            if (!colaboradorActual) {
+                Swal.fire({
+                    title: 'Error',
+                    text: 'Primero debes buscar un colaborador.',
+                    icon: 'warning',
+                    confirmButtonText: 'Entendido'
+                });
+                return;
+            }
+            
+            $('#input-camara').click();
+        }
+
+        /**
+         * Procesa la foto seleccionada desde la cámara
+         */
+        function procesarFotoSeleccionada(file) {
+            if (!colaboradorActual) return;
+            
+            // Validar tamaño (máx 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                Swal.fire({
+                    title: 'Error',
+                    text: 'La imagen es demasiado grande. Máximo 5MB.',
+                    icon: 'error',
+                    confirmButtonText: 'Entendido'
+                });
+                return;
+            }
+
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                const fotoData = e.target.result;
+                
+                // Mostrar preview
+                $('#foto-placeholder-nueva').hide();
+                $('#foto-nueva').show();
+                $('#foto-nueva').attr('src', fotoData);
+                $('#btn-limpiar-foto').show();
+                
+                // Guardar en pendientes
+                fotosPendientes[colaboradorActual.identidad] = {
+                    nombre: colaboradorActual.nombre,
+                    identidad: colaboradorActual.identidad,
+                    fotoData: fotoData,
+                    fotoFile: file
+                };
+                
+                // Actualizar lista de pendientes
+                actualizarListaPendientes();
+                
+                // Mensaje de confirmación
+                Swal.fire({
+                    title: 'Foto lista',
+                    text: `Foto de ${colaboradorActual.nombre} agregada a la lista de pendientes.`,
+                    icon: 'success',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+            };
+            
+            reader.readAsDataURL(file);
+        }
+
+        /**
+         * Limpia la foto nueva seleccionada
+         */
+        function limpiarFotoNueva() {
+            if (!colaboradorActual) return;
+            
+            // Eliminar de pendientes si existe
+            if (fotosPendientes[colaboradorActual.identidad]) {
+                delete fotosPendientes[colaboradorActual.identidad];
+            }
+            
+            // Resetear UI
+            $('#foto-nueva').hide();
+            $('#foto-placeholder-nueva').show();
+            $('#btn-limpiar-foto').hide();
+            
+            // Actualizar lista de pendientes
+            actualizarListaPendientes();
+        }
+
+        /**
+         * Elimina una foto específica de la lista de pendientes
+         */
+        function eliminarFotoPendiente(identidad) {
+            const pendiente = fotosPendientes[identidad];
+            
+            Swal.fire({
+                title: '¿Eliminar foto?',
+                text: `¿Deseas eliminar la foto de ${pendiente.nombre} de la lista de pendientes?`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Eliminar del objeto
+                    delete fotosPendientes[identidad];
+                    
+                    // Si el colaborador actual es el mismo, limpiar el preview
+                    if (colaboradorActual && colaboradorActual.identidad === identidad) {
+                        $('#foto-nueva').hide();
+                        $('#foto-placeholder-nueva').show();
+                        $('#btn-limpiar-foto').hide();
+                    }
+                    
+                    // Actualizar lista
+                    actualizarListaPendientes();
+                    
+                    Swal.fire({
+                        title: 'Eliminada',
+                        text: 'La foto ha sido eliminada de la lista de pendientes.',
+                        icon: 'success',
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                }
+            });
+        }
+
+        /**
+         * Actualiza la lista visual de fotos pendientes
+         */
+        function actualizarListaPendientes() {
+            const cantidad = Object.keys(fotosPendientes).length;
+            
+            if (cantidad > 0) {
+                $('#area-pendientes').show();
+                $('#btn-guardar-todas').prop('disabled', false);
+                $('#contador-pendientes').text(cantidad);
+                $('#contador-guardar').text(cantidad);
+                
+                let html = '';
+                
+                Object.values(fotosPendientes).forEach(pend => {
+                    html += `
+                        <div class="pendiente-item">
+                            <img src="${pend.fotoData}" alt="${pend.nombre}" onclick="mostrarFotoCompleta('pendiente', '${pend.identidad}')">
+                            <div class="pendiente-info">
+                                <h6>${pend.nombre}</h6>
+                                <small>${pend.identidad}</small>
+                            </div>
+                            <span class="badge-pendiente">Pendiente</span>
+                            <button class="btn-eliminar-pendiente" onclick="eliminarFotoPendiente('${pend.identidad}')" title="Eliminar">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    `;
+                });
+                
+                $('#lista-pendientes').html(html);
+            } else {
+                $('#area-pendientes').hide();
+                $('#btn-guardar-todas').prop('disabled', true);
+            }
+        }
+
+        /**
+         * Muestra una foto en tamaño completo
+         */
+        function mostrarFotoCompleta(tipo, identidad = null) {
+            let fotoUrl = '';
+            let titulo = '';
+            
+            if (tipo === 'actual' && colaboradorActual) {
+                fotoUrl = colaboradorActual.fotoUrl;
+                titulo = `${colaboradorActual.nombre} - Foto Actual`;
+            } else if (tipo === 'nueva' && colaboradorActual && fotosPendientes[colaboradorActual.identidad]) {
+                fotoUrl = fotosPendientes[colaboradorActual.identidad].fotoData;
+                titulo = `${colaboradorActual.nombre} - Nueva Foto`;
+            } else if (tipo === 'pendiente' && identidad && fotosPendientes[identidad]) {
+                fotoUrl = fotosPendientes[identidad].fotoData;
+                titulo = `${fotosPendientes[identidad].nombre} - Foto Pendiente`;
+            }
+            
+            if (!fotoUrl) {
+                Swal.fire({
+                    title: titulo || 'Foto',
+                    html: `
+                        <div style="text-align: center; padding: 20px;">
+                            <i class="fas fa-user-circle" style="font-size: 150px; color: #bdc3c7;"></i>
+                            <p style="margin-top: 15px; color: #7f8c8d;">No hay foto disponible</p>
+                        </div>
+                    `,
+                    showCloseButton: true,
+                    showConfirmButton: false
+                });
+                return;
+            }
+
+            Swal.fire({
+                title: titulo || 'Foto',
+                html: `
+                    <div style="text-align: center;">
+                        <img src="${fotoUrl}" 
+                             alt="Foto" 
+                             style="max-width: 100%; max-height: 70vh; border-radius: 8px; box-shadow: 0 5px 25px rgba(0,0,0,0.2);">
+                    </div>
+                `,
+                showCloseButton: true,
+                showConfirmButton: false,
+                width: 'auto',
+                background: '#1a1a1a',
+                customClass: {
+                    title: 'text-white'
+                }
+            });
+        }
+
+        /**
+         * Guarda todas las fotos pendientes
+         */
+        function guardarTodasLasFotos() {
+            const cantidad = Object.keys(fotosPendientes).length;
+            
+            if (cantidad === 0) {
+                Swal.fire({
+                    title: 'Sin cambios',
+                    text: 'No hay fotos pendientes por guardar.',
+                    icon: 'info',
+                    confirmButtonText: 'Entendido'
+                });
+                return;
+            }
+
+            Swal.fire({
+                title: '¿Guardar todas las fotos?',
+                html: `Se guardarán <strong>${cantidad}</strong> foto(s) de colaboradores.`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, guardar todas',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    procesarGuardadoMasivo();
+                }
+            });
+        }
+
+        /**
+         * Procesa el guardado masivo de fotos
+         */
+        function procesarGuardadoMasivo() {
+            $('#overlay').css('display', 'flex');
+            $('#loadingMessage p').text('Subiendo fotos...');
+            
+            const pendientesArray = Object.values(fotosPendientes);
+            let exitosas = 0;
+            let fallidas = 0;
+            let index = 0;
+
+            function enviarSiguiente() {
+                if (index >= pendientesArray.length) {
+                    // Terminó
+                    $('#overlay').hide();
+                    
+                    if (fallidas === 0) {
+                        Swal.fire({
+                            title: '¡Éxito!',
+                            text: `Todas las ${exitosas} foto(s) fueron guardadas correctamente.`,
+                            icon: 'success',
+                            confirmButtonText: 'Excelente'
+                        }).then(() => {
+                            // Limpiar pendientes
+                            fotosPendientes = {};
+                            colaboradorActual = null;
+                            
+                            // Resetear UI
+                            $('#buscador-nombre').val('');
+                            $('#area-foto-actual').hide();
+                            $('#area-sin-foto-nueva').show();
+                            $('#area-nueva-foto').hide();
+                            actualizarListaPendientes();
+                            
+                            // Recargar datos
+                            cargarColaboradoresActivos();
+                        });
+                    } else {
+                        Swal.fire({
+                            title: 'Completado con errores',
+                            html: `
+                                <p>Se guardaron <strong>${exitosas}</strong> foto(s) correctamente.</p>
+                                <p class="text-danger">Fallaron <strong>${fallidas}</strong> foto(s).</p>
+                            `,
+                            icon: 'warning',
+                            confirmButtonText: 'Entendido'
+                        }).then(() => {
+                            // Limpiar solo las exitosas
+                            const nuevasPendientes = {};
+                            Object.values(fotosPendientes).forEach(pend => {
+                                if (!pend.exitosa) {
+                                    nuevasPendientes[pend.identidad] = pend;
+                                }
+                            });
+                            fotosPendientes = nuevasPendientes;
+                            actualizarListaPendientes();
+                            cargarColaboradoresActivos();
+                        });
+                    }
+                    return;
+                }
+
+                const pend = pendientesArray[index];
+                $('#loadingMessage p').text(`Subiendo foto ${index + 1} de ${pendientesArray.length}: ${pend.nombre}`);
+                
+                const colaborador = {
+                    nombre: pend.nombre,
+                    identidad: pend.identidad
+                };
+
+                // Convertir base64 a blob y enviar
+                const base64Data = pend.fotoData.split(',')[1];
+
+                $.ajax({
+                    url: SCRIPT_URL_ENVIAR,
+                    method: 'POST',
+                    data: {
+                        accion: 'subir_foto',
+                        colaborador: JSON.stringify(colaborador),
+                        esEdicion: 'true',
+                        archivo: base64Data
+                    },
+                    dataType: 'text',
+                    success: function(response) {
+                        if (response === 'Éxito') {
+                            exitosas++;
+                            pend.exitosa = true;
+                        } else {
+                            fallidas++;
+                            console.error('Error subiendo foto de', pend.nombre, ':', response);
+                        }
+                        index++;
+                        enviarSiguiente();
+                    },
+                    error: function() {
+                        fallidas++;
+                        console.error('Error de conexión subiendo foto de', pend.nombre);
+                        index++;
+                        enviarSiguiente();
+                    }
+                });
+            }
+
+            // Iniciar el proceso en cadena
+            enviarSiguiente();
+        }
+    </script>
+</body>
+</html>

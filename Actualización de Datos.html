@@ -3,401 +3,431 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Actualización de Datos Masivos</title>
+    <title>Actualización de Datos - Pisos Brillantes</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --warning-color: #f39c12;
+            --success-color: #2ecc71;
+            --dark-color: #34495e;
+            --text-color: #333;
+            --border-color: #ddd;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
 
-<style>
-    /* Estilos base reutilizados */
-    :root {
-        --primary-color: #2c3e50;
-        --secondary-color: #3498db;
-        --dark-color: #34495e;
-        --text-color: #333;
-        --border-color: #ddd;
-        --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        --transition: all 0.3s ease;
-    }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
 
-    body {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        background-color: #f5f7fa;
-        color: var(--text-color);
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-        user-select: none;
-    }
+        .header {
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+            color: white;
+            text-align: center;
+            padding: 18px 0;
+            font-size: 1.5rem;
+            font-weight: bold;
+            box-shadow: var(--shadow);
+            position: relative;
+        }
 
-    .header {
-        background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
-        color: white;
-        text-align: center;
-        padding: 18px 0;
-        font-size: 1.5rem;
-        font-weight: bold;
-        box-shadow: var(--shadow);
-    }
+        .container {
+            max-width: 700px;
+            margin: 30px auto;
+            padding: 0 20px;
+            flex: 1;
+        }
 
-    .container {
-        max-width: 900px; /* Un poco más ancho para las pestañas */
-        margin: 25px auto;
-        padding: 0 15px;
-    }
+        h1 {
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 25px;
+            font-size: 1.8rem;
+            position: relative;
+            padding-bottom: 10px;
+            font-weight: bold;
+        }
 
-    /* Estilo del título h1 */
-    h1 {
-        text-align: center;
-        color: var(--primary-color);
-        margin-bottom: 25px;
-        font-size: 1.8rem;
-        position: relative;
-        padding-bottom: 10px;
-        font-weight: bold;
-    }
-    h1:after {
-        content: '';
-        position: absolute;
-        bottom: 0;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 80px;
-        height: 4px;
-        background-color: var(--secondary-color);
-        border-radius: 2px;
-    }
+        h1:after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 4px;
+            background-color: var(--secondary-color);
+            border-radius: 2px;
+        }
 
-    .card {
-        border-radius: 12px;
-        box-shadow: var(--shadow);
-        border: none;
-        margin-bottom: 25px;
-    }
-    /* Quitar padding del card-body para que las pestañas se peguen */
-    .card-body {
-        padding: 0 !important;
-    }
+        .card {
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            border: none;
+            margin-bottom: 25px;
+        }
 
-    /* Estilos para Pestañas (Nav Tabs) */
-    .nav-tabs {
-        border-bottom: 1px solid var(--border-color);
-        padding: 10px 20px 0 20px; /* Espacio alrededor de las pestañas */
-        background-color: #fff; /* Fondo para separar del header */
-        border-radius: 12px 12px 0 0; /* Bordes superiores redondeados */
-    }
-    .nav-tabs .nav-link {
-        color: var(--dark-color);
-        font-weight: 500;
-        border: none;
-        padding: 12px 20px;
-        margin-bottom: -1px; /* Para que el borde inferior cubra la línea */
-    }
-    .nav-tabs .nav-link.active {
-        color: var(--secondary-color);
-        border-bottom: 3px solid var(--secondary-color);
-        background-color: transparent;
-    }
-    
-    /* --- INICIO MODIFICACIÓN 1 (Estilo Dropdown) --- */
-    .nav-tabs .dropdown-menu {
-        margin-top: -1px;
-        border-top-left-radius: 0;
-        border-top-right-radius: 0;
-    }
-    .nav-tabs .dropdown-item {
-        font-weight: 500;
-        color: var(--dark-color);
-    }
-    .nav-tabs .dropdown-item:active, .nav-tabs .dropdown-item.active {
-        color: var(--secondary-color);
-        background-color: #f0f8ff; /* Estilo copiado */
-    }
-    .nav-tabs .dropdown-toggle.active {
-         border-bottom: 3px solid var(--secondary-color);
-         color: var(--secondary-color);
-    }
-    /* --- FIN MODIFICACIÓN 1 --- */
+        .card-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+            color: white;
+            border-radius: 12px 12px 0 0 !important;
+            padding: 15px 20px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            position: relative;
+            overflow: hidden;
+        }
 
+        .card-header:before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--secondary-color), var(--accent-color));
+        }
 
-    .tab-content {
-        padding: 25px; /* Padding interior para el contenido de cada pestaña */
-        background-color: white;
-        border-radius: 0 0 12px 12px; /* Bordes inferiores redondeados */
-    }
+        .card-body {
+            padding: 25px;
+        }
 
+        /* Autocompletado */
+        .autocomplete-container {
+            position: relative;
+            width: 100%;
+        }
 
-    /* Overlay de carga */
-    #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(255, 255, 255, 0.95); display: none; justify-content: center; align-items: center; z-index: 9999; flex-direction: column; }
-    .spinner { width: 60px; height: 60px; border: 5px solid rgba(52, 152, 219, 0.2); border-radius: 50%; border-top-color: var(--secondary-color); animation: spin 1s ease-in-out infinite; margin-bottom: 20px; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    #loadingMessage { text-align: center; color: var(--dark-color); }
-    #loadingMessage h4 { margin: 0 0 10px; font-size: 1.3rem; font-weight: bold; }
-    #loadingMessage p { margin: 0; color: #7f8c8d; font-weight: normal; }
+        .autocomplete-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-top: none;
+            border-radius: 0 0 5px 5px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
 
-    /* Estilos lista y buscador (comunes) */
-    .search-container { position: relative; margin-bottom: 20px; }
-    .search-container i { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #aaa; }
-    .search-container input { padding-left: 40px; }
+        .autocomplete-item {
+            padding: 10px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+        }
 
-    .empleado-item { display: flex; align-items: center; padding: 15px; border-bottom: 1px solid var(--border-color); transition: var(--transition); user-select: text; }
-    .empleado-item:last-child { border-bottom: none; }
-    .empleado-item:hover { background-color: #f8f9fa; }
+        .autocomplete-item:hover {
+            background-color: #f5f5f5;
+        }
 
-    .empleado-avatar { font-size: 2rem; color: #ccc; margin-right: 15px; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .empleado-info { flex-grow: 1; user-select: text; margin-right: 10px; }
-    .empleado-info h6 { margin-bottom: 2px; font-weight: bold; user-select: text; }
-    .empleado-info p { margin-bottom: 0; color: #7f8c8d; font-size: 0.9rem; user-select: text; }
-    
-    .no-pendientes { text-align: center; padding: 40px 20px; color: #7f8c8d; }
-    .no-pendientes i { font-size: 3rem; color: #2ecc71; margin-bottom: 15px; }
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
 
-    /* --- Estilos Nuevos (Request 1 y 3) --- */
-    .empleado-avatar-img {
-        width: 100%;
-        height: 100%;
-        border-radius: 50%;
-        object-fit: cover;
-    }
-    /* Cursor para vistas previas */
-    .empleado-avatar img, .vista-previa-foto {
-        cursor: pointer;
-    }
-    
-    /* --- (MODIFICACIÓN TAREA ANTERIOR) --- */
-    /* Estilo para el modal de vista previa de foto */
-    .swal2-image {
-        border-radius: 50% !important; /* Foto circular */
-        width: 400px !important;      /* Ancho fijo */
-        height: 400px !important;     /* Alto fijo */
-        object-fit: cover !important; /* Asegurar que la imagen cubra el círculo */
-        border: 4px solid var(--secondary-color); /* Borde opcional */
-    }
-    /* --- Fin Modificación --- */
+        /* Foto */
+        .foto-container {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 10px;
+        }
 
+        .foto-empleado {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid var(--secondary-color);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
 
-    /* Estilos Pestaña Fotos */
-    .foto-input-container { position: relative; overflow: hidden; display: inline-block; vertical-align: middle; margin-left: 10px; flex-shrink: 0; min-width: 120px; text-align: center; }
-    .foto-input-item { position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; height: 100%; width: 100%; }
-    .vista-previa-container { position: relative; display: none; width: 50px; height: 50px; margin-right: 15px; flex-shrink: 0; }
-    .vista-previa-foto { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 2px solid var(--secondary-color); }
-    .empleado-item.con-foto .empleado-avatar { display: none; }
-    .empleado-item.con-foto .vista-previa-container { display: block; }
-    .btn-quitar-preview { position: absolute; top: -5px; right: -5px; background-color: rgba(231, 76, 60, 0.8); color: white; border: none; border-radius: 50%; width: 25px; height: 25px; font-size: 0.8rem; line-height: 1; padding: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
-    .btn-quitar-preview:hover { background-color: #e74c3c; }
+        .foto-empleado:hover {
+            transform: scale(1.05);
+        }
 
-    /* Estilos Pestaña Cumpleaños */
-    .cumple-input-container { 
-        flex-shrink: 0; 
-        width: 120px; /* Ancho ajustado */
-        position: relative; /* Para posicionar el icono */
-    }
-    .cumple-input-item { cursor: pointer; }
-    .empleado-item.con-fecha .cumple-input-item { border-color: var(--success-color); box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25); }
-    .empleado-item.con-fecha .empleado-avatar { color: var(--secondary-color); }
-    
-    /* Estilo para el icono de calendario */
-    .cumple-icon {
-        position: absolute;
-        right: 10px; /* Posición a la derecha */
-        top: 50%;
-        transform: translateY(-50%);
-        color: #aaa; /* Color grisáceo */
-        pointer-events: none; /* Evita que interfiera con el clic en la fecha */
-        transition: opacity 0.2s ease-in-out; /* Transición suave */
-    }
-    /* Ocultar el icono cuando se selecciona una fecha */
-    .empleado-item.con-fecha .cumple-icon {
-        opacity: 0;
-    }
+        .foto-placeholder {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background-color: #e9ecef;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            border: 4px solid var(--secondary-color);
+            cursor: pointer;
+        }
 
-/* Ocultar el icono de calendario predeterminado del navegador (WebKit/Blink) */
-.cumple-input-item::-webkit-calendar-picker-indicator {
-    display: none;
-    -webkit-appearance: none; /* También ayuda a ocultarlo en algunos casos */
-}
+        .foto-placeholder i {
+            font-size: 60px;
+            color: #adb5bd;
+        }
 
-/* Ocultar flechas/spinners en campos de fecha (Firefox, Edge) - Opcional pero recomendado */
-.cumple-input-item::-webkit-inner-spin-button,
-.cumple-input-item::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
-/* Para Firefox (si es necesario, aunque a menudo ::-webkit-... funciona) */
-.cumple-input-item {
-    -moz-appearance: textfield; /* Intenta forzarlo a parecer un campo de texto normal */
-}
+        /* Botones principales */
+        .btn-buscar {
+            background: linear-gradient(45deg, var(--secondary-color), #5dade2);
+            border: none;
+            color: white;
+            font-weight: 600;
+            padding: 12px 30px;
+            border-radius: 50px;
+            transition: var(--transition);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
 
+        .btn-buscar:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+        }
 
-/* --- INICIO: MODIFICACIÓN 2 (Estilos de Botón) --- */
-/* Propiedades compartidas (copiadas de 'Gestión de Empleados.html') */
-#btn-enviar-fotos-pendientes,
-#btn-enviar-fotos-actualizadas,
-#btn-enviar-cumples-pendientes,
-#btn-enviar-cumples-actualizados {
-    border: none;
-    font-weight: 600;
-    padding: 12px 30px;
-    font-size: 1rem;
-    border-radius: 50px; /* <-- Píldora */
-    min-width: 150px; 
-    transition: var(--transition);
-    color: white !important;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1); /* <-- Sombra */
-}
+        .btn-guardar {
+            background: linear-gradient(45deg, #2ecc71, #58d68d);
+            border: none;
+            color: white;
+            font-weight: 600;
+            padding: 12px 30px;
+            border-radius: 50px;
+            transition: var(--transition);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
 
-/* Gradiente (copiado de .btn-success de 'Gestión de Empleados.html') */
-#btn-enviar-fotos-pendientes,
-#btn-enviar-fotos-actualizadas,
-#btn-enviar-cumples-pendientes,
-#btn-enviar-cumples-actualizados {
-    background: linear-gradient(45deg, #2ecc71, #58d68d);
-}
+        .btn-guardar:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+        }
 
-/* Hover (copiado de .btn-success:hover de 'Gestión de Empleados.html') */
-#btn-enviar-fotos-pendientes:hover,
-#btn-enviar-fotos-actualizadas:hover,
-#btn-enviar-cumples-pendientes:hover,
-#btn-enviar-cumples-actualizados:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
-}
-/* --- FIN: MODIFICACIÓN 2 --- */
+        .btn-guardar:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
 
-</style>
+        /* Formulario */
+        .form-label {
+            font-weight: 600;
+            color: var(--dark-color);
+            margin-bottom: 8px;
+        }
+
+        .form-label .required {
+            color: var(--accent-color);
+            margin-left: 3px;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 0.25rem rgba(52, 152, 219, 0.25);
+        }
+
+        /* Validación visual - SOLO bordes, sin mensajes */
+        .form-control.is-valid {
+            border-color: var(--success-color);
+        }
+
+        .form-control.is-invalid {
+            border-color: var(--accent-color);
+        }
+
+        /* Badge de estado - solo nombre */
+        .nombre-badge {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        /* Overlay de carga */
+        #overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.95);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            flex-direction: column;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid rgba(52, 152, 219, 0.2);
+            border-radius: 50%;
+            border-top-color: var(--secondary-color);
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        #loadingMessage {
+            text-align: center;
+            color: var(--dark-color);
+        }
+
+        #loadingMessage h4 {
+            margin: 0 0 10px;
+            font-size: 1.3rem;
+            font-weight: bold;
+        }
+
+        /* Contenido principal (inicialmente oculto) */
+        #main-content {
+            display: none;
+        }
+
+        /* Responsive */
+        @media (max-width: 576px) {
+            h1 {
+                font-size: 1.5rem;
+            }
+            
+            .foto-empleado, .foto-placeholder {
+                width: 100px;
+                height: 100px;
+            }
+            
+            .foto-placeholder i {
+                font-size: 50px;
+            }
+            
+            .btn-buscar, .btn-guardar {
+                width: 100%;
+            }
+        }
+
+        .required-notice {
+            font-size: 0.85rem;
+            color: var(--accent-color);
+            margin-top: 5px;
+        }
+    </style>
 </head>
 <body>
+    <!-- Contenido principal (protegido por contraseña) -->
     <div id="main-content">
-    <div class="header">Pisos Brillantes</div>
+        <div class="header">
+            Pisos Brillantes
+        </div>
+
         <div class="container">
-            <h1>Actualización de Datos Masivos</h1>
-            
             <div class="card">
-                <div class="card-body"> 
-                    
-                    <ul class="nav nav-tabs" id="myTab" role="tablist">
+                <div class="card-header">
+                    <i class="fas fa-user-edit me-2"></i>Actualización de Datos
+                </div>
+                <div class="card-body">
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-8">
+                            <label for="buscador-nombre" class="form-label">
+                                <i class="fas fa-user me-2"></i>Selecciona tu nombre <span class="required">*</span>
+                            </label>
+                            <div class="autocomplete-container">
+                                <input type="text" class="form-control" id="buscador-nombre" 
+                                       placeholder="Escribe tu nombre..." autocomplete="off" required>
+                                <div class="autocomplete-list" id="autocomplete-list"></div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button class="btn btn-buscar w-100" id="btn-buscar">
+                                <i class="fas fa-search me-2"></i>Buscar
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Foto del empleado (clickeable para ver en grande) -->
+                    <div class="foto-container" id="foto-container" style="display: none;">
+                        <div id="foto-placeholder" class="foto-placeholder" onclick="mostrarFotoCompleta()">
+                            <i class="fas fa-user-circle"></i>
+                        </div>
+                        <img id="foto-empleado" class="foto-empleado" style="display: none;" alt="Foto del empleado" onclick="mostrarFotoCompleta()">
+                    </div>
+
+                    <!-- Formulario de datos (inicialmente oculto) -->
+                    <div id="formulario-datos" style="display: none;">
+                        <hr class="my-4">
                         
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle active" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false" id="fotos-dropdown-toggle">
-                                <i class="fas fa-camera me-2"></i>Fotos
-                            </a>
-                            <ul class="dropdown-menu">
-                                <li>
-                                    <a class="dropdown-item active" id="fotos-pendientes-tab" data-bs-toggle="tab" data-bs-target="#fotos-pendientes-pane" type="button" role="tab" aria-controls="fotos-pendientes-pane" aria-selected="true">
-                                        <i class="fas fa-user-clock me-2"></i>Pendientes
-                                    </a>
-                                </li>
-                                <li>
-                                    <a class="dropdown-item" id="fotos-actualizar-tab" data-bs-toggle="tab" data-bs-target="#fotos-actualizar-pane" type="button" role="tab" aria-controls="fotos-actualizar-pane" aria-selected="false">
-                                        <i class="fas fa-user-edit me-2"></i>Actualizar Foto
-                                    </a>
-                                </li>
-                            </ul>
-                        </li>
-                        
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false" id="cumples-dropdown-toggle">
-                                <i class="fas fa-birthday-cake me-2"></i>Cumpleaños
-                            </a>
-                             <ul class="dropdown-menu">
-                                <li>
-                                    <a class="dropdown-item" id="cumples-pendientes-tab" data-bs-toggle="tab" data-bs-target="#cumples-pendientes-pane" type="button" role="tab" aria-controls="cumples-pendientes-pane" aria-selected="false">
-                                        <i class="fas fa-calendar-times me-2"></i>Pendientes
-                                    </a>
-                                </li>
-                                <li>
-                                    <a class="dropdown-item" id="cumples-actualizar-tab" data-bs-toggle="tab" data-bs-target="#cumples-actualizar-pane" type="button" role="tab" aria-controls="cumples-actualizar-pane" aria-selected="false">
-                                        <i class="fas fa-calendar-check me-2"></i>Actualizar Fecha
-                                    </a>
-                                </li>
-                            </ul>
-                        </li>
-                    </ul>
-                    <div class="tab-content" id="myTabContent">
-                        
-                        <div class="tab-pane fade show active" id="fotos-pendientes-pane" role="tabpanel" aria-labelledby="fotos-pendientes-tab">
-                            <h5 class="mb-3 text-center text-muted">Personal Pendiente de Fotografía</h5>
-                            <div class="search-container">
-                                <i class="fas fa-search"></i>
-                                <input type="text" class="form-control" id="buscador-pendientes-fotos" placeholder="Buscar por nombre o identidad...">
+                        <!-- SOLO el nombre del empleado -->
+                        <div class="nombre-badge" id="nombre-empleado"></div>
+
+                        <form id="form-actualizar-datos" novalidate>
+                            <!-- Fecha de Nacimiento -->
+                            <div class="mb-4">
+                                <label for="fecha-nacimiento" class="form-label">
+                                    <i class="fas fa-birthday-cake me-2 text-warning"></i>Fecha de Nacimiento
+                                    <span class="required">*</span>
+                                </label>
+                                <input type="date" class="form-control" id="fecha-nacimiento" required>
                             </div>
-                            <div id="lista-pendientes-fotos"></div>
-                            <div id="no-pendientes-fotos" class="no-pendientes" style="display: none;">
-                                <i class="fas fa-check-circle"></i>
-                                <h4>¡Excelente!</h4>
-                                <p>No hay fotos pendientes por subir.</p>
+
+                            <!-- Datos de Contacto -->
+                            <h5 class="mb-3" style="color: var(--primary-color);">
+                                <i class="fas fa-phone-alt me-2"></i>Datos de Contacto
+                            </h5>
+
+                            <div class="mb-3">
+                                <label for="movil" class="form-label">
+                                    Móvil Personal <span class="required">*</span>
+                                </label>
+                                <input type="tel" class="form-control" id="movil" 
+                                       placeholder="0000-0000" maxlength="9" required
+                                       oninput="formatearTelefono(this)">
                             </div>
-                            <div class="text-center mt-4">
-                                <button class="btn btn-success" id="btn-enviar-fotos-pendientes" style="display: none;">
-                                    <i class="fas fa-upload me-2"></i>Enviar Fotos Seleccionadas
+
+                            <div class="mb-3">
+                                <label for="contacto-emergencia" class="form-label">
+                                    Contacto de Emergencia <span class="required">*</span>
+                                </label>
+                                <input type="text" class="form-control" id="contacto-emergencia" 
+                                       placeholder="Nombre completo" style="text-transform: uppercase;" required>
+                            </div>
+
+                            <div class="mb-4">
+                                <label for="movil-emergencia" class="form-label">
+                                    Móvil de Emergencia <span class="required">*</span>
+                                </label>
+                                <input type="tel" class="form-control" id="movil-emergencia" 
+                                       placeholder="0000-0000" maxlength="9" required
+                                       oninput="formatearTelefono(this)">
+                            </div>
+
+                            <hr class="my-4">
+
+                            <div class="d-flex justify-content-center">
+                                <button type="button" class="btn btn-guardar" id="btn-guardar">
+                                    <i class="fas fa-save me-2"></i>Guardar Cambios
                                 </button>
                             </div>
-                        </div>
-
-                        <div class="tab-pane fade" id="fotos-actualizar-pane" role="tabpanel" aria-labelledby="fotos-actualizar-tab">
-                            <h5 class="mb-3 text-center text-muted">Personal con Foto (Actualizar)</h5>
-                            <div class="search-container">
-                                <i class="fas fa-search"></i>
-                                <input type="text" class="form-control" id="buscador-actualizar-fotos" placeholder="Buscar por nombre o identidad...">
-                            </div>
-                            <div id="lista-actualizar-fotos"></div>
-                            <div id="no-fotos-actualizar" class="no-pendientes" style="display: none;">
-                                <i class="fas fa-users" style="color: var(--secondary-color);"></i>
-                                <h4>Sin Registros</h4>
-                                <p>No hay colaboradores con fotos registradas para actualizar.</p>
-                            </div>
-                            <div class="text-center mt-4">
-                                <button class="btn btn-success" id="btn-enviar-fotos-actualizadas" style="display: none;">
-                                    <i class="fas fa-upload me-2"></i>Enviar Fotos Actualizadas
-                                </button>
-                            </div>
-                        </div>
-
-
-                        <div class="tab-pane fade" id="cumples-pendientes-pane" role="tabpanel" aria-labelledby="cumples-pendientes-tab">
-                             <h5 class="mb-3 text-center text-muted">Personal sin Fecha de Nacimiento Registrada</h5>
-                            <div class="search-container">
-                                <i class="fas fa-search"></i>
-                                <input type="text" class="form-control" id="buscador-pendientes-cumples" placeholder="Buscar por nombre o identidad...">
-                            </div>
-                            <div id="lista-pendientes-cumples"></div>
-                            <div id="no-pendientes-cumples" class="no-pendientes" style="display: none;">
-                                <i class="fas fa-check-circle"></i>
-                                <h4>¡Todo Completo!</h4>
-                                <p>Todos los colaboradores activos tienen su fecha de nacimiento registrada.</p>
-                            </div>
-                             <div class="text-center mt-4">
-                                <button class="btn btn-success" id="btn-enviar-cumples-pendientes" style="display: none;">
-                                    <i class="fas fa-calendar-plus me-2"></i>Enviar Fechas Seleccionadas
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="tab-pane fade" id="cumples-actualizar-pane" role="tabpanel" aria-labelledby="cumples-actualizar-tab">
-                             <h5 class="mb-3 text-center text-muted">Personal con Fecha de Nacimiento (Actualizar)</h5>
-                            <div class="search-container">
-                                <i class="fas fa-search"></i>
-                                <input type="text" class="form-control" id="buscador-actualizar-cumples" placeholder="Buscar por nombre o identidad...">
-                            </div>
-                            <div id="lista-actualizar-cumples"></div>
-                            <div id="no-cumples-actualizar" class="no-pendientes" style="display: none;">
-                                <i class="fas fa-users" style="color: var(--secondary-color);"></i>
-                                <h4>Sin Registros</h4>
-                                <p>No hay colaboradores con fechas de nacimiento para actualizar.</p>
-                            </div>
-                             <div class="text-center mt-4">
-                                <button class="btn btn-success" id="btn-enviar-cumples-actualizados" style="display: none;">
-                                    <i class="fas fa-calendar-check me-2"></i>Enviar Fechas Actualizadas
-                                </button>
-                            </div>
-                        </div>
-                        </div>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- OVERLAY DE CARGA -->
     <div id="overlay">
         <div class="spinner"></div>
         <div id="loadingMessage">
@@ -406,635 +436,565 @@
         </div>
     </div>
 
-<script>
-    // --- URLs de Scripts ---
-    const SCRIPT_URL_OBTENER = "https://script.google.com/macros/s/AKfycbwV6UwcNpiC5FAahk3YPuOS-JSm7Fta5bNW_UoOwvqywTiS-a8LSqAMT32PKM1ydQJs/exec";
-    const SCRIPT_URL_ENVIAR = "https://script.google.com/macros/s/AKfycbwP81lGExHp4d9tPRhNNgJ5rlcgXIXj2AsNDNTFcd8Gzdhujy_2UEO0x016YrccFMxU/exec";
-    // ---------------------
+    <script>
+        // URLs de los scripts de Google Apps Script
+        const SCRIPT_URL_OBTENER = "https://script.google.com/macros/s/AKfycbwV6UwcNpiC5FAahk3YPuOS-JSm7Fta5bNW_UoOwvqywTiS-a8LSqAMT32PKM1ydQJs/exec";
+        const SCRIPT_URL_ENVIAR = "https://script.google.com/macros/s/AKfycbwP81lGExHp4d9tPRhNNgJ5rlcgXIXj2AsNDNTFcd8Gzdhujy_2UEO0x016YrccFMxU/exec";
 
-    let colaboradoresActivos = [];
+        // Contraseña de acceso (cámbiala aquí cuando quieras)
+        const ACCESS_PASSWORD = "12345";
 
-    // --- Inicio ---
-    document.addEventListener('DOMContentLoaded', function() {
-        // --- INICIO MODIFICACIÓN CONTRASEÑA ---
-        initializeApp(); // <-- Se llama directamente
-        // checkSession(); // <-- Se elimina la verificación de contraseña
-        // --- FIN MODIFICACIÓN CONTRASEÑA ---
-    });
+        // Variables globales
+        let colaboradoresActivos = [];
+        let colaboradorSeleccionado = null;
+        let datosOriginales = null;
 
-    function initializeApp() {
-        configurarEventos();
-        cargarDatosIniciales(); 
-    }
-
-    // --- INICIO: FUNCIONES DE CONTRASEÑA ELIMINADAS ---
-    // Se eliminaron las funciones checkSession() y promptForPassword()
-    // --- FIN: FUNCIONES DE CONTRASEÑA ELIMINADAS ---
-    
-    function configurarEventos() {
-        // --- Evento Vista Previa de Foto (Request 1) ---
-        $(document).on('click', '.empleado-avatar img, .vista-previa-foto', function() { 
-            mostrarPreviewFotoModal(this); 
+        // Al cargar la página, pedir contraseña primero
+        $(document).ready(function() {
+            promptForPassword();
         });
 
-        // --- Eventos Pestaña Fotos (Comunes) ---
-        $(document).on('change', '.foto-input-item', function() { mostrarVistaPreviaItem(this); });
-        $(document).on('click', '.btn-quitar-preview', function() { quitarVistaPreviaItem(this); });
-
-        // --- Sub-pestaña Fotos Pendientes ---
-        $('#buscador-pendientes-fotos').on('input', filtrarListaFotosPendientes);
-        $('#btn-enviar-fotos-pendientes').on('click', enviarFotosPendientes); 
-
-        // --- Sub-pestaña Fotos Actualizar ---
-        $('#buscador-actualizar-fotos').on('input', filtrarListaFotosActualizar);
-        $('#btn-enviar-fotos-actualizadas').on('click', enviarFotosActualizadas);
-
-        // --- Eventos Pestaña Cumpleaños (Comunes) ---
-        $(document).on('change', '.cumple-input-item', function() { marcarFechaSeleccionada(this); });
-        
-        // --- Sub-pestaña Cumples Pendientes ---
-        $('#buscador-pendientes-cumples').on('input', filtrarListaCumplesPendientes);
-        $('#btn-enviar-cumples-pendientes').on('click', enviarCumpleanosPendientes);
-        
-        // --- Sub-pestaña Cumples Actualizar ---
-        $('#buscador-actualizar-cumples').on('input', filtrarListaCumplesActualizar);
-        $('#btn-enviar-cumples-actualizados').on('click', enviarCumpleanosActualizados);
-
-
-        // --- Eventos de Pestañas (Tabs) ---
-        // Manejador para actualizar el estado "active" de AMBOS dropdowns
-        $('[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
-            const targetId = $(e.target).attr('id');
-            const $fotosDropdownToggle = $('#fotos-dropdown-toggle');
-            const $cumplesDropdownToggle = $('#cumples-dropdown-toggle');
-            
-            if (targetId.startsWith('fotos-')) {
-                $fotosDropdownToggle.addClass('active');
-                $cumplesDropdownToggle.removeClass('active');
-            } else if (targetId.startsWith('cumples-')) {
-                $cumplesDropdownToggle.addClass('active');
-                $fotosDropdownToggle.removeClass('active');
-            }
-        });
-    }
-
-    // --- Lógica de Carga Inicial ---
-    function cargarDatosIniciales() {
-        $('#overlay').css('display', 'flex');
-        $.get(SCRIPT_URL_OBTENER, function(data) {
-            $('#overlay').hide();
-            if (data.error) {
-                Swal.fire('Error', 'No se pudieron cargar los datos: ' + data.mensaje, 'error');
-                return;
-            }
-            colaboradoresActivos = (data.activos || []).map(corregirFecha);
-            
-            // Construye TODAS las listas al inicio
-            mostrarListasFotos(); 
-            mostrarListasCumpleanos();
-            
-        }).fail(function() {
-            $('#overlay').hide();
-            Swal.fire('Error', 'No se pudo conectar al servidor.', 'error');
-        });
-    }
-
-    // --- Lógica Pestaña Fotos ---
-
-    /** Función principal que llama a construir las dos sub-listas de fotos */
-    function mostrarListasFotos() {
-        construirListaPendientesFotos();
-        construirListaActualizarFotos();
-    }
-
-    /** Construye la lista de colaboradores PENDIENTES de foto */
-    function construirListaPendientesFotos() {
-        const container = $('#lista-pendientes-fotos');
-        container.empty(); 
-        $('#btn-enviar-fotos-pendientes').hide(); 
-
-        const pendientes = colaboradoresActivos
-            .filter(col => !col.fotoUrl || col.fotoUrl.trim() === '')
-            .sort((a, b) => a.nombre.localeCompare(b.nombre));
-
-        if (pendientes.length === 0) {
-            $('#no-pendientes-fotos').show();
-            $('#buscador-pendientes-fotos').hide();
-        } else {
-            $('#no-pendientes-fotos').hide();
-            $('#buscador-pendientes-fotos').show();
-            
-            pendientes.forEach(col => {
-                const itemHtml = `
-                    <div class="empleado-item" data-identidad="${col.identidad}">
-                        <div class="empleado-avatar" data-identidad="${col.identidad}"> <i class="fas fa-user-circle"></i> </div>
-                        <div class="vista-previa-container"></div> 
-                        <div class="empleado-info">
-                            <h6>${col.nombre}</h6>
-                            <p>${col.identidad}</p>
-                        </div>
-                        <label class="btn btn-primary foto-input-container">
-                            <i class="fas fa-camera me-2"></i>Tomar Foto
-                            <input type="file" class="foto-input-item" accept="image/*" capture="environment">
-                        </label>
-                    </div>`;
-                container.append(itemHtml);
-            });
-            $('#btn-enviar-fotos-pendientes').show(); 
-        }
-    }
-
-    /** Construye la lista de colaboradores que YA TIENEN foto (para actualizar) */
-    function construirListaActualizarFotos() {
-        const container = $('#lista-actualizar-fotos');
-        container.empty(); 
-        $('#btn-enviar-fotos-actualizadas').hide(); 
-
-        const conFoto = colaboradoresActivos
-            .filter(col => col.fotoUrl && col.fotoUrl.trim() !== '')
-            .sort((a, b) => a.nombre.localeCompare(b.nombre));
-
-        if (conFoto.length === 0) {
-            $('#no-fotos-actualizar').show();
-            $('#buscador-actualizar-fotos').hide();
-        } else {
-            $('#no-fotos-actualizar').hide();
-            $('#buscador-actualizar-fotos').show();
-            
-            conFoto.forEach(col => {
-                // (Request 1) - Se añade data-identidad al avatar para el clic
-                const itemHtml = `
-                    <div class="empleado-item con-foto" data-identidad="${col.identidad}">
-                        <div class="empleado-avatar" data-identidad="${col.identidad}"> <i class="fas fa-user-circle"></i> </div>
-                        <div class="vista-previa-container">
-                             <img src="${col.fotoUrl}" class="vista-previa-foto" alt="Foto actual">
-                        </div> 
-                        <div class="empleado-info">
-                            <h6>${col.nombre}</h6>
-                            <p>${col.identidad}</p>
-                        </div>
-                        <label class="btn btn-secondary foto-input-container">
-                            <i class="fas fa-sync-alt me-2"></i>Reemplazar
-                            <input type="file" class="foto-input-item" accept="image/*" capture="environment">
-                        </label>
-                    </div>`;
-                container.append(itemHtml);
-            });
-            $('#btn-enviar-fotos-actualizadas').show(); 
-        }
-    }
-
-    // --- Lógica Modal Vista Previa (MODIFICACIÓN TAREA ANTERIOR) ---
-    /** Muestra un modal con la foto del colaborador */
-    function mostrarPreviewFotoModal(imgElement) {
-        const $item = $(imgElement).closest('.empleado-item');
-        const identidad = $item.data('identidad');
-        const colaborador = colaboradoresActivos.find(c => c.identidad === identidad);
-
-        if (!colaborador) return;
-
-        // Comprueba si la imagen es una vista previa (data: URL) o una URL existente
-        const newPreviewSrc = $(imgElement).attr('src');
-        let imageUrlToShow = colaborador.fotoUrl; // Por defecto, la foto guardada
-        let subTitle = '';
-
-        if (newPreviewSrc.startsWith('data:image')) {
-            imageUrlToShow = newPreviewSrc; // Es una vista previa de un archivo nuevo
-            subTitle = '<i>(Vista previa de la nueva foto)</i>';
-        } else if (!colaborador.fotoUrl) {
-            return; // No hay foto guardada ni vista previa, no hacer nada
-        }
-
-        Swal.fire({
-            title: colaborador.nombre,
-            html: subTitle,
-            imageUrl: imageUrlToShow,
-            imageAlt: 'Foto de ' + colaborador.nombre,
-            showCloseButton: true,    // <-- (1) Botón X
-            showConfirmButton: false, // <-- (1) Sin botón "Confirmar"
-            // El estilo circular (2) se aplica vía CSS
-        });
-    }
-    // --- Fin Modificación ---
-
-    // --- Lógica Común de Fotos ---
-
-    function mostrarVistaPreviaItem(input) {
-        const file = input.files[0];
-        const $item = $(input).closest('.empleado-item'); 
-        const $previewContainer = $item.find('.vista-previa-container');
-
-        if (file) {
-            if (file.size > 5 * 1024 * 1024) { 
-                 Swal.fire('Archivo muy grande', 'La foto no puede exceder los 5MB.', 'warning');
-                 $(input).val(null); 
-                 quitarVistaPreviaItem(input); 
-                 return;
-            }
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const previewHtml = `
-                    <img src="${e.target.result}" class="vista-previa-foto">
-                    <button type="button" class="btn-quitar-preview" title="Quitar foto">
-                        <i class="fas fa-times"></i>
-                    </button>`;
-                $previewContainer.html(previewHtml); 
-                $item.addClass('con-foto'); 
-                $item.data('archivo-foto', file); 
-            }
-            reader.readAsDataURL(file);
-        } else {
-            quitarVistaPreviaItem(input);
-        }
-    }
-
-    function quitarVistaPreviaItem(element) {
-        const $item = $(element).closest('.empleado-item'); 
-        const $previewContainer = $item.find('.vista-previa-container');
-        $previewContainer.empty(); 
-        $item.removeData('archivo-foto'); 
-        $item.find('.foto-input-item').val(null); 
-        
-        const esActualizacion = $item.closest('#lista-actualizar-fotos').length > 0;
-
-        if (esActualizacion) {
-            const identidad = $item.data('identidad');
-            const colaborador = colaboradoresActivos.find(c => c.identidad === identidad);
-            if (colaborador && colaborador.fotoUrl) {
-                $previewContainer.html(`<img src="${colaborador.fotoUrl}" class="vista-previa-foto" alt="Foto actual">`);
-                $item.addClass('con-foto'); 
-            }
-        } else {
-            $item.removeClass('con-foto'); 
-        }
-    }
-
-    /** Envía solo las fotos de la lista de PENDIENTES */
-    function enviarFotosPendientes() {
-        const fotosParaEnviar = [];
-        $('#lista-pendientes-fotos .empleado-item').each(function() {
-            const $item = $(this);
-            const archivo = $item.data('archivo-foto'); 
-            if (archivo) {
-                const identidad = $item.data('identidad');
-                const colaborador = colaboradoresActivos.find(c => c.identidad === identidad);
-                if (colaborador) fotosParaEnviar.push({ colaborador, archivo, esEdicion: false });
-            }
-        });
-
-        if (fotosParaEnviar.length === 0) {
-            Swal.fire('Nada que enviar', 'No has seleccionado ninguna foto nueva.', 'info');
-            return;
-        }
-
-        Swal.fire({
-            title: `¿Enviar ${fotosParaEnviar.length} foto(s) nueva(s)?`,
-            text: "Se subirán las fotos seleccionadas.",
-            icon: 'question', showCancelButton: true, confirmButtonText: 'Sí, enviar', cancelButtonText: 'Cancelar'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                $('#overlay').css('display', 'flex');
-                const promesasSubida = fotosParaEnviar.map(item => subirFoto(item.colaborador, item.archivo, item.esEdicion));
-
-                Promise.all(promesasSubida)
-                    .then(results => {
-                        $('#overlay').hide();
-                        const exitos = results.filter(r => r === 'Éxito').length;
-                        const errores = results.length - exitos;
-                        let message = `Se subieron ${exitos} foto(s) correctamente.`;
-                        if (errores > 0) message += ` Hubo ${errores} error(es).`;
-                        
-                        Swal.fire({
-                            title: errores === 0 ? '¡Éxito!' : 'Completado con errores',
-                            text: message, icon: errores === 0 ? 'success' : 'warning'
-                        }).then(() => {
-                            cargarDatosIniciales(); // Recarga TODO
-                        });
-                    })
-                    .catch(errorGeneral => {
-                        $('#overlay').hide();
-                        Swal.fire('Error General', 'Ocurrió un error inesperado: ' + errorGeneral, 'error');
-                    });
-            }
-        });
-    }
-
-    /** Envía solo las fotos de la lista de ACTUALIZAR */
-    function enviarFotosActualizadas() {
-        const fotosParaEnviar = [];
-        $('#lista-actualizar-fotos .empleado-item').each(function() {
-            const $item = $(this);
-            const archivo = $item.data('archivo-foto'); 
-            if (archivo) {
-                const identidad = $item.data('identidad');
-                const colaborador = colaboradoresActivos.find(c => c.identidad === identidad);
-                if (colaborador) fotosParaEnviar.push({ colaborador, archivo, esEdicion: true });
-            }
-        });
-
-        if (fotosParaEnviar.length === 0) {
-            Swal.fire('Nada que enviar', 'No has seleccionado ninguna foto para reemplazar.', 'info');
-            return;
-        }
-
-        Swal.fire({
-            title: `¿Actualizar ${fotosParaEnviar.length} foto(s)?`,
-            text: "Se reemplazarán las fotos existentes.",
-            icon: 'question', showCancelButton: true, confirmButtonText: 'Sí, actualizar', cancelButtonText: 'Cancelar'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                $('#overlay').css('display', 'flex');
-                const promesasSubida = fotosParaEnviar.map(item => subirFoto(item.colaborador, item.archivo, item.esEdicion));
-
-                Promise.all(promesasSubida)
-                    .then(results => {
-                        $('#overlay').hide();
-                        const exitos = results.filter(r => r === 'Éxito').length;
-                        const errores = results.length - exitos;
-                        let message = `Se actualizaron ${exitos} foto(s) correctamente.`;
-                        if (errores > 0) message += ` Hubo ${errores} error(es).`;
-                        
-                        Swal.fire({
-                            title: errores === 0 ? '¡Éxito!' : 'Completado con errores',
-                            text: message, icon: errores === 0 ? 'success' : 'warning'
-                        }).then(() => {
-                            cargarDatosIniciales(); // Recarga TODO
-                        });
-                    })
-                    .catch(errorGeneral => {
-                        $('#overlay').hide();
-                        Swal.fire('Error General', 'Ocurrió un error inesperado: ' + errorGeneral, 'error');
-                    });
-            }
-        });
-    }
-
-
-    function subirFoto(colaborador, archivo, esEdicion = false) { 
-        return new Promise((resolve) => { 
-            if (!archivo) resolve(null); 
-            const reader = new FileReader();
-            reader.onload = e => { 
-                $.post(SCRIPT_URL_ENVIAR, { accion: 'subir_foto', colaborador: JSON.stringify(colaborador), archivo: e.target.result.split(',')[1], esEdicion }, r => {
-                    if (r === 'Éxito') resolve('Éxito'); else resolve('Error: ' + r); 
-                }).fail((jqXHR, textStatus) => { resolve('Error de conexión: ' + textStatus); }); 
-            };
-            reader.onerror = () => { resolve('Error al leer archivo localmente'); };
-            reader.readAsDataURL(archivo);
-        });
-    }
-
-    // --- Lógica Pestaña Cumpleaños (Request 2 y 3) ---
-
-    /** Función principal que llama a construir las dos sub-listas de cumpleaños */
-    function mostrarListasCumpleanos() {
-        construirListaPendientesCumples();
-        construirListaActualizarCumples();
-    }
-
-    /** Construye la lista de colaboradores PENDIENTES de fecha de nacimiento */
-    function construirListaPendientesCumples() {
-        const container = $('#lista-pendientes-cumples');
-        container.empty();
-        $('#btn-enviar-cumples-pendientes').hide(); 
-
-        const pendientes = colaboradoresActivos
-            .filter(col => !col.fechaNacimiento || col.fechaNacimiento.trim() === '')
-            .sort((a, b) => a.nombre.localeCompare(b.nombre));
-
-        if (pendientes.length === 0) {
-            $('#no-pendientes-cumples').show();
-            $('#buscador-pendientes-cumples').hide();
-        } else {
-            $('#no-pendientes-cumples').hide();
-            $('#buscador-pendientes-cumples').show();
-            
-            pendientes.forEach(col => {
-                // (Request 3) - Lógica para mostrar foto o icono
-                const avatarHtml = col.fotoUrl
-                    ? `<img src="${col.fotoUrl}" class="empleado-avatar-img" alt="Foto">`
-                    : `<i class="fas fa-user-circle"></i>`;
-
-                const itemHtml = `
-                    <div class="empleado-item" data-identidad="${col.identidad}">
-                        <div class="empleado-avatar" data-identidad="${col.identidad}"> ${avatarHtml} </div>
-                        <div class="empleado-info">
-                            <h6>${col.nombre}</h6>
-                            <p>${col.identidad}</p>
-                        </div>
-                        <div class="cumple-input-container">
-                            <input type="date" class="form-control cumple-input-item">
-                            <span class="cumple-icon"><i class="far fa-calendar-alt"></i></span> 
-                        </div>
-                    </div>`;
-                container.append(itemHtml);
-            });
-             $('#btn-enviar-cumples-pendientes').show(); 
-        }
-    }
-
-    /** Construye la lista de colaboradores que YA TIENEN fecha (para actualizar) */
-    function construirListaActualizarCumples() {
-        const container = $('#lista-actualizar-cumples');
-        container.empty();
-        $('#btn-enviar-cumples-actualizados').hide(); 
-
-        const conFecha = colaboradoresActivos
-            .filter(col => col.fechaNacimiento && col.fechaNacimiento.trim() !== '')
-            .sort((a, b) => a.nombre.localeCompare(b.nombre));
-
-        if (conFecha.length === 0) {
-            $('#no-cumples-actualizar').show();
-            $('#buscador-actualizar-cumples').hide();
-        } else {
-            $('#no-cumples-actualizar').hide();
-            $('#buscador-actualizar-cumples').show();
-            
-            conFecha.forEach(col => {
-                // (Request 3) - Lógica para mostrar foto o icono
-                const avatarHtml = col.fotoUrl
-                    ? `<img src="${col.fotoUrl}" class="empleado-avatar-img" alt="Foto">`
-                    : `<i class="fas fa-user-circle"></i>`;
-                
-                // El item ya tiene fecha, y el input debe tener el valor
-                const itemHtml = `
-                    <div class="empleado-item con-fecha" data-identidad="${col.identidad}">
-                        <div class="empleado-avatar" data-identidad="${col.identidad}"> ${avatarHtml} </div>
-                        <div class="empleado-info">
-                            <h6>${col.nombre}</h6>
-                            <p>${col.identidad}</p>
-                        </div>
-                        <div class="cumple-input-container">
-                            <input type="date" class="form-control cumple-input-item" value="${col.fechaNacimiento}">
-                            <span class="cumple-icon"><i class="far fa-calendar-alt"></i></span> 
-                        </div>
-                    </div>`;
-                container.append(itemHtml);
-            });
-             $('#btn-enviar-cumples-actualizados').show(); 
-        }
-    }
-
-
-    /** Marca visualmente que se ha seleccionado una fecha */
-    function marcarFechaSeleccionada(input) {
-        const $item = $(input).closest('.empleado-item');
-        if ($(input).val()) {
-            $item.addClass('con-fecha');
-        } else {
-            $item.removeClass('con-fecha');
-        }
-    }
-
-    /** Envía solo las fechas de la lista de PENDIENTES */
-    function enviarCumpleanosPendientes() {
-        const datos = obtenerDatosCumpleanos('#lista-pendientes-cumples');
-        if (!datos) return; // Validación falló o no hay datos
-
-        if (datos.length === 0) {
-            Swal.fire('Nada que enviar', 'No has seleccionado ninguna fecha de nacimiento nueva.', 'info');
-            return;
-        }
-
-        Swal.fire({
-            title: `¿Enviar ${datos.length} fecha(s) de nacimiento?`,
-            icon: 'question', showCancelButton: true, confirmButtonText: 'Sí, enviar', cancelButtonText: 'Cancelar'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                enviarDatosCumpleanos(datos, 'Fechas de nacimiento guardadas.');
-            }
-        });
-    }
-
-    /** Envía solo las fechas de la lista de ACTUALIZAR */
-    function enviarCumpleanosActualizados() {
-        const datos = obtenerDatosCumpleanos('#lista-actualizar-cumples');
-        if (!datos) return; // Validación falló o no hay datos
-
-        if (datos.length === 0) {
-            Swal.fire('Nada que enviar', 'No has seleccionado ninguna fecha para actualizar.', 'info');
-            return;
-        }
-
-         Swal.fire({
-            title: `¿Actualizar ${datos.length} fecha(s) de nacimiento?`,
-            icon: 'question', showCancelButton: true, confirmButtonText: 'Sí, actualizar', cancelButtonText: 'Cancelar'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                enviarDatosCumpleanos(datos, 'Fechas de nacimiento actualizadas.');
-            }
-        });
-    }
-
-    /** Función genérica para obtener datos de cumpleaños de un contenedor */
-    function obtenerDatosCumpleanos(containerSelector) {
-        const cumpleanosParaEnviar = [];
-        let formatoInvalido = false;
-
-        $(`${containerSelector} .empleado-item`).each(function() {
-            const $item = $(this);
-            const fechaInput = $item.find('.cumple-input-item');
-            const fechaSeleccionada = fechaInput.val(); 
-            
-            if (fechaSeleccionada) {
-                if (!/^\d{4}-\d{2}-\d{2}$/.test(fechaSeleccionada)) {
-                    formatoInvalido = true;
-                    fechaInput.addClass('is-invalid'); 
-                    return false; // Detiene el .each
+        /**
+         * Pide la contraseña para acceder a la página
+         * NO guarda sesión, siempre la pide
+         */
+        function promptForPassword() {
+            Swal.fire({
+                title: 'Acceso Restringido',
+                html: 'Por favor, ingrese la contraseña para continuar.',
+                input: 'password',
+                inputPlaceholder: 'Contraseña',
+                confirmButtonText: 'Ingresar',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                backdrop: `rgba(43, 62, 80, 0.8)`,
+                preConfirm: (password) => {
+                    if (password !== ACCESS_PASSWORD) {
+                        Swal.showValidationMessage('Contraseña incorrecta');
+                        return false;
+                    }
+                    return password;
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Contraseña correcta, mostrar contenido
+                    $('#main-content').css('display', 'block');
+                    
+                    // Inicializar la aplicación
+                    cargarColaboradoresActivos();
+                    configurarEventos();
                 } else {
-                     fechaInput.removeClass('is-invalid'); 
+                    // Si cierra el modal sin ingresar, vuelve a pedir
+                    promptForPassword();
+                }
+            });
+        }
+
+        /**
+         * Carga la lista de colaboradores activos desde el script GET
+         */
+        function cargarColaboradoresActivos() {
+            $('#overlay').css('display', 'flex');
+            $('#loadingMessage p').text('Cargando lista de colaboradores...');
+
+            $.get(SCRIPT_URL_OBTENER)
+                .done(function(data) {
+                    $('#overlay').hide();
+                    
+                    if (data.error) {
+                        Swal.fire({
+                            title: 'Error',
+                            text: 'No se pudo cargar la lista de colaboradores: ' + (data.mensaje || 'Error desconocido'),
+                            icon: 'error',
+                            confirmButtonText: 'Reintentar'
+                        }).then(() => {
+                            cargarColaboradoresActivos();
+                        });
+                        return;
+                    }
+
+                    colaboradoresActivos = (data.activos || []).map(col => ({
+                        ...col,
+                        movil: formatearNumeroTelefono(col.movil),
+                        contactoEmergencia: col.contactoEmergencia ? String(col.contactoEmergencia) : '',
+                        movilEmergencia: formatearNumeroTelefono(col.movilEmergencia),
+                        fechaNacimiento: col.fechaNacimiento ? String(col.fechaNacimiento) : ''
+                    }));
+
+                })
+                .fail(function() {
+                    $('#overlay').hide();
+                    Swal.fire({
+                        title: 'Error de Conexión',
+                        text: 'No se pudo conectar al servidor. Verifique su conexión a internet.',
+                        icon: 'error',
+                        confirmButtonText: 'Reintentar'
+                    }).then(() => {
+                        cargarColaboradoresActivos();
+                    });
+                });
+        }
+
+        /**
+         * Formatea un número de teléfono de 8 dígitos a formato 0000-0000
+         */
+        function formatearNumeroTelefono(numero) {
+            if (numero === null || numero === undefined) return '';
+            
+            const numeroStr = String(numero).trim();
+            if (numeroStr === '') return '';
+            
+            if (/^\d{4}-\d{4}$/.test(numeroStr)) return numeroStr;
+            
+            let soloDigitos = numeroStr.replace(/\D/g, '');
+            
+            if (soloDigitos.length === 8) {
+                return soloDigitos.substring(0, 4) + '-' + soloDigitos.substring(4, 8);
+            }
+            
+            return soloDigitos;
+        }
+
+        /**
+         * Configura los eventos de la página
+         */
+        function configurarEventos() {
+            // Autocompletado al escribir
+            $('#buscador-nombre').on('input', function() {
+                const valor = $(this).val().toLowerCase();
+                const autocompleteList = $('#autocomplete-list');
+
+                if (valor.length < 1) {
+                    autocompleteList.hide();
+                    return;
                 }
 
-                const identidad = $item.data('identidad');
-                cumpleanosParaEnviar.push({ identidad, fechaNacimiento: fechaSeleccionada });
-            } else {
-                 fechaInput.removeClass('is-invalid');
-            }
-        });
+                if (!colaboradoresActivos || colaboradoresActivos.length === 0) return;
 
-        if (formatoInvalido) {
-             Swal.fire('Formato Incorrecto', 'Una o más fechas seleccionadas no son válidas.', 'warning');
-             return null; // Devuelve null para indicar fallo
+                const sugerencias = colaboradoresActivos
+                    .filter(col => col.nombre.toLowerCase().includes(valor))
+                    .slice(0, 10);
+
+                autocompleteList.empty();
+                
+                if (sugerencias.length > 0) {
+                    sugerencias.forEach(sug => {
+                        autocompleteList.append(`<div class="autocomplete-item" data-nombre="${sug.nombre}">${sug.nombre}</div>`);
+                    });
+                    autocompleteList.show();
+                } else {
+                    autocompleteList.hide();
+                }
+            });
+
+            // Seleccionar del autocompletado
+            $(document).on('click', '.autocomplete-item', function() {
+                const nombre = $(this).data('nombre');
+                $('#buscador-nombre').val(nombre);
+                $('#autocomplete-list').hide();
+                
+                colaboradorSeleccionado = null;
+                $('#foto-container').hide();
+                $('#formulario-datos').hide();
+                limpiarFormulario();
+            });
+
+            // Ocultar autocompletado al hacer clic fuera
+            $(document).on('click', function(e) {
+                if (!$(e.target).closest('.autocomplete-container').length) {
+                    $('#autocomplete-list').hide();
+                }
+            });
+
+            // Botón Buscar
+            $('#btn-buscar').on('click', buscarColaborador);
+
+            // Botón Guardar
+            $('#btn-guardar').on('click', guardarCambios);
+
+            // Permitir buscar con Enter
+            $('#buscador-nombre').on('keypress', function(e) {
+                if (e.which === 13) {
+                    e.preventDefault();
+                    buscarColaborador();
+                }
+            });
+
+            // Validación en tiempo real para teléfonos
+            $(document).on('input', '#movil, #movil-emergencia', function() {
+                formatearTelefono(this);
+                validarCampo(this);
+            });
+
+            $(document).on('input', '#contacto-emergencia', function() {
+                validarCampo(this);
+            });
+
+            $(document).on('change', '#fecha-nacimiento', function() {
+                validarCampo(this);
+            });
         }
-        return cumpleanosParaEnviar;
-    }
 
-    /** Función genérica para enviar datos de cumpleaños al script */
-    function enviarDatosCumpleanos(datos, mensajeExito) {
-        $('#overlay').css('display', 'flex');
-        
-        $.post(SCRIPT_URL_ENVIAR, { 
-            accion: 'actualizar_cumpleanos_masivo', 
-            datos: JSON.stringify(datos) 
-        }, (response) => {
-            $('#overlay').hide();
-            if (response === 'Éxito') {
-                Swal.fire('¡Éxito!', mensajeExito, 'success').then(() => {
-                    cargarDatosIniciales(); // Recarga TODO
+        /**
+         * Valida un campo individual (solo bordes, sin mensajes)
+         */
+        function validarCampo(campo) {
+            if (!campo) return;
+            
+            const $campo = $(campo);
+            $campo.removeClass('is-valid is-invalid');
+            
+            const valor = $campo.val();
+            let esValido = false;
+            
+            if ($campo.attr('id') === 'fecha-nacimiento') {
+                if (valor) {
+                    const fecha = new Date(valor);
+                    const hoy = new Date();
+                    hoy.setHours(0, 0, 0, 0);
+                    esValido = !isNaN(fecha.getTime()) && fecha <= hoy;
+                }
+            } 
+            else if ($campo.attr('id') === 'movil' || $campo.attr('id') === 'movil-emergencia') {
+                esValido = /^\d{4}-\d{4}$/.test(valor);
+            }
+            else if ($campo.attr('id') === 'contacto-emergencia') {
+                esValido = valor && valor.trim().length >= 3;
+            }
+            
+            if (esValido) {
+                $campo.addClass('is-valid');
+            } else {
+                $campo.addClass('is-invalid');
+            }
+            
+            return esValido;
+        }
+
+        /**
+         * Busca los datos del colaborador seleccionado
+         */
+        function buscarColaborador() {
+            const nombreBuscado = $('#buscador-nombre').val().trim();
+            
+            if (!nombreBuscado) {
+                Swal.fire({
+                    title: 'Campo vacío',
+                    text: 'Por favor, escribe tu nombre para buscar.',
+                    icon: 'warning',
+                    confirmButtonText: 'Entendido'
+                });
+                return;
+            }
+
+            colaboradorSeleccionado = colaboradoresActivos.find(col => 
+                col.nombre.toLowerCase() === nombreBuscado.toLowerCase()
+            );
+
+            if (!colaboradorSeleccionado) {
+                Swal.fire({
+                    title: 'No encontrado',
+                    text: 'No se encontró un colaborador con ese nombre. Verifica que esté escrito correctamente.',
+                    icon: 'error',
+                    confirmButtonText: 'Entendido'
+                });
+                return;
+            }
+
+            datosOriginales = {
+                fechaNacimiento: colaboradorSeleccionado.fechaNacimiento || '',
+                movil: colaboradorSeleccionado.movil || '',
+                contactoEmergencia: colaboradorSeleccionado.contactoEmergencia || '',
+                movilEmergencia: colaboradorSeleccionado.movilEmergencia || ''
+            };
+
+            mostrarFoto(colaboradorSeleccionado);
+            mostrarDatosEnFormulario(colaboradorSeleccionado);
+            
+            $('#formulario-datos').show();
+            
+            $('html, body').animate({
+                scrollTop: $('#formulario-datos').offset().top - 20
+            }, 500);
+        }
+
+        /**
+         * Muestra la foto del colaborador
+         */
+        function mostrarFoto(colaborador) {
+            const fotoContainer = $('#foto-container');
+            const fotoPlaceholder = $('#foto-placeholder');
+            const fotoEmpleado = $('#foto-empleado');
+
+            fotoContainer.show();
+
+            if (colaborador.fotoUrl && colaborador.fotoUrl.trim() !== '') {
+                fotoPlaceholder.hide();
+                fotoEmpleado.show();
+                fotoEmpleado.attr('src', colaborador.fotoUrl);
+                fotoEmpleado.attr('alt', `Foto de ${colaborador.nombre}`);
+                
+                fotoEmpleado.on('error', function() {
+                    $(this).hide();
+                    fotoPlaceholder.show();
                 });
             } else {
-                Swal.fire('Error', `Error al actualizar: ${response}`, 'error');
+                fotoPlaceholder.show();
+                fotoEmpleado.hide();
             }
-        }).fail(() => { 
-            $('#overlay').hide(); 
-            Swal.fire('Error', 'Error de conexión.', 'error'); 
-        });
-    }
+        }
 
+        /**
+         * Muestra los datos del colaborador en el formulario
+         */
+        function mostrarDatosEnFormulario(colaborador) {
+            $('#fecha-nacimiento').val(colaborador.fechaNacimiento || '');
+            $('#movil').val(colaborador.movil || '');
+            $('#contacto-emergencia').val(colaborador.contactoEmergencia || '');
+            $('#movil-emergencia').val(colaborador.movilEmergencia || '');
 
-    // --- Funciones Auxiliares ---
+            // SOLO el nombre, sin texto adicional
+            $('#nombre-empleado').text(colaborador.nombre);
 
-    function corregirFecha(item) { 
-        const propiedadesFecha = ['fechaInicio', 'fechaNacimiento', 'fechaEgreso', 'fecha', 'fechaFin', 'fechaFalta', 'fechaLlamadoAtencion', 'fechaEvaluacion'];
-        propiedadesFecha.forEach(prop => {
-            if (item[prop] && typeof item[prop] === 'string' && item[prop].includes('T')) {
-                const fecha = new Date(item[prop]);
-                item[prop] = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`;
+            validarCampo($('#fecha-nacimiento')[0]);
+            validarCampo($('#movil')[0]);
+            validarCampo($('#contacto-emergencia')[0]);
+            validarCampo($('#movil-emergencia')[0]);
+        }
+
+        /**
+         * Limpia el formulario
+         */
+        function limpiarFormulario() {
+            $('#fecha-nacimiento').val('');
+            $('#movil').val('');
+            $('#contacto-emergencia').val('');
+            $('#movil-emergencia').val('');
+            $('#nombre-empleado').empty();
+            
+            $('#foto-placeholder').show();
+            $('#foto-empleado').hide();
+            
+            $('.form-control').removeClass('is-valid is-invalid');
+        }
+
+        /**
+         * Guarda los cambios del colaborador
+         */
+        function guardarCambios() {
+            if (!colaboradorSeleccionado) {
+                Swal.fire({
+                    title: 'Error',
+                    text: 'No hay un colaborador seleccionado. Por favor, busca tu nombre primero.',
+                    icon: 'warning',
+                    confirmButtonText: 'Entendido'
+                });
+                return;
             }
-        });
-        return item;
-    }
 
-    // --- Filtros ---
-    function filtrarListaFotosPendientes() {
-        const query = $('#buscador-pendientes-fotos').val().toLowerCase();
-        $('#lista-pendientes-fotos .empleado-item').each(function() {
-            const nombre = $(this).find('h6').text().toLowerCase();
-            const identidad = $(this).find('p').text().toLowerCase();
-            $(this).toggle(nombre.includes(query) || identidad.includes(query));
-        });
-    }
+            const valido = validarFormularioCompleto();
+            
+            if (!valido) {
+                Swal.fire({
+                    title: 'Campos incompletos',
+                    text: 'Por favor, completa todos los campos obligatorios correctamente.',
+                    icon: 'error',
+                    confirmButtonText: 'Entendido'
+                });
+                return;
+            }
 
-    function filtrarListaFotosActualizar() {
-        const query = $('#buscador-actualizar-fotos').val().toLowerCase();
-        $('#lista-actualizar-fotos .empleado-item').each(function() {
-            const nombre = $(this).find('h6').text().toLowerCase();
-            const identidad = $(this).find('p').text().toLowerCase();
-            $(this).toggle(nombre.includes(query) || identidad.includes(query));
-        });
-    }
+            const datosActualizados = {
+                fechaNacimiento: $('#fecha-nacimiento').val(),
+                movil: $('#movil').val(),
+                contactoEmergencia: $('#contacto-emergencia').val().toUpperCase().trim(),
+                movilEmergencia: $('#movil-emergencia').val()
+            };
 
-    function filtrarListaCumplesPendientes() {
-        const query = $('#buscador-pendientes-cumples').val().toLowerCase();
-        $('#lista-pendientes-cumples .empleado-item').each(function() {
-            const nombre = $(this).find('h6').text().toLowerCase();
-            const identidad = $(this).find('p').text().toLowerCase();
-            $(this).toggle(nombre.includes(query) || identidad.includes(query));
-        });
-    }
+            if (!hayCambios(datosActualizados)) {
+                Swal.fire({
+                    title: 'Sin cambios',
+                    text: 'No se detectaron cambios en tus datos.',
+                    icon: 'info',
+                    confirmButtonText: 'Entendido'
+                });
+                return;
+            }
 
-    function filtrarListaCumplesActualizar() {
-        const query = $('#buscador-actualizar-cumples').val().toLowerCase();
-        $('#lista-actualizar-cumples .empleado-item').each(function() {
-            const nombre = $(this).find('h6').text().toLowerCase();
-            const identidad = $(this).find('p').text().toLowerCase();
-            $(this).toggle(nombre.includes(query) || identidad.includes(query));
-        });
-    }
+            Swal.fire({
+                title: '¿Confirmar cambios?',
+                html: `
+                    <p>¿Estás seguro de que deseas actualizar tus datos?</p>
+                    <div class="text-start small">
+                        <strong>Fecha Nacimiento:</strong> ${formatearFecha(datosActualizados.fechaNacimiento) || 'No especificada'}<br>
+                        <strong>Móvil:</strong> ${datosActualizados.movil}<br>
+                        <strong>Contacto Emergencia:</strong> ${datosActualizados.contactoEmergencia}<br>
+                        <strong>Móvil Emergencia:</strong> ${datosActualizados.movilEmergencia}
+                    </div>
+                `,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, guardar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    enviarActualizacion(datosActualizados);
+                }
+            });
+        }
 
-</script>
+        /**
+         * Valida el formulario completo
+         */
+        function validarFormularioCompleto() {
+            const fechaValida = validarCampo($('#fecha-nacimiento')[0]);
+            const movilValido = validarCampo($('#movil')[0]);
+            const contactoValido = validarCampo($('#contacto-emergencia')[0]);
+            const movilEmergenciaValido = validarCampo($('#movil-emergencia')[0]);
+            
+            return fechaValida && movilValido && contactoValido && movilEmergenciaValido;
+        }
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        /**
+         * Verifica si hubo cambios en los datos
+         */
+        function hayCambios(nuevosDatos) {
+            return (
+                nuevosDatos.fechaNacimiento !== (datosOriginales.fechaNacimiento || '') ||
+                nuevosDatos.movil !== (datosOriginales.movil || '') ||
+                nuevosDatos.contactoEmergencia !== (datosOriginales.contactoEmergencia || '') ||
+                nuevosDatos.movilEmergencia !== (datosOriginales.movilEmergencia || '')
+            );
+        }
 
+        /**
+         * Envía la actualización al script POST
+         */
+        function enviarActualizacion(datosActualizados) {
+            $('#overlay').css('display', 'flex');
+            $('#loadingMessage p').text('Guardando tus cambios...');
+
+            const colaboradorActualizado = {
+                ...colaboradorSeleccionado,
+                fechaNacimiento: datosActualizados.fechaNacimiento,
+                movil: datosActualizados.movil,
+                contactoEmergencia: datosActualizados.contactoEmergencia,
+                movilEmergencia: datosActualizados.movilEmergencia
+            };
+
+            $.ajax({
+                url: SCRIPT_URL_ENVIAR,
+                method: 'POST',
+                data: {
+                    accion: 'editar_colaborador',
+                    colaboradorOriginal: JSON.stringify(colaboradorSeleccionado),
+                    datosNuevos: JSON.stringify(colaboradorActualizado)
+                },
+                dataType: 'text',
+                success: function(response) {
+                    $('#overlay').hide();
+                    
+                    if (response === 'Éxito') {
+                        Swal.fire({
+                            title: '¡Éxito!',
+                            text: 'Tus datos han sido actualizados correctamente.',
+                            icon: 'success',
+                            confirmButtonText: 'Excelente'
+                        }).then(() => {
+                            datosOriginales = { ...datosActualizados };
+                            colaboradorSeleccionado = { ...colaboradorActualizado };
+                            cargarColaboradoresActivos();
+                        });
+                    } else {
+                        Swal.fire({
+                            title: 'Error',
+                            text: 'Hubo un problema al actualizar tus datos: ' + response,
+                            icon: 'error',
+                            confirmButtonText: 'Entendido'
+                        });
+                    }
+                },
+                error: function() {
+                    $('#overlay').hide();
+                    Swal.fire({
+                        title: 'Error de Conexión',
+                        text: 'No se pudo conectar al servidor. Intenta de nuevo.',
+                        icon: 'error',
+                        confirmButtonText: 'Entendido'
+                    });
+                }
+            });
+        }
+
+        /**
+         * Formatea un número de teléfono al formato 0000-0000
+         */
+        function formatearTelefono(input) {
+            if (!input) return;
+            
+            let valor = input.value.replace(/\D/g, '');
+            valor = valor.substring(0, 8);
+            
+            if (valor.length > 4) {
+                valor = valor.substring(0, 4) + '-' + valor.substring(4, 8);
+            }
+            
+            input.value = valor;
+        }
+
+        /**
+         * Formatea una fecha YYYY-MM-DD a DD/MM/YYYY para mostrar
+         */
+        function formatearFecha(fechaStr) {
+            if (!fechaStr) return '';
+            const partes = fechaStr.split('-');
+            if (partes.length === 3) {
+                return `${partes[2]}/${partes[1]}/${partes[0]}`;
+            }
+            return fechaStr;
+        }
+
+        /**
+         * Muestra la foto en tamaño completo al hacer clic
+         */
+        function mostrarFotoCompleta() {
+            if (!colaboradorSeleccionado) return;
+            
+            const colaborador = colaboradorSeleccionado;
+            
+            if (!colaborador.fotoUrl || colaborador.fotoUrl.trim() === '') {
+                Swal.fire({
+                    title: colaborador.nombre,
+                    html: `
+                        <div style="text-align: center; padding: 20px;">
+                            <i class="fas fa-user-circle" style="font-size: 150px; color: #bdc3c7;"></i>
+                            <p style="margin-top: 15px; color: #7f8c8d;">No hay foto disponible</p>
+                        </div>
+                    `,
+                    showCloseButton: true,
+                    showConfirmButton: false
+                });
+                return;
+            }
+
+            Swal.fire({
+                title: colaborador.nombre,
+                html: `
+                    <div style="text-align: center;">
+                        <img src="${colaborador.fotoUrl}" 
+                             alt="${colaborador.nombre}" 
+                             style="max-width: 100%; max-height: 70vh; border-radius: 8px; box-shadow: 0 5px 25px rgba(0,0,0,0.2);">
+                    </div>
+                `,
+                showCloseButton: true,
+                showConfirmButton: false,
+                width: 'auto',
+                background: '#1a1a1a',
+                customClass: {
+                    title: 'text-white'
+                }
+            });
+        }
+    </script>
 </body>
 </html>

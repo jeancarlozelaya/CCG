@@ -3185,6 +3185,16 @@ $('#btn-filtrar-asistencia-grafico').on('click', function() {
 });
 
 
+// Botón de Contacto para Egresados (NUEVO)
+tabContent.on('click', '#egresados .btn-contacto-egresado', function(e) {
+    e.stopPropagation();
+    const identidad = $(this).data('identidad');
+    mostrarContactosEgresado(identidad);
+});
+
+
+
+
 }
 
 
@@ -4557,20 +4567,35 @@ function mostrarColaboradoresEgresados() {
     const gridEgresadosContainer = $('#grid-egresados').empty();
 
     if (colaboradoresEgresos.length === 0) {
-        tablaEgresados.append('<tr><td colspan="5" class="text-center">No hay colaboradores egresados.</td></tr>');
+        tablaEgresados.append('<tr><td colspan="6" class="text-center">No hay colaboradores egresados.</td></tr>');
         gridEgresadosContainer.html('<div class="col-12"><p class="text-center text-muted">No hay colaboradores egresados.</p></div>');
         return;
     }
 
     [...colaboradoresEgresos].sort((a,b) => new Date(b.fechaEgreso) - new Date(a.fechaEgreso)).forEach(egreso => {
-        // --- INICIO DE MODIFICACIÓN (Punto 1) ---
-        const fotoButtonHtml = `<button class="btn btn-info btn-sm btn-action btn-photo-egresado" data-identidad="${egreso.identidad}" data-fechaegreso="${egreso.fechaEgreso}" title="Ver Foto"><i class="fas fa-camera"></i></button>`;
-        const historialButtonHtml = `<button class="btn btn-secondary btn-sm btn-action btn-historial-egresado" data-identidad="${egreso.identidad}" title="Ver Historial"><i class="fas fa-history"></i></button>`;
-        const reingresoButtonHtml = `<button class="btn btn-success btn-sm btn-action btn-reingreso" data-identidad="${egreso.identidad}" title="Reingresar Colaborador"><i class="fas fa-user-plus"></i></button>`;
-        // const editButtonHtml = ... (Botón de editar eliminado)
-        // --- FIN DE MODIFICACIÓN ---
+        
+        // --- Determinar si tiene datos de contacto para habilitar/deshabilitar botón ---
+        const movil = (egreso.movil !== undefined && egreso.movil !== null) ? String(egreso.movil).trim() : '';
+        const contactoEmergencia = (egreso.contactoEmergencia !== undefined && egreso.contactoEmergencia !== null) ? String(egreso.contactoEmergencia).trim() : '';
+        const movilEmergencia = (egreso.movilEmergencia !== undefined && egreso.movilEmergencia !== null) ? String(egreso.movilEmergencia).trim() : '';
+        
+        const tieneContacto = movil !== '' || contactoEmergencia !== '' || movilEmergencia !== '';
+        
+        const botonContactoClase = tieneContacto ? 'btn-primary' : 'btn-secondary';
+        const botonContactoDisabled = tieneContacto ? '' : 'disabled';
+        const botonContactoTitulo = tieneContacto ? 'Ver Contactos' : 'Sin información de contacto';
 
-        // --- 1. Generar Fila de Tabla (Modificada) ---
+        // --- Botones de acción ---
+        const historialButtonHtml = `<button class="btn btn-secondary btn-sm btn-action btn-historial-egresado" data-identidad="${egreso.identidad}" title="Ver Historial"><i class="fas fa-history"></i></button>`;
+        const contactoButtonHtml = `<button class="btn ${botonContactoClase} btn-sm btn-action btn-contacto-egresado" 
+                                        data-identidad="${egreso.identidad}" 
+                                        title="${botonContactoTitulo}"
+                                        ${botonContactoDisabled}>
+                                    <i class="fas fa-phone-alt"></i>
+                                 </button>`;
+        const reingresoButtonHtml = `<button class="btn btn-success btn-sm btn-action btn-reingreso" data-identidad="${egreso.identidad}" title="Reingresar Colaborador"><i class="fas fa-user-plus"></i></button>`;
+
+        // --- 1. Generar Fila de Tabla (sin botón de cámara) ---
         const fila = `
             <tr data-identidad="${egreso.identidad}">
                 <td>${formatearFecha(egreso.fechaEgreso)}</td>
@@ -4578,22 +4603,26 @@ function mostrarColaboradoresEgresados() {
                 <td>${egreso.identidad}</td>
                 <td>${egreso.razon}</td>
                 <td>
-                    ${fotoButtonHtml}
                     ${historialButtonHtml}
+                    ${contactoButtonHtml}
                     ${reingresoButtonHtml}
                 </td>
-            </tr>`; // Se quitó {editButtonHtml}
+            </tr>`;
         tablaEgresados.append(fila);
 
-        // --- 2. Generar Tarjeta de Miniatura (Modificada) ---
+        // --- 2. Generar Tarjeta de Miniatura (con clic en imagen para foto) ---
         const fotoHtml = egreso.fotoUrl
-            ? `<img src="${egreso.fotoUrl}" alt="${egreso.nombre}" onerror="this.parentElement.innerHTML = '<i class=\\'fas fa-user-circle\\'></i>';">`
-            : `<i class="fas fa-user-circle"></i>`;
+            ? `<img src="${egreso.fotoUrl}" alt="${egreso.nombre}" style="cursor: pointer;" onerror="this.parentElement.innerHTML = '<i class=\\'fas fa-user-circle\\' style=\\'cursor: pointer;\\'></i>';">`
+            : `<i class="fas fa-user-circle" style="cursor: pointer;"></i>`;
         
         const cardHtml = `
             <div class="col-lg-2 col-md-3 col-sm-4 col-6 empleado-card-grid-item" data-identidad="${egreso.identidad}">
                 <div class="empleado-card-mini">
-                    <div class="img-container">${fotoHtml}</div>
+                    <div class="img-container" style="cursor: pointer;" 
+                         onclick="mostrarFotoPorIdentidadEgresado('${egreso.identidad}')"
+                         ondblclick="mostrarFotoCompletaPorIdentidadEgresado('${egreso.identidad}')">
+                        ${fotoHtml}
+                    </div>
                     <h6>${egreso.nombre}</h6>
                     <p>${egreso.identidad}</p>
                     <p class="small text-danger" style="font-weight: 500;">
@@ -4602,31 +4631,141 @@ function mostrarColaboradoresEgresados() {
                         <i class="fas fa-info-circle me-1"></i> ${egreso.razon}
                     </p>
                     <div class="actions">
-                        ${fotoButtonHtml}
                         ${historialButtonHtml}
+                        ${contactoButtonHtml}
                         ${reingresoButtonHtml}
                     </div>
                 </div>
-            </div>`; // Se quitó {editButtonHtml}
+            </div>`;
         gridEgresadosContainer.append(cardHtml);
     });
 }
 
+// --- NUEVAS FUNCIONES AUXILIARES PARA EGRESADOS ---
+function mostrarFotoPorIdentidadEgresado(identidad) {
+    const colaborador = colaboradoresEgresos.find(col => col.identidad === identidad);
+    if (colaborador) {
+        mostrarFoto(colaborador);
+    }
+}
+
+function mostrarFotoCompletaPorIdentidadEgresado(identidad) {
+    const colaborador = colaboradoresEgresos.find(col => col.identidad === identidad);
+    if (colaborador) {
+        mostrarFotoCompleta(colaborador);
+    }
+}
+
+// --- FUNCIÓN PARA MOSTRAR CONTACTOS DE EGRESADOS ---
+function mostrarContactosEgresado(identidad) {
+    const colaborador = colaboradoresEgresos.find(col => col.identidad === identidad);
+    if (!colaborador) {
+        Swal.fire('Error', 'No se encontró el colaborador egresado.', 'error');
+        return;
+    }
+
+    const movil = (colaborador.movil !== undefined && colaborador.movil !== null) ? String(colaborador.movil).trim() : '';
+    const contactoEmergencia = (colaborador.contactoEmergencia !== undefined && colaborador.contactoEmergencia !== null) ? String(colaborador.contactoEmergencia).trim() : '';
+    const movilEmergencia = (colaborador.movilEmergencia !== undefined && colaborador.movilEmergencia !== null) ? String(colaborador.movilEmergencia).trim() : '';
+
+    function limpiarNumero(numero) {
+        if (!numero || numero === '') return '';
+        return numero.replace(/[\s-]/g, '');
+    }
+
+    const movilLimpio = limpiarNumero(movil);
+    const movilEmergenciaLimpio = limpiarNumero(movilEmergencia);
+    
+    function generarEnlaceWhatsApp(numero, mensaje) {
+        if (!numero || numero === '') return '#';
+        const numeroCompleto = '504' + numero;
+        return `https://wa.me/${numeroCompleto}?text=${encodeURIComponent(mensaje)}`;
+    }
+
+    let contenidoHtml = `
+        <div class="text-center mb-4">
+            <img src="${colaborador.fotoUrl || `https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=random`}" 
+                 style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid #e74c3c; margin-bottom: 10px;">
+            <h5 class="mb-1">${colaborador.nombre}</h5>
+            <span class="badge bg-danger">Egresado</span>
+            <span class="badge bg-secondary">${colaborador.identidad}</span>
+        </div>
+    `;
+
+    contenidoHtml += `<div class="text-start mb-3">`;
+    if (movil && movil !== '') {
+        contenidoHtml += `
+            <h6 class="border-bottom pb-2"><i class="fas fa-mobile-alt me-2 text-primary"></i>Móvil Personal</h6>
+            <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
+                <span class="fw-bold">${movil}</span>
+                <div>
+                    <a href="tel:${movilLimpio}" class="btn btn-sm btn-success me-1" title="Llamar">
+                        <i class="fas fa-phone-alt"></i>
+                    </a>
+                    <a href="${generarEnlaceWhatsApp(movilLimpio, `Hola ${colaborador.nombre}, te contactamos desde la empresa (egresado).`)}" 
+                       class="btn btn-sm btn-success" 
+                       target="_blank" 
+                       title="WhatsApp">
+                        <i class="fab fa-whatsapp"></i>
+                    </a>
+                </div>
+            </div>`;
+    } else {
+        contenidoHtml += `<p class="text-muted fst-italic"><i class="fas fa-info-circle me-1"></i>No se ha registrado un móvil personal.</p>`;
+    }
+    contenidoHtml += `</div>`;
+
+    contenidoHtml += `<div class="text-start mb-3">`;
+    if ((contactoEmergencia && contactoEmergencia !== '') || (movilEmergencia && movilEmergencia !== '')) {
+        contenidoHtml += `<h6 class="border-bottom pb-2"><i class="fas fa-shield-alt me-2 text-danger"></i>Contacto de Emergencia</h6>`;
+        if (contactoEmergencia && contactoEmergencia !== '') {
+            contenidoHtml += `<p class="mb-1"><strong>Nombre:</strong> ${contactoEmergencia}</p>`;
+        }
+        if (movilEmergencia && movilEmergencia !== '') {
+            contenidoHtml += `
+                <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded mt-2">
+                    <span class="fw-bold">${movilEmergencia}</span>
+                    <div>
+                        <a href="tel:${movilEmergenciaLimpio}" class="btn btn-sm btn-outline-danger me-1" title="Llamar">
+                            <i class="fas fa-phone-alt"></i>
+                        </a>
+                        <a href="${generarEnlaceWhatsApp(movilEmergenciaLimpio, `Hola, es una emergencia relacionada con ${colaborador.nombre} (egresado).`)}" 
+                           class="btn btn-sm btn-outline-success" 
+                           target="_blank" 
+                           title="WhatsApp">
+                            <i class="fab fa-whatsapp"></i>
+                        </a>
+                    </div>
+                </div>`;
+        }
+    } else {
+        contenidoHtml += `<p class="text-muted fst-italic"><i class="fas fa-info-circle me-1"></i>No se ha registrado un contacto de emergencia.</p>`;
+    }
+    contenidoHtml += `</div>`;
+
+    Swal.fire({
+        title: 'Contacto de Egresado',
+        html: contenidoHtml,
+        width: '550px',
+        showCloseButton: true,
+        showConfirmButton: false
+    });
+}
         
 function filtrarEgresadosTabla() {
     const texto = $('#buscador-egresados-tabla').val().toLowerCase();
     
-    // 1. Filtrar Tabla (Existente)
+    // 1. Filtrar Tabla
     $('#tabla-colaboradores-egresados tbody tr').each(function() {
         const nombre = $(this).find('td:eq(1)').text().toLowerCase();
         const identidad = $(this).find('td:eq(2)').text().toLowerCase();
         $(this).toggle(nombre.includes(texto) || identidad.includes(texto));
     });
 
-    // 2. Filtrar Grid (NUEVO)
+    // 2. Filtrar Grid
     $('#grid-egresados .empleado-card-grid-item').each(function() {
         const nombre = $(this).find('h6').text().toLowerCase();
-        const identidad = $(this).find('p').first().text().toLowerCase(); // El primer <p> tiene la identidad
+        const identidad = $(this).find('p').first().text().toLowerCase();
         $(this).toggle(nombre.includes(texto) || identidad.includes(texto));
     });
 }

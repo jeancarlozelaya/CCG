@@ -9051,6 +9051,9 @@ function mostrarHistorialAsistencia(datos) {
     const datosAMostrar = datos || asistencia;
     const tabla = $('#tabla-asistencia').empty();
     
+    // META DE ASISTENCIA (constante)
+    const META_ASISTENCIA = 87;
+    
     if (!datosAMostrar || datosAMostrar.length === 0) {
         tabla.append('<tr><td colspan="7" class="text-center">No hay registros de asistencia.</td></tr>');
         return;
@@ -9060,10 +9063,16 @@ function mostrarHistorialAsistencia(datos) {
     const asistenciaOrdenada = [...datosAMostrar].sort((a, b) => b.fecha.localeCompare(a.fecha));
     
     asistenciaOrdenada.forEach(reg => {
-        const porcentajeAsistencia = reg.activos > 0 ? ((reg.presentes / reg.activos) * 100).toFixed(1) : '0.0';
+        // --- NUEVO: Calcular porcentaje en base a la meta de 87 ---
+        const porcentajeAsistencia = Math.min(100, (reg.presentes / META_ASISTENCIA) * 100).toFixed(1);
+        
         let badgeColor = 'success';
-        if (porcentajeAsistencia < 90) badgeColor = 'warning';
-        if (porcentajeAsistencia < 80) badgeColor = 'danger';
+        if (porcentajeAsistencia < 100) badgeColor = 'warning';
+        if (porcentajeAsistencia < 90) badgeColor = 'danger';
+        
+        // Mostrar también cuántas personas hacen falta para llegar a la meta
+        const personasFaltantes = Math.max(0, META_ASISTENCIA - reg.presentes);
+        const metaInfo = personasFaltantes > 0 ? ` (faltan ${personasFaltantes})` : '';
         
         tabla.append(`
             <tr>
@@ -9073,7 +9082,11 @@ function mostrarHistorialAsistencia(datos) {
                 <td>${reg.egresos || 0}</td>
                 <td>${reg.ingresos || 0}</td>
                 <td>${reg.presentes}</td>
-                <td><span class="badge bg-${badgeColor}">${porcentajeAsistencia}%</span></td>
+                <td>
+                    <span class="badge bg-${badgeColor}" title="Meta: ${META_ASISTENCIA} personas">
+                        ${porcentajeAsistencia}%${metaInfo}
+                    </span>
+                </td>
             </tr>
         `);
     });
@@ -9090,32 +9103,42 @@ function calcularPromediosAsistencia() {
     const mesActual = hoy.getMonth();
     const anoActual = hoy.getFullYear();
     
-    // --- % Asistencia del Mes (de la hoja Asistencia) ---
+    // META DE ASISTENCIA (constante)
+    const META_ASISTENCIA = 87;
+    
+    // --- % Asistencia del Mes (en base a la meta de 87) ---
     const datosMes = asistencia.filter(reg => {
         const fecha = new Date(reg.fecha + 'T00:00:00');
         return fecha.getMonth() === mesActual && fecha.getFullYear() === anoActual;
     });
     
     if (datosMes.length > 0) {
+        // Sumar los presentes de todos los días del mes
         const sumaPresentes = datosMes.reduce((sum, reg) => sum + reg.presentes, 0);
-        const sumaActivos = datosMes.reduce((sum, reg) => sum + reg.activos, 0);
-        const porcentajeAsistencia = sumaActivos > 0 ? ((sumaPresentes / sumaActivos) * 100).toFixed(1) : '0.0';
+        
+        // Calcular el promedio de presentes por día
+        const promedioPresentes = sumaPresentes / datosMes.length;
+        
+        // Calcular el porcentaje en base a la meta de 87
+        const porcentajeAsistencia = Math.min(100, (promedioPresentes / META_ASISTENCIA) * 100).toFixed(1);
+        
         $('#porcentaje-asistencia-mes').text(porcentajeAsistencia + '%');
+        
+        // Agregar información adicional en el tooltip
+        $('#porcentaje-asistencia-mes').attr('title', 
+            `Promedio de presentes: ${promedioPresentes.toFixed(1)} personas\nMeta: ${META_ASISTENCIA} personas`);
     } else {
         $('#porcentaje-asistencia-mes').text('0%');
     }
 
     // --- % Ausentismo del Mes (de la pestaña Ausencias) ---
-    // Reutilizamos el valor que ya se calcula en ausentismo-mes
     const ausentismoMes = $('#ausentismo-mes').text();
     $('#porcentaje-ausentismo-mes').text(ausentismoMes);
 
     // --- % Rotación del Mes (de la pestaña Rotación) ---
-    // Reutilizamos el valor que ya se calcula en rotacion-mes
     const rotacionMes = $('#rotacion-mes').text();
     $('#porcentaje-rotacion-mes').text(rotacionMes);
 }
-
 
 /**
  * Filtra el historial de asistencia por búsqueda
@@ -9144,6 +9167,9 @@ function crearGraficoAsistenciaMensual(ano, mes) {
     
     const ctx = document.getElementById('graficoAsistenciaMensual').getContext('2d');
     
+    // META DE ASISTENCIA (constante)
+    const META_ASISTENCIA = 87;
+    
     // Filtrar datos del mes seleccionado
     const datosMes = asistencia.filter(reg => {
         const fecha = new Date(reg.fecha + 'T00:00:00');
@@ -9167,8 +9193,10 @@ function crearGraficoAsistenciaMensual(ano, mes) {
     const datosPresentes = datosMes.map(reg => reg.presentes);
     const datosAusentes = datosMes.map(reg => reg.ausentes);
     const datosEgresos = datosMes.map(reg => reg.egresos || 0);
-    // 👇 ESTA ES LA NUEVA LÍNEA PARA INGRESOS
     const datosIngresos = datosMes.map(reg => reg.ingresos || 0);
+    
+    // --- NUEVO: Array para la línea de la meta (constante) ---
+    const lineaMeta = Array(labels.length).fill(META_ASISTENCIA);
     
     const nombreMes = new Date(ano, mes).toLocaleString('es-ES', { month: 'long' });
     
@@ -9201,7 +9229,6 @@ function crearGraficoAsistenciaMensual(ano, mes) {
                     fill: true,
                     tension: 0.4
                 },
-                // 👇 ESTE ES EL NUEVO DATASET PARA INGRESOS
                 {
                     label: 'Ingresos',
                     data: datosIngresos,
@@ -9209,6 +9236,18 @@ function crearGraficoAsistenciaMensual(ano, mes) {
                     backgroundColor: 'rgba(52, 152, 219, 0.1)',
                     fill: true,
                     tension: 0.4
+                },
+                // --- NUEVO: Línea de la meta ---
+                {
+                    label: `Meta (${META_ASISTENCIA})`,
+                    data: lineaMeta,
+                    borderColor: '#9b59b6',
+                    borderWidth: 3,
+                    borderDash: [5, 5],
+                    fill: false,
+                    tension: 0,
+                    pointRadius: 0,
+                    pointHoverRadius: 0
                 }
             ]
         },
@@ -9218,7 +9257,11 @@ function crearGraficoAsistenciaMensual(ano, mes) {
             scales: {
                 y: {
                     beginAtZero: true,
-                    ticks: { stepSize: 1 }
+                    ticks: { stepSize: 10 },
+                    title: {
+                        display: true,
+                        text: 'Número de Personas'
+                    }
                 },
                 x: {
                     title: {
@@ -9230,13 +9273,30 @@ function crearGraficoAsistenciaMensual(ano, mes) {
             plugins: {
                 title: {
                     display: true,
-                    text: `Evolución de Asistencia - ${nombreMes} ${ano}`
+                    text: `Evolución de Asistencia - ${nombreMes} ${ano} (Meta: ${META_ASISTENCIA})`
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.parsed.y !== null) {
+                                label += context.parsed.y;
+                            }
+                            // Si es el dataset de la meta, agregar información adicional
+                            if (context.dataset.label === `Meta (${META_ASISTENCIA})`) {
+                                label += ' personas (objetivo)';
+                            }
+                            return label;
+                        }
+                    }
                 }
             }
         }
     });
 }
-
 
 
 /**

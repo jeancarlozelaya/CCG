@@ -5267,25 +5267,25 @@ function calcularEstadisticasAusencias() {
         }
     });
     
-    empleadosUnicos.forEach(emp => {
-        const fechaInicio = new Date(emp.fechaInicio + 'T00:00:00');
-        const fechaFin = emp.fechaEgreso ? new Date(emp.fechaEgreso + 'T00:00:00') : new Date(hoy);
+empleadosUnicos.forEach(emp => {
+    const fechaInicio = new Date(emp.fechaInicio + 'T00:00:00');
+    let fechaFin = emp.fechaEgreso ? new Date(emp.fechaEgreso + 'T00:00:00') : new Date(hoy);
+    
+    // Asegurar que fechaFin no sea mayor a hoy
+    if (fechaFin > hoy) fechaFin = new Date(hoy);
+    
+    if (fechaFin >= fechaInicio) {
+        // Calcular días laborables aproximados
+        const diffTiempo = fechaFin - fechaInicio;
+        const diffDias = Math.ceil(diffTiempo / (1000 * 60 * 60 * 24)) + 1;
         
-        // Asegurar que fechaFin no sea mayor a hoy
-        if (fechaFin > hoy) fechaFin = new Date(hoy);
+        // Asumir 22 días laborables por mes (promedio)
+        const mesesTrabajados = diffDias / 30.44;
+        const diasLaborablesEstimados = Math.round(mesesTrabajados * 22);
         
-        if (fechaFin >= fechaInicio) {
-            // Calcular días laborables aproximados
-            const diffTiempo = fechaFin - fechaInicio;
-            const diffDias = Math.ceil(diffTiempo / (1000 * 60 * 60 * 24)) + 1;
-            
-            // Asumir 22 días laborables por mes (promedio)
-            const mesesTrabajados = diffDias / 30.44; // Días promedio por mes
-            const diasLaborablesEstimados = Math.round(mesesTrabajados * 22);
-            
-            totalDiasLaborablesPosiblesHistorico += diasLaborablesEstimados;
-        }
-    });
+        totalDiasLaborablesPosiblesHistorico += diasLaborablesEstimados;
+    }
+});
     
     const porcentajeHistorico = totalDiasLaborablesPosiblesHistorico > 0 
         ? ((totalDiasAusenciasHistorico / totalDiasLaborablesPosiblesHistorico) * 100).toFixed(2)

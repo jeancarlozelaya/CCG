@@ -807,44 +807,64 @@
         configurarBuscadorGeneral();
     }
     
-    function configurarBuscadorGeneral() {
-        const buscador = document.getElementById('buscadorGeneral');
-        buscador.addEventListener('input', function() {
-            const termino = this.value.toLowerCase().trim();
-            const categorias = document.querySelectorAll('#productosContainer > .category-separator');
-            const grids = document.querySelectorAll('#productosContainer > .productos-grid');
-            
-            if (termino === '') {
-                categorias.forEach(cat => cat.style.display = 'flex');
-                grids.forEach(grid => grid.style.display = 'grid');
-                return;
-            }
-            
-            categorias.forEach((cat, index) => {
-                const grid = grids[index];
-                const productos = grid.querySelectorAll('.producto-card');
-                let algunaCoincidencia = false;
-                
-                productos.forEach(producto => {
-                    const nombre = producto.querySelector('h4').textContent.toLowerCase();
-                    if (nombre.includes(termino)) {
-                        producto.style.display = 'flex';
-                        algunaCoincidencia = true;
+function configurarBuscadorGeneral() {
+    const buscador = document.getElementById('buscadorGeneral');
+    buscador.addEventListener('input', function() {
+        const termino = this.value.toLowerCase().trim();
+        const categorias = document.querySelectorAll('#productosContainer > .category-separator');
+        const grids = document.querySelectorAll('#productosContainer > .productos-grid');
+        
+        if (termino === '') {
+            // Restaurar todo a la vista normal
+            categorias.forEach(cat => {
+                cat.style.display = 'flex';
+                // Asegurar que el ícono mantenga su estado original
+                const icon = cat.querySelector('.toggle-icon');
+                const grid = cat.nextElementSibling;
+                if (grid && grid.classList) {
+                    // Si la categoría estaba colapsada, mantener ese estado
+                    if (cat.classList.contains('collapsed')) {
+                        grid.style.display = 'none';
+                        if (icon) icon.innerHTML = '▶';
                     } else {
-                        producto.style.display = 'none';
+                        grid.style.display = 'grid';
+                        if (icon) icon.innerHTML = '▼';
                     }
-                });
-                
-                if (algunaCoincidencia) {
-                    cat.style.display = 'flex';
-                    grid.style.display = 'grid';
-                } else {
-                    cat.style.display = 'none';
-                    grid.style.display = 'none';
                 }
             });
+            grids.forEach(grid => {
+                // Restaurar visibilidad de todos los productos
+                const productos = grid.querySelectorAll('.producto-card');
+                productos.forEach(producto => producto.style.display = 'flex');
+            });
+            return;
+        }
+        
+        categorias.forEach((cat, index) => {
+            const grid = grids[index];
+            const productos = grid.querySelectorAll('.producto-card');
+            let algunaCoincidencia = false;
+            
+            productos.forEach(producto => {
+                const nombre = producto.querySelector('h4').textContent.toLowerCase();
+                if (nombre.includes(termino)) {
+                    producto.style.display = 'flex';
+                    algunaCoincidencia = true;
+                } else {
+                    producto.style.display = 'none';
+                }
+            });
+            
+            if (algunaCoincidencia) {
+                cat.style.display = 'flex';
+                grid.style.display = 'grid';
+            } else {
+                cat.style.display = 'none';
+                grid.style.display = 'none';
+            }
         });
-    }
+    });
+}
 
     // ==================== QUÍMICOS & AROMAS ====================
     async function cargarInventarioQuimicos() {

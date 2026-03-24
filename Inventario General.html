@@ -3,10 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Pisos Brillantes</title>
+    <title>Pisos Brillantes - Inventario General</title>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js para gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -339,6 +341,62 @@
             display: inline-block;
         }
 
+        /* Sub-tabs para químicos */
+        .sub-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        .sub-tab {
+            padding: 8px 20px;
+            border: none;
+            background: transparent;
+            font-weight: 600;
+            color: var(--dark-color);
+            cursor: pointer;
+            border-radius: 20px;
+            transition: var(--transition);
+        }
+        .sub-tab.active {
+            background: var(--secondary-color);
+            color: white;
+        }
+        .sub-tab:hover:not(.active) {
+            background: #ecf0f1;
+        }
+
+        /* Filtros historial - MEJORADO para que abarquen todo el ancho */
+        .filtros-historial {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 12px;
+        }
+        .filtros-historial select, 
+        .filtros-historial input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            font-size: 0.95rem;
+            background: white;
+            transition: var(--transition);
+        }
+        .filtros-historial select:focus,
+        .filtros-historial input:focus {
+            border-color: var(--secondary-color);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(52,152,219,0.1);
+        }
+        .filtros-historial label {
+            display: none;
+        }
+
         /* Empty state */
         .empty-state {
             text-align: center;
@@ -351,7 +409,7 @@
             color: #ccc;
         }
 
-        /* Loading overlay - CORREGIDO: centrado perfectamente vertical y horizontal */
+        /* Loading overlay - CORREGIDO con el texto original */
         #overlay {
             display: none;
             position: fixed;
@@ -361,14 +419,12 @@
             height: 100%;
             background-color: rgba(255, 255, 255, 0.95);
             z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
         }
         .overlay-content {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
             text-align: center;
-            width: 100%;
         }
         .spinner {
             width: 60px;
@@ -381,9 +437,6 @@
         }
         @keyframes spin {
             to { transform: rotate(360deg); }
-        }
-        #loadingMessage {
-            text-align: center;
         }
         #loadingMessage p {
             margin: 0;
@@ -424,6 +477,18 @@
                 padding: 10px 8px;
                 font-size: 0.85rem;
             }
+            .sub-tabs {
+                justify-content: center;
+            }
+            .filtros-historial {
+                grid-template-columns: 1fr;
+                gap: 10px;
+                padding: 15px;
+            }
+            .filtros-historial select,
+            .filtros-historial input {
+                padding: 10px 12px;
+            }
         }
     </style>
 </head>
@@ -462,7 +527,7 @@
         </div>
     </div>
 
-    <!-- SECCIÓN QUÍMICOS & AROMAS -->
+    <!-- SECCIÓN QUÍMICOS & AROMAS (con inventario + historial) -->
     <div id="seccion-quimicos" style="display: none;">
         <div class="section-card">
             <div class="section-header" style="background: linear-gradient(135deg, #e67e22, #f39c12);">
@@ -472,10 +537,58 @@
                 </div>
             </div>
             <div class="section-body">
-                <div class="search-box">
-                    <input type="text" id="buscadorQuimicos" placeholder="Buscar productos químicos...">
+                <!-- Sub-tabs dentro de químicos -->
+                <div class="sub-tabs">
+                    <button class="sub-tab active" onclick="cambiarSubSeccionQuimicos('inventario')" id="subtab-inventario">
+                        <i class="fas fa-boxes"></i> Inventario
+                    </button>
+                    <button class="sub-tab" onclick="cambiarSubSeccionQuimicos('historial')" id="subtab-historial">
+                        <i class="fas fa-history"></i> Historial de Entradas / Salidas
+                    </button>
                 </div>
-                <div id="quimicosContainer"></div>
+
+                <!-- Sub-sección: Inventario de químicos -->
+                <div id="quimicos-inventario" style="display: block;">
+                    <div class="search-box">
+                        <input type="text" id="buscadorQuimicos" placeholder="Buscar productos químicos...">
+                    </div>
+                    <div id="quimicosContainer"></div>
+                </div>
+
+                <!-- Sub-sección: Historial de movimientos -->
+                <div id="quimicos-historial" style="display: none;">
+                    <div class="filtros-historial">
+                        <select id="filtroTipoHistorial">
+                            <option value="todos">Todos</option>
+                            <option value="entrada">Entradas</option>
+                            <option value="salida">Salidas</option>
+                        </select>
+                        <select id="filtroMesHistorial">
+                            <option value="todos">Mes</option>
+                        </select>
+                        <select id="filtroAnioHistorial">
+                            <option value="todos">Año</option>
+                        </select>
+                        <input type="text" id="filtroProductoHistorial" placeholder="Buscar producto...">
+                    </div>
+                    <div class="quimicos-table-container" style="max-height: 500px;">
+                        <table class="quimicos-table" id="tablaHistorialQuimicos">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Tipo</th>
+                                    <th>Producto</th>
+                                    <th>Vence</th>
+                                    <th>Cantidad</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div class="text-end mt-3 fw-bold">
+                        Total: <span id="totalCantidadHistorial">0</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -497,11 +610,12 @@
     const URL_QUIMICOS_ENTRADAS = "https://script.google.com/macros/s/AKfycby_Scu1lmbidqS8_VIIHz1SNpg5iikJb53L1BPmdlcgFRZtTob8AI2x9nxLtAEhI2O_/exec";
     const URL_QUIMICOS_SALIDAS = "https://script.google.com/macros/s/AKfycbwVMcwv6vjjKq5sbwdeY7qgdzDkpNXYILG-OZ5Gb7yLLA5s2dCFATgVGEi8Aqf6LRjeBw/exec";
 
-    let inventarioGeneral = []; // Productos con categorías (excluyendo Químicos)
-    let quimicosInventario = []; // Inventario de químicos (formato: [producto, vencimiento, cantidad])
-    let quimicosMovimientos = []; // Para dashboard de químicos
+    let inventarioGeneral = [];
+    let quimicosInventario = [];
+    let historialEntradas = [];
+    let historialSalidas = [];
 
-    // Cambiar entre secciones
+    // Cambiar entre secciones principales
     function cambiarSeccion(seccion) {
         document.getElementById('seccion-inventario').style.display = 'none';
         document.getElementById('seccion-quimicos').style.display = 'none';
@@ -514,10 +628,33 @@
         } else if (seccion === 'quimicos') {
             document.getElementById('seccion-quimicos').style.display = 'block';
             document.getElementById('tab-quimicos').classList.add('active');
-            // Ya no se necesita cargar aquí porque los datos ya están disponibles
-            if (quimicosInventario.length > 0) {
+            if (document.getElementById('quimicos-inventario').style.display === 'block') {
                 mostrarInventarioQuimicos(quimicosInventario);
+            } else {
+                cargarHistorialQuimicos();
             }
+        }
+    }
+
+    // Cambiar entre sub-secciones de químicos
+    function cambiarSubSeccionQuimicos(subSeccion) {
+        const inventarioDiv = document.getElementById('quimicos-inventario');
+        const historialDiv = document.getElementById('quimicos-historial');
+        const subtabInv = document.getElementById('subtab-inventario');
+        const subtabHist = document.getElementById('subtab-historial');
+        
+        if (subSeccion === 'inventario') {
+            inventarioDiv.style.display = 'block';
+            historialDiv.style.display = 'none';
+            subtabInv.classList.add('active');
+            subtabHist.classList.remove('active');
+            mostrarInventarioQuimicos(quimicosInventario);
+        } else {
+            inventarioDiv.style.display = 'none';
+            historialDiv.style.display = 'block';
+            subtabInv.classList.remove('active');
+            subtabHist.classList.add('active');
+            cargarHistorialQuimicos();
         }
     }
 
@@ -545,17 +682,14 @@
         let currentCategory = null;
         
         productosRaw.forEach(producto => {
-            // Detectar categorías (nombres que empiezan con "-")
             if (producto.nombre && producto.nombre.startsWith("-")) {
                 currentCategory = producto.nombre.substring(1).trim();
-                // Excluir la categoría "Químicos & Aromas"
                 if (currentCategory !== "Químicos & Aromas" && !categoriasMap.has(currentCategory)) {
                     categoriasMap.set(currentCategory, []);
                 }
                 return;
             }
             
-            // Si hay una categoría actual y no es la excluida
             if (currentCategory && currentCategory !== "Químicos & Aromas" && categoriasMap.has(currentCategory)) {
                 let cantidad = producto.cantidad;
                 let cantidadDisplay = cantidad;
@@ -586,7 +720,6 @@
             }
         });
         
-        // Convertir a array y filtrar categorías vacías
         const categoriasArray = [];
         for (let [nombre, productos] of categoriasMap.entries()) {
             if (productos.length > 0) {
@@ -599,11 +732,9 @@
         
         inventarioGeneral = categoriasArray;
         
-        // Actualizar contador
         const totalProductos = categoriasArray.reduce((sum, cat) => sum + cat.productos.length, 0);
         document.getElementById('totalProductosGeneral').innerText = totalProductos;
         
-        // Mostrar en UI
         mostrarInventarioGeneral();
     }
 
@@ -623,7 +754,6 @@
         }
         
         inventarioGeneral.forEach(categoria => {
-            // Crear separador de categoría
             const categoryDiv = document.createElement('div');
             categoryDiv.className = 'category-separator';
             categoryDiv.innerHTML = `
@@ -631,7 +761,6 @@
                 <span class="toggle-icon">▼</span>
             `;
             
-            // Crear grid de productos
             const productosGrid = document.createElement('div');
             productosGrid.className = 'productos-grid';
             
@@ -658,7 +787,6 @@
             container.appendChild(categoryDiv);
             container.appendChild(productosGrid);
             
-            // Evento para colapsar/expandir
             categoryDiv.addEventListener('click', function(e) {
                 e.stopPropagation();
                 const grid = this.nextElementSibling;
@@ -676,7 +804,6 @@
             });
         });
         
-        // Configurar buscador
         configurarBuscadorGeneral();
     }
     
@@ -731,7 +858,6 @@
                 quimicosInventario = [];
             }
             
-            // Cargar movimientos para estadísticas
             await cargarMovimientosQuimicos();
             
         } catch (error) {
@@ -748,12 +874,45 @@
                 fetch(URL_QUIMICOS_SALIDAS).then(r => r.json())
             ]);
             
-            quimicosMovimientos = [
-                ...entradas.map(e => [...e, 'entrada']),
-                ...salidas.map(s => [...s, 'salida'])
-            ];
+            historialEntradas = entradas.map(e => [...e, 'entrada']);
+            historialSalidas = salidas.map(s => [...s, 'salida']);
+            
+            actualizarSelectAnios();
         } catch (error) {
             console.error('Error cargando movimientos:', error);
+        }
+    }
+    
+    function actualizarSelectAnios() {
+        const selectAnio = document.getElementById('filtroAnioHistorial');
+        if (!selectAnio) return;
+        
+        const añosSet = new Set();
+        
+        [...historialEntradas, ...historialSalidas].forEach(item => {
+            const fecha = new Date(item[0]);
+            if (!isNaN(fecha.getTime())) {
+                añosSet.add(fecha.getFullYear());
+            }
+        });
+        
+        const años = Array.from(añosSet).sort((a, b) => b - a);
+        
+        selectAnio.innerHTML = '<option value="todos">Año</option>';
+        
+        años.forEach(año => {
+            const option = document.createElement('option');
+            option.value = año;
+            option.textContent = año;
+            selectAnio.appendChild(option);
+        });
+        
+        if (años.length === 0) {
+            const añoActual = new Date().getFullYear();
+            const option = document.createElement('option');
+            option.value = añoActual;
+            option.textContent = añoActual;
+            selectAnio.appendChild(option);
         }
     }
     
@@ -774,7 +933,6 @@
             return;
         }
         
-        // Ordenar por fecha de vencimiento
         const datosOrdenados = [...datos].sort((a, b) => new Date(a[1]) - new Date(b[1]));
         
         let html = `
@@ -845,30 +1003,117 @@
         container.innerHTML = html;
         document.getElementById('totalQuimicos').textContent = totalUnidades;
         
-        // Configurar buscador para químicos
         configurarBuscadorQuimicos();
     }
     
     function configurarBuscadorQuimicos() {
         const buscador = document.getElementById('buscadorQuimicos');
-        buscador.addEventListener('input', function() {
-            const termino = this.value.toLowerCase().trim();
-            const tabla = document.getElementById('tablaQuimicos');
-            if (!tabla) return;
-            const filas = tabla.querySelectorAll('tbody tr');
-            
-            filas.forEach(fila => {
-                const producto = fila.cells[0].textContent.toLowerCase();
-                if (termino === '' || producto.includes(termino)) {
-                    fila.style.display = '';
-                } else {
-                    fila.style.display = 'none';
-                }
+        if (buscador) {
+            buscador.addEventListener('input', function() {
+                const termino = this.value.toLowerCase().trim();
+                const tabla = document.getElementById('tablaQuimicos');
+                if (!tabla) return;
+                const filas = tabla.querySelectorAll('tbody tr');
+                
+                filas.forEach(fila => {
+                    const producto = fila.cells[0].textContent.toLowerCase();
+                    if (termino === '' || producto.includes(termino)) {
+                        fila.style.display = '';
+                    } else {
+                        fila.style.display = 'none';
+                    }
+                });
             });
-        });
+        }
     }
     
-    // Función para escapar HTML
+    // ==================== HISTORIAL DE QUÍMICOS ====================
+    async function cargarHistorialQuimicos() {
+        showLoading();
+        try {
+            if (historialEntradas.length === 0 && historialSalidas.length === 0) {
+                await cargarMovimientosQuimicos();
+            }
+            aplicarFiltrosHistorial();
+        } catch (error) {
+            console.error('Error cargando historial:', error);
+            Swal.fire('Error', 'No se pudo cargar el historial', 'error');
+        } finally {
+            hideLoading();
+        }
+    }
+    
+    function aplicarFiltrosHistorial() {
+        const tipo = document.getElementById('filtroTipoHistorial').value;
+        const mes = document.getElementById('filtroMesHistorial').value;
+        const anio = document.getElementById('filtroAnioHistorial').value;
+        const producto = document.getElementById('filtroProductoHistorial').value.toLowerCase();
+        
+        let todos = [...historialEntradas, ...historialSalidas];
+        
+        todos = todos.filter(item => {
+            const fecha = new Date(item[0]);
+            const itemMes = String(fecha.getMonth() + 1).padStart(2, '0');
+            const itemAnio = fecha.getFullYear().toString();
+            
+            if (tipo !== 'todos' && item[4] !== tipo) return false;
+            if (mes !== 'todos' && itemMes !== mes) return false;
+            if (anio !== 'todos' && itemAnio !== anio) return false;
+            if (producto && !item[1].toLowerCase().includes(producto)) return false;
+            
+            return true;
+        });
+        
+        todos.sort((a, b) => new Date(b[0]) - new Date(a[0]));
+        
+        mostrarTablaHistorial(todos);
+    }
+    
+    function mostrarTablaHistorial(datos) {
+        const tbody = document.querySelector("#tablaHistorialQuimicos tbody");
+        if (!tbody) return;
+        
+        tbody.innerHTML = "";
+        let totalUnidades = 0;
+        
+        datos.forEach(item => {
+            const [fecha, producto, vencimiento, cantidad, tipo] = item;
+            const cantidadNum = parseInt(cantidad) || 0;
+            totalUnidades += cantidadNum;
+            
+            const badge = tipo === 'entrada' 
+                ? '<span class="badg-quimico-entrada">ENTRADA</span>'
+                : '<span class="badg-quimico-salida">SALIDA</span>';
+            
+            const fechaObj = new Date(fecha);
+            const fechaFormateada = isNaN(fechaObj.getTime()) ? fecha : 
+                fechaObj.toLocaleDateString('es-MX').split('/').map(p => p.padStart(2, '0')).join('/');
+            
+            let vencimientoFormateado = '-';
+            if (vencimiento) {
+                const venObj = new Date(vencimiento);
+                if (!isNaN(venObj.getTime())) {
+                    const dia = String(venObj.getDate()).padStart(2, '0');
+                    const mes = String(venObj.getMonth() + 1).padStart(2, '0');
+                    const anio = venObj.getFullYear();
+                    vencimientoFormateado = `${dia}/${mes}/${anio}`;
+                }
+            }
+            
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="text-align: center;">${fechaFormateada}</td>
+                <td style="text-align: center;">${badge}</td>
+                <td style="text-align: center; font-weight: bold;">${escapeHTML(producto)}</td>
+                <td style="text-align: center;">${vencimientoFormateado}</td>
+                <td style="text-align: center; font-weight: bold;">${cantidadNum}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+        
+        document.getElementById('totalCantidadHistorial').textContent = totalUnidades;
+    }
+    
     function escapeHTML(str) {
         if (!str) return '';
         return str.replace(/[&<>]/g, function(m) {
@@ -879,27 +1124,51 @@
         });
     }
     
-    // Inicializar - Cargar ambas secciones al mismo tiempo
+    function showLoading() {
+        document.getElementById('loadingMessage').innerHTML = '<p>Por favor espera un momento...</p>';
+        document.getElementById('overlay').style.display = 'flex';
+    }
+    
+    function hideLoading() {
+        document.getElementById('overlay').style.display = 'none';
+    }
+    
+    // Inicializar
     $(document).ready(async function() {
-        $('#overlay').show();
+        showLoading();
         
         try {
-            // Cargar ambas secciones en paralelo
             await Promise.all([
                 cargarInventarioGeneral(),
                 cargarInventarioQuimicos()
             ]);
             
-            // Una vez cargadas ambas, mostrar la sección de químicos si está disponible
-            if (quimicosInventario.length > 0) {
-                // Los datos ya están en memoria, solo se mostrarán cuando se cambie a la pestaña
-                console.log('Inventario de químicos cargado correctamente');
+            const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+            const selMes = document.getElementById('filtroMesHistorial');
+            if (selMes) {
+                selMes.innerHTML = '<option value="todos">Mes</option>';
+                meses.forEach((m, i) => {
+                    const option = document.createElement('option');
+                    option.value = String(i + 1).padStart(2, '0');
+                    option.textContent = m;
+                    selMes.appendChild(option);
+                });
             }
+            
+            const filtroTipo = document.getElementById('filtroTipoHistorial');
+            const filtroMes = document.getElementById('filtroMesHistorial');
+            const filtroAnio = document.getElementById('filtroAnioHistorial');
+            const filtroProducto = document.getElementById('filtroProductoHistorial');
+            
+            if (filtroTipo) filtroTipo.addEventListener('change', aplicarFiltrosHistorial);
+            if (filtroMes) filtroMes.addEventListener('change', aplicarFiltrosHistorial);
+            if (filtroAnio) filtroAnio.addEventListener('change', aplicarFiltrosHistorial);
+            if (filtroProducto) filtroProducto.addEventListener('input', aplicarFiltrosHistorial);
             
         } catch (error) {
             console.error('Error al cargar los datos:', error);
         } finally {
-            $('#overlay').hide();
+            hideLoading();
         }
     });
 </script>

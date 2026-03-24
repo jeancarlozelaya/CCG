@@ -1626,18 +1626,37 @@ function gestionarVistasDePagina() {
 
 function initDB() {
     return new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, 1);
+        // Cambiar la versión de 1 a 2
+        const request = indexedDB.open(DB_NAME, 2);
+        
         request.onupgradeneeded = function(event) {
             const db = event.target.result;
-            if (!db.objectStoreNames.contains(STORE_NAME)) {
-                db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+            const oldVersion = event.oldVersion;
+            
+            console.log(`Actualizando IndexedDB de versión ${oldVersion} a ${event.newVersion}`);
+            
+            // Si la versión anterior es menor que 1, crear el object store
+            if (oldVersion < 1) {
+                if (!db.objectStoreNames.contains(STORE_NAME)) {
+                    db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+                    console.log('Object store creado');
+                }
+            }
+            
+            // Si estamos actualizando de versión 1 a 2, podemos hacer migraciones aquí si es necesario
+            if (oldVersion < 2) {
+                // Aquí puedes agregar lógica de migración si cambias la estructura
+                console.log('Migrando datos a versión 2...');
+                // Por ahora no hay cambios en la estructura, solo incrementamos la versión
             }
         };
+        
         request.onsuccess = function(event) {
             db = event.target.result;
-            console.log('IndexedDB abierta correctamente');
+            console.log('IndexedDB abierta correctamente en versión', db.version);
             resolve(db);
         };
+        
         request.onerror = function(event) {
             console.error('Error al abrir IndexedDB:', event.target.error);
             Swal.fire('Error Crítico', 'No se pudo iniciar la base de datos local para fotos. La página no funcionará correctamente.', 'error');
@@ -1645,6 +1664,8 @@ function initDB() {
         };
     });
 }
+
+
 function saveImageToDB(base64Data) {
     return new Promise((resolve, reject) => {
         if (!db) { reject('La base de datos no está inicializada.'); return; }

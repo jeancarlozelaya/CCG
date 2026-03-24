@@ -385,15 +385,11 @@
         #loadingMessage {
             text-align: center;
         }
-        #loadingMessage h4 {
-            margin: 0 0 10px;
-            font-size: 1.3rem;
-            color: var(--primary-color);
-            font-weight: bold;
-        }
         #loadingMessage p {
             margin: 0;
-            color: #7f8c8d;
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: var(--primary-color);
         }
 
         /* Responsive */
@@ -489,8 +485,7 @@
     <div class="overlay-content">
         <div class="spinner"></div>
         <div id="loadingMessage">
-            <h4>Cargando inventario...</h4>
-            <p>Por favor espera un momento</p>
+            <p>Por favor espera un momento...</p>
         </div>
     </div>
 </div>
@@ -519,9 +514,8 @@
         } else if (seccion === 'quimicos') {
             document.getElementById('seccion-quimicos').style.display = 'block';
             document.getElementById('tab-quimicos').classList.add('active');
-            if (quimicosInventario.length === 0) {
-                cargarInventarioQuimicos();
-            } else {
+            // Ya no se necesita cargar aquí porque los datos ya están disponibles
+            if (quimicosInventario.length > 0) {
                 mostrarInventarioQuimicos(quimicosInventario);
             }
         }
@@ -529,20 +523,20 @@
 
     // ==================== INVENTARIO GENERAL ====================
     function cargarInventarioGeneral() {
-        $('#overlay').show();
-        
-        $.get(URL_INVENTARIO_GENERAL, function(data) {
-            if (data.error) {
-                Swal.fire('Error', 'No se pudo cargar el inventario: ' + data.mensaje, 'error');
-                $('#overlay').hide();
-                return;
-            }
-            
-            procesarInventarioGeneral(data.productos || []);
-            $('#overlay').hide();
-        }).fail(function() {
-            $('#overlay').hide();
-            Swal.fire('Error', 'No se pudo conectar al servidor', 'error');
+        return new Promise((resolve, reject) => {
+            $.get(URL_INVENTARIO_GENERAL, function(data) {
+                if (data.error) {
+                    Swal.fire('Error', 'No se pudo cargar el inventario: ' + data.mensaje, 'error');
+                    reject(data.error);
+                    return;
+                }
+                
+                procesarInventarioGeneral(data.productos || []);
+                resolve();
+            }).fail(function() {
+                Swal.fire('Error', 'No se pudo conectar al servidor para inventario general', 'error');
+                reject();
+            });
         });
     }
 
@@ -727,19 +721,14 @@
 
     // ==================== QUÍMICOS & AROMAS ====================
     async function cargarInventarioQuimicos() {
-        $('#overlay').show();
-        $('#loadingMessage p').text('Cargando inventario de químicos...');
-        
         try {
             const response = await fetch(URL_QUIMICOS_INVENTARIO);
             const data = await response.json();
             
             if (data.inventario) {
                 quimicosInventario = data.inventario;
-                mostrarInventarioQuimicos(quimicosInventario);
             } else {
                 quimicosInventario = [];
-                mostrarInventarioQuimicos([]);
             }
             
             // Cargar movimientos para estadísticas
@@ -748,8 +737,7 @@
         } catch (error) {
             console.error('Error cargando químicos:', error);
             Swal.fire('Error', 'No se pudo cargar el inventario de químicos', 'error');
-        } finally {
-            $('#overlay').hide();
+            throw error;
         }
     }
     
@@ -866,6 +854,7 @@
         buscador.addEventListener('input', function() {
             const termino = this.value.toLowerCase().trim();
             const tabla = document.getElementById('tablaQuimicos');
+            if (!tabla) return;
             const filas = tabla.querySelectorAll('tbody tr');
             
             filas.forEach(fila => {
@@ -890,9 +879,28 @@
         });
     }
     
-    // Inicializar
-    $(document).ready(function() {
-        cargarInventarioGeneral();
+    // Inicializar - Cargar ambas secciones al mismo tiempo
+    $(document).ready(async function() {
+        $('#overlay').show();
+        
+        try {
+            // Cargar ambas secciones en paralelo
+            await Promise.all([
+                cargarInventarioGeneral(),
+                cargarInventarioQuimicos()
+            ]);
+            
+            // Una vez cargadas ambas, mostrar la sección de químicos si está disponible
+            if (quimicosInventario.length > 0) {
+                // Los datos ya están en memoria, solo se mostrarán cuando se cambie a la pestaña
+                console.log('Inventario de químicos cargado correctamente');
+            }
+            
+        } catch (error) {
+            console.error('Error al cargar los datos:', error);
+        } finally {
+            $('#overlay').hide();
+        }
     });
 </script>
 

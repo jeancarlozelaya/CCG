@@ -885,251 +885,320 @@ body {
         return 'req-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
     }
 
-    // FUNCIÓN ENVIARDATOS() COMPLETA Y CORREGIDA
-    function enviardatos() {
-        let seleccion = [];
-        let totalProductos = 0;
 
-        productos.forEach((producto, index) => {
-            let cantidadSeleccionada = parseInt($(`#cantidad${index}`).val()) || 0;
-            if (cantidadSeleccionada > 0) {
-                seleccion.push({
-                    producto: producto.nombre,
-                    cantidad: cantidadSeleccionada,
-                    imagen: producto.imagen,
-                    retornable: producto.devolucion === 'X'
-                });
-                totalProductos += cantidadSeleccionada;
-            }
-        });
 
-        let fecha = $('#fecha').val();
-        let colaborador = $('#colaborador').val();
-        let area = $('#area').val();
-        const idRequisicion = generarIdUnico();
+// Variable global para guardar el último envío exitoso
+var ultimoEnvioExitoso = null;
 
-        if (seleccion.length > 0) {
+// Función para verificar duplicado local (evita re-envíos por error de conexión)
+function verificarDuplicadoLocal(fecha, colaborador, area, seleccion) {
+    if (!ultimoEnvioExitoso) return false;
+    
+    var ahora = new Date();
+    var diferenciaMs = ahora - ultimoEnvioExitoso.timestamp;
+    var diferenciaMinutos = diferenciaMs / (1000 * 60);
+    
+    // Si pasaron menos de 2 minutos desde el último envío exitoso
+    if (diferenciaMinutos < 2) {
+        // Comparar si es la misma requisición
+        if (ultimoEnvioExitoso.fecha === fecha && 
+            ultimoEnvioExitoso.colaborador === colaborador && 
+            ultimoEnvioExitoso.area === area) {
             
-            // El HTML para el resumen (esto sigue igual)
-            let htmlResumen = `
-                <div style="max-height: 50vh; overflow-y: auto; margin-bottom: 15px; font-size: 0.85em;">
-                    <h3 style="margin-bottom: 12px; color: #007BFF; text-align: left; font-size: 1.1em;">Resumen de Requisición</h3>
-                    <div style="margin-bottom: 10px; text-align: left;">
-                        <strong>Fecha:</strong> ${fecha}<br>
-                        <strong>Colaborador:</strong> ${colaborador}<br>
-                        <strong>Área:</strong> ${area}<br>
-                    </div>
-                    <h4 style="margin: 12px 0 8px; color: #28a745; text-align: left; font-size: 1em;">Productos seleccionados (${totalProductos}):</h4>
-                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
-                        <thead>
-                            <tr style="background-color: #f8f9fa;">
-                                <th style="padding: 6px; text-align: left; border-bottom: 1px solid #ddd;">Producto</th>
-                                <th style="padding: 6px; text-align: center; border-bottom: 1px solid #ddd;">Cantidad</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-            seleccion.forEach(item => {
-                htmlResumen += `
-                    <tr style="border-bottom: 1px solid #f0f0f0;">
-                        <td style="padding: 6px; vertical-align: middle;">
-                            <div style="display: flex; align-items: center;">
-                                ${item.imagen ? `<img src="${item.imagen}" style="width: 25px; height: 25px; object-fit: contain; margin-right: 8px; border-radius: 3px;" onerror="this.style.display='none'">` : ''}
-                                <span>${item.producto}</span>
-                            </div>
-                        </td>
-                        <td style="padding: 6px; text-align: center; vertical-align: middle;">
-                            <span style="font-weight: bold; color: #dc3545;">${item.cantidad}</span>
-                        </td>
-                    </tr>
-                `;
+            // Comparar productos (misma cantidad de productos y mismos items)
+            if (JSON.stringify(ultimoEnvioExitoso.seleccion) === JSON.stringify(seleccion)) {
+                return true; // Es duplicado local
+            }
+        }
+    }
+    return false;
+}
+
+
+// FUNCIÓN ENVIARDATOS() - VERSIÓN CORREGIDA SIN DUPLICADOS
+function enviardatos() {
+    let seleccion = [];
+    let totalProductos = 0;
+
+    productos.forEach((producto, index) => {
+        let cantidadSeleccionada = parseInt($(`#cantidad${index}`).val()) || 0;
+        if (cantidadSeleccionada > 0) {
+            seleccion.push({
+                producto: producto.nombre,
+                cantidad: cantidadSeleccionada,
+                imagen: producto.imagen,
+                retornable: producto.devolucion === 'X'
             });
-            htmlResumen += `
-                        </tbody>
-                    </table>
-                </div>
-                <p style="margin-top: 12px; font-size: 0.8em; color: #6c757d; text-align: center;">¿Confirmas el envío de esta requisición?</p>
-            `;
+            totalProductos += cantidadSeleccionada;
+        }
+    });
 
-            // El Swal.fire de confirmación (esto sigue igual)
-            Swal.fire({
-                title: 'Confirmar Requisición',
-                html: htmlResumen,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonText: 'Sí, enviar',
-                cancelButtonText: 'No, revisar',
-                confirmButtonColor: '#28a745',
-                cancelButtonColor: '#6c757d',
-                width: '600px'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    document.getElementById('overlay').style.display = 'flex';
+    let fecha = $('#fecha').val();
+    let colaborador = $('#colaborador').val();
+    let area = $('#area').val();
 
-                    // --- INICIO: Bloque AJAX MODIFICADO ---
-                    $.ajax({
-                        url: "https://script.google.com/macros/s/AKfycbwwqupwaqSFGkHaKTN4W5CfKQ666RlKZmYDNOUwhN5Gl4Eob9VKR_tYlckJYkpl6KOJ/exec",
-                        type: "POST",
-                        data: {
-                            seleccion: JSON.stringify(seleccion),
+    if (seleccion.length === 0) {
+        Swal.fire({
+            title: 'Error',
+            text: 'No se han seleccionado productos para la requisición.',
+            icon: 'error',
+            confirmButtonText: 'Entendido',
+            confirmButtonColor: '#dc3545'
+        });
+        return;
+    }
+
+    // Verificar duplicado local (enviado hace menos de 2 minutos)
+    if (verificarDuplicadoLocal(fecha, colaborador, area, seleccion)) {
+        Swal.fire({
+            title: 'Envío duplicado detectado',
+            text: 'Parece que ya enviaste esta misma requisición hace menos de 2 minutos. Si no se procesó, espera un momento y vuelve a intentar.',
+            icon: 'warning',
+            confirmButtonText: 'Entendido',
+            confirmButtonColor: '#f39c12'
+        });
+        return;
+    }
+    
+    // Generar HTML del resumen
+    let htmlResumen = `
+        <div style="max-height: 50vh; overflow-y: auto; margin-bottom: 15px; font-size: 0.85em;">
+            <h3 style="margin-bottom: 12px; color: #007BFF; text-align: left; font-size: 1.1em;">Resumen de Requisición</h3>
+            <div style="margin-bottom: 10px; text-align: left;">
+                <strong>Fecha:</strong> ${fecha}<br>
+                <strong>Colaborador:</strong> ${colaborador}<br>
+                <strong>Área:</strong> ${area}<br>
+            </div>
+            <h4 style="margin: 12px 0 8px; color: #28a745; text-align: left; font-size: 1em;">Productos seleccionados (${totalProductos}):</h4>
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+                <thead>
+                    <tr style="background-color: #f8f9fa;">
+                        <th style="padding: 6px; text-align: left; border-bottom: 1px solid #ddd;">Producto</th>
+                        <th style="padding: 6px; text-align: center; border-bottom: 1px solid #ddd;">Cantidad</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    seleccion.forEach(item => {
+        htmlResumen += `
+            <tr style="border-bottom: 1px solid #f0f0f0;">
+                <td style="padding: 6px; vertical-align: middle;">
+                    <div style="display: flex; align-items: center;">
+                        ${item.imagen ? `<img src="${item.imagen}" style="width: 25px; height: 25px; object-fit: contain; margin-right: 8px; border-radius: 3px;" onerror="this.style.display='none'">` : ''}
+                        <span>${item.producto}</span>
+                    </div>
+                </td>
+                <td style="padding: 6px; text-align: center; vertical-align: middle;">
+                    <span style="font-weight: bold; color: #dc3545;">${item.cantidad}</span>
+                </td>
+            </tr>
+        `;
+    });
+    htmlResumen += `
+                </tbody>
+            </table>
+        </div>
+        <p style="margin-top: 12px; font-size: 0.8em; color: #6c757d; text-align: center;">¿Confirmas el envío de esta requisición?</p>
+    `;
+
+    // Variable para controlar que solo se envíe una vez
+    let envioEnProceso = false;
+    
+    Swal.fire({
+        title: 'Confirmar Requisición',
+        html: htmlResumen,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, enviar',
+        cancelButtonText: 'No, revisar',
+        confirmButtonColor: '#28a745',
+        cancelButtonColor: '#6c757d',
+        width: '600px',
+        didOpen: () => {
+            const confirmButton = Swal.getConfirmButton();
+            confirmButton.addEventListener('click', (e) => {
+                if (envioEnProceso) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+                }
+            });
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            if (envioEnProceso) return;
+            envioEnProceso = true;
+            
+            const confirmButton = Swal.getConfirmButton();
+            if (confirmButton) {
+                confirmButton.disabled = true;
+                confirmButton.textContent = 'Enviando...';
+            }
+            
+            document.getElementById('overlay').style.display = 'flex';
+            
+            // GENERAR ID JUSTO ANTES DE ENVIAR
+            const idRequisicion = 'req-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+            
+            $.ajax({
+                url: "https://script.google.com/macros/s/AKfycbwwqupwaqSFGkHaKTN4W5CfKQ666RlKZmYDNOUwhN5Gl4Eob9VKR_tYlckJYkpl6KOJ/exec",
+                type: "POST",
+                data: {
+                    seleccion: JSON.stringify(seleccion),
+                    fecha: fecha,
+                    colaborador: colaborador,
+                    area: area,
+                    idRequisicion: idRequisicion
+                },
+                dataType: 'json', 
+                timeout: 30000, 
+                success: function(response) {
+                    document.getElementById('overlay').style.display = 'none';
+                    console.log("Respuesta del servidor:", response);
+
+                    if (response.status === 'success') {
+                        // Guardar último envío exitoso
+                        ultimoEnvioExitoso = {
+                            timestamp: new Date(),
                             fecha: fecha,
                             colaborador: colaborador,
                             area: area,
-                            idRequisicion: idRequisicion
-                        },
-                        dataType: 'json', 
-                        timeout: 30000, 
-                        success: function(response) {
-                            document.getElementById('overlay').style.display = 'none';
-                            console.log("Respuesta del servidor:", response);
+                            seleccion: JSON.parse(JSON.stringify(seleccion))
+                        };
+                        
+                        guardarHistorialLocal(fecha, colaborador, area, seleccion);
 
-                            if (response.status === 'success') {
-                                // GUARDAR EN HISTORIAL LOCAL
-                                guardarHistorialLocal(fecha, colaborador, area, seleccion);
+                        Swal.fire({
+                            title: '¡Éxito!',
+                            html: `<div style="text-align: center;"><p style="font-size: 1.1em; margin-bottom: 15px;">Requisición enviada correctamente 🎉</p><div style="color: #28a745; font-size: 2em;"><i class="fas fa-check-circle"></i></div></div>`,
+                            icon: 'success',
+                            confirmButtonText: 'Aceptar',
+                            confirmButtonColor: '#28a745'
+                        }).then(() => {
+                            location.reload(); 
+                        });
+                    } else if (response.status === 'duplicate') {
+                        Swal.fire({
+                            title: 'Advertencia',
+                            html: `<div style="text-align: center;"><p style="font-size: 1.1em; margin-bottom: 15px;">Esta requisición ya se había procesado anteriormente.</p><p style="color: #f39c12; font-size: 0.9em;">No se han generado duplicados.</p><div style="color: #f39c12; font-size: 2em;"><i class="fas fa-exclamation-triangle"></i></div></div>`,
+                            icon: 'warning',
+                            confirmButtonText: 'Aceptar',
+                            confirmButtonColor: '#f39c12'
+                        }).then(() => {
+                            location.reload(); 
+                        });
+                    } else {
+                        let tituloError = 'Error en la Requisición';
+                        let htmlError = '';
+                        let failingProduct = null;
+                        let failingProductAvailable = '—';
 
-                                // Éxito (sigue igual)
-                                Swal.fire({
-                                    title: '¡Éxito!',
-                                    html: `<div style="text-align: center;"><p style="font-size: 1.1em; margin-bottom: 15px;">Requisición enviada correctamente 🎉</p><div style="color: #28a745; font-size: 2em;"><i class="fas fa-check-circle"></i></div></div>`,
-                                    icon: 'success',
-                                    confirmButtonText: 'Aceptar',
-                                    confirmButtonColor: '#28a745'
-                                }).then(() => {
-                                    location.reload(); 
-                                });
-                            } else if (response.status === 'duplicate') {
-                                // Duplicado (sigue igual)
-                                Swal.fire({
-                                    title: 'Advertencia',
-                                    html: `<div style="text-align: center;"><p style="font-size: 1.1em; margin-bottom: 15px;">Esta requisición ya se había procesado anteriormente.</p><p style="color: #f39c12; font-size: 0.9em;">No se han generado duplicados.</p><div style="color: #f39c12; font-size: 2em;"><i class="fas fa-exclamation-triangle"></i></div></div>`,
-                                    icon: 'warning',
-                                    confirmButtonText: 'Aceptar',
-                                    confirmButtonColor: '#f39c12'
-                                }).then(() => {
-                                    location.reload(); 
-                                });
-                            } else {
-                                // MANEJO DE ERROR DE STOCK
-                                let tituloError = 'Error en la Requisición';
-                                let htmlError = '';
-                                let failingProduct = null;
-                                let failingProductAvailable = '—';
-
-                                if (response.type === 'STOCK_ERROR' && response.details) {
-                                    tituloError = 'Conflicto de Inventario';
-                                    failingProduct = response.details.product; 
-                                    failingProductAvailable = response.details.available;
-                                }
-                                
-                                htmlError = `
-                                    <p style="font-size: 1.1em; margin-bottom: 15px; text-align: center;">No se pudo completar la requisición.</p>
-                                    
-                                    <div style="max-height: 40vh; overflow-y: auto; margin-bottom: 15px; font-size: 0.85em; text-align: left; border: 1px solid #ddd; border-radius: 5px;">
-                                        <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
-                                            <thead style="position: sticky; top: 0;">
-                                                <tr style="background-color: #f8f9fa;">
-                                                    <th style="padding: 8px 10px; text-align: left; border-bottom: 1px solid #ddd;">Producto</th>
-                                                    <th style="padding: 8px 10px; text-align: center; border-bottom: 1px solid #ddd;">Solicitado</th>
-                                                    <th style="padding: 8px 10px; text-align: center; border-bottom: 1px solid #ddd;">Disponible</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                `;
-
-                                seleccion.forEach(item => {
-                                    let disponible = '—';
-                                    let style = 'border-bottom: 1px solid #f0f0f0;';
-                                    
-                                    if (item.producto === failingProduct) {
-                                        style = 'background-color: #f8d7da; border-left: 4px solid #dc3545;';
-                                        disponible = failingProductAvailable;
-                                    }
-
-                                    htmlError += `
-                                        <tr style="${style}">
-                                            <td style="padding: 8px 10px; vertical-align: middle;">
-                                                <div style="display: flex; align-items: center;">
-                                                    ${item.imagen ? `<img src="${item.imagen}" style="width: 25px; height: 25px; object-fit: contain; margin-right: 8px; border-radius: 3px;" onerror="this.style.display='none'">` : ''}
-                                                    <span>${item.producto}</span>
-                                                </div>
-                                            </td>
-                                            <td style="padding: 8px 10px; text-align: center; vertical-align: middle;">
-                                                <span style="font-weight: bold; color: #dc3545;">${item.cantidad}</span>
-                                            </td>
-                                            <td style="padding: 8px 10px; text-align: center; vertical-align: middle; font-weight: bold;">
-                                                ${disponible}
-                                            </td>
-                                        </tr>
-                                    `;
-                                });
-
-                                htmlError += `
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    <p style="font-size: 0.9em; color: #555; margin-top: 15px; text-align: center;">
-                                        La página se actualizará para mostrar el inventario más reciente.
-                                    </p>
-                                `;
-
-                                Swal.fire({
-                                    title: tituloError,
-                                    html: `<div style="text-align: center;">${htmlError}</div>`,
-                                    icon: 'warning',
-                                    width: '700px',
-                                    confirmButtonText: 'Aceptar y Recargar',
-                                    confirmButtonColor: '#f39c12'
-                                }).then(() => {
-                                    location.reload(); 
-                                });
-                            }
-                        },
-                        error: function(xhr, status, error) {
-                            // Error de red o timeout (sigue igual)
-                            document.getElementById('overlay').style.display = 'none';
-                            console.error("Error al enviar datos:", status, error);
-
-                            let tituloError = 'Error';
-                            let mensajeError = 'Ocurrió un error al enviar la requisición 😢';
-                            let detalleError = 'Por favor, inténtalo de nuevo más tarde.';
-
-                            if (status === 'timeout') {
-                                tituloError = 'Tiempo de Espera';
-                                mensajeError = 'La solicitud tardó demasiado en responder.';
-                                detalleError = '<strong>Es posible que se haya enviado.</strong><br>Por favor, revisa la hoja de cálculo antes de reintentar.';
-                            }
-
-                            Swal.fire({
-                                title: tituloError,
-                                html: `
-                                    <div style="text-align: center;">
-                                        <p style="font-size: 1.1em; margin-bottom: 15px;">${mensajeError}</p>
-                                        <p style="color: #dc3545; font-size: 0.9em;">${detalleError}</p>
-                                        <div style="color: #dc3545; font-size: 2em;">
-                                            <i class="fas fa-exclamation-circle"></i>
-                                        </div>
-                                    </div>
-                                `,
-                                icon: 'error',
-                                confirmButtonText: 'Entendido',
-                                confirmButtonColor: '#dc3545'
-                            });
+                        if (response.type === 'STOCK_ERROR' && response.details) {
+                            tituloError = 'Conflicto de Inventario';
+                            failingProduct = response.details.product; 
+                            failingProductAvailable = response.details.available;
                         }
+                        
+                        htmlError = `
+                            <p style="font-size: 1.1em; margin-bottom: 15px; text-align: center;">No se pudo completar la requisición.</p>
+                            
+                            <div style="max-height: 40vh; overflow-y: auto; margin-bottom: 15px; font-size: 0.85em; text-align: left; border: 1px solid #ddd; border-radius: 5px;">
+                                <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+                                    <thead style="position: sticky; top: 0;">
+                                        <tr style="background-color: #f8f9fa;">
+                                            <th style="padding: 8px 10px; text-align: left; border-bottom: 1px solid #ddd;">Producto</th>
+                                            <th style="padding: 8px 10px; text-align: center; border-bottom: 1px solid #ddd;">Solicitado</th>
+                                            <th style="padding: 8px 10px; text-align: center; border-bottom: 1px solid #ddd;">Disponible</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                        `;
+
+                        seleccion.forEach(item => {
+                            let disponible = '—';
+                            let style = 'border-bottom: 1px solid #f0f0f0;';
+                            
+                            if (item.producto === failingProduct) {
+                                style = 'background-color: #f8d7da; border-left: 4px solid #dc3545;';
+                                disponible = failingProductAvailable;
+                            }
+
+                            htmlError += `
+                                <tr style="${style}">
+                                    <td style="padding: 8px 10px; vertical-align: middle;">
+                                        <div style="display: flex; align-items: center;">
+                                            ${item.imagen ? `<img src="${item.imagen}" style="width: 25px; height: 25px; object-fit: contain; margin-right: 8px; border-radius: 3px;" onerror="this.style.display='none'">` : ''}
+                                            <span>${item.producto}</span>
+                                        </div>
+                                    </td>
+                                    <td style="padding: 8px 10px; text-align: center; vertical-align: middle;">
+                                        <span style="font-weight: bold; color: #dc3545;">${item.cantidad}</span>
+                                    </td>
+                                    <td style="padding: 8px 10px; text-align: center; vertical-align: middle; font-weight: bold;">
+                                        ${disponible}
+                                    </td>
+                                </tr>
+                            `;
+                        });
+
+                        htmlError += `
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p style="font-size: 0.9em; color: #555; margin-top: 15px; text-align: center;">
+                                La página se actualizará para mostrar el inventario más reciente.
+                            </p>
+                        `;
+
+                        Swal.fire({
+                            title: tituloError,
+                            html: `<div style="text-align: center;">${htmlError}</div>`,
+                            icon: 'warning',
+                            width: '700px',
+                            confirmButtonText: 'Aceptar y Recargar',
+                            confirmButtonColor: '#f39c12'
+                        }).then(() => {
+                            location.reload(); 
+                        });
+                    }
+                },
+                error: function(xhr, status, error) {
+                    document.getElementById('overlay').style.display = 'none';
+                    console.error("Error al enviar datos:", status, error);
+
+                    let tituloError = 'Error';
+                    let mensajeError = 'Ocurrió un error al enviar la requisición 😢';
+                    let detalleError = 'Por favor, inténtalo de nuevo más tarde.';
+
+                    if (status === 'timeout') {
+                        tituloError = 'Tiempo de Espera';
+                        mensajeError = 'La solicitud tardó demasiado en responder.';
+                        detalleError = '<strong>Es posible que se haya enviado.</strong><br>Por favor, revisa la hoja de cálculo antes de reintentar.';
+                    }
+
+                    Swal.fire({
+                        title: tituloError,
+                        html: `
+                            <div style="text-align: center;">
+                                <p style="font-size: 1.1em; margin-bottom: 15px;">${mensajeError}</p>
+                                <p style="color: #dc3545; font-size: 0.9em;">${detalleError}</p>
+                                <div style="color: #dc3545; font-size: 2em;">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                </div>
+                            </div>
+                        `,
+                        icon: 'error',
+                        confirmButtonText: 'Entendido',
+                        confirmButtonColor: '#dc3545'
+                    }).finally(() => {
+                        envioEnProceso = false;
                     });
-                    // --- FIN: Bloque AJAX ---
                 }
             });
-        } else {
-            // Error de no productos seleccionados (sigue igual)
-            Swal.fire({
-                title: 'Error',
-                text: 'No se han seleccionado productos para la requisición.',
-                icon: 'error',
-                confirmButtonText: 'Entendido',
-                confirmButtonColor: '#dc3545'
-            });
         }
-    }
+    });
+}
+
 
 
     // --- INICIO: FUNCIONES DE HISTORIAL MODIFICADAS ---

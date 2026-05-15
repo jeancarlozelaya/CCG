@@ -3,437 +3,575 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Migrador de Fotos - Colaboradores</title>
+    <title>Migrador Selectivo de Fotos - Colaboradores</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <style>
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             padding: 20px;
         }
         .container {
-            max-width: 900px;
+            max-width: 1400px;
             margin: 0 auto;
         }
         .card {
             border-radius: 20px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
             border: none;
-            overflow: hidden;
+            margin-bottom: 20px;
         }
         .card-header {
             background: linear-gradient(135deg, #2c3e50, #34495e);
             color: white;
-            padding: 25px;
-            text-align: center;
-            font-size: 1.5rem;
-            font-weight: bold;
-        }
-        .status-area {
-            background: #f8f9fa;
-            border-radius: 15px;
+            border-radius: 20px 20px 0 0 !important;
             padding: 20px;
-            margin-bottom: 20px;
-            max-height: 400px;
+        }
+        .btn-migrar-seleccionados {
+            background: linear-gradient(45deg, #2ecc71, #27ae60);
+            border: none;
+            padding: 12px 25px;
+            font-weight: bold;
+            border-radius: 50px;
+        }
+        .btn-seleccionar-todos {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            border: none;
+        }
+        .colaborador-card {
+            border: 2px solid #e0e0e0;
+            border-radius: 15px;
+            padding: 15px;
+            transition: all 0.3s ease;
+            background: white;
+            position: relative;
+            cursor: pointer;
+        }
+        .colaborador-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .colaborador-card.seleccionado {
+            border-color: #2ecc71;
+            background: #f0fff4;
+            box-shadow: 0 5px 15px rgba(46, 204, 113, 0.2);
+        }
+        .colaborador-card.migrado {
+            opacity: 0.6;
+            background: #f0f0f0;
+        }
+        .colaborador-card.migrado::after {
+            content: '✓';
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #2ecc71;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .foto-container {
+            width: 100%;
+            height: 200px;
+            overflow: hidden;
+            border-radius: 10px;
+            background: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+        .foto-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .foto-container i {
+            font-size: 80px;
+            color: #bdc3c7;
+        }
+        .checkbox-seleccion {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            z-index: 10;
+        }
+        .badge-estado {
+            position: absolute;
+            bottom: 15px;
+            right: 15px;
+        }
+        .log-area {
+            background-color: #1e1e2f;
+            color: #00ff9d;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            border-radius: 10px;
+            height: 250px;
             overflow-y: auto;
-            font-family: monospace;
-            font-size: 0.9rem;
-        }
-        .log-entry {
-            padding: 8px 12px;
-            margin: 5px 0;
-            border-radius: 8px;
-            animation: fadeIn 0.3s ease;
-        }
-        .log-success {
-            background: #d4edda;
-            color: #155724;
-            border-left: 4px solid #28a745;
-        }
-        .log-error {
-            background: #f8d7da;
-            color: #721c24;
-            border-left: 4px solid #dc3545;
-        }
-        .log-info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border-left: 4px solid #17a2b8;
-        }
-        .log-warning {
-            background: #fff3cd;
-            color: #856404;
-            border-left: 4px solid #ffc107;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateX(-10px); }
-            to { opacity: 1; transform: translateX(0); }
+            padding: 15px;
         }
         .progress {
             height: 30px;
-            border-radius: 15px;
-            margin: 20px 0;
+            border-radius: 50px;
         }
-        .progress-bar {
-            background: linear-gradient(90deg, #667eea, #764ba2);
-            font-weight: bold;
-            line-height: 30px;
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            flex-direction: column;
         }
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-            margin-bottom: 20px;
+        .spinner-border-custom {
+            width: 60px;
+            height: 60px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
         }
-        .stat-card {
-            background: white;
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .stats-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
             border-radius: 15px;
             padding: 15px;
             text-align: center;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         }
-        .stat-card .number {
-            font-size: 2rem;
-            font-weight: bold;
-            color: #667eea;
+        .filtro-busqueda {
+            margin-bottom: 20px;
         }
-        .stat-card .label {
-            color: #666;
-            font-size: 0.9rem;
+        .btn-group-migracion {
+            gap: 10px;
         }
-        .btn-migrar {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            border: none;
-            padding: 15px 30px;
-            font-size: 1.1rem;
-            font-weight: bold;
-            border-radius: 50px;
-            transition: transform 0.3s ease;
-        }
-        .btn-migrar:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
-        }
-        .btn-migrar:disabled {
-            opacity: 0.6;
-            transform: none;
-        }
-        .spinner-border-sm {
-            width: 1.2rem;
-            height: 1.2rem;
+        .spinner-sm {
+            width: 1rem;
+            height: 1rem;
+            border-width: 2px;
         }
     </style>
 </head>
 <body>
     <div class="container">
+        <!-- Cabecera -->
         <div class="card">
             <div class="card-header">
-                <i class="fas fa-cloud-upload-alt me-2"></i>
-                Migrador de Fotos de Colaboradores
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="fas fa-camera-retro fa-2x mb-2"></i>
+                        <h2 class="mb-0">Migrador Selectivo de Fotos</h2>
+                        <p class="mb-0 mt-2 opacity-75">Seleccione manualmente qué fotos desea migrar a la nueva cuenta</p>
+                    </div>
+                    <div class="text-end">
+                        <div class="stats-card">
+                            <h3 id="totalColaboradores">0</h3>
+                            <small>Total Fotos</small>
+                            <hr class="my-2">
+                            <div class="row">
+                                <div class="col-6">
+                                    <h4 id="seleccionadosCount">0</h4>
+                                    <small>Seleccionadas</small>
+                                </div>
+                                <div class="col-6">
+                                    <h4 id="migradosCount">0</h4>
+                                    <small>Migradas</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="card-body p-4">
-                <!-- Configuración -->
-                <div class="alert alert-info mb-4">
-                    <i class="fas fa-info-circle me-2"></i>
-                    <strong>Nueva Carpeta ID:</strong> 1Jagww-8uNKraCmTqBmaT-q91nqTJxEG9
-                </div>
+        </div>
 
-                <!-- Estadísticas -->
-                <div class="stats">
-                    <div class="stat-card">
-                        <div class="number" id="total-activos">0</div>
-                        <div class="label">Colaboradores Activos</div>
+        <!-- Barra de herramientas -->
+        <div class="card">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-6 filtro-busqueda">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            <input type="text" class="form-control" id="buscador" placeholder="Buscar por nombre o identidad...">
+                        </div>
                     </div>
-                    <div class="stat-card">
-                        <div class="number" id="total-egresados">0</div>
-                        <div class="label">Colaboradores Egresados</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="number" id="fotos-encontradas">0</div>
-                        <div class="label">Fotos Encontradas</div>
-                    </div>
-                </div>
-
-                <!-- Botones de acción -->
-                <div class="d-flex gap-3 mb-4">
-                    <button class="btn btn-primary flex-grow-1" id="btn-cargar-datos">
-                        <i class="fas fa-database me-2"></i>Cargar Datos Actuales
-                    </button>
-                    <button class="btn btn-success flex-grow-1 btn-migrar" id="btn-migrar-fotos" disabled>
-                        <i class="fas fa-exchange-alt me-2"></i>Iniciar Migración
-                    </button>
-                </div>
-
-                <!-- Progress Bar -->
-                <div class="progress mb-4" style="display: none;" id="progress-container">
-                    <div class="progress-bar" id="progress-bar" role="progressbar" style="width: 0%">0%</div>
-                </div>
-
-                <!-- Área de logs -->
-                <h6 class="mb-3">
-                    <i class="fas fa-terminal me-2"></i>Registro de Migración
-                </h6>
-                <div class="status-area" id="log-area">
-                    <div class="log-entry log-info">
-                        <i class="fas fa-info-circle me-2"></i>
-                        Esperando inicio de migración...
+                    <div class="col-md-6">
+                        <div class="btn-group-migracion d-flex justify-content-end">
+                            <button class="btn btn-outline-primary" id="btnSeleccionarTodos">
+                                <i class="fas fa-check-double me-2"></i>Seleccionar Todos
+                            </button>
+                            <button class="btn btn-outline-secondary" id="btnDeseleccionarTodos">
+                                <i class="fas fa-times me-2"></i>Deseleccionar Todos
+                            </button>
+                            <button class="btn btn-success btn-migrar-seleccionados" id="btnMigrarSeleccionados">
+                                <i class="fas fa-cloud-upload-alt me-2"></i>Migrar Seleccionados
+                            </button>
+                        </div>
                     </div>
                 </div>
+            </div>
+        </div>
 
-                <!-- Advertencia -->
-                <div class="alert alert-warning mt-4 small">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    <strong>Importante:</strong> Este proceso puede tomar varios minutos dependiendo de la cantidad de fotos. No cierre la página hasta que finalice.
+        <!-- Grid de colaboradores -->
+        <div class="card">
+            <div class="card-body">
+                <div id="colaboradoresGrid" class="row g-4">
+                    <div class="col-12 text-center py-5">
+                        <div class="spinner-border-custom d-inline-block"></div>
+                        <p class="mt-3">Cargando lista de colaboradores...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Barra de progreso y logs -->
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-terminal me-2"></i> Registro de Migración
+            </div>
+            <div class="card-body">
+                <div id="progressContainer" style="display: none;">
+                    <div class="d-flex justify-content-between mb-1">
+                        <small id="progressText">Procesando...</small>
+                        <small id="progressPercent">0%</small>
+                    </div>
+                    <div class="progress mb-3">
+                        <div id="progressBar" class="progress-bar bg-success" role="progressbar" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div id="logArea" class="log-area">
+                    <div class="text-muted">
+                        <i class="fas fa-info-circle me-2"></i> Seleccione las fotos que desea migrar y haga clic en "Migrar Seleccionados"
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Overlay de carga -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="spinner-border-custom"></div>
+        <h4 class="text-white mt-3" id="loadingMessage">Migrando foto...</h4>
+        <p class="text-white-50" id="loadingDetail"></p>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
-        // Configuración
-        const SCRIPT_URL_OBTENER = "https://script.google.com/macros/s/AKfycbwV6UwcNpiC5FAahk3YPuOS-JSm7Fta5bNW_UoOwvqywTiS-a8LSqAMT32PKM1ydQJs/exec";
-        const SCRIPT_URL_MIGRAR = "https://script.google.com/macros/s/AKfycbxoUfGcFhy-ZkKBXxdRIBHVu0qVAcFzZB01t92VyLbb38tWDI3yClrk6t_VpTblXbV6/exec";
-        const NUEVA_CARPETA_ID = "1Jagww-8uNKraCmTqBmaT-q91nqTJxEG9";
-
-        let colaboradoresActivos = [];
-        let colaboradoresEgresados = [];
-        let datosCargados = false;
-        let fotosPendientes = [];
-
-        // Función para agregar logs
-        function addLog(message, type = 'info') {
-            const logArea = $('#log-area');
-            const icon = {
-                success: 'fa-check-circle',
-                error: 'fa-times-circle',
-                info: 'fa-info-circle',
-                warning: 'fa-exclamation-triangle'
-            }[type] || 'fa-info-circle';
+        // *** IMPORTANTE: REEMPLAZAR CON LA URL DE SU APLICACIÓN WEB ***
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwMDITrW66pHRu2-_lyUf-Be-4PJvBaETKGqqc1ORBPAGtjlyN99aMNyLj0P9fzmaU6/exec';
+        
+        let colaboradores = [];
+        let colaboradoresFiltrados = [];
+        let seleccionados = new Set();
+        let migrando = false;
+        
+        function addLog(message, isError = false, isSuccess = false) {
+            const logArea = $('#logArea');
+            const timestamp = new Date().toLocaleTimeString();
+            let icon = '<i class="fas fa-info-circle text-info me-2"></i>';
+            let colorClass = 'text-info';
             
-            const logEntry = $(`
-                <div class="log-entry log-${type}" style="display: none;">
-                    <i class="fas ${icon} me-2"></i>
-                    ${message}
+            if (isError) {
+                icon = '<i class="fas fa-exclamation-triangle text-danger me-2"></i>';
+                colorClass = 'text-danger';
+            } else if (isSuccess) {
+                icon = '<i class="fas fa-check-circle text-success me-2"></i>';
+                colorClass = 'text-success';
+            }
+            
+            const logEntry = `
+                <div class="mb-1" style="font-size: 0.85rem;">
+                    <span class="text-secondary">[${timestamp}]</span>
+                    ${icon}
+                    <span class="${colorClass}">${message}</span>
                 </div>
-            `);
+            `;
             logArea.append(logEntry);
-            logEntry.fadeIn(300);
             logArea.scrollTop(logArea[0].scrollHeight);
         }
-
-        // Función para actualizar estadísticas
-        function updateStats() {
-            $('#total-activos').text(colaboradoresActivos.length);
-            $('#total-egresados').text(colaboradoresEgresados.length);
-            
-            let fotosConUrl = 0;
-            colaboradoresActivos.forEach(c => {
-                if (c.fotoUrl && c.fotoUrl.trim() !== '') fotosConUrl++;
-            });
-            colaboradoresEgresados.forEach(c => {
-                if (c.fotoUrl && c.fotoUrl.trim() !== '') fotosConUrl++;
-            });
-            $('#fotos-encontradas').text(fotosConUrl);
-        }
-
-        // Cargar datos actuales
-        $('#btn-cargar-datos').on('click', function() {
-            const btn = $(this);
-            btn.html('<span class="spinner-border spinner-border-sm me-2"></span>Cargando...').prop('disabled', true);
-            
-            addLog('Cargando datos desde la hoja de cálculo...', 'info');
-            
-            $.get(SCRIPT_URL_OBTENER)
-                .done(function(data) {
-                    if (data.error) {
-                        addLog('Error al cargar datos: ' + (data.mensaje || 'Error desconocido'), 'error');
-                        btn.html('<i class="fas fa-database me-2"></i>Reintentar Carga').prop('disabled', false);
-                        return;
-                    }
-                    
-                    colaboradoresActivos = data.activos || [];
-                    colaboradoresEgresados = data.egresos || [];
-                    
-                    updateStats();
-                    datosCargados = true;
-                    
-                    addLog(`✅ Datos cargados correctamente: ${colaboradoresActivos.length} activos, ${colaboradoresEgresados.length} egresados`, 'success');
-                    addLog(`📸 Fotos encontradas: ${$('#fotos-encontradas').text()}`, 'info');
-                    
-                    btn.html('<i class="fas fa-database me-2"></i>Datos Cargados ✓').removeClass('btn-primary').addClass('btn-success');
-                    $('#btn-migrar-fotos').prop('disabled', false);
-                })
-                .fail(function(error) {
-                    addLog('Error de conexión al cargar datos: ' + error.statusText, 'error');
-                    btn.html('<i class="fas fa-database me-2"></i>Reintentar Carga').prop('disabled', false);
-                });
-        });
-
-        // Iniciar migración
-        $('#btn-migrar-fotos').on('click', function() {
-            if (!datosCargados) {
-                addLog('Primero debe cargar los datos actuales.', 'warning');
-                return;
-            }
-            
-            // Recopilar todas las fotos para migrar
-            fotosPendientes = [];
-            
-            colaboradoresActivos.forEach(col => {
-                if (col.fotoUrl && col.fotoUrl.trim() !== '') {
-                    fotosPendientes.push({
-                        identidad: col.identidad,
-                        nombre: col.nombre,
-                        fotoUrl: col.fotoUrl,
-                        tipo: 'activo'
-                    });
-                }
-            });
-            
-            colaboradoresEgresados.forEach(col => {
-                if (col.fotoUrl && col.fotoUrl.trim() !== '') {
-                    fotosPendientes.push({
-                        identidad: col.identidad,
-                        nombre: col.nombre,
-                        fotoUrl: col.fotoUrl,
-                        tipo: 'egresado'
-                    });
-                }
-            });
-            
-            if (fotosPendientes.length === 0) {
-                addLog('No se encontraron fotos para migrar.', 'warning');
-                return;
-            }
-            
-            addLog(`🔄 Iniciando migración de ${fotosPendientes.length} fotos a la nueva carpeta...`, 'info');
-            $('#progress-container').show();
-            $('#btn-migrar-fotos').prop('disabled', true);
-            $('#btn-cargar-datos').prop('disabled', true);
-            
-            migrarSiguienteFoto(0);
-        });
         
-        // Migrar fotos una por una
-        function migrarSiguienteFoto(index) {
-            if (index >= fotosPendientes.length) {
-                // Migración completada
-                $('#progress-container').fadeOut();
-                addLog('🎉 ¡Migración completada exitosamente!', 'success');
-                addLog('⏳ Actualizando URLs en el libro de Google Sheets...', 'info');
-                
-                // Actualizar las URLs en el libro
-                actualizarUrlsEnLibro();
+        function actualizarStats() {
+            $('#totalColaboradores').text(colaboradoresFiltrados.length);
+            $('#seleccionadosCount').text(seleccionados.size);
+            const migrados = colaboradoresFiltrados.filter(c => c.migrada === true).length;
+            $('#migradosCount').text(migrados);
+        }
+        
+        function renderizarGrid() {
+            const grid = $('#colaboradoresGrid');
+            grid.empty();
+            
+            if (colaboradoresFiltrados.length === 0) {
+                grid.html('<div class="col-12 text-center py-5"><i class="fas fa-folder-open fa-3x text-muted mb-3"></i><p class="text-muted">No se encontraron colaboradores con fotos</p></div>');
                 return;
             }
             
-            const foto = fotosPendientes[index];
-            const porcentaje = Math.round((index / fotosPendientes.length) * 100);
-            $('#progress-bar').css('width', porcentaje + '%').text(porcentaje + '%');
+            colaboradoresFiltrados.forEach(col => {
+                const estaSeleccionado = seleccionados.has(col.identidad + '|' + col.fotoUrl);
+                const yaMigrada = col.migrada === true;
+                
+                let estadoBadge = '';
+                let estadoColor = '';
+                if (col.estado === 'Activo') {
+                    estadoBadge = '<span class="badge bg-success">Activo</span>';
+                    estadoColor = '#d4edda';
+                } else if (col.estado === 'Ingreso') {
+                    estadoBadge = '<span class="badge bg-info">Ingreso Histórico</span>';
+                    estadoColor = '#d1ecf1';
+                } else {
+                    estadoBadge = '<span class="badge bg-secondary">Egresado</span>';
+                    estadoColor = '#e9ecef';
+                }
+                
+                const cardClass = `colaborador-card ${estaSeleccionado ? 'seleccionado' : ''} ${yaMigrada ? 'migrado' : ''}`;
+                
+                const fotoHtml = col.fotoUrl 
+                    ? `<img src="${col.fotoUrl}" alt="${col.nombre}" onerror="this.parentElement.innerHTML = '<i class=\\'fas fa-user-circle\\'></i>'">`
+                    : '<i class="fas fa-user-circle"></i>';
+                
+                const cardHtml = `
+                    <div class="col-lg-3 col-md-4 col-sm-6">
+                        <div class="${cardClass}" data-identidad="${col.identidad}" data-fotourl="${col.fotoUrl}" data-nombre="${col.nombre}">
+                            ${!yaMigrada ? `<input type="checkbox" class="checkbox-seleccion" ${estaSeleccionado ? 'checked' : ''}>` : ''}
+                            <div class="foto-container">
+                                ${fotoHtml}
+                            </div>
+                            <div class="text-center">
+                                <h6 class="mb-1">${col.nombre}</h6>
+                                <small class="text-muted">${col.identidad}</small>
+                                <div class="mt-2">
+                                    ${estadoBadge}
+                                </div>
+                            </div>
+                            ${yaMigrada ? '<div class="badge-estado"><i class="fas fa-check-circle text-success"></i> Migrada</div>' : ''}
+                        </div>
+                    </div>
+                `;
+                grid.append(cardHtml);
+            });
             
-            addLog(`📸 Migrando foto de: ${foto.nombre} (${foto.tipo})...`, 'info');
+            // Eventos de selección
+            $('.colaborador-card:not(.migrado)').on('click', function(e) {
+                if ($(e.target).is('.checkbox-seleccion')) return;
+                const checkbox = $(this).find('.checkbox-seleccion');
+                checkbox.prop('checked', !checkbox.prop('checked'));
+                checkbox.trigger('change');
+            });
             
-            // Obtener la imagen como base64
-            obtenerImagenComoBase64(foto.fotoUrl)
-                .then(base64Data => {
-                    // Enviar al servidor para guardar en nueva carpeta
-                    return $.ajax({
-                        url: SCRIPT_URL_MIGRAR,
+            $('.checkbox-seleccion').on('change', function() {
+                const card = $(this).closest('.colaborador-card');
+                const identidad = card.data('identidad');
+                const fotoUrl = card.data('fotourl');
+                const key = identidad + '|' + fotoUrl;
+                
+                if ($(this).is(':checked')) {
+                    seleccionados.add(key);
+                    card.addClass('seleccionado');
+                    addLog(`Seleccionada foto de: ${card.data('nombre')}`, false, false);
+                } else {
+                    seleccionados.delete(key);
+                    card.removeClass('seleccionado');
+                    addLog(`Deseleccionada foto de: ${card.data('nombre')}`, false, false);
+                }
+                actualizarStats();
+            });
+            
+            actualizarStats();
+        }
+        
+        function filtrarColaboradores() {
+            const busqueda = $('#buscador').val().toLowerCase();
+            if (!busqueda) {
+                colaboradoresFiltrados = [...colaboradores];
+            } else {
+                colaboradoresFiltrados = colaboradores.filter(col => 
+                    col.nombre.toLowerCase().includes(busqueda) || 
+                    col.identidad.toLowerCase().includes(busqueda)
+                );
+            }
+            renderizarGrid();
+        }
+        
+        async function cargarColaboradores() {
+            addLog('Cargando lista de colaboradores con fotos...');
+            
+            try {
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({ accion: 'obtener_colaboradores' })
+                });
+                
+                const textResponse = await response.text();
+                const resultado = JSON.parse(textResponse);
+                
+                if (resultado.success) {
+                    colaboradores = resultado.colaboradores;
+                    colaboradoresFiltrados = [...colaboradores];
+                    renderizarGrid();
+                    addLog(`✅ Cargados ${colaboradores.length} colaboradores con fotos.`);
+                } else {
+                    addLog(`❌ Error al cargar: ${resultado.message}`, true);
+                }
+            } catch (error) {
+                addLog(`❌ Error de conexión: ${error.message}`, true);
+            }
+        }
+        
+        async function migrarFotoUnica(identidad, fotoUrl, nombre) {
+            return new Promise(async (resolve, reject) => {
+                try {
+                    const response = await fetch(SCRIPT_URL, {
                         method: 'POST',
-                        data: {
-                            accion: 'migrar_foto',
-                            identidad: foto.identidad,
-                            nombre: foto.nombre,
-                            base64Data: base64Data,
-                            carpetaDestino: NUEVA_CARPETA_ID
-                        },
-                        dataType: 'text'
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: new URLSearchParams({
+                            accion: 'migrar_foto_unica',
+                            identidad: identidad,
+                            fotoUrlActual: fotoUrl
+                        })
                     });
-                })
-                .then(response => {
-                    if (response === 'Éxito') {
-                        addLog(`✅ Foto migrada: ${foto.nombre}`, 'success');
-                        migrarSiguienteFoto(index + 1);
+                    
+                    const textResponse = await response.text();
+                    const resultado = JSON.parse(textResponse);
+                    
+                    if (resultado.success) {
+                        // Actualizar el estado local
+                        const colaborador = colaboradores.find(c => c.identidad === identidad && c.fotoUrl === fotoUrl);
+                        if (colaborador) {
+                            colaborador.migrada = true;
+                            colaborador.fotoUrl = resultado.nuevaUrl;
+                        }
+                        resolve(resultado);
                     } else {
-                        addLog(`⚠️ Error al migrar foto de ${foto.nombre}: ${response}`, 'warning');
-                        migrarSiguienteFoto(index + 1);
+                        reject(new Error(resultado.message));
                     }
-                })
-                .catch(error => {
-                    addLog(`❌ Error al procesar ${foto.nombre}: ${error.statusText || error}`, 'error');
-                    migrarSiguienteFoto(index + 1);
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        }
+        
+        async function migrarSeleccionados() {
+            if (migrando) {
+                addLog('Ya hay una migración en proceso. Espere a que termine.', true);
+                return;
+            }
+            
+            const seleccionadosList = [];
+            for (const key of seleccionados) {
+                const [identidad, fotoUrl] = key.split('|');
+                const col = colaboradores.find(c => c.identidad === identidad && c.fotoUrl === fotoUrl);
+                if (col && !col.migrada) {
+                    seleccionadosList.push({ identidad, fotoUrl, nombre: col.nombre });
+                }
+            }
+            
+            if (seleccionadosList.length === 0) {
+                addLog('No hay fotos seleccionadas para migrar.', true);
+                return;
+            }
+            
+            migrando = true;
+            $('#btnMigrarSeleccionados').prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i> Migrando...');
+            $('#progressContainer').show();
+            
+            let exitosos = 0;
+            let errores = 0;
+            const total = seleccionadosList.length;
+            
+            for (let i = 0; i < seleccionadosList.length; i++) {
+                const item = seleccionadosList[i];
+                const porcentaje = ((i + 1) / total) * 100;
+                
+                $('#progressBar').css('width', porcentaje + '%');
+                $('#progressPercent').text(Math.round(porcentaje) + '%');
+                $('#progressText').text(`Migrando (${i+1}/${total}): ${item.nombre}`);
+                
+                $('#loadingMessage').text(`Migrando foto de ${item.nombre}...`);
+                $('#loadingDetail').text(`${i+1} de ${total}`);
+                $('#loadingOverlay').show();
+                
+                addLog(`📸 Migrando foto de: ${item.nombre} (${item.identidad})...`);
+                
+                try {
+                    const resultado = await migrarFotoUnica(item.identidad, item.fotoUrl, item.nombre);
+                    exitosos++;
+                    addLog(`✅ ${item.nombre} - Foto migrada exitosamente`, false, true);
+                    seleccionados.delete(item.identidad + '|' + item.fotoUrl);
+                } catch (error) {
+                    errores++;
+                    addLog(`❌ ${item.nombre} - Error: ${error.message}`, true);
+                }
+                
+                $('#loadingOverlay').hide();
+                
+                // Pequeña pausa para no saturar
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+            
+            // Recargar la vista
+            filtrarColaboradores();
+            
+            addLog(`\n📊 MIGRACIÓN COMPLETADA - Exitosas: ${exitosos}, Errores: ${errores}`, false, true);
+            
+            if (errores === 0) {
+                addLog(`🎉 ¡Todas las fotos seleccionadas fueron migradas correctamente!`, false, true);
+            } else {
+                addLog(`⚠️ Algunas fotos no pudieron ser migradas. Revise los errores arriba.`, true);
+            }
+            
+            $('#btnMigrarSeleccionados').prop('disabled', false).html('<i class="fas fa-cloud-upload-alt me-2"></i>Migrar Seleccionados');
+            $('#progressContainer').hide();
+            migrando = false;
+        }
+        
+        // Eventos
+        $(document).ready(function() {
+            if (SCRIPT_URL === 'AQUI_VA_LA_URL_DE_LA_APP_WEB') {
+                addLog('⚠️ ERROR: Debe configurar la URL del script de Google Apps Script en el código HTML.', true);
+                return;
+            }
+            
+            cargarColaboradores();
+            
+            $('#btnSeleccionarTodos').on('click', function() {
+                colaboradoresFiltrados.forEach(col => {
+                    if (!col.migrada) {
+                        const key = col.identidad + '|' + col.fotoUrl;
+                        seleccionados.add(key);
+                    }
                 });
-        }
-        
-        // Obtener imagen como base64 desde URL
-        function obtenerImagenComoBase64(url) {
-            return new Promise((resolve, reject) => {
-                // Si es URL de Google Drive, convertir al formato de descarga directa
-                let downloadUrl = url;
-                if (url.includes('lh3.googleusercontent.com/d/')) {
-                    // Ya está en formato correcto
-                } else if (url.includes('drive.google.com')) {
-                    const match = url.match(/[-\w]{25,}/);
-                    if (match) {
-                        downloadUrl = `https://lh3.googleusercontent.com/d/${match[0]}`;
-                    }
-                }
-                
-                const img = new Image();
-                img.crossOrigin = 'Anonymous';
-                
-                img.onload = function() {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0);
-                    const base64 = canvas.toDataURL('image/jpeg', 0.9);
-                    resolve(base64.split(',')[1]); // Enviar solo los datos base64
-                };
-                
-                img.onerror = function() {
-                    reject(new Error('No se pudo cargar la imagen'));
-                };
-                
-                img.src = downloadUrl;
+                renderizarGrid();
+                addLog(`Seleccionados todos los colaboradores visibles (${colaboradoresFiltrados.filter(c => !c.migrada).length})`);
             });
-        }
-        
-        // Actualizar URLs en el libro después de la migración
-        function actualizarUrlsEnLibro() {
-            $.ajax({
-                url: SCRIPT_URL_MIGRAR,
-                method: 'POST',
-                data: {
-                    accion: 'actualizar_urls_migracion',
-                    carpetaDestino: NUEVA_CARPETA_ID
-                },
-                dataType: 'text',
-                success: function(response) {
-                    if (response === 'Éxito') {
-                        addLog('✅ URLs actualizadas correctamente en el libro de Google Sheets', 'success');
-                        addLog('✨ Migración completada. Las fotos ahora están en la nueva carpeta.', 'success');
-                        addLog('📌 Ahora puede cerrar esta página y usar su sistema normalmente.', 'info');
-                        
-                        $('#btn-migrar-fotos').html('<i class="fas fa-check-circle me-2"></i>Migración Completada').addClass('btn-success').removeClass('btn-migrar');
-                    } else {
-                        addLog(`⚠️ Advertencia al actualizar URLs: ${response}`, 'warning');
-                        addLog('Las fotos se migraron pero las URLs no se actualizaron automáticamente.', 'warning');
-                    }
-                    $('#btn-cargar-datos').prop('disabled', false);
-                },
-                error: function(error) {
-                    addLog(`❌ Error al actualizar URLs: ${error.statusText}`, 'error');
-                    addLog('Las fotos se migraron pero deberá actualizar las URLs manualmente.', 'warning');
-                    $('#btn-cargar-datos').prop('disabled', false);
-                }
+            
+            $('#btnDeseleccionarTodos').on('click', function() {
+                seleccionados.clear();
+                renderizarGrid();
+                addLog('Deseleccionados todos los colaboradores');
             });
-        }
+            
+            $('#btnMigrarSeleccionados').on('click', migrarSeleccionados);
+            $('#buscador').on('input', filtrarColaboradores);
+        });
     </script>
 </body>
 </html>

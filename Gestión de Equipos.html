@@ -2409,92 +2409,128 @@ html, body {
     // FUNCIONES PARA NO CONFORMIDADES PREVIAS (NUEVAS)
     // =========================================================================
 
-    async function cargarNoConformidadesPrevias(equipo) {
-        noConformidadesPrevias = { preguntas: [], observacion: "", actaUrl: "" };
-        $('#noConformidadesPrevias').hide();
-        $('#compromisoRevisado').prop('checked', false);
-        
-        if (!equipo) return;
-        
-        if (equipo.noConformidades && equipo.noConformidades.trim() !== "") {
-            const preguntasArray = equipo.noConformidades.split(';').filter(p => p.trim() !== "");
-            if (preguntasArray.length > 0) {
-                noConformidadesPrevias.preguntas = preguntasArray;
-            }
-        }
-        
-        if (equipo.observacionesPrevias && equipo.observacionesPrevias.trim() !== "") {
-            noConformidadesPrevias.observacion = equipo.observacionesPrevias;
-        }
-        
-        if (equipo.actaUrl && equipo.actaUrl.trim() !== "") {
-            noConformidadesPrevias.actaUrl = equipo.actaUrl;
-        }
-        
-        if (noConformidadesPrevias.preguntas.length > 0 || noConformidadesPrevias.observacion) {
-            mostrarNoConformidadesPrevias();
+async function cargarNoConformidadesPrevias(equipo) {
+    noConformidadesPrevias = { preguntas: [], observacion: "", actaUrl: "" };
+    $('#noConformidadesPrevias').hide();
+    $('#compromisoRevisado').prop('checked', false);
+    
+    if (!equipo) return;
+    
+    // Cargar no conformidades si existen
+    if (equipo.noConformidades && equipo.noConformidades.trim() !== "") {
+        const preguntasArray = equipo.noConformidades.split(';').filter(p => p.trim() !== "");
+        if (preguntasArray.length > 0) {
+            noConformidadesPrevias.preguntas = preguntasArray;
         }
     }
     
-    function mostrarNoConformidadesPrevias() {
-        const $container = $('#noConformidadesPrevias');
-        const $listContainer = $('#noConformidadesList');
-        const $obsContainer = $('#observacionPrevia');
-        
-        $listContainer.empty();
-        
-        if (noConformidadesPrevias.preguntas.length > 0) {
-            noConformidadesPrevias.preguntas.forEach(pregunta => {
-                $listContainer.append(`
-                    <div class="no-conformidad-item">
-                        <i class="fas fa-times-circle" style="color: #dc3545;"></i>
-                        <strong>No cumplió:</strong> ${escapeHtml(pregunta)}
-                    </div>
-                `);
-            });
-        } else {
-            $listContainer.html('<div class="text-muted p-2">No hay no conformidades registradas en la revisión anterior.</div>');
-        }
-        
-        if (noConformidadesPrevias.observacion && noConformidadesPrevias.observacion.trim() !== "") {
-            $obsContainer.html(`
-                <strong><i class="fas fa-comment"></i> Observaciones de la revisión anterior:</strong><br>
-                ${escapeHtml(noConformidadesPrevias.observacion)}
-            `).show();
-        } else {
-            $obsContainer.hide();
-        }
-        
-        if (noConformidadesPrevias.actaUrl && noConformidadesPrevias.actaUrl !== "") {
-            $('#btnVerActaAnterior').show().off('click').on('click', function() {
-                window.open(noConformidadesPrevias.actaUrl, '_blank');
-            });
-        } else {
-            $('#btnVerActaAnterior').hide();
-        }
-        
-        $container.show();
-        
-        $('#checklist-section').hide();
-        $('#btnConfirmar').prop('disabled', true);
-        
-        $('#compromisoRevisado').off('change').on('change', function() {
-            if ($(this).is(':checked')) {
-                if (equipoSeleccionado) {
-                    const sinRevision = modoActual === 'salidas' && $('#toggleSinRevision').is(':checked');
-                    if (sinRevision) {
-                        ocultarChecklist();
-                    } else {
-                        mostrarChecklist();
-                    }
-                    $('#btnConfirmar').prop('disabled', false);
-                }
-            } else {
-                $('#checklist-section').hide();
-                $('#btnConfirmar').prop('disabled', true);
-            }
-        });
+    // Cargar observaciones si existen
+    if (equipo.observacionesPrevias && equipo.observacionesPrevias.trim() !== "") {
+        noConformidadesPrevias.observacion = equipo.observacionesPrevias;
     }
+    
+    // Cargar URL del acta anterior
+    if (equipo.actaUrl && equipo.actaUrl.trim() !== "") {
+        noConformidadesPrevias.actaUrl = equipo.actaUrl;
+    }
+    
+    // MOSTRAR LA SECCIÓN SIEMPRE QUE HAYA UN ACTA ANTERIOR (URL)
+    // Esto asegura que siempre se revise el documento, hayan o no no conformidades
+    if (noConformidadesPrevias.actaUrl) {
+        mostrarNoConformidadesPrevias();
+    } else {
+        // Si no hay acta anterior, ocultar la sección y habilitar checklist directamente
+        $('#noConformidadesPrevias').hide();
+        $('#compromisoRevisado').prop('checked', false);
+        
+        // Si no hay acta anterior, permitir acceso al checklist sin confirmación
+        if (equipoSeleccionado) {
+            const sinRevision = modoActual === 'salidas' && $('#toggleSinRevision').is(':checked');
+            if (sinRevision) {
+                ocultarChecklist();
+            } else {
+                mostrarChecklist();
+            }
+            $('#btnConfirmar').prop('disabled', false);
+        }
+    }
+}
+    
+function mostrarNoConformidadesPrevias() {
+    const $container = $('#noConformidadesPrevias');
+    const $listContainer = $('#noConformidadesList');
+    const $obsContainer = $('#observacionPrevia');
+    
+    $listContainer.empty();
+    
+    // Mostrar no conformidades si existen
+    if (noConformidadesPrevias.preguntas.length > 0) {
+        $listContainer.append('<div class="mb-2"><strong><i class="fas fa-exclamation-triangle"></i> No conformidades encontradas:</strong></div>');
+        noConformidadesPrevias.preguntas.forEach(pregunta => {
+            $listContainer.append(`
+                <div class="no-conformidad-item">
+                    <i class="fas fa-times-circle" style="color: #dc3545;"></i>
+                    <strong>No cumplió:</strong> ${escapeHtml(pregunta)}
+                </div>
+            `);
+        });
+    } else {
+        $listContainer.html(`
+            <div class="no-conformidad-item" style="color: #28a745;">
+                <i class="fas fa-check-circle"></i>
+                <strong>No hay no conformidades registradas en la revisión anterior.</strong>
+            </div>
+        `);
+    }
+    
+    // Mostrar observaciones si existen
+    if (noConformidadesPrevias.observacion && noConformidadesPrevias.observacion.trim() !== "") {
+        $obsContainer.html(`
+            <strong><i class="fas fa-comment"></i> Observaciones de la revisión anterior:</strong><br>
+            ${escapeHtml(noConformidadesPrevias.observacion)}
+        `).show();
+    } else {
+        $obsContainer.html(`
+            <strong><i class="fas fa-comment"></i> Observaciones de la revisión anterior:</strong><br>
+            <span class="text-muted">No hay observaciones registradas.</span>
+        `).show();
+    }
+    
+    // Configurar botón de acta anterior (SIEMPRE visible si hay URL)
+    if (noConformidadesPrevias.actaUrl && noConformidadesPrevias.actaUrl !== "") {
+        $('#btnVerActaAnterior').show().off('click').on('click', function() {
+            window.open(noConformidadesPrevias.actaUrl, '_blank');
+        });
+    } else {
+        $('#btnVerActaAnterior').hide();
+    }
+    
+    $container.show();
+    
+    // Ocultar checklist hasta que se confirme
+    $('#checklist-section').hide();
+    $('#btnConfirmar').prop('disabled', true);
+    
+    // Evento del checkbox de compromiso
+    $('#compromisoRevisado').off('change').on('change', function() {
+        if ($(this).is(':checked')) {
+            if (equipoSeleccionado) {
+                const sinRevision = modoActual === 'salidas' && $('#toggleSinRevision').is(':checked');
+                if (sinRevision) {
+                    ocultarChecklist();
+                } else {
+                    mostrarChecklist();
+                }
+                $('#btnConfirmar').prop('disabled', false);
+            }
+        } else {
+            $('#checklist-section').hide();
+            $('#btnConfirmar').prop('disabled', true);
+        }
+    });
+}
+
+
     
     function escapeHtml(text) {
         if (!text) return '';

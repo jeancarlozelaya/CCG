@@ -4956,20 +4956,18 @@ async function seleccionarEquipo(index) {
             const pendientes = todos.filter(r => r.estado === 'pendiente').length;
             
             const $btn = $('#btn-sync-manager');
-            const $badge = $('#badge-pendientes');
+            const $badge = $btn.find('.badge'); // O $('#btn-sync-manager .badge')
             
             $badge.text(pendientes);
             
-            if (pendientes > 0) {
+            // Solo mostrar el botón si hay pendientes Y no hay ningún modal abierto
+            if (pendientes > 0 && $('.modal.show').length === 0) {
                 $btn.show().addClass('btn-sync-pendiente');
-            } else {
+            } else if (pendientes === 0 && $('.modal.show').length === 0) {
                 $btn.removeClass('btn-sync-pendiente');
-                if (todos.length === 0) {
-                    $btn.hide();
-                } else {
-                    $btn.show();
-                }
+                $btn.hide();
             }
+            // Si hay modal abierto, el botón permanece oculto (ya lo manejan los eventos de modal)
         } catch (e) {
             console.error("Error contando pendientes", e);
         }
@@ -5732,24 +5730,45 @@ async function seleccionarEquipo(index) {
     // CONTROL DE VISIBILIDAD DE BOTONES FLOTANTES
     // =========================================================================
 
-    $(document).on('show.bs.modal', '#modalSync, #modalPdfPreview, #photoPreviewModal', function () {
+    // Ocultar botones flotantes cuando se abre cualquier modal
+    $(document).on('show.bs.modal', function() {
         $('#btn-sync-manager, #clear-session-button').hide();
     });
 
-    $(document).on('hidden.bs.modal', '#modalSync, #modalPdfPreview, #photoPreviewModal', function () {
+    // Mostrar botones flotantes cuando se cierran TODOS los modales
+    $(document).on('hidden.bs.modal', function() {
+        // Pequeño retraso para asegurar que todos los modales están cerrados
         setTimeout(function() {
-            if ($('.modal.show').length > 0) {
-                $('#btn-sync-manager, #clear-session-button').hide();
-            } else {
+            // Verificar si hay algún modal abierto
+            if ($('.modal.show').length === 0) {
+                // Actualizar contador de pendientes
                 actualizarContadorPendientes();
+                
+                // Mostrar botón de limpiar sesión solo si hay datos
                 const hasSession = $('#fecha').val() || $('#colaborador').val() || equipoSeleccionado;
                 if (hasSession) {
                     $('#clear-session-button').show();
                 } else {
                     $('#clear-session-button').hide();
                 }
+                
+                // El botón de sincronización se muestra/oculta según haya pendientes
+                // (actualizarContadorPendientes ya se encarga de esto)
             }
         }, 300);
+    });
+    
+    // Evento específico para cuando se abre el modal de sincronización, asegurar que el botón quede oculto
+    $('#modalSync').on('show.bs.modal', function() {
+        $('#btn-sync-manager').hide();
+    });
+    
+    // Evento específico para cuando se cierra el modal de sincronización
+    $('#modalSync').on('hidden.bs.modal', function() {
+        // Pequeño retraso para asegurar que todo se actualice bien
+        setTimeout(function() {
+            actualizarContadorPendientes();
+        }, 200);
     });
 
     $(document).on('change input', '.auto-save', function() {

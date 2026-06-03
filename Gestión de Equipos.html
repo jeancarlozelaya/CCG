@@ -260,6 +260,7 @@ html, body {
         justify-content: space-between;
         height: 100%;
         cursor: pointer;
+        position: relative;
     }
 
     .equipo:hover {
@@ -292,6 +293,103 @@ html, body {
         color: var(--accent-color);
         font-weight: 600;
         font-size: 0.85rem;
+    }
+
+    .badge-no-conformidades {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        background-color: #ffc107;
+        color: #856404;
+        border-radius: 20px;
+        padding: 2px 8px;
+        font-size: 0.7rem;
+        font-weight: bold;
+    }
+
+    /* Estilos para No Conformidades Previas */
+    .no-conformidades-previas {
+        background-color: #fff3cd;
+        border-left: 4px solid #ffc107;
+        margin-bottom: 25px;
+        padding: 20px;
+        border-radius: 8px;
+    }
+
+    .no-conformidades-previas h3 {
+        color: #856404;
+        font-size: 1.2rem;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .no-conformidades-list {
+        background-color: white;
+        border-radius: 6px;
+        padding: 15px;
+        margin-bottom: 15px;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .no-conformidad-item {
+        padding: 10px;
+        border-bottom: 1px solid #ffeeba;
+        color: #856404;
+    }
+
+    .no-conformidad-item:last-child {
+        border-bottom: none;
+    }
+
+    .observacion-previa {
+        background-color: white;
+        border-radius: 6px;
+        padding: 15px;
+        margin-bottom: 15px;
+        border-left: 3px solid #ffc107;
+    }
+
+    .compromiso-check {
+        background-color: white;
+        border-radius: 6px;
+        padding: 15px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .compromiso-check input {
+        width: 22px;
+        height: 22px;
+        cursor: pointer;
+    }
+
+    .compromiso-check label {
+        margin: 0;
+        font-weight: 600;
+        color: #856404;
+        cursor: pointer;
+    }
+
+    .btn-ver-acta-anterior {
+        background-color: #17a2b8;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 8px 15px;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: var(--transition);
+        margin-left: auto;
+    }
+
+    .btn-ver-acta-anterior:hover {
+        background-color: #138496;
     }
 
     .image-preview {
@@ -775,7 +873,7 @@ html, body {
         margin-top: 5px;
     }
 
-    #firmaCanvas {
+    #firmaCanvas, #firmaEvaluadorCanvas {
         width: 100% !important;
         height: 200px !important;
         background: white;
@@ -789,7 +887,7 @@ html, body {
         overflow: hidden;
     }
 
-    #firmaCanvas {
+    #firmaCanvas, #firmaEvaluadorCanvas {
         -webkit-user-select: none;
         -moz-user-select: none;
         -ms-user-select: none;
@@ -798,7 +896,8 @@ html, body {
     }
 
     @media (max-width: 768px) {
-        #toggleEraser, #undo, #redo {
+        #toggleEraser, #undo, #redo,
+        #toggleEraserEvaluador, #undoEvaluador, #redoEvaluador {
             display: block !important;
         }
         
@@ -1424,29 +1523,27 @@ html, body {
         border-radius: 4px;
     }
 
+    /* Estilos para el interruptor de sin revisión */
+    #sin-revision-container {
+        background-color: #fff8e1;
+        border-left: 4px solid #ffc107;
+        margin-bottom: 20px;
+    }
 
+    .form-check-input:checked {
+        background-color: #28a745;
+        border-color: #28a745;
+    }
 
-/* Estilos para el interruptor de sin revisión */
-#sin-revision-container {
-    background-color: #fff8e1;
-    border-left: 4px solid #ffc107;
-    margin-bottom: 20px;
-}
+    .form-check-input:focus {
+        border-color: #28a745;
+        box-shadow: 0 0 0 0.25rem rgba(40, 167, 69, 0.25);
+    }
 
-.form-check-input:checked {
-    background-color: #28a745;
-    border-color: #28a745;
-}
-
-.form-check-input:focus {
-    border-color: #28a745;
-    box-shadow: 0 0 0 0.25rem rgba(40, 167, 69, 0.25);
-}
-
-.form-text {
-    margin-top: 8px;
-    font-size: 0.9rem;
-}
+    .form-text {
+        margin-top: 8px;
+        font-size: 0.9rem;
+    }
 
 </style>
 </head>
@@ -1466,8 +1563,6 @@ html, body {
 
     <div class="form-container">
         <h1>Gestión de Equipos</h1>
-
-
 
         <div class="modo-buttons" id="modo-buttons">
             <button id="btnSalidas" class="modo-button activo" onclick="cambiarModo('salidas')">Salidas</button>
@@ -1492,17 +1587,36 @@ html, body {
             </select>
         </div>
 
-<div id="sin-revision-container" class="question-container" style="display: none;">
-    <div class="form-check form-switch">
-        <input class="form-check-input" type="checkbox" id="toggleSinRevision" style="transform: scale(1.5);">
-        <label class="form-check-label" for="toggleSinRevision" style="font-size: 1.1rem; font-weight: bold; color: var(--primary-color);">
-            <i class="fas fa-bolt me-2"></i>Entregar sin revisión
-        </label>
-        <div class="form-text text-muted">
-            Al activar esta opción, es porque no es necesario realizar una revisión.
+        <div id="sin-revision-container" class="question-container" style="display: none;">
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="toggleSinRevision" style="transform: scale(1.5);">
+                <label class="form-check-label" for="toggleSinRevision" style="font-size: 1.1rem; font-weight: bold; color: var(--primary-color);">
+                    <i class="fas fa-bolt me-2"></i>Entregar sin revisión
+                </label>
+                <div class="form-text text-muted">
+                    Al activar esta opción, es porque no es necesario realizar una revisión.
+                </div>
+            </div>
         </div>
-    </div>
-</div>
+
+        <!-- SECCIÓN DE NO CONFORMIDADES PREVIAS (NUEVA) -->
+        <div id="noConformidadesPrevias" class="no-conformidades-previas" style="display: none;">
+            <h3>
+                <i class="fas fa-exclamation-triangle"></i>
+                No Conformidades de la Revisión Anterior
+                <button type="button" id="btnVerActaAnterior" class="btn-ver-acta-anterior" style="display:none;">
+                    <i class="fas fa-file-pdf"></i> Ver Acta Anterior
+                </button>
+            </h3>
+            <div id="noConformidadesList" class="no-conformidades-list"></div>
+            <div id="observacionPrevia" class="observacion-previa" style="display: none;"></div>
+            <div class="compromiso-check">
+                <input type="checkbox" id="compromisoRevisado">
+                <label for="compromisoRevisado">
+                    <i class="fas fa-check-circle"></i> Confirmo que he revisado las no conformidades y observaciones de la revisión anterior
+                </label>
+            </div>
+        </div>
 
         <label><strong id="titulo-equipos">Seleccione la aspiradora a prestar:</strong></label>
 
@@ -1533,6 +1647,7 @@ html, body {
                 </div>
             </div>
 
+            <!-- FIRMA DEL RESPONSABLE -->
             <div class="question-container">
                 <label for="firma">Firma del Responsable:</label>
                 <div id="firmaContainer" class="firma-container">
@@ -1549,6 +1664,28 @@ html, body {
                         <i class="fas fa-redo"></i>
                     </button>
                     <button type="button" id="clearSignature" title="Limpiar" class="icon-button">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- FIRMA DEL EVALUADOR (NUEVA) -->
+            <div class="question-container">
+                <label for="firmaEvaluador">Firma del Evaluador (Quien realiza la revisión):</label>
+                <div class="firma-container">
+                    <canvas id="firmaEvaluadorCanvas" width="400" height="200" style="border: 1px solid #ccc;"></canvas>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center; margin-top: 10px;">
+                    <button type="button" id="toggleEraserEvaluador" title="Borrador" class="icon-button">
+                        <i class="fas fa-eraser"></i>
+                    </button>
+                    <button type="button" id="undoEvaluador" title="Deshacer" class="icon-button">
+                        <i class="fas fa-undo"></i>
+                    </button>
+                    <button type="button" id="redoEvaluador" title="Rehacer" class="icon-button">
+                        <i class="fas fa-redo"></i>
+                    </button>
+                    <button type="button" id="clearSignatureEvaluador" title="Limpiar" class="icon-button">
                         <i class="fas fa-trash-alt"></i>
                     </button>
                 </div>
@@ -1743,68 +1880,76 @@ html, body {
     // VARIABLES GLOBALES
     // =========================================================================
 
-// =========================================================================
-// VARIABLES GLOBALES - ACTUALIZADAS
-// =========================================================================
-
-let equipos = [];
-let colaboradores = [];
-let areas = ["Bodega"];
-let equipoSeleccionado = null;
-let modoActual = "salidas";
-let ultimaTransaccion = null;
+    let equipos = [];
+    let colaboradores = [];
+    let areas = ["Bodega"];
+    let equipoSeleccionado = null;
+    let modoActual = "salidas";
+    let ultimaTransaccion = null;
     
-// Estados separados para cada modo
-let estadoSalidas = {
-    colaborador: '',
-    area: '',
-    sinRevision: false, // NUEVA PROPIEDAD
-    checklist: { respuestas: [], observaciones: "", fotos: {} }
-};
+    // Estados separados para cada modo
+    let estadoSalidas = {
+        colaborador: '',
+        area: '',
+        sinRevision: false,
+        checklist: { respuestas: [], observaciones: "", fotos: {} }
+    };
 
-let estadoEntradas = {
-    colaborador: '',
-    area: 'Bodega', // Valor por defecto para entradas
-    sinRevision: false, // NUEVA PROPIEDAD (aunque no se use en entradas)
-    checklist: { respuestas: [], observaciones: "", fotos: {} }
-};
+    let estadoEntradas = {
+        colaborador: '',
+        area: 'Bodega',
+        sinRevision: false,
+        checklist: { respuestas: [], observaciones: "", fotos: {} }
+    };
 
-// Estado actual según modo
-function getEstadoActual() {
-    return modoActual === 'salidas' ? estadoSalidas : estadoEntradas;
-}
+    // Variables para no conformidades previas (NUEVAS)
+    let noConformidadesPrevias = { preguntas: [], observacion: "", actaUrl: "" };
 
-function setEstadoActual(estado) {
-    if (modoActual === 'salidas') {
-        estadoSalidas = estado;
-    } else {
-        estadoEntradas = estado;
+    function getEstadoActual() {
+        return modoActual === 'salidas' ? estadoSalidas : estadoEntradas;
     }
-}
 
-function getChecklistEstadoActual() {
-    return getEstadoActual().checklist;
-}
+    function setEstadoActual(estado) {
+        if (modoActual === 'salidas') {
+            estadoSalidas = estado;
+        } else {
+            estadoEntradas = estado;
+        }
+    }
 
-function setChecklistEstadoActual(checklist) {
-    const estado = getEstadoActual();
-    estado.checklist = checklist;
-    setEstadoActual(estado);
-}
+    function getChecklistEstadoActual() {
+        return getEstadoActual().checklist;
+    }
 
-let allColaboradores = [];
-let selectedColaboradorIndex = -1;
-let filteredColaboradores = [];
+    function setChecklistEstadoActual(checklist) {
+        const estado = getEstadoActual();
+        estado.checklist = checklist;
+        setEstadoActual(estado);
+    }
 
-    // Variables para firma
+    let allColaboradores = [];
+    let selectedColaboradorIndex = -1;
+    let filteredColaboradores = [];
+
+    // Variables para firma del responsable
     let isDrawing = false;
     let isErasing = false;
     let lastX = 0;
     let lastY = 0;
     const canvas = document.getElementById("firmaCanvas");
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    const undoStack = [];
-    const redoStack = [];
+    let undoStack = [];
+    let redoStack = [];
+
+    // Variables para firma del evaluador (NUEVAS)
+    let isDrawingEval = false;
+    let isErasingEval = false;
+    let lastXEval = 0;
+    let lastYEval = 0;
+    const canvasEval = document.getElementById("firmaEvaluadorCanvas");
+    const ctxEval = canvasEval.getContext("2d", { willReadFrequently: true });
+    let undoStackEval = [];
+    let redoStackEval = [];
 
     // Variables para vista previa de fotos
     let currentPhotoPreview = null;
@@ -1861,7 +2006,7 @@ let filteredColaboradores = [];
 
     async function initDB() {
         return new Promise((resolve, reject) => {
-            const request = indexedDB.open(DB_NAME, 3);
+            const request = indexedDB.open(DB_NAME, 4);
             
             request.onupgradeneeded = function(event) {
                 const db = event.target.result;
@@ -2001,174 +2146,175 @@ let filteredColaboradores = [];
     // FUNCIONES DE SESIÓN (INDEXEDDB) - ACTUALIZADAS
     // =========================================================================
 
-async function saveSession() {
-    if (!isDbInitialized) return;
-    
-    // Guardar estados actuales ANTES de guardar
-    const estadoActual = getEstadoActual();
-    estadoActual.colaborador = $('#colaborador').val();
-    estadoActual.area = $('#area').val();
-    estadoActual.sinRevision = $('#toggleSinRevision').is(':checked'); // GUARDAR ESTADO
-    
-    const sessionData = {
-        modoActual: modoActual,
-        equipoSeleccionadoNombre: equipoSeleccionado ? equipoSeleccionado.nombre : null,
+    async function saveSession() {
+        if (!isDbInitialized) return;
         
-        // GUARDAR ESTADOS COMPLETOS SEPARADOS
-        estadoSalidas: estadoSalidas,
-        estadoEntradas: estadoEntradas,
-        
-        firmaData: isCanvasBlank(canvas) ? null : canvas.toDataURL(),
-        
-        undoStackLength: undoStack.length,
-        redoStackLength: redoStack.length,
-        
-        timestamp: Date.now()
-    };
-    
-    try {
-        await saveDataToStore(STORE_SESSION, 'currentSession', sessionData);
-        console.log('Sesión guardada en IndexedDB');
-        
-        if (sessionData.equipoSeleccionadoNombre || estadoActual.colaborador || estadoActual.area) {
-            document.getElementById('clear-session-button').style.display = 'flex';
-        }
-    } catch (error) {
-        console.error('Error guardando sesión:', error);
-    }
-}
-
-async function loadSession() {
-    if (!isDbInitialized) return;
-    
-    try {
-        const sessionData = await getDataFromStore(STORE_SESSION, 'currentSession');
-        if (!sessionData) return;
-        
-        // 1. Cargar estados separados
-        if (sessionData.estadoSalidas) {
-            estadoSalidas = sessionData.estadoSalidas;
-        }
-        if (sessionData.estadoEntradas) {
-            estadoEntradas = sessionData.estadoEntradas;
-        }
-        
-        // 2. Cambiar modo si es diferente
-        if (sessionData.modoActual && sessionData.modoActual !== modoActual) {
-            cambiarModo(sessionData.modoActual);
-        } else {
-            modoActual = sessionData.modoActual || 'salidas';
-        }
-        
-        // 3. Cargar datos del formulario según el modo actual
         const estadoActual = getEstadoActual();
-        $('#colaborador').val(estadoActual.colaborador || '');
-        $('#area').val(estadoActual.area || '');
+        estadoActual.colaborador = $('#colaborador').val();
+        estadoActual.area = $('#area').val();
+        estadoActual.sinRevision = $('#toggleSinRevision').is(':checked');
         
-        // 4. Cargar Equipo Seleccionado
-        if (sessionData.equipoSeleccionadoNombre && equipos.length > 0) {
-            const index = equipos.findIndex(e => e.nombre === sessionData.equipoSeleccionadoNombre);
-            if (index !== -1) {
-                equipoSeleccionado = equipos[index];
-                
-                // En modo entradas, usar colaborador del equipo si no hay uno guardado
-                if (modoActual === "entradas" && equipoSeleccionado.asignadoA && !estadoActual.colaborador) {
-                    $('#colaborador').val(equipoSeleccionado.asignadoA);
-                    estadoActual.colaborador = equipoSeleccionado.asignadoA;
-                }
-                
-                setTimeout(() => {
-                    $(`#equipo-${index}`).css('border-color', '#007BFF').css('background-color', '#e6f0ff');
-                    if (modoActual === "entradas") {
-                        $('#buscador').prop('disabled', true);
-                        $('#fecha').prop('disabled', true);
-                        $('#colaborador').prop('disabled', true);
-                        $('#area').prop('disabled', true).val("Bodega");
-                    }
-                }, 500);
+        const sessionData = {
+            modoActual: modoActual,
+            equipoSeleccionadoNombre: equipoSeleccionado ? equipoSeleccionado.nombre : null,
+            estadoSalidas: estadoSalidas,
+            estadoEntradas: estadoEntradas,
+            firmaRespData: isCanvasBlank(canvas) ? null : canvas.toDataURL(),
+            firmaEvalData: isCanvasBlank(canvasEval) ? null : canvasEval.toDataURL(),
+            undoStackLength: undoStack.length,
+            redoStackLength: redoStack.length,
+            timestamp: Date.now()
+        };
+        
+        try {
+            await saveDataToStore(STORE_SESSION, 'currentSession', sessionData);
+            console.log('Sesión guardada en IndexedDB');
+            
+            if (sessionData.equipoSeleccionadoNombre || estadoActual.colaborador || estadoActual.area) {
+                document.getElementById('clear-session-button').style.display = 'flex';
             }
+        } catch (error) {
+            console.error('Error guardando sesión:', error);
         }
+    }
+
+    async function loadSession() {
+        if (!isDbInitialized) return;
         
-        // 5. Cargar checklist del modo actual
-        if (equipoSeleccionado) {
-            selectedFiles = {};
-            await restaurarChecklistCompleto(estadoActual.checklist);
+        try {
+            const sessionData = await getDataFromStore(STORE_SESSION, 'currentSession');
+            if (!sessionData) return;
+            
+            if (sessionData.estadoSalidas) {
+                estadoSalidas = sessionData.estadoSalidas;
+            }
+            if (sessionData.estadoEntradas) {
+                estadoEntradas = sessionData.estadoEntradas;
+            }
+            
+            if (sessionData.modoActual && sessionData.modoActual !== modoActual) {
+                cambiarModo(sessionData.modoActual);
+            } else {
+                modoActual = sessionData.modoActual || 'salidas';
+            }
+            
+            const estadoActual = getEstadoActual();
+            $('#colaborador').val(estadoActual.colaborador || '');
+            $('#area').val(estadoActual.area || '');
+            
+            if (sessionData.equipoSeleccionadoNombre && equipos.length > 0) {
+                const index = equipos.findIndex(e => e.nombre === sessionData.equipoSeleccionadoNombre);
+                if (index !== -1) {
+                    equipoSeleccionado = equipos[index];
+                    await cargarNoConformidadesPrevias(equipoSeleccionado);
+                    
+                    if (modoActual === "entradas" && equipoSeleccionado.asignadoA && !estadoActual.colaborador) {
+                        $('#colaborador').val(equipoSeleccionado.asignadoA);
+                        estadoActual.colaborador = equipoSeleccionado.asignadoA;
+                    }
+                    
+                    setTimeout(() => {
+                        $(`#equipo-${index}`).css('border-color', '#007BFF').css('background-color', '#e6f0ff');
+                        if (modoActual === "entradas") {
+                            $('#buscador').prop('disabled', true);
+                            $('#fecha').prop('disabled', true);
+                            $('#colaborador').prop('disabled', true);
+                            $('#area').prop('disabled', true).val("Bodega");
+                        }
+                    }, 500);
+                }
+            }
+            
+            if (equipoSeleccionado) {
+                selectedFiles = {};
+                await restaurarChecklistCompleto(estadoActual.checklist);
+            }
+            
+            if (sessionData.firmaRespData) {
+                const img = new Image();
+                img.src = sessionData.firmaRespData;
+                img.onload = () => {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    undoStack.length = sessionData.undoStackLength || 0;
+                    redoStack.length = sessionData.redoStackLength || 0;
+                    updateButtonStates();
+                    verificarFormulario();
+                };
+            }
+            
+            if (sessionData.firmaEvalData) {
+                const img = new Image();
+                img.src = sessionData.firmaEvalData;
+                img.onload = () => {
+                    ctxEval.clearRect(0, 0, canvasEval.width, canvasEval.height);
+                    ctxEval.drawImage(img, 0, 0, canvasEval.width, canvasEval.height);
+                    updateButtonStatesEval();
+                    verificarFormulario();
+                };
+            }
+            
+            verificarFormulario();
+            document.getElementById('clear-session-button').style.display = 'flex';
+            
+        } catch (error) {
+            console.error("Error al cargar sesión desde IndexedDB:", error);
         }
-        
-        // 6. Cargar Firma
-        if (sessionData.firmaData) {
-            const img = new Image();
-            img.src = sessionData.firmaData;
-            img.onload = () => {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                
-                undoStack.length = sessionData.undoStackLength || 0;
-                redoStack.length = sessionData.redoStackLength || 0;
-                updateButtonStates();
-                verificarFormulario();
+    }
+
+    async function clearSession() {
+        try {
+            const transaction = db.transaction([STORE_SESSION], 'readwrite');
+            const store = transaction.objectStore(STORE_SESSION);
+            await new Promise((resolve, reject) => {
+                const request = store.delete('currentSession');
+                request.onsuccess = () => resolve();
+                request.onerror = (e) => reject(e);
+            });
+            
+            estadoSalidas = {
+                colaborador: '',
+                area: '',
+                sinRevision: false,
+                checklist: { respuestas: [], observaciones: "", fotos: {} }
             };
+            
+            estadoEntradas = {
+                colaborador: '',
+                area: 'Bodega',
+                sinRevision: false,
+                checklist: { respuestas: [], observaciones: "", fotos: {} }
+            };
+            
+            noConformidadesPrevias = { preguntas: [], observacion: "", actaUrl: "" };
+            $('#noConformidadesPrevias').hide();
+            selectedFiles = {};
+            equipoSeleccionado = null;
+            
+            $('#fecha').val('');
+            $('#colaborador').val('');
+            $('#area').val('');
+            ocultarChecklist();
+            
+            clearSignature();
+            clearSignatureEval();
+            
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            document.getElementById("fecha").value = yyyy + '-' + mm + '-' + dd;
+            
+            cambiarModo('salidas');
+            
+            document.getElementById('clear-session-button').style.display = 'none';
+            
+            console.log('Sesión limpiada correctamente');
+            
+        } catch (error) {
+            console.error('Error limpiando sesión:', error);
         }
-        
-        verificarFormulario();
-        document.getElementById('clear-session-button').style.display = 'flex';
-        
-    } catch (error) {
-        console.error("Error al cargar sesión desde IndexedDB:", error);
     }
-}
-
-
-async function clearSession() {
-    try {
-        const transaction = db.transaction([STORE_SESSION], 'readwrite');
-        const store = transaction.objectStore(STORE_SESSION);
-        await new Promise((resolve, reject) => {
-            const request = store.delete('currentSession');
-            request.onsuccess = () => resolve();
-            request.onerror = (e) => reject(e);
-        });
-        
-        // Limpiar estados separados
-        estadoSalidas = {
-            colaborador: '',
-            area: '',
-            checklist: { respuestas: [], observaciones: "", fotos: {} }
-        };
-        
-        estadoEntradas = {
-            colaborador: '',
-            area: 'Bodega',
-            checklist: { respuestas: [], observaciones: "", fotos: {} }
-        };
-        
-        selectedFiles = {};
-        equipoSeleccionado = null;
-        
-        $('#fecha').val('');
-        $('#colaborador').val('');
-        $('#area').val('');
-        ocultarChecklist();
-        
-        clearSignature();
-        
-        const today = new Date();
-        const yyyy = today.getFullYear();
-        const mm = String(today.getMonth() + 1).padStart(2, '0');
-        const dd = String(today.getDate()).padStart(2, '0');
-        document.getElementById("fecha").value = yyyy + '-' + mm + '-' + dd;
-        
-        cambiarModo('salidas');
-        
-        document.getElementById('clear-session-button').style.display = 'none';
-        
-        console.log('Sesión limpiada correctamente');
-        
-    } catch (error) {
-        console.error('Error limpiando sesión:', error);
-    }
-}
-
 
     function confirmClearSession() {
         Swal.fire({
@@ -2257,6 +2403,107 @@ async function clearSession() {
     }
 
     // =========================================================================
+    // FUNCIONES PARA NO CONFORMIDADES PREVIAS (NUEVAS)
+    // =========================================================================
+
+    async function cargarNoConformidadesPrevias(equipo) {
+        noConformidadesPrevias = { preguntas: [], observacion: "", actaUrl: "" };
+        $('#noConformidadesPrevias').hide();
+        $('#compromisoRevisado').prop('checked', false);
+        
+        if (!equipo) return;
+        
+        if (equipo.noConformidades && equipo.noConformidades.trim() !== "") {
+            const preguntasArray = equipo.noConformidades.split(';').filter(p => p.trim() !== "");
+            if (preguntasArray.length > 0) {
+                noConformidadesPrevias.preguntas = preguntasArray;
+            }
+        }
+        
+        if (equipo.observacionesPrevias && equipo.observacionesPrevias.trim() !== "") {
+            noConformidadesPrevias.observacion = equipo.observacionesPrevias;
+        }
+        
+        if (equipo.actaUrl && equipo.actaUrl.trim() !== "") {
+            noConformidadesPrevias.actaUrl = equipo.actaUrl;
+        }
+        
+        if (noConformidadesPrevias.preguntas.length > 0 || noConformidadesPrevias.observacion) {
+            mostrarNoConformidadesPrevias();
+        }
+    }
+    
+    function mostrarNoConformidadesPrevias() {
+        const $container = $('#noConformidadesPrevias');
+        const $listContainer = $('#noConformidadesList');
+        const $obsContainer = $('#observacionPrevia');
+        
+        $listContainer.empty();
+        
+        if (noConformidadesPrevias.preguntas.length > 0) {
+            noConformidadesPrevias.preguntas.forEach(pregunta => {
+                $listContainer.append(`
+                    <div class="no-conformidad-item">
+                        <i class="fas fa-times-circle" style="color: #dc3545;"></i>
+                        <strong>No cumplió:</strong> ${escapeHtml(pregunta)}
+                    </div>
+                `);
+            });
+        } else {
+            $listContainer.html('<div class="text-muted p-2">No hay no conformidades registradas en la revisión anterior.</div>');
+        }
+        
+        if (noConformidadesPrevias.observacion && noConformidadesPrevias.observacion.trim() !== "") {
+            $obsContainer.html(`
+                <strong><i class="fas fa-comment"></i> Observaciones de la revisión anterior:</strong><br>
+                ${escapeHtml(noConformidadesPrevias.observacion)}
+            `).show();
+        } else {
+            $obsContainer.hide();
+        }
+        
+        if (noConformidadesPrevias.actaUrl && noConformidadesPrevias.actaUrl !== "") {
+            $('#btnVerActaAnterior').show().off('click').on('click', function() {
+                window.open(noConformidadesPrevias.actaUrl, '_blank');
+            });
+        } else {
+            $('#btnVerActaAnterior').hide();
+        }
+        
+        $container.show();
+        
+        $('#checklist-section').hide();
+        $('#btnConfirmar').prop('disabled', true);
+        
+        $('#compromisoRevisado').off('change').on('change', function() {
+            if ($(this).is(':checked')) {
+                if (equipoSeleccionado) {
+                    const sinRevision = modoActual === 'salidas' && $('#toggleSinRevision').is(':checked');
+                    if (sinRevision) {
+                        ocultarChecklist();
+                    } else {
+                        mostrarChecklist();
+                    }
+                    $('#btnConfirmar').prop('disabled', false);
+                }
+            } else {
+                $('#checklist-section').hide();
+                $('#btnConfirmar').prop('disabled', true);
+            }
+        });
+    }
+    
+    function escapeHtml(text) {
+        if (!text) return '';
+        return text.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
+    // =========================================================================
     // FUNCIONES PARA CHECKLIST - ACTUALIZADAS
     // =========================================================================
 
@@ -2327,60 +2574,55 @@ async function clearSession() {
         });
     }
 
-function generarChecklistUI(checklist) {
-    const container = document.getElementById('checklistContainer');
-    if (!container) return;
-    
-    container.innerHTML = '';
-
-    const estadoActual = getChecklistEstadoActual();
-    if (!estadoActual.fotos) {
-        estadoActual.fotos = {};
-    }
-    
-    // Inicializar selectedFiles limpio
-    selectedFiles = {};
-    
-    checklist.forEach((item, index) => {
-        const itemDiv = document.createElement('div');
-        itemDiv.className = 'checklist-item';
-
-        // Obtener fotos del estado actual
-        const numFotos = (estadoActual.fotos[index] || []).length;
+    function generarChecklistUI(checklist) {
+        const container = document.getElementById('checklistContainer');
+        if (!container) return;
         
-        // Inicializar array vacío si no existe
-        if (!estadoActual.fotos[index]) {
-            estadoActual.fotos[index] = [];
+        container.innerHTML = '';
+
+        const estadoActual = getChecklistEstadoActual();
+        if (!estadoActual.fotos) {
+            estadoActual.fotos = {};
         }
-
-        itemDiv.innerHTML = `
-            <label>${item}</label>
-            <div class="checklist-buttons">
-                <button type="button" class="check-button" onclick="seleccionarRespuesta(${index}, '✔')">Cumple</button>
-                <button type="button" class="x-button" onclick="seleccionarRespuesta(${index}, 'X')">No<br>Cumple</button>
-            </div>
-            
-            <div class="checklist-item-fotos">
-                <div class="foto-preview" id="foto-preview-${index}"></div>
-                <button type="button" class="foto-button" onclick="abrirInputFoto(${index})">
-                    <i class="fas fa-camera"></i> Añadir Foto (<span id="foto-count-${index}">${numFotos}</span>)
-                </button>
-                <input type="file" id="foto-input-${index}" accept="image/*" capture="environment" style="display: none;" onchange="manejarInputFoto(event, ${index})">
-            </div>
-        `;
-        container.appendChild(itemDiv);
-
-        setupDragAndDrop(`foto-preview-${index}`, index);
-    });
-    
-    // Renderizar fotos DESPUÉS de crear todos los elementos
-    setTimeout(() => {
+        
+        selectedFiles = {};
+        
         checklist.forEach((item, index) => {
-            renderizarPreviews(index);
-        });
-    }, 100);
-}
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'checklist-item';
 
+            const numFotos = (estadoActual.fotos[index] || []).length;
+            
+            if (!estadoActual.fotos[index]) {
+                estadoActual.fotos[index] = [];
+            }
+
+            itemDiv.innerHTML = `
+                <label>${item}</label>
+                <div class="checklist-buttons">
+                    <button type="button" class="check-button" onclick="seleccionarRespuesta(${index}, '✔')">Cumple</button>
+                    <button type="button" class="x-button" onclick="seleccionarRespuesta(${index}, 'X')">No<br>Cumple</button>
+                </div>
+                
+                <div class="checklist-item-fotos">
+                    <div class="foto-preview" id="foto-preview-${index}"></div>
+                    <button type="button" class="foto-button" onclick="abrirInputFoto(${index})">
+                        <i class="fas fa-camera"></i> Añadir Foto (<span id="foto-count-${index}">${numFotos}</span>)
+                    </button>
+                    <input type="file" id="foto-input-${index}" accept="image/*" capture="environment" style="display: none;" onchange="manejarInputFoto(event, ${index})">
+                </div>
+            `;
+            container.appendChild(itemDiv);
+
+            setupDragAndDrop(`foto-preview-${index}`, index);
+        });
+        
+        setTimeout(() => {
+            checklist.forEach((item, index) => {
+                renderizarPreviews(index);
+            });
+        }, 100);
+    }
 
     function seleccionarRespuesta(index, respuesta) {
         const item = document.querySelectorAll('.checklist-item')[index];
@@ -2400,31 +2642,28 @@ function generarChecklistUI(checklist) {
         saveSession();
     }
 
-function guardarEstadoChecklist() {
-    const estadoActual = getChecklistEstadoActual();
-    const sinRevision = modoActual === 'salidas' && $('#toggleSinRevision').is(':checked');
-    
-    if (sinRevision) {
-        // En modo sin revisión, no hay respuestas del checklist
-        estadoActual.respuestas = [];
-    } else {
-        // Modo normal
-        const respuestas = [];
-        document.querySelectorAll('.checklist-item').forEach(item => {
-            const selectedButton = item.querySelector('.selected');
-            respuestas.push(selectedButton ? 
-                (selectedButton.classList.contains('check-button') ? '✔' : 'X') : '');
-        });
+    function guardarEstadoChecklist() {
+        const estadoActual = getChecklistEstadoActual();
+        const sinRevision = modoActual === 'salidas' && $('#toggleSinRevision').is(':checked');
         
-        estadoActual.respuestas = respuestas;
+        if (sinRevision) {
+            estadoActual.respuestas = [];
+        } else {
+            const respuestas = [];
+            document.querySelectorAll('.checklist-item').forEach(item => {
+                const selectedButton = item.querySelector('.selected');
+                respuestas.push(selectedButton ? 
+                    (selectedButton.classList.contains('check-button') ? '✔' : 'X') : '');
+            });
+            
+            estadoActual.respuestas = respuestas;
+        }
+        
+        const observacionesTextarea = document.getElementById('checklistObservaciones');
+        const observaciones = observacionesTextarea ? observacionesTextarea.value : '';
+        
+        estadoActual.observaciones = observaciones;
     }
-    
-    const observacionesTextarea = document.getElementById('checklistObservaciones');
-    const observaciones = observacionesTextarea ? observacionesTextarea.value : '';
-    
-    estadoActual.observaciones = observaciones;
-}
-
 
     function actualizarProgresoChecklist() {
         const estadoActual = getChecklistEstadoActual();
@@ -2449,62 +2688,54 @@ function guardarEstadoChecklist() {
         document.getElementById('progressText').textContent = porcentaje + '% completado';
     }
 
-async function restaurarChecklistCompleto(estado) {
-    if (!equipoSeleccionado) return;
-    
-    const sinRevision = modoActual === 'salidas' && estado.sinRevision;
-    
-    if (sinRevision) {
-        // Si es sin revisión, solo mostrar observaciones
-        $('#checklistObservaciones').val(estado.observaciones || '');
-        $('#checklist-section').hide();
-        return;
-    }
-    
-    // LIMPIAR COMPLETAMENTE ANTES DE RESTAURAR
-    const container = document.getElementById('checklistContainer');
-    if (container) {
-        container.innerHTML = '';
-    }
-    
-    selectedFiles = {}; // Limpiar archivos seleccionados
-    
-    const tipo = modoActual === 'salidas' ? 'pre' : 'post';
-    const checklistData = tipo === 'pre' ? 
-        checklistsPreOperativos["aspiradoras"] : 
-        checklistsPostOperativos["aspiradoras"];
-
-    // Generar UI limpia
-    generarChecklistUI(checklistData);
-    
-    // Restaurar respuestas
-    if (estado.respuestas) {
-        restaurarEstadoChecklist(estado.respuestas);
-    }
-    
-    // Restaurar observaciones
-    $('#checklistObservaciones').val(estado.observaciones || '');
-    
-    // Restaurar fotos (CORREGIDO: Evitar duplicación)
-    if (estado.fotos) {
-        const estadoActual = getChecklistEstadoActual();
-        estadoActual.fotos = JSON.parse(JSON.stringify(estado.fotos)); // Copia profunda
-        selectedFiles = JSON.parse(JSON.stringify(estado.fotos)); // Copia profunda
+    async function restaurarChecklistCompleto(estado) {
+        if (!equipoSeleccionado) return;
         
-        // Renderizar fotos UNA SOLA VEZ
-        for (const index in estado.fotos) {
-            const fotosArray = estado.fotos[index];
-            if (fotosArray && fotosArray.length > 0) {
-                // Asegurar que no haya duplicados
-                estadoActual.fotos[index] = [...new Set(fotosArray)];
-                await renderizarPreviews(parseInt(index));
+        const sinRevision = modoActual === 'salidas' && estado.sinRevision;
+        
+        if (sinRevision) {
+            $('#checklistObservaciones').val(estado.observaciones || '');
+            $('#checklist-section').hide();
+            return;
+        }
+        
+        const container = document.getElementById('checklistContainer');
+        if (container) {
+            container.innerHTML = '';
+        }
+        
+        selectedFiles = {};
+        
+        const tipo = modoActual === 'salidas' ? 'pre' : 'post';
+        const checklistData = tipo === 'pre' ? 
+            checklistsPreOperativos["aspiradoras"] : 
+            checklistsPostOperativos["aspiradoras"];
+
+        generarChecklistUI(checklistData);
+        
+        if (estado.respuestas) {
+            restaurarEstadoChecklist(estado.respuestas);
+        }
+        
+        $('#checklistObservaciones').val(estado.observaciones || '');
+        
+        if (estado.fotos) {
+            const estadoActual = getChecklistEstadoActual();
+            estadoActual.fotos = JSON.parse(JSON.stringify(estado.fotos));
+            selectedFiles = JSON.parse(JSON.stringify(estado.fotos));
+            
+            for (const index in estado.fotos) {
+                const fotosArray = estado.fotos[index];
+                if (fotosArray && fotosArray.length > 0) {
+                    estadoActual.fotos[index] = [...new Set(fotosArray)];
+                    await renderizarPreviews(parseInt(index));
+                }
             }
         }
+        
+        actualizarProgresoChecklist();
+        $('#checklist-section').show();
     }
-    
-    actualizarProgresoChecklist();
-    $('#checklist-section').show();
-}
 
     // =========================================================================
     // FUNCIONES PARA FOTOS (DRAG & DROP + VISTA PREVIA)
@@ -2755,82 +2986,75 @@ async function restaurarChecklistCompleto(estado) {
         });
     }
 
-async function renderizarPreviews(index) {
-    const previewContainer = document.getElementById(`foto-preview-${index}`);
-    if (!previewContainer) return;
-    
-    const estadoActual = getChecklistEstadoActual();
-    const idArray = estadoActual.fotos[index] || [];
-    
-    // Eliminar duplicados si los hay
-    if (idArray.length > 0) {
-        estadoActual.fotos[index] = [...new Set(idArray)];
-    }
-    
-    // Limpiar contenedor COMPLETAMENTE
-    while (previewContainer.firstChild) {
-        previewContainer.removeChild(previewContainer.firstChild);
-    }
-    
-    if (idArray.length === 0) {
-        previewContainer.className = 'foto-preview empty';
-        return;
-    }
-    
-    previewContainer.className = 'foto-preview';
-    
-    // Crear fragmento para mejor performance
-    const fragment = document.createDocumentFragment();
-    
-    for (let i = 0; i < idArray.length; i++) {
-        const id = idArray[i];
-        try {
-            const base64String = await getImageFromDB(id);
-            if (base64String) {
-                // Verificar que no exista ya
-                const existingDivs = previewContainer.querySelectorAll(`[data-id="${id}"]`);
-                if (existingDivs.length > 0) {
-                    continue; // Saltar si ya existe
-                }
-                
-                const div = document.createElement("div");
-                div.className = "image-preview-item";
-                div.setAttribute('data-id', id);
-                div.setAttribute('data-index', i);
-                div.setAttribute('data-preview-index', index);
-                div.style.cursor = 'pointer';
-                
-                div.onclick = function() {
-                    openPhotoPreview(index, i);
-                };
-                
-                const img = document.createElement("img");
-                img.src = base64String;
-                img.alt = `Vista previa ${i + 1}`;
-                div.appendChild(img);
-                
-                fragment.appendChild(div);
-            } else {
-                // Eliminar ID no encontrado
-                estadoActual.fotos[index] = estadoActual.fotos[index].filter(dbId => dbId !== id);
-                saveSession();
-            }
-        } catch (error) {
-            console.error(`Error cargando imagen ID ${id}:`, error);
+    async function renderizarPreviews(index) {
+        const previewContainer = document.getElementById(`foto-preview-${index}`);
+        if (!previewContainer) return;
+        
+        const estadoActual = getChecklistEstadoActual();
+        const idArray = estadoActual.fotos[index] || [];
+        
+        if (idArray.length > 0) {
+            estadoActual.fotos[index] = [...new Set(idArray)];
         }
+        
+        while (previewContainer.firstChild) {
+            previewContainer.removeChild(previewContainer.firstChild);
+        }
+        
+        if (idArray.length === 0) {
+            previewContainer.className = 'foto-preview empty';
+            return;
+        }
+        
+        previewContainer.className = 'foto-preview';
+        
+        const fragment = document.createDocumentFragment();
+        
+        for (let i = 0; i < idArray.length; i++) {
+            const id = idArray[i];
+            try {
+                const base64String = await getImageFromDB(id);
+                if (base64String) {
+                    const existingDivs = previewContainer.querySelectorAll(`[data-id="${id}"]`);
+                    if (existingDivs.length > 0) {
+                        continue;
+                    }
+                    
+                    const div = document.createElement("div");
+                    div.className = "image-preview-item";
+                    div.setAttribute('data-id', id);
+                    div.setAttribute('data-index', i);
+                    div.setAttribute('data-preview-index', index);
+                    div.style.cursor = 'pointer';
+                    
+                    div.onclick = function() {
+                        openPhotoPreview(index, i);
+                    };
+                    
+                    const img = document.createElement("img");
+                    img.src = base64String;
+                    img.alt = `Vista previa ${i + 1}`;
+                    div.appendChild(img);
+                    
+                    fragment.appendChild(div);
+                } else {
+                    estadoActual.fotos[index] = estadoActual.fotos[index].filter(dbId => dbId !== id);
+                    saveSession();
+                }
+            } catch (error) {
+                console.error(`Error cargando imagen ID ${id}:`, error);
+            }
+        }
+        
+        previewContainer.appendChild(fragment);
+        
+        const countSpan = document.getElementById(`foto-count-${index}`);
+        if (countSpan) {
+            countSpan.textContent = estadoActual.fotos[index] ? estadoActual.fotos[index].length : 0;
+        }
+        
+        actualizarProgresoChecklist();
     }
-    
-    previewContainer.appendChild(fragment);
-    
-    // Actualizar contador
-    const countSpan = document.getElementById(`foto-count-${index}`);
-    if (countSpan) {
-        countSpan.textContent = estadoActual.fotos[index] ? estadoActual.fotos[index].length : 0;
-    }
-    
-    actualizarProgresoChecklist();
-}
-
 
     // =========================================================================
     // VISTA PREVIA DE FOTOS (MODAL)
@@ -3131,7 +3355,7 @@ async function renderizarPreviews(index) {
     }
 
     // =========================================================================
-    // FUNCIONES PARA FIRMA
+    // FUNCIONES PARA FIRMA DEL RESPONSABLE
     // =========================================================================
 
     function initializeCanvas() {
@@ -3307,6 +3531,195 @@ async function renderizarPreviews(index) {
         canvas.style.msTouchAction = "none";
     }
 
+    // =========================================================================
+    // FUNCIONES PARA FIRMA DEL EVALUADOR (NUEVAS)
+    // =========================================================================
+
+    function initializeCanvasEvaluador() {
+        if (!canvasEval) return;
+        canvasEval.width = 400;
+        canvasEval.height = 200;
+        ctxEval.strokeStyle = "#000000";
+        ctxEval.lineWidth = 4;
+        ctxEval.lineCap = "round";
+        ctxEval.lineJoin = "round";
+        
+        ctxEval.clearRect(0, 0, canvasEval.width, canvasEval.height);
+        ctxEval.fillStyle = "#FFFFFF";
+        ctxEval.fillRect(0, 0, canvasEval.width, canvasEval.height);
+    }
+
+    function getCoordinatesEval(e) {
+        const rect = canvasEval.getBoundingClientRect();
+        const scaleX = canvasEval.width / rect.width;
+        const scaleY = canvasEval.height / rect.height;
+        
+        if (e.touches && e.touches.length > 0) {
+            return {
+                x: (e.touches[0].clientX - rect.left) * scaleX,
+                y: (e.touches[0].clientY - rect.top) * scaleY
+            };
+        } else if (e.offsetX !== undefined) {
+            return {
+                x: e.offsetX * scaleX,
+                y: e.offsetY * scaleY
+            };
+        } else if (e.clientX !== undefined) {
+            return {
+                x: (e.clientX - rect.left) * scaleX,
+                y: (e.clientY - rect.top) * scaleY
+            };
+        }
+        
+        return { x: 0, y: 0 };
+    }
+
+    function startDrawingEval(e) {
+        e.preventDefault();
+        saveToUndoStackEval();
+        isDrawingEval = true;
+        const { x, y } = getCoordinatesEval(e);
+        lastXEval = x;
+        lastYEval = y;
+        
+        ctxEval.beginPath();
+        ctxEval.arc(x, y, ctxEval.lineWidth/2, 0, Math.PI * 2);
+        ctxEval.fillStyle = isErasingEval ? "#FFFFFF" : "#000000";
+        ctxEval.fill();
+        ctxEval.beginPath();
+        ctxEval.moveTo(x, y);
+    }
+
+    function drawEval(e) {
+        if (!isDrawingEval) return;
+        e.preventDefault();
+        
+        const { x, y } = getCoordinatesEval(e);
+        
+        ctxEval.beginPath();
+        ctxEval.moveTo(lastXEval, lastYEval);
+        ctxEval.lineTo(x, y);
+        ctxEval.strokeStyle = isErasingEval ? "#FFFFFF" : "#000000";
+        ctxEval.lineWidth = isErasingEval ? 20 : 4;
+        ctxEval.stroke();
+        
+        lastXEval = x;
+        lastYEval = y;
+    }
+
+    function stopDrawingEval() {
+        if (isDrawingEval) {
+            isDrawingEval = false;
+            setTimeout(saveSession, 500);
+            setTimeout(verificarFormulario, 50);
+        }
+    }
+
+    function saveToUndoStackEval() {
+        undoStackEval.push(canvasEval.toDataURL());
+        redoStackEval.length = 0;
+        updateButtonStatesEval();
+    }
+
+    function undoEval() {
+        if (undoStackEval.length > 0) {
+            redoStackEval.push(canvasEval.toDataURL());
+            const lastState = undoStackEval.pop();
+            const img = new Image();
+            img.src = lastState;
+            img.onload = () => {
+                ctxEval.clearRect(0, 0, canvasEval.width, canvasEval.height);
+                ctxEval.drawImage(img, 0, 0);
+                verificarFormulario();
+                saveSession();
+            };
+            updateButtonStatesEval();
+        }
+    }
+
+    function redoEval() {
+        if (redoStackEval.length > 0) {
+            undoStackEval.push(canvasEval.toDataURL());
+            const lastState = redoStackEval.pop();
+            const img = new Image();
+            img.src = lastState;
+            img.onload = () => {
+                ctxEval.clearRect(0, 0, canvasEval.width, canvasEval.height);
+                ctxEval.drawImage(img, 0, 0);
+                verificarFormulario();
+                saveSession();
+            };
+            updateButtonStatesEval();
+        }
+    }
+
+    function updateButtonStatesEval() {
+        const undoBtn = document.getElementById("undoEvaluador");
+        const redoBtn = document.getElementById("redoEvaluador");
+        if (undoBtn) undoBtn.style.display = undoStackEval.length > 0 ? "block" : "none";
+        if (redoBtn) redoBtn.style.display = redoStackEval.length > 0 ? "block" : "none";
+    }
+
+    function clearSignatureEval() {
+        saveToUndoStackEval();
+        ctxEval.clearRect(0, 0, canvasEval.width, canvasEval.height);
+        ctxEval.fillStyle = "#FFFFFF";
+        ctxEval.fillRect(0, 0, canvasEval.width, canvasEval.height);
+        
+        setTimeout(() => {
+            verificarFormulario();
+            saveSession();
+        }, 100);
+        
+        updateButtonStatesEval();
+    }
+
+    function setupSignatureEventsEvaluador() {
+        if (!canvasEval) return;
+        
+        canvasEval.addEventListener("mousedown", startDrawingEval);
+        canvasEval.addEventListener("mousemove", drawEval);
+        canvasEval.addEventListener("mouseup", stopDrawingEval);
+        canvasEval.addEventListener("mouseout", stopDrawingEval);
+        
+        canvasEval.addEventListener("touchstart", function(e) {
+            startDrawingEval(e);
+            e.preventDefault();
+        }, { passive: false });
+        
+        canvasEval.addEventListener("touchmove", function(e) {
+            drawEval(e);
+            e.preventDefault();
+        }, { passive: false });
+        
+        canvasEval.addEventListener("touchend", stopDrawingEval);
+        canvasEval.addEventListener("touchcancel", stopDrawingEval);
+        
+        const toggleBtn = document.getElementById("toggleEraserEvaluador");
+        if (toggleBtn) {
+            toggleBtn.addEventListener("click", function() {
+                isErasingEval = !isErasingEval;
+                this.classList.toggle("active");
+                this.innerHTML = isErasingEval ? 
+                    '<i class="fas fa-pen"></i>' : 
+                    '<i class="fas fa-eraser"></i>';
+            });
+        }
+        
+        const undoBtn = document.getElementById("undoEvaluador");
+        if (undoBtn) undoBtn.addEventListener("click", undoEval);
+        
+        const redoBtn = document.getElementById("redoEvaluador");
+        if (redoBtn) redoBtn.addEventListener("click", redoEval);
+        
+        const clearBtn = document.getElementById("clearSignatureEvaluador");
+        if (clearBtn) clearBtn.addEventListener("click", clearSignatureEval);
+        
+        canvasEval.addEventListener("contextmenu", function(e) { e.preventDefault(); });
+        canvasEval.style.touchAction = "none";
+        canvasEval.style.msTouchAction = "none";
+    }
+
     function isCanvasBlank(canvas) {
         try {
             const context = canvas.getContext('2d');
@@ -3334,7 +3747,9 @@ async function renderizarPreviews(index) {
 
     function verificarFormulario() {
         let colaborador = $("#colaborador").val();
-        const hayFirma = !isCanvasBlank(canvas);
+        const hayFirmaResp = !isCanvasBlank(canvas);
+        const hayFirmaEval = !isCanvasBlank(canvasEval);
+        const compromisoOk = $('#noConformidadesPrevias').is(':visible') ? $('#compromisoRevisado').is(':checked') : true;
         
         let colaboradorValido = true;
         if (modoActual === "salidas") {
@@ -3351,301 +3766,263 @@ async function renderizarPreviews(index) {
             }
         }
         
-        if (hayFirma) {
+        if (hayFirmaResp) {
             canvas.style.borderColor = "#28a745";
             canvas.style.borderWidth = "2px";
         } else {
             canvas.style.borderColor = "#ddd";
             canvas.style.borderWidth = "1px";
         }
+        
+        if (hayFirmaEval) {
+            canvasEval.style.borderColor = "#28a745";
+            canvasEval.style.borderWidth = "2px";
+        } else {
+            canvasEval.style.borderColor = "#ddd";
+            canvasEval.style.borderWidth = "1px";
+        }
+        
+        if (equipoSeleccionado && colaborador && colaboradorValido && hayFirmaResp && hayFirmaEval && compromisoOk) {
+            $('#btnConfirmar').prop('disabled', false);
+        } else {
+            $('#btnConfirmar').prop('disabled', true);
+        }
     }
 
-function configurarEventos() {
-    $('#buscador').on('input', filtrarEquipos);
+    function configurarEventos() {
+        $('#buscador').on('input', filtrarEquipos);
 
-    // Evento para el interruptor de sin revisión
-$('#toggleSinRevision').on('change', function(e) {
-    const $checkbox = $(this);
-    
-    // Si están intentando ACTIVAR el interruptor
-    if ($checkbox.is(':checked')) {
-        e.preventDefault(); // Prevenir el cambio inmediato
-        
-        // Pedir contraseña
-        Swal.fire({
-            title: 'Confirmar acción',
-            text: 'Esta opción permite entregar la aspiradora sin realizar el checklist. Ingrese la contraseña para continuar:',
-            input: 'password',
-            inputPlaceholder: 'Contraseña',
-            showCancelButton: true,
-            confirmButtonText: 'Verificar',
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#28a745',
-            cancelButtonColor: '#6c757d',
-            allowOutsideClick: false,
-            allowEscapeKey: false,
-            preConfirm: (password) => {
-                // Validación en el mismo campo
-                if (!password) {
-                    Swal.showValidationMessage('Debes ingresar la contraseña');
-                    return false;
-                }
-                if (password !== 'brillantes123') {
-                    Swal.showValidationMessage('Contraseña incorrecta');
-                    return false;
-                }
-                return password;
-            }
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // Contraseña correcta - ACTIVAR
-                $checkbox.prop('checked', true);
+        $('#toggleSinRevision').on('change', function(e) {
+            const $checkbox = $(this);
+            
+            if ($checkbox.is(':checked')) {
+                e.preventDefault();
                 
+                Swal.fire({
+                    title: 'Confirmar acción',
+                    text: 'Esta opción permite entregar la aspiradora sin realizar el checklist. Ingrese la contraseña para continuar:',
+                    input: 'password',
+                    inputPlaceholder: 'Contraseña',
+                    showCancelButton: true,
+                    confirmButtonText: 'Verificar',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: '#28a745',
+                    cancelButtonColor: '#6c757d',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    preConfirm: (password) => {
+                        if (!password) {
+                            Swal.showValidationMessage('Debes ingresar la contraseña');
+                            return false;
+                        }
+                        if (password !== 'brillantes123') {
+                            Swal.showValidationMessage('Contraseña incorrecta');
+                            return false;
+                        }
+                        return password;
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        $checkbox.prop('checked', true);
+                        
+                        const estadoActual = getEstadoActual();
+                        estadoActual.sinRevision = true;
+                        
+                        if (modoActual === 'salidas') {
+                            estadoSalidas = estadoActual;
+                        }
+                        
+                        if (equipoSeleccionado) {
+                            ocultarChecklist();
+                        }
+                        
+                        verificarFormulario();
+                        saveSession();
+                        
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Modo sin revisión activado',
+                            showConfirmButton: false,
+                            timer: 1000,
+                            toast: true,
+                            position: 'top-end'
+                        });
+                    } else if (result.dismiss === Swal.DismissReason.cancel) {
+                        $checkbox.prop('checked', false);
+                    }
+                });
+            } else {
                 const estadoActual = getEstadoActual();
-                estadoActual.sinRevision = true;
+                estadoActual.sinRevision = false;
                 
                 if (modoActual === 'salidas') {
                     estadoSalidas = estadoActual;
                 }
                 
-                actualizarVisibilidadSegunRevision();
-                
                 if (equipoSeleccionado) {
-                    ocultarChecklist();
+                    mostrarChecklist();
                 }
                 
                 verificarFormulario();
                 saveSession();
-                
-                // Mensaje de éxito (opcional, puedes quitarlo si quieres)
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Modo sin revisión activado',
-                    showConfirmButton: false,
-                    timer: 1000,
-                    toast: true,
-                    position: 'top-end'
-                });
-            } else if (result.dismiss === Swal.DismissReason.cancel) {
-                // Cancelaron - DESACTIVAR
-                $checkbox.prop('checked', false);
             }
         });
-    } else {
-        // Están DESACTIVANDO el interruptor (sin pedir contraseña)
-        const estadoActual = getEstadoActual();
-        estadoActual.sinRevision = false;
         
-        if (modoActual === 'salidas') {
-            estadoSalidas = estadoActual;
+        $("#colaborador, #area").on("change input", function() {
+            const estadoActual = getEstadoActual();
+            estadoActual.colaborador = $('#colaborador').val();
+            estadoActual.area = $('#area').val();
+            
+            if (modoActual === 'salidas') {
+                estadoSalidas = estadoActual;
+            } else {
+                estadoEntradas = estadoActual;
+            }
+            
+            verificarFormulario();
+            saveSession();
+        });
+        
+        $("#fecha").on("change", function() {
+            verificarFormulario();
+            saveSession();
+        });
+        
+        $("#checklistObservaciones").on("input", function() {
+            guardarEstadoChecklist();
+            saveSession();
+        });
+        
+        $('#btnSalidas').on('click', function() { 
+            cambiarModo('salidas'); 
+        });
+        $('#btnEntradas').on('click', function() { 
+            cambiarModo('entradas'); 
+        });
+    }
+
+    function inicializarCamposDesdeEstado() {
+        const estadoActual = getEstadoActual();
+        
+        if (!$('#fecha').val()) {
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            $('#fecha').val(`${yyyy}-${mm}-${dd}`);
         }
         
-        actualizarVisibilidadSegunRevision();
+        $('#colaborador').val(estadoActual.colaborador || '');
+        $('#area').val(estadoActual.area || '');
+        
+        if (modoActual === 'salidas') {
+            $('#sin-revision-container').show();
+            $('#toggleSinRevision').prop('checked', estadoActual.sinRevision || false);
+        } else {
+            $('#sin-revision-container').hide();
+            $('#toggleSinRevision').prop('checked', false);
+        }
+        
+        if (modoActual === 'entradas') {
+            $('#fecha').prop('disabled', true);
+            $('#colaborador').prop('disabled', true);
+            $('#area').prop('disabled', true).val("Bodega");
+            
+            if (equipoSeleccionado && equipoSeleccionado.asignadoA && !estadoActual.colaborador) {
+                $('#colaborador').val(equipoSeleccionado.asignadoA);
+                estadoActual.colaborador = equipoSeleccionado.asignadoA;
+                estadoEntradas = estadoActual;
+            }
+        } else {
+            $('#fecha').prop('disabled', false);
+            $('#colaborador').prop('disabled', false);
+            $('#area').prop('disabled', false);
+        }
+    }
+
+    function cambiarModo(modo) {
+        if (modo === modoActual) return;
+        
+        const estadoModoAnterior = getEstadoActual();
+        estadoModoAnterior.colaborador = $('#colaborador').val();
+        estadoModoAnterior.area = $('#area').val();
+        estadoModoAnterior.sinRevision = $('#toggleSinRevision').is(':checked');
+        
+        if (modoActual === 'salidas') {
+            estadoSalidas = estadoModoAnterior;
+        } else {
+            estadoEntradas = estadoModoAnterior;
+        }
+        
+        modoActual = modo;
+        const estadoNuevoModo = getEstadoActual();
+        
+        if (modo === 'salidas') {
+            $('#sin-revision-container').show();
+            $('#toggleSinRevision').prop('checked', estadoNuevoModo.sinRevision || false);
+        } else {
+            $('#sin-revision-container').hide();
+            $('#toggleSinRevision').prop('checked', false);
+        }
+        
+        if (!equipoSeleccionado) {
+            ocultarChecklist();
+        }
+        
+        $('.equipo').css('border-color', '#ddd').css('background-color', '#f9f9f9');
+        $('#buscador').val('');
+        
+        if (modo === 'salidas') {
+            $('#btnSalidas').removeClass('inactivo').addClass('activo');
+            $('#btnEntradas').removeClass('activo').addClass('inactivo');
+            $('#titulo-equipos').text('Seleccione la aspiradora a prestar:');
+            
+            $('#fecha').prop('disabled', false);
+            $('#colaborador').prop('disabled', false);
+            $('#area').prop('disabled', false);
+            $('#buscador').prop('disabled', false);
+            
+            $('#colaborador').val(estadoNuevoModo.colaborador || '');
+            $('#area').val(estadoNuevoModo.area || '');
+            
+        } else {
+            $('#btnSalidas').removeClass('activo').addClass('inactivo');
+            $('#btnEntradas').removeClass('inactivo').addClass('activo');
+            $('#titulo-equipos').text('Seleccione la aspiradora a devolver:');
+            
+            $('#fecha').prop('disabled', true);
+            $('#colaborador').prop('disabled', true);
+            $('#area').prop('disabled', true);
+            $('#buscador').prop('disabled', false);
+            
+            $('#colaborador').val(estadoNuevoModo.colaborador || '');
+            $('#area').val(estadoNuevoModo.area || 'Bodega');
+            
+            if (equipoSeleccionado && equipoSeleccionado.asignadoA && !estadoNuevoModo.colaborador) {
+                $('#colaborador').val(equipoSeleccionado.asignadoA);
+                estadoNuevoModo.colaborador = equipoSeleccionado.asignadoA;
+                estadoEntradas = estadoNuevoModo;
+            }
+        }
+
+        mostrarEquiposEnUI();
+        verificarFormulario();
         
         if (equipoSeleccionado) {
-            mostrarChecklist();
+            if (modo === 'salidas' && estadoNuevoModo.sinRevision) {
+                ocultarChecklist();
+            } else {
+                mostrarChecklist();
+            }
         }
         
-        verificarFormulario();
-        saveSession();
+        setTimeout(saveSession, 100);
     }
-});
-    
-    // Eventos para guardar colaborador y área
-    $("#colaborador, #area").on("change input", function() {
-        const estadoActual = getEstadoActual();
-        estadoActual.colaborador = $('#colaborador').val();
-        estadoActual.area = $('#area').val();
-        
-        // Actualizar la variable global correspondiente
-        if (modoActual === 'salidas') {
-            estadoSalidas = estadoActual;
-        } else {
-            estadoEntradas = estadoActual;
-        }
-        
-        verificarFormulario();
-        saveSession();
-    });
-    
-    // Evento para fecha
-    $("#fecha").on("change", function() {
-        verificarFormulario();
-        saveSession();
-    });
-    
-    $("#checklistObservaciones").on("input", function() {
-        guardarEstadoChecklist();
-        saveSession();
-    });
-    
-    // Eventos para botones de modo
-    $('#btnSalidas').on('click', function() { 
-        cambiarModo('salidas'); 
-    });
-    $('#btnEntradas').on('click', function() { 
-        cambiarModo('entradas'); 
-    });
-}
-
-
-// Función para inicializar campos al cargar la página
-function inicializarCamposDesdeEstado() {
-    const estadoActual = getEstadoActual();
-    
-    // Establecer fecha actual si no hay fecha
-    if (!$('#fecha').val()) {
-        const today = new Date();
-        const yyyy = today.getFullYear();
-        const mm = String(today.getMonth() + 1).padStart(2, '0');
-        const dd = String(today.getDate()).padStart(2, '0');
-        $('#fecha').val(`${yyyy}-${mm}-${dd}`);
-    }
-    
-    // Cargar colaborador y área del estado actual
-    $('#colaborador').val(estadoActual.colaborador || '');
-    $('#area').val(estadoActual.area || '');
-    
-    // Cargar estado del interruptor de sin revisión
-    if (modoActual === 'salidas') {
-        $('#sin-revision-container').show();
-        $('#toggleSinRevision').prop('checked', estadoActual.sinRevision || false);
-        actualizarVisibilidadSegunRevision();
-    } else {
-        $('#sin-revision-container').hide();
-        $('#toggleSinRevision').prop('checked', false);
-    }
-    
-    // Configurar campos según el modo
-    if (modoActual === 'entradas') {
-        $('#fecha').prop('disabled', true);
-        $('#colaborador').prop('disabled', true);
-        $('#area').prop('disabled', true).val("Bodega");
-        
-        // En modo entrada, si hay equipo seleccionado, usar su colaborador
-        if (equipoSeleccionado && equipoSeleccionado.asignadoA && !estadoActual.colaborador) {
-            $('#colaborador').val(equipoSeleccionado.asignadoA);
-            estadoActual.colaborador = equipoSeleccionado.asignadoA;
-            
-            // Actualizar el estado
-            estadoEntradas = estadoActual;
-        }
-    } else {
-        $('#fecha').prop('disabled', false);
-        $('#colaborador').prop('disabled', false);
-        $('#area').prop('disabled', false);
-    }
-}
-
-
-function cambiarModo(modo) {
-    // Si ya estamos en ese modo, no hacer nada
-    if (modo === modoActual) return;
-    
-    // 1. GUARDAR ESTADO ACTUAL del modo anterior ANTES de cambiar
-    const estadoModoAnterior = getEstadoActual();
-    estadoModoAnterior.colaborador = $('#colaborador').val();
-    estadoModoAnterior.area = $('#area').val();
-    estadoModoAnterior.sinRevision = $('#toggleSinRevision').is(':checked'); // Guardar estado
-    
-    // Actualizar el estado en la variable global correspondiente
-    if (modoActual === 'salidas') {
-        estadoSalidas = estadoModoAnterior;
-    } else {
-        estadoEntradas = estadoModoAnterior;
-    }
-    
-    // 2. CAMBIAR EL MODO
-    modoActual = modo;
-    
-    // 3. OBTENER ESTADO DEL NUEVO MODO
-    const estadoNuevoModo = getEstadoActual();
-    
-// 4. MOSTRAR/OCULTAR INTERRUPTOR DE SIN REVISIÓN
-if (modo === 'salidas') {
-    $('#sin-revision-container').show();
-    // SOLO establecer el estado visual, NO provocar el evento change
-    $('#toggleSinRevision').prop('checked', estadoNuevoModo.sinRevision || false);
-} else {
-    $('#sin-revision-container').hide();
-    // Siempre desactivar para entradas
-    $('#toggleSinRevision').prop('checked', false);
-}
-    
-    // Solo ocultar checklist si no hay equipo seleccionado
-    if (!equipoSeleccionado) {
-        ocultarChecklist();
-    }
-    
-    $('.equipo').css('border-color', '#ddd').css('background-color', '#f9f9f9');
-    $('#buscador').val('');
-    
-    if (modo === 'salidas') {
-        $('#btnSalidas').removeClass('inactivo').addClass('activo');
-        $('#btnEntradas').removeClass('activo').addClass('inactivo');
-        $('#titulo-equipos').text('Seleccione la aspiradora a prestar:');
-        
-        $('#fecha').prop('disabled', false);
-        $('#colaborador').prop('disabled', false);
-        $('#area').prop('disabled', false);
-        $('#buscador').prop('disabled', false);
-        
-        // Cargar valores del modo salidas
-        $('#colaborador').val(estadoNuevoModo.colaborador || '');
-        $('#area').val(estadoNuevoModo.area || '');
-        
-    } else {
-        $('#btnSalidas').removeClass('activo').addClass('inactivo');
-        $('#btnEntradas').removeClass('inactivo').addClass('activo');
-        $('#titulo-equipos').text('Seleccione la aspiradora a devolver:');
-        
-        $('#fecha').prop('disabled', true);
-        $('#colaborador').prop('disabled', true);
-        $('#area').prop('disabled', true);
-        $('#buscador').prop('disabled', false);
-        
-        // Cargar valores del modo entradas
-        $('#colaborador').val(estadoNuevoModo.colaborador || '');
-        $('#area').val(estadoNuevoModo.area || 'Bodega');
-        
-        // En modo entrada, si hay equipo seleccionado y no hay colaborador guardado, usar el del equipo
-        if (equipoSeleccionado && equipoSeleccionado.asignadoA && !estadoNuevoModo.colaborador) {
-            $('#colaborador').val(equipoSeleccionado.asignadoA);
-            estadoNuevoModo.colaborador = equipoSeleccionado.asignadoA;
-            
-            // Actualizar el estado en la variable global
-            estadoEntradas = estadoNuevoModo;
-        }
-    }
-
-    mostrarEquiposEnUI();
-    verificarFormulario();
-    
-    // Si hay equipo seleccionado, mostrar checklist del modo actual (o no mostrarlo si es sin revisión)
-    if (equipoSeleccionado) {
-        if (modo === 'salidas' && estadoNuevoModo.sinRevision) {
-            // Si está en modo salidas y tiene sin revisión activado, ocultar checklist
-            ocultarChecklist();
-        } else {
-            mostrarChecklist();
-        }
-    }
-    
-    // Actualizar visibilidad según el interruptor
-    actualizarVisibilidadSegunRevision();
-    
-    // Guardar la sesión con los estados actualizados
-    setTimeout(saveSession, 100);
-}
-
-
 
     async function cargarTodosLosDatos() {
         showLoadingOverlay('Por favor espera un momento...');
         
         const scriptURL = "https://script.google.com/macros/s/AKfycbx5QIgZ9caoT0JokzJ_8cpiAfJkmsEq637f5XUK70heyfxm7uSsREYATIvlUaGO9NqyMQ/exec";
-
-
 
         try {
             const data = await $.get(scriptURL);
@@ -3739,9 +4116,12 @@ if (modo === 'salidas') {
             
             let isSelected = equipoSeleccionado && equipoSeleccionado.nombre === equipo.nombre;
             let borderStyle = isSelected ? 'border-color: #007BFF; background-color: #e6f0ff;' : '';
+            
+            const tieneNC = (equipo.noConformidades && equipo.noConformidades.trim() !== "") ? '<span class="badge-no-conformidades"><i class="fas fa-exclamation-triangle"></i></span>' : '';
 
             let equipoHtml = `
                 <div class="equipo" id="equipo-${index}" data-index="${index}" onclick="seleccionarEquipo(${index})" style="${borderStyle}">
+                    ${tieneNC}
                     <img src="${equipo.imagen || ''}" alt="${equipo.nombre}" onerror="this.style.display='none'">
                     <label>${equipo.nombre}</label>
                     <span class="${estadoClass}">${estadoText}</span>
@@ -3787,195 +4167,190 @@ if (modo === 'salidas') {
         }
     }
 
-function seleccionarEquipo(index) {
-    const equipo = equipos[index];
-    if (!equipo.disponible && modoActual === "salidas") {
-        return;
-    }
+    async function seleccionarEquipo(index) {
+        const equipo = equipos[index];
+        if (!equipo.disponible && modoActual === "salidas") {
+            return;
+        }
 
-    const equipoAnterior = equipoSeleccionado;
-    equipoSeleccionado = equipo;
+        equipoSeleccionado = equipo;
 
-    $('.equipo').css('border-color', '#ddd').css('background-color', '#f9f9f9');
-    $(`#equipo-${index}`).css('border-color', '#007BFF').css('background-color', '#e6f0ff');
-    
-    const estadoActual = getEstadoActual();
-    
-    if (modoActual === "entradas") {
-        $('#buscador').prop('disabled', true);
-        $('#fecha').prop('disabled', true);
-        $('#colaborador').prop('disabled', true);
-        $('#area').prop('disabled', true);
+        $('.equipo').css('border-color', '#ddd').css('background-color', '#f9f9f9');
+        $(`#equipo-${index}`).css('border-color', '#007BFF').css('background-color', '#e6f0ff');
         
-        // En modo entrada, SIEMPRE usar colaborador del equipo
-        if (equipoSeleccionado.asignadoA) {
-            $('#colaborador').val(equipoSeleccionado.asignadoA);
-            estadoActual.colaborador = equipoSeleccionado.asignadoA;
+        await cargarNoConformidadesPrevias(equipo);
+        
+        const estadoActual = getEstadoActual();
+        
+        if (modoActual === "entradas") {
+            $('#buscador').prop('disabled', true);
+            $('#fecha').prop('disabled', true);
+            $('#colaborador').prop('disabled', true);
+            $('#area').prop('disabled', true);
             
-            // Actualizar el estado en la variable global correspondiente
-            if (modoActual === 'salidas') {
-                estadoSalidas = estadoActual;
-            } else {
-                estadoEntradas = estadoActual;
+            if (equipoSeleccionado.asignadoA) {
+                $('#colaborador').val(equipoSeleccionado.asignadoA);
+                estadoActual.colaborador = equipoSeleccionado.asignadoA;
+                
+                if (modoActual === 'salidas') {
+                    estadoSalidas = estadoActual;
+                } else {
+                    estadoEntradas = estadoActual;
+                }
             }
+            
+            $('#area').val("Bodega");
+            estadoActual.area = "Bodega";
+        } else {
+            $('#colaborador').prop('disabled', false);
+            $('#area').prop('disabled', false);
+            $('#colaborador').val(estadoActual.colaborador || '');
+            $('#area').val(estadoActual.area || '');
+        }
+
+        const sinRevision = modoActual === 'salidas' && $('#toggleSinRevision').is(':checked');
+        if ($('#noConformidadesPrevias').is(':visible')) {
+            if ($('#compromisoRevisado').is(':checked')) {
+                if (sinRevision) ocultarChecklist();
+                else mostrarChecklist();
+            }
+        } else {
+            if (sinRevision) ocultarChecklist();
+            else mostrarChecklist();
         }
         
-        // Área siempre "Bodega" en entradas
-        $('#area').val("Bodega");
-        estadoActual.area = "Bodega";
-    } else {
-        $('#colaborador').prop('disabled', false);
-        $('#area').prop('disabled', false);
-        // En salidas, mantener los valores del estado actual
-        $('#colaborador').val(estadoActual.colaborador || '');
-        $('#area').val(estadoActual.area || '');
+        saveSession();
     }
-
-    // Solo regenerar checklist si cambió el equipo Y NO está en modo sin revisión
-    if (!equipoAnterior || equipoAnterior.nombre !== equipo.nombre) {
-        if (modoActual === 'salidas' && estadoActual.sinRevision) {
-            // Si está en modo sin revisión, ocultar checklist
-            ocultarChecklist();
-        } else {
-            mostrarChecklist();
-        }
-    }
-    
-    // Actualizar visibilidad según el interruptor
-    actualizarVisibilidadSegunRevision();
-    
-    saveSession();
-}
-
 
     // =========================================================================
     // VALIDACIÓN Y PROCESAMIENTO DE FORMULARIO
     // =========================================================================
 
-function validarFormularioCompleto() {
-    let fecha = $("#fecha").val();
-    let colaborador = $("#colaborador").val();
-    let area = $("#area").val();
-    
-    let colaboradorValido = true;
-    if (modoActual === "salidas") {
-        colaboradorValido = allColaboradores.includes(colaborador);
-    } else {
-        colaboradorValido = colaborador !== '';
-    }
-
-    if (!fecha || !colaborador || !area || !colaboradorValido) {
-        Swal.fire('Datos Incompletos', 'Por favor completa los campos de Fecha, Colaborador (válido) y Destino.', 'warning');
-        return;
-    }
-
-    if (!equipoSeleccionado) {
-        Swal.fire('Aspiradora no seleccionada', 'Por favor selecciona una aspiradora.', 'warning');
-        return;
-    }
-    
-    const estadoActual = getChecklistEstadoActual();
-    const sinRevision = modoActual === 'salidas' && $('#toggleSinRevision').is(':checked');
-    
-    // VALIDACIÓN DIFERENTE PARA MODO SIN REVISIÓN
-    if (sinRevision) {
-        // En modo sin revisión, no se requiere checklist, solo firma
-        console.log("Modo sin revisión activado - Checklist no requerido");
-    } else {
-        // Validación normal del checklist
-        const items = document.querySelectorAll('.checklist-item');
-        const totalItems = items.length;
-        let itemsCompletados = 0;
+    function validarFormularioCompleto() {
+        let fecha = $("#fecha").val();
+        let colaborador = $("#colaborador").val();
+        let area = $("#area").val();
         
-        if (!estadoActual.fotos) estadoActual.fotos = {};
+        let colaboradorValido = true;
+        if (modoActual === "salidas") {
+            colaboradorValido = allColaboradores.includes(colaborador);
+        } else {
+            colaboradorValido = colaborador !== '';
+        }
 
-        items.forEach((item, index) => {
-            const botonSeleccionado = item.querySelector('.selected') !== null;
-            const hayFotos = estadoActual.fotos[index] && estadoActual.fotos[index].length > 0;
-            
-            if (botonSeleccionado && hayFotos) {
-                itemsCompletados++;
-            }
-        });
-
-        if (itemsCompletados !== totalItems) {
-            Swal.fire('Checklist Incompleto', 'Debes completar todos los puntos del checklist, incluyendo al menos una foto por cada item.', 'warning');
+        if (!fecha || !colaborador || !area || !colaboradorValido) {
+            Swal.fire('Datos Incompletos', 'Por favor completa los campos de Fecha, Colaborador (válido) y Destino.', 'warning');
             return;
         }
-    }
-    
-    const canvasFirma = document.getElementById('firmaCanvas');
-    if (isCanvasBlank(canvasFirma)) {
-        Swal.fire('Firma Faltante', 'La firma del responsable es obligatoria.', 'warning');
-        return;
-    }
-    
-    ultimaTransaccion = {
-        fecha: fecha,
-        colaborador: colaborador,
-        area: area,
-        equipo: equipoSeleccionado.nombre,
-        tipo: modoActual,
-        sinRevision: sinRevision, // NUEVO: Agregar esta propiedad
-        checklistRespuestas: [],
-        observaciones: document.getElementById('checklistObservaciones').value,
-        fotosChecklist: estadoActual.fotos
-    };
-    
-    // SI ES SIN REVISIÓN, LLENAR CON "-"
-    if (sinRevision) {
-        const checklistData = checklistsPreOperativos["aspiradoras"];
-        const respuestasSinRevision = checklistData.map(() => "-");
-        ultimaTransaccion.checklistRespuestas = respuestasSinRevision;
-    } else {
-        // Checklist normal
-        const checklistRespuestas = [];
-        document.querySelectorAll('.checklist-item').forEach(item => {
-            const selectedButton = item.querySelector('.selected');
-            checklistRespuestas.push(selectedButton ? 
-                (selectedButton.classList.contains('check-button') ? '✔' : 'X') : '');
+
+        if (!equipoSeleccionado) {
+            Swal.fire('Aspiradora no seleccionada', 'Por favor selecciona una aspiradora.', 'warning');
+            return;
+        }
+        
+        const estadoActual = getChecklistEstadoActual();
+        const sinRevision = modoActual === 'salidas' && $('#toggleSinRevision').is(':checked');
+        
+        if (sinRevision) {
+            console.log("Modo sin revisión activado - Checklist no requerido");
+        } else {
+            const items = document.querySelectorAll('.checklist-item');
+            const totalItems = items.length;
+            let itemsCompletados = 0;
+            
+            if (!estadoActual.fotos) estadoActual.fotos = {};
+
+            items.forEach((item, index) => {
+                const botonSeleccionado = item.querySelector('.selected') !== null;
+                const hayFotos = estadoActual.fotos[index] && estadoActual.fotos[index].length > 0;
+                
+                if (botonSeleccionado && hayFotos) {
+                    itemsCompletados++;
+                }
+            });
+
+            if (itemsCompletados !== totalItems) {
+                Swal.fire('Checklist Incompleto', 'Debes completar todos los puntos del checklist, incluyendo al menos una foto por cada item.', 'warning');
+                return;
+            }
+        }
+        
+        if (isCanvasBlank(canvas)) {
+            Swal.fire('Firma Faltante', 'La firma del responsable es obligatoria.', 'warning');
+            return;
+        }
+        
+        if (isCanvasBlank(canvasEval)) {
+            Swal.fire('Firma Faltante', 'La firma del evaluador es obligatoria.', 'warning');
+            return;
+        }
+        
+        const checklistRespuestas = sinRevision ? [] : (() => {
+            const resp = [];
+            document.querySelectorAll('.checklist-item').forEach(item => {
+                const selectedButton = item.querySelector('.selected');
+                resp.push(selectedButton ? (selectedButton.classList.contains('check-button') ? '✔' : 'X') : '');
+            });
+            return resp;
+        })();
+        
+        const checklistActual = sinRevision ? checklistsPreOperativos["aspiradoras"] : 
+            (modoActual === 'salidas' ? checklistsPreOperativos["aspiradoras"] : checklistsPostOperativos["aspiradoras"]);
+        
+        const noConformidadesActuales = [];
+        checklistRespuestas.forEach((resp, idx) => {
+            if (resp === 'X') {
+                noConformidadesActuales.push(checklistActual[idx]);
+            }
         });
         
-        ultimaTransaccion.checklistRespuestas = checklistRespuestas;
+        ultimaTransaccion = {
+            fecha: fecha,
+            colaborador: colaborador,
+            area: area,
+            equipo: equipoSeleccionado.nombre,
+            tipo: modoActual,
+            sinRevision: sinRevision,
+            checklistRespuestas: checklistRespuestas,
+            observaciones: document.getElementById('checklistObservaciones').value,
+            fotosChecklist: estadoActual.fotos,
+            noConformidadesActuales: noConformidadesActuales.join(';'),
+            observacionesActuales: document.getElementById('checklistObservaciones').value
+        };
+        
+        mostrarConfirmacionFinal();
     }
-    
-    mostrarConfirmacionFinal();
-}
 
-
-function mostrarConfirmacionFinal() {
-    const tipoMovimiento = ultimaTransaccion.tipo === 'salidas' ? 'préstamo' : 'devolución';
-    const textoAccion = ultimaTransaccion.tipo === 'salidas' ? 'solicitar' : 'devolver';
-    
-    // Determinar si es sin revisión
-    const esSinRevision = ultimaTransaccion.sinRevision;
-    
-    Swal.fire({
-        title: `Confirmar ${tipoMovimiento}`,
-        html: `
-            <div style="text-align: left;">
-                <p><strong>Fecha:</strong> ${ultimaTransaccion.fecha}</p>
-                <p><strong>Colaborador:</strong> ${ultimaTransaccion.colaborador}</p>
-                <p><strong>Área:</strong> ${ultimaTransaccion.area}</p>
-                <p><strong>Aspiradora:</strong> ${ultimaTransaccion.equipo}</p>
-                ${esSinRevision ? '<p><strong style="color: #ff9800;"><i class="fas fa-bolt"></i> Modo sin revisión</strong></p>' : ''}
-                ${ultimaTransaccion.observaciones ? `<p><strong>Observaciones:</strong> ${ultimaTransaccion.observaciones}</p>` : ''}
-            </div>
-        `,
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonText: `Sí, ${textoAccion}`,
-        cancelButtonText: 'No, revisar',
-        confirmButtonColor: '#28a745',
-        cancelButtonColor: '#6c757d',
-        width: '500px'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            procesarYGenerarPDF();
-        }
-    });
-}
-
+    function mostrarConfirmacionFinal() {
+        const tipoMovimiento = ultimaTransaccion.tipo === 'salidas' ? 'préstamo' : 'devolución';
+        const textoAccion = ultimaTransaccion.tipo === 'salidas' ? 'solicitar' : 'devolver';
+        const esSinRevision = ultimaTransaccion.sinRevision;
+        
+        Swal.fire({
+            title: `Confirmar ${tipoMovimiento}`,
+            html: `
+                <div style="text-align: left;">
+                    <p><strong>Fecha:</strong> ${ultimaTransaccion.fecha}</p>
+                    <p><strong>Colaborador:</strong> ${ultimaTransaccion.colaborador}</p>
+                    <p><strong>Área:</strong> ${ultimaTransaccion.area}</p>
+                    <p><strong>Aspiradora:</strong> ${ultimaTransaccion.equipo}</p>
+                    ${esSinRevision ? '<p><strong style="color: #ff9800;"><i class="fas fa-bolt"></i> Modo sin revisión</strong></p>' : ''}
+                    ${ultimaTransaccion.observaciones ? `<p><strong>Observaciones:</strong> ${ultimaTransaccion.observaciones}</p>` : ''}
+                </div>
+            `,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: `Sí, ${textoAccion}`,
+            cancelButtonText: 'No, revisar',
+            confirmButtonColor: '#28a745',
+            cancelButtonColor: '#6c757d',
+            width: '500px'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                procesarYGenerarPDF();
+            }
+        });
+    }
 
     async function procesarYGenerarPDF() {
         showLoadingOverlay('Procesando datos y generando documento...');
@@ -3996,10 +4371,8 @@ function mostrarConfirmacionFinal() {
                 icon: 'success',
                 allowOutsideClick: false,
                 showCloseButton: true,
-                
                 confirmButtonText: '<i class="fas fa-list-ul me-2"></i> Ver Pendientes',
                 confirmButtonColor: '#2c3e50',
-                
                 showCancelButton: true,
                 cancelButtonText: '<i class="fas fa-plus me-2"></i> Nuevo Reporte',
                 cancelButtonColor: '#3498db'
@@ -4037,289 +4410,271 @@ function mostrarConfirmacionFinal() {
     }
 
     // =========================================================================
-    // GENERACIÓN DE PDF - ACTUALIZADO
+    // GENERACIÓN DE PDF - ACTUALIZADO CON SEGUNDA FIRMA
     // =========================================================================
 
-async function generarPDF() {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({
-        orientation: 'portrait',
-        format: 'letter',
-        unit: 'mm'
-    });
-    
-    doc.setFont("times", "normal");
-    const tipoMovimiento = ultimaTransaccion.tipo === 'salidas' ? 'Acta de Compromiso' : 'Acta de Recepción';
-    const tituloChecklist = ultimaTransaccion.tipo === 'salidas' ? 'Checklist Preoperativo' : 'Checklist Postoperativo';
-    const now = new Date();
-    const [yyyy, mm, dd] = ultimaTransaccion.fecha.split('-');
-    const meses = [
-        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
-    ];
-    const mesTexto = meses[parseInt(mm) - 1];
-    let y = 15;
-    const margin = 15;
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const textWidth = pageWidth - (2 * margin);
-    
-    // Encabezado
-    doc.setFontSize(16);
-    doc.setTextColor(34, 49, 63);
-    doc.setFont("times", "bold");
-    doc.text(tipoMovimiento, pageWidth / 2, y, { align: 'center' });
-    y += 8;
-    doc.setDrawColor(200, 200, 200);
-    doc.line(margin, y, pageWidth - margin, y);
-    y += 10;
-    doc.setFontSize(12);
-    doc.setTextColor(50, 50, 50);
-    doc.setFont("times", "normal");
-
-    // Contenido del acta
-    if (ultimaTransaccion.tipo === 'salidas') {
-        const textoCompleto = `Yo ${ultimaTransaccion.colaborador} mediante la presente Acta de Compromiso hago constar que en esta fecha estoy recibiendo la aspiradora ${ultimaTransaccion.equipo}, la cual será utilizada para el desempeño de mis funciones.`;
-        const lineas = doc.splitTextToSize(textoCompleto, textWidth);
-        doc.text(lineas, margin, y);
-        y += (lineas.length * 6) + 4;
-        
-        doc.setFont("times", "bold");
-        const textoCompromiso = "Habiendo recibido me comprometo a lo siguiente:";
-        doc.text(textoCompromiso, margin, y);
-        y += 7;
-        
-        doc.setFont("times", "normal");
-        const compromisos = [
-            "- Cuidar y hacer buen uso de la misma, durante el tiempo que este bajo mi cargo en beneficio de las actividades del negocio.",
-            "- En caso de accidente, daño por mal uso y cualquier que bajo mi uso dañe la aspiradora se procederá a realizar la deducción del valor completo proporcionando una nueva.",
-            "- Me comprometo a cuidar todos y cada uno de los componentes de la aspiradora."
-        ];
-        
-        compromisos.forEach(compromiso => {
-            const splitText = doc.splitTextToSize(compromiso, textWidth - 5);
-            doc.text(splitText, margin + 5, y);
-            y += (splitText.length * 5) + 3;
+    async function generarPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({
+            orientation: 'portrait',
+            format: 'letter',
+            unit: 'mm'
         });
         
-        y += 5;
-        const textoFinal = `Firmo la presente en la ciudad de Tegucigalpa a los ${dd} días del mes de ${mesTexto} del ${yyyy}.`;
-        const lineasFinal = doc.splitTextToSize(textoFinal, textWidth);
-        doc.text(lineasFinal, margin, y);
-        y += (lineasFinal.length * 6) + 10;
-    } else if (ultimaTransaccion.tipo === 'entradas') {
-        const textoCompleto = `Yo ${ultimaTransaccion.colaborador} mediante la presente Acta de Recepción hago constar que en esta fecha estoy entregando la aspiradora ${ultimaTransaccion.equipo}, la cual fue utilizada para el desempeño de mis funciones y ahora estoy retornando.`;
-        const lineas = doc.splitTextToSize(textoCompleto, textWidth);
-        doc.text(lineas, margin, y);
-        y += (lineas.length * 6) + 4;
-        
-        doc.setFont("times", "bold");
-        const textoDeclaracion = "Al entregarla declaro lo siguiente:";
-        doc.text(textoDeclaracion, margin, y);
-        y += 7;
-        
         doc.setFont("times", "normal");
-        const declaraciones = [
-            "- La aspiradora se encuentra en las mismas condiciones en las que me fue entregada.",
-            "- Fui responsable y cuidadoso en el uso de la aspiradora y todos sus componentes.",
-            "- Cualquier daño, accidente o mal uso fue reportado en tiempo y forma."
+        const tipoMovimiento = ultimaTransaccion.tipo === 'salidas' ? 'Acta de Compromiso' : 'Acta de Recepción';
+        const tituloChecklist = ultimaTransaccion.tipo === 'salidas' ? 'Checklist Preoperativo' : 'Checklist Postoperativo';
+        const now = new Date();
+        const [yyyy, mm, dd] = ultimaTransaccion.fecha.split('-');
+        const meses = [
+            "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+            "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
         ];
+        const mesTexto = meses[parseInt(mm) - 1];
+        let y = 15;
+        const margin = 15;
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const textWidth = pageWidth - (2 * margin);
         
-        declaraciones.forEach(declaracion => {
-            const splitText = doc.splitTextToSize(declaracion, textWidth - 5);
-            doc.text(splitText, margin + 5, y);
-            y += (splitText.length * 5) + 3;
-        });
-        
-        y += 5;
-        const textoFinal = `Firmo la presente en la ciudad de Tegucigalpa a los ${dd} días del mes de ${mesTexto} del ${yyyy}.`;
-        const lineasFinal = doc.splitTextToSize(textoFinal, textWidth);
-        doc.text(lineasFinal, margin, y);
-        y += (lineasFinal.length * 6) + 10;
-    }
-
-    // Firma
-    const canvasFirma = document.getElementById('firmaCanvas');
-    const firmaDataUrl = canvasFirma.toDataURL('image/png');
-    const firmaWidth = 60;
-    const firmaHeight = 25;
-    const firmaX = (pageWidth - firmaWidth) / 2;
-    
-    doc.addImage(firmaDataUrl, 'PNG', firmaX, y, firmaWidth, firmaHeight);
-    y += firmaHeight + 2;
-    doc.line(firmaX, y, firmaX + firmaWidth, y);
-    y += 4;
-    doc.setFontSize(12);
-    doc.setTextColor(80, 80, 80);
-    doc.setFont("times", "bold");
-    doc.text(ultimaTransaccion.colaborador, pageWidth / 2, y, { align: 'center' });
-    y += 10;
-    doc.line(margin, y, pageWidth - margin, y);
-    y += 8;
-
-    // Para checklists largos
-    if (ultimaTransaccion.checklistRespuestas.length > 8) {
-        doc.addPage();
-        y = 15;
-    }
-
-    // Checklist
-    doc.setFontSize(14);
-    doc.setTextColor(34, 49, 63);
-    doc.setFont("times", "bold");
-    doc.text(tituloChecklist, pageWidth / 2, y, { align: 'center' });
-    y += 8;
-    
-    const checklistData = ultimaTransaccion.tipo === 'salidas' ? 
-        checklistsPreOperativos["aspiradoras"] : 
-        checklistsPostOperativos["aspiradoras"];
-    
-    const tableColumn = ["Punto de Verificación", "Cumple", "No Cumple"];
-    const tableRows = ultimaTransaccion.checklistRespuestas.map((respuesta, index) => {
-        const cumple = respuesta === "✔" ? { content: "X", styles: { fillColor: [46, 204, 113], textColor: [255, 255, 255], fontStyle: 'bold' } } : "";
-        const noCumple = respuesta === "X" ? { content: "X", styles: { fillColor: [231, 76, 60], textColor: [255, 255, 255], fontStyle: 'bold' } } : "";
-        return [checklistData[index] || `Item ${index + 1}`, cumple, noCumple];
-    });
-    
-    let fontSize = 9;
-    let cellPadding = 2;
-    let rowHeight = 5;
-    
-    if (ultimaTransaccion.checklistRespuestas.length > 10) {
-        fontSize = 8;
-        cellPadding = 1.5;
-        rowHeight = 4;
-    }
-    
-    const anchoDisponible = pageWidth - (2 * margin);
-    const col1Width = anchoDisponible * 0.75;
-    const col2Width = (anchoDisponible - col1Width) / 2;
-    const col3Width = col2Width;
-    
-    doc.autoTable({
-        startY: y,
-        head: [tableColumn],
-        body: tableRows,
-        theme: 'grid',
-        tableWidth: anchoDisponible,
-        margin: { 
-            left: margin, 
-            right: margin,
-            top: y
-        },
-        headStyles: {
-            fillColor: [0, 123, 255],
-            textColor: [255, 255, 255],
-            fontStyle: 'bold',
-            fontSize: fontSize,
-            font: "times",
-            cellPadding: cellPadding,
-            minCellHeight: rowHeight,
-            halign: 'center'
-        },
-        styles: {
-            fontSize: fontSize,
-            cellPadding: cellPadding,
-            textColor: [50, 50, 50],
-            lineColor: [200, 200, 200],
-            lineWidth: 0.1,
-            font: "times",
-            minCellHeight: rowHeight
-        },
-        columnStyles: {
-            0: {
-                cellWidth: col1Width,
-                fontStyle: 'bold',
-                halign: 'left',
-                cellPadding: {left: 3, right: 3, top: cellPadding, bottom: cellPadding}
-            },
-            1: {
-                cellWidth: col2Width,
-                halign: 'center',
-                cellPadding: {left: 1, right: 1, top: cellPadding, bottom: cellPadding}
-            },
-            2: {
-                cellWidth: col3Width,
-                halign: 'center',
-                cellPadding: {left: 1, right: 1, top: cellPadding, bottom: cellPadding}
-            }
-        },
-        pageBreak: 'auto',
-        showHead: 'everyPage',
-        tableLineWidth: 0.1,
-        tableLineColor: [200, 200, 200]
-    });
-
-    // Observaciones
-    let currentY = doc.autoTable.previous.finalY + 10;
-    
-    if (ultimaTransaccion.observaciones && ultimaTransaccion.observaciones.trim() !== '') {
-        if (currentY + 30 > pageHeight) {
-            doc.addPage();
-            currentY = 15;
-        }
-        
-        doc.setFontSize(12);
+        // Encabezado
+        doc.setFontSize(16);
         doc.setTextColor(34, 49, 63);
         doc.setFont("times", "bold");
-        doc.text("Observaciones:", margin, currentY);
-        currentY += 5;
-        
-        doc.setFontSize(10);
+        doc.text(tipoMovimiento, pageWidth / 2, y, { align: 'center' });
+        y += 8;
+        doc.setDrawColor(200, 200, 200);
+        doc.line(margin, y, pageWidth - margin, y);
+        y += 10;
+        doc.setFontSize(12);
         doc.setTextColor(50, 50, 50);
         doc.setFont("times", "normal");
+
+        // Contenido del acta
+        if (ultimaTransaccion.tipo === 'salidas') {
+            const textoCompleto = `Yo ${ultimaTransaccion.colaborador} mediante la presente Acta de Compromiso hago constar que en esta fecha estoy recibiendo la aspiradora ${ultimaTransaccion.equipo}, la cual será utilizada para el desempeño de mis funciones.`;
+            const lineas = doc.splitTextToSize(textoCompleto, textWidth);
+            doc.text(lineas, margin, y);
+            y += (lineas.length * 6) + 4;
+            
+            doc.setFont("times", "bold");
+            const textoCompromiso = "Habiendo recibido me comprometo a lo siguiente:";
+            doc.text(textoCompromiso, margin, y);
+            y += 7;
+            
+            doc.setFont("times", "normal");
+            const compromisos = [
+                "- Cuidar y hacer buen uso de la misma, durante el tiempo que este bajo mi cargo en beneficio de las actividades del negocio.",
+                "- En caso de accidente, daño por mal uso y cualquier que bajo mi uso dañe la aspiradora se procederá a realizar la deducción del valor completo proporcionando una nueva.",
+                "- Me comprometo a cuidar todos y cada uno de los componentes de la aspiradora."
+            ];
+            
+            compromisos.forEach(compromiso => {
+                const splitText = doc.splitTextToSize(compromiso, textWidth - 5);
+                doc.text(splitText, margin + 5, y);
+                y += (splitText.length * 5) + 3;
+            });
+            
+            y += 5;
+            const textoFinal = `Firmo la presente en la ciudad de Tegucigalpa a los ${dd} días del mes de ${mesTexto} del ${yyyy}.`;
+            const lineasFinal = doc.splitTextToSize(textoFinal, textWidth);
+            doc.text(lineasFinal, margin, y);
+            y += (lineasFinal.length * 6) + 10;
+        } else if (ultimaTransaccion.tipo === 'entradas') {
+            const textoCompleto = `Yo ${ultimaTransaccion.colaborador} mediante la presente Acta de Recepción hago constar que en esta fecha estoy entregando la aspiradora ${ultimaTransaccion.equipo}, la cual fue utilizada para el desempeño de mis funciones y ahora estoy retornando.`;
+            const lineas = doc.splitTextToSize(textoCompleto, textWidth);
+            doc.text(lineas, margin, y);
+            y += (lineas.length * 6) + 4;
+            
+            doc.setFont("times", "bold");
+            const textoDeclaracion = "Al entregarla declaro lo siguiente:";
+            doc.text(textoDeclaracion, margin, y);
+            y += 7;
+            
+            doc.setFont("times", "normal");
+            const declaraciones = [
+                "- La aspiradora se encuentra en las mismas condiciones en las que me fue entregada.",
+                "- Fui responsable y cuidadoso en el uso de la aspiradora y todos sus componentes.",
+                "- Cualquier daño, accidente o mal uso fue reportado en tiempo y forma."
+            ];
+            
+            declaraciones.forEach(declaracion => {
+                const splitText = doc.splitTextToSize(declaracion, textWidth - 5);
+                doc.text(splitText, margin + 5, y);
+                y += (splitText.length * 5) + 3;
+            });
+            
+            y += 5;
+            const textoFinal = `Firmo la presente en la ciudad de Tegucigalpa a los ${dd} días del mes de ${mesTexto} del ${yyyy}.`;
+            const lineasFinal = doc.splitTextToSize(textoFinal, textWidth);
+            doc.text(lineasFinal, margin, y);
+            y += (lineasFinal.length * 6) + 10;
+        }
+
+        // FIRMA DEL RESPONSABLE
+        const firmaRespData = canvas.toDataURL('image/png');
+        const firmaWidth = 60;
+        const firmaHeight = 25;
+        const firmaX = (pageWidth - firmaWidth) / 2;
         
-        const observacionesLines = doc.splitTextToSize(ultimaTransaccion.observaciones, textWidth);
-        doc.text(observacionesLines, margin, currentY);
-        currentY += (observacionesLines.length * 4) + 10;
+        doc.addImage(firmaRespData, 'PNG', firmaX, y, firmaWidth, firmaHeight);
+        y += firmaHeight + 2;
+        doc.line(firmaX, y, firmaX + firmaWidth, y);
+        y += 4;
+        doc.setFontSize(12);
+        doc.setTextColor(80, 80, 80);
+        doc.setFont("times", "bold");
+        doc.text(ultimaTransaccion.colaborador, pageWidth / 2, y, { align: 'center' });
+        y += 8;
+        doc.setFont("times", "normal");
+        doc.text("Firma del Responsable", pageWidth / 2, y, { align: 'center' });
+        y += 12;
+        
+        // FIRMA DEL EVALUADOR (NUEVA)
+        const firmaEvalData = canvasEval.toDataURL('image/png');
+        doc.addImage(firmaEvalData, 'PNG', firmaX, y, firmaWidth, firmaHeight);
+        y += firmaHeight + 2;
+        doc.line(firmaX, y, firmaX + firmaWidth, y);
+        y += 4;
+        doc.setFont("times", "bold");
+        doc.text("Revisado por", pageWidth / 2, y, { align: 'center' });
+        y += 8;
+        doc.line(margin, y, pageWidth - margin, y);
+        y += 10;
+
+        // Checklist
+        if (!ultimaTransaccion.sinRevision && ultimaTransaccion.checklistRespuestas.length > 0) {
+            if (y > 200) { doc.addPage(); y = 15; }
+
+            doc.setFontSize(14);
+            doc.setTextColor(34, 49, 63);
+            doc.setFont("times", "bold");
+            doc.text(tituloChecklist, pageWidth / 2, y, { align: 'center' });
+            y += 8;
+            
+            const checklistData = ultimaTransaccion.tipo === 'salidas' ? 
+                checklistsPreOperativos["aspiradoras"] : 
+                checklistsPostOperativos["aspiradoras"];
+            
+            const tableRows = ultimaTransaccion.checklistRespuestas.map((respuesta, index) => {
+                return [checklistData[index] || `Item ${index + 1}`, respuesta === '✔' ? 'X' : '', respuesta === 'X' ? 'X' : ''];
+            });
+            
+            let fontSize = 9;
+            let cellPadding = 2;
+            let rowHeight = 5;
+            
+            if (ultimaTransaccion.checklistRespuestas.length > 10) {
+                fontSize = 8;
+                cellPadding = 1.5;
+                rowHeight = 4;
+            }
+            
+            const anchoDisponible = pageWidth - (2 * margin);
+            const col1Width = anchoDisponible * 0.75;
+            const col2Width = (anchoDisponible - col1Width) / 2;
+            const col3Width = col2Width;
+            
+            doc.autoTable({
+                startY: y,
+                head: [["Punto de Verificación", "Cumple", "No Cumple"]],
+                body: tableRows,
+                theme: 'grid',
+                tableWidth: anchoDisponible,
+                margin: { left: margin, right: margin, top: y },
+                headStyles: {
+                    fillColor: [0, 123, 255],
+                    textColor: [255, 255, 255],
+                    fontStyle: 'bold',
+                    fontSize: fontSize,
+                    font: "times",
+                    cellPadding: cellPadding,
+                    minCellHeight: rowHeight,
+                    halign: 'center'
+                },
+                styles: {
+                    fontSize: fontSize,
+                    cellPadding: cellPadding,
+                    textColor: [50, 50, 50],
+                    lineColor: [200, 200, 200],
+                    lineWidth: 0.1,
+                    font: "times",
+                    minCellHeight: rowHeight
+                },
+                columnStyles: {
+                    0: { cellWidth: col1Width, fontStyle: 'bold', halign: 'left', cellPadding: {left: 3, right: 3, top: cellPadding, bottom: cellPadding} },
+                    1: { cellWidth: col2Width, halign: 'center', cellPadding: {left: 1, right: 1, top: cellPadding, bottom: cellPadding} },
+                    2: { cellWidth: col3Width, halign: 'center', cellPadding: {left: 1, right: 1, top: cellPadding, bottom: cellPadding} }
+                },
+                pageBreak: 'auto',
+                showHead: 'everyPage',
+                tableLineWidth: 0.1,
+                tableLineColor: [200, 200, 200]
+            });
+
+            y = doc.autoTable.previous.finalY + 10;
+        }
+
+        // Observaciones
+        if (ultimaTransaccion.observaciones && ultimaTransaccion.observaciones.trim() !== '') {
+            if (y + 30 > pageHeight) {
+                doc.addPage();
+                y = 15;
+            }
+            
+            doc.setFontSize(12);
+            doc.setTextColor(34, 49, 63);
+            doc.setFont("times", "bold");
+            doc.text("Observaciones:", margin, y);
+            y += 5;
+            
+            doc.setFontSize(10);
+            doc.setTextColor(50, 50, 50);
+            doc.setFont("times", "normal");
+            
+            const observacionesLines = doc.splitTextToSize(ultimaTransaccion.observaciones, textWidth);
+            doc.text(observacionesLines, margin, y);
+            y += (observacionesLines.length * 4) + 10;
+        }
+
+        // Fotos del checklist
+        const fotosAgregadas = ultimaTransaccion.fotosChecklist && Object.keys(ultimaTransaccion.fotosChecklist).some(key => ultimaTransaccion.fotosChecklist[key].length > 0);
+
+        if (fotosAgregadas) {
+            y = await addChecklistPhotosToPDF(doc, y);
+        }
+
+        // Generar nombre del archivo
+        const fecha = new Date(ultimaTransaccion.fecha);
+        const year = fecha.getFullYear();
+        const month = String(fecha.getMonth() + 1).padStart(2, '0');
+        const day = String(fecha.getDate()).padStart(2, '0');
+        const tipoMovimientoNombre = ultimaTransaccion.tipo === 'salidas' ? 'Salida' : 'Entrada';
+        const pdfName = `${day}-${month}-${year} - ${tipoMovimientoNombre} - ${ultimaTransaccion.equipo} - ${ultimaTransaccion.colaborador}.pdf`;
+        
+        const pdfBlob = doc.output('blob');
+        const pdfBase64 = await blobToBase64(pdfBlob);
+        
+        const reporteParaGuardar = {
+            fecha: ultimaTransaccion.fecha,
+            colaborador: ultimaTransaccion.colaborador,
+            area: ultimaTransaccion.area,
+            equipo: ultimaTransaccion.equipo,
+            tipo: ultimaTransaccion.tipo,
+            checklistRespuestas: ultimaTransaccion.checklistRespuestas,
+            observaciones: ultimaTransaccion.observaciones,
+            noConformidadesActuales: ultimaTransaccion.noConformidadesActuales,
+            observacionesActuales: ultimaTransaccion.observacionesActuales,
+            pdfBase64: pdfBase64.split(',')[1],
+            creadoEn: Date.now(),
+            estado: 'pendiente'
+        };
+
+        await guardarReportePendiente(reporteParaGuardar);
+        
+        console.log('PDF generado y guardado.');
     }
 
-    // Fotos del checklist (opcional)
-    const fotosAgregadas = ultimaTransaccion.fotosChecklist && Object.keys(ultimaTransaccion.fotosChecklist).some(key => ultimaTransaccion.fotosChecklist[key].length > 0);
-
-    if (fotosAgregadas) {
-        currentY = await addChecklistPhotosToPDF(doc, currentY);
-    }
-
-    // =========================================================================
-    // PARTE CRÍTICA: GENERAR Y GUARDAR EL PDF CON BASE64
-    // =========================================================================
-    
-    // Generar nombre del archivo
-    const fecha = new Date(ultimaTransaccion.fecha);
-    const year = fecha.getFullYear();
-    const month = String(fecha.getMonth() + 1).padStart(2, '0');
-    const day = String(fecha.getDate()).padStart(2, '0');
-    const tipoMovimientoNombre = ultimaTransaccion.tipo === 'salidas' ? 'Salida' : 'Entrada';
-    const pdfName = `${day}-${month}-${year} - ${tipoMovimientoNombre} - ${ultimaTransaccion.equipo} - ${ultimaTransaccion.colaborador}.pdf`;
-    
-    // 1. Generar el blob del PDF
-    const pdfBlob = doc.output('blob');
-    
-    // 2. Convertir a base64 usando la función auxiliar
-    const pdfBase64 = await blobToBase64(pdfBlob);
-    
-    // 3. IMPORTANTE: Crear el reporte CON el pdfBase64 (sin el prefijo data:...)
-    const reporteParaGuardar = {
-        fecha: ultimaTransaccion.fecha,
-        colaborador: ultimaTransaccion.colaborador,
-        area: ultimaTransaccion.area,
-        equipo: ultimaTransaccion.equipo,
-        tipo: ultimaTransaccion.tipo,
-        checklistRespuestas: ultimaTransaccion.checklistRespuestas,
-        observaciones: ultimaTransaccion.observaciones,
-        nombreArchivo: pdfName,
-        // ESTA ES LA LÍNEA MÁS IMPORTANTE: separar la parte base64 pura
-        pdfBase64: pdfBase64.split(',')[1], // Quitar "data:application/pdf;base64,"
-        creadoEn: Date.now(),
-        estado: 'pendiente'
-    };
-
-    // 4. Guardar en IndexedDB
-    await guardarReportePendiente(reporteParaGuardar);
-    
-    console.log('PDF generado y guardado. Base64 length:', reporteParaGuardar.pdfBase64 ? reporteParaGuardar.pdfBase64.length : 0);
-}
     async function compressImageForPDF(base64String, quality = 0.7) {
         return new Promise((resolve) => {
             const img = new Image();
@@ -4546,7 +4901,6 @@ async function generarPDF() {
             $badgeTab.hide();
         }
 
-        // Renderizar Pendientes
         if (pendientes.length === 0) {
             $listaPendientes.html('<div class="text-center p-4 text-muted small">No hay reportes pendientes.</div>');
         } else {
@@ -4576,8 +4930,6 @@ async function generarPDF() {
                             </span>
                         </div>
 
-                        <div class="status-wrapper ms-auto" style="display:none;"></div>
-
                         <div class="action-buttons ms-auto d-flex gap-1">
                             <button class="btn btn-sm btn-outline-primary btn-ver-pdf" data-id="${reporte.id}" title="Ver PDF">
                                 <i class="fas fa-eye"></i>
@@ -4595,7 +4947,6 @@ async function generarPDF() {
             });
         }
 
-        // Renderizar Sincronizados
         if (sincronizados.length === 0) {
             $listaSincronizados.html('<div class="text-center p-4 text-muted small">Historial vacío.</div>');
         } else {
@@ -4624,8 +4975,6 @@ async function generarPDF() {
                                 ${tipoTexto} - ${reporte.area}
                             </span>
                         </div>
-
-                        <div class="status-wrapper ms-auto" style="display:none;"></div>
 
                         <div class="action-buttons ms-auto d-flex gap-1">
                             <button class="btn btn-sm btn-outline-primary btn-ver-pdf" data-id="${reporte.id}" title="Ver PDF">
@@ -4656,121 +5005,109 @@ async function generarPDF() {
         $('#btn-delete-sincronizados-sel').prop('disabled', sincSeleccionados === 0);
     }
 
-async function procesarColaDeEnvio(listaDeReportes) {
-    if (listaDeReportes.length === 0) return;
+    async function procesarColaDeEnvio(listaDeReportes) {
+        if (listaDeReportes.length === 0) return;
 
-    window.isSyncing = true;
-    $('.action-buttons').attr('style', 'display: none !important');
-    $('.checkbox-container').css('visibility', 'hidden');
-    $('#check-all-pendientes, #check-all-sincronizados').css('visibility', 'hidden');
-    $('label[for="check-all-pendientes"], label[for="check-all-sincronizados"]').css('visibility', 'hidden');
-    $('#modalSync .btn-close').hide();
-    $('#btn-sincronizar-seleccionados, #btn-resync-seleccion').hide();
-    $('#btn-delete-pendientes-sel, #btn-delete-sincronizados-sel').hide();
-    $('.btn').addClass('disabled');
+        window.isSyncing = true;
+        $('.action-buttons').attr('style', 'display: none !important');
+        $('.checkbox-container').css('visibility', 'hidden');
+        $('#check-all-pendientes, #check-all-sincronizados').css('visibility', 'hidden');
+        $('label[for="check-all-pendientes"], label[for="check-all-sincronizados"]').css('visibility', 'hidden');
+        $('#modalSync .btn-close').hide();
+        $('#btn-sincronizar-seleccionados, #btn-resync-seleccion').hide();
+        $('#btn-delete-pendientes-sel, #btn-delete-sincronizados-sel').hide();
+        $('.btn').addClass('disabled');
 
-    let errores = 0;
-    let exitos = 0;
-    
-    // TUS URLs DE GOOGLE APPS SCRIPT
-    const SCRIPT_URL_SALIDAS = "https://script.google.com/macros/s/AKfycbyjvsijBSskphgXDFe7M76LKbBgbby-4UPlgv9tPeRprA9UUTYvPrhkA_ZDvvLRJFjCiw/exec";
-    const SCRIPT_URL_ENTRADAS = "https://script.google.com/macros/s/AKfycbyuZxa-eJ1gOA3uwiKGFyzaT88DccOR4GKc75At2kdPPfpPZ8YPYZ7Pw0mOfa8fNwN10g/exec";
-
-    for (const reporte of listaDeReportes) {
-        const $row = $(`#row-reporte-${reporte.id}`);
-        const $status = $row.find('.status-wrapper');
+        let errores = 0;
+        let exitos = 0;
         
-        $row.find('.action-buttons').hide();
-        $status.html('<span class="badge bg-info text-dark"><i class="fas fa-spinner fa-spin"></i> Enviando datos y PDF...</span>').fadeIn();
-        
-        if ($row.length) {
-            $row[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
+        const SCRIPT_URL_SALIDAS = "https://script.google.com/macros/s/AKfycbyjvsijBSskphgXDFe7M76LKbBgbby-4UPlgv9tPeRprA9UUTYvPrhkA_ZDvvLRJFjCiw/exec";
+        const SCRIPT_URL_ENTRADAS = "https://script.google.com/macros/s/AKfycbyuZxa-eJ1gOA3uwiKGFyzaT88DccOR4GKc75At2kdPPfpPZ8YPYZ7Pw0mOfa8fNwN10g/exec";
 
-        try {
-            // OBTENER DATOS DEL EQUIPO PARA EL RETORNABLE
-            let retornable = 'Sí'; // Valor por defecto
-            const equipoData = equipos.find(e => e.nombre === reporte.equipo);
-            if (equipoData && equipoData.devolucion) {
-                retornable = equipoData.devolucion;
-            }
+        for (const reporte of listaDeReportes) {
+            const $row = $(`#row-reporte-${reporte.id}`);
+            const $status = $row.find('.status-wrapper');
             
-            // 1. PREPARAR DATOS PARA ENVIAR (INCLUYENDO PDF BASE64)
-            const scriptURL = reporte.tipo === 'salidas' ? SCRIPT_URL_SALIDAS : SCRIPT_URL_ENTRADAS;
+            $row.find('.action-buttons').hide();
+            $status.html('<span class="badge bg-info text-dark"><i class="fas fa-spinner fa-spin"></i> Enviando datos y PDF...</span>').fadeIn();
             
-            // DATOS COMPLETOS CON PDF BASE64
-            const data = {
-                fecha: reporte.fecha,
-                colaborador: reporte.colaborador,
-                area: reporte.area,
-                equipo: reporte.equipo,
-                checklist: JSON.stringify(reporte.checklistRespuestas),
-                observaciones: reporte.observaciones || "",
-                pdfBase64: reporte.pdfBase64 || "" // ESTA ES LA CLAVE - ENVIAR EL PDF EN BASE64
-            };
-            
-            // Agregar campo específico según el tipo
-            if (reporte.tipo === 'salidas') {
-                data.retornable = retornable;
-            } else {
-                data.tipo = 'devolucion';
+            if ($row.length) {
+                $row[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
 
-            // 2. ENVIAR CON $.ajax PARA EVITAR CORS
-            await $.ajax({
-                url: scriptURL,
-                type: "POST",
-                data: data,
-                dataType: "text", // Importante para Google Apps Script
-                success: function(response) {
-                    console.log('Datos y PDF enviados exitosamente:', response);
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error enviando datos:', error);
-                    throw new Error('Error enviando datos a hoja de cálculo: ' + error);
+            try {
+                let retornable = 'Sí';
+                const equipoData = equipos.find(e => e.nombre === reporte.equipo);
+                if (equipoData && equipoData.devolucion) {
+                    retornable = equipoData.devolucion;
                 }
-            });
+                
+                const scriptURL = reporte.tipo === 'salidas' ? SCRIPT_URL_SALIDAS : SCRIPT_URL_ENTRADAS;
+                
+                const data = {
+                    fecha: reporte.fecha,
+                    colaborador: reporte.colaborador,
+                    area: reporte.area,
+                    equipo: reporte.equipo,
+                    checklist: JSON.stringify(reporte.checklistRespuestas),
+                    observaciones: reporte.observaciones || "",
+                    noConformidades: reporte.noConformidadesActuales || "",
+                    observacionesActuales: reporte.observacionesActuales || "",
+                    pdfBase64: reporte.pdfBase64 || ""
+                };
+                
+                if (reporte.tipo === 'salidas') {
+                    data.retornable = retornable;
+                } else {
+                    data.tipo = 'devolucion';
+                }
 
-            // 3. MARCAR COMO SINCRONIZADO
-            await marcarComoSincronizado(reporte.id);
+                await $.ajax({
+                    url: scriptURL,
+                    type: "POST",
+                    data: data,
+                    dataType: "text"
+                });
+
+                await marcarComoSincronizado(reporte.id);
+                
+                $status.html('<span class="badge bg-success"><i class="fas fa-check"></i> Enviado con PDF</span>');
+                $row.addClass('list-group-item-success');
+                exitos++;
+
+            } catch (error) {
+                console.error("Error subiendo reporte:", error);
+                $status.html('<span class="badge bg-danger"><i class="fas fa-times"></i> Error: ' + (error.message || 'Desconocido') + '</span>');
+                errores++;
+            }
             
-            $status.html('<span class="badge bg-success"><i class="fas fa-check"></i> Enviado con PDF</span>');
-            $row.addClass('list-group-item-success');
-            exitos++;
-
-        } catch (error) {
-            console.error("Error subiendo reporte:", error);
-            $status.html('<span class="badge bg-danger"><i class="fas fa-times"></i> Error: ' + (error.message || 'Desconocido') + '</span>');
-            errores++;
+            await new Promise(r => setTimeout(r, 1000));
         }
-        
-        await new Promise(r => setTimeout(r, 1000)); // Esperar 1 segundo entre envíos
-    }
 
-    if (errores === 0) {
-        Swal.fire({
-            icon: 'success',
-            title: 'Proceso Completado',
-            html: `✅ Se enviaron ${exitos} reportes correctamente.<br>📄 Los PDFs fueron subidos a Google Drive.`,
-            timer: 2000,
-            showConfirmButton: false,
-            allowOutsideClick: false,
-            allowEscapeKey: false
-        }).then(() => {
-            finishSyncProcess();
-        });
-    } else {
-        Swal.fire({
-            title: 'Proceso Finalizado',
-            html: `✅ Enviados con éxito: ${exitos}<br>❌ Con errores: ${errores}`,
-            icon: 'warning',
-            allowOutsideClick: false,
-            allowEscapeKey: false
-        }).then(() => {
-            finishSyncProcess();
-        });
+        if (errores === 0) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Proceso Completado',
+                html: `✅ Se enviaron ${exitos} reportes correctamente.<br>📄 Los PDFs fueron subidos a Google Drive.`,
+                timer: 2000,
+                showConfirmButton: false,
+                allowOutsideClick: false,
+                allowEscapeKey: false
+            }).then(() => {
+                finishSyncProcess();
+            });
+        } else {
+            Swal.fire({
+                title: 'Proceso Finalizado',
+                html: `✅ Enviados con éxito: ${exitos}<br>❌ Con errores: ${errores}`,
+                icon: 'warning',
+                allowOutsideClick: false,
+                allowEscapeKey: false
+            }).then(() => {
+                finishSyncProcess();
+            });
+        }
     }
-}
 
     async function finishSyncProcess() {
         await renderizarModalPendientes();
@@ -5170,29 +5507,29 @@ async function procesarColaDeEnvio(listaDeReportes) {
     // INICIALIZACIÓN DE LA APLICACIÓN
     // =========================================================================
 
-document.addEventListener('DOMContentLoaded', async function() {
-    try {
-        await initDB();
-        initializeCanvas();
-        setupSignatureEvents();
-        configurarEventos();
-        initAutocomplete();
-        await checkForSavedSession();
-        await cargarTodosLosDatos();
-        
-        // INICIALIZAR CAMPOS DESDE EL ESTADO
-        inicializarCamposDesdeEstado();
-        
-        setupSyncManagerEvents();
-        
-        console.log('Aplicación de gestión de aspiradoras inicializada correctamente');
-        
-    } catch (error) {
-        console.error("Error en inicialización:", error);
-        Swal.fire('Error', 'Hubo un error al inicializar la aplicación: ' + error.message, 'error');
-    }
-});
-
+    document.addEventListener('DOMContentLoaded', async function() {
+        try {
+            await initDB();
+            initializeCanvas();
+            setupSignatureEvents();
+            initializeCanvasEvaluador();
+            setupSignatureEventsEvaluador();
+            configurarEventos();
+            initAutocomplete();
+            await checkForSavedSession();
+            await cargarTodosLosDatos();
+            
+            inicializarCamposDesdeEstado();
+            
+            setupSyncManagerEvents();
+            
+            console.log('Aplicación de gestión de aspiradoras inicializada correctamente');
+            
+        } catch (error) {
+            console.error("Error en inicialización:", error);
+            Swal.fire('Error', 'Hubo un error al inicializar la aplicación: ' + error.message, 'error');
+        }
+    });
 
     function setupSyncManagerEvents() {
         $('#btn-sync-manager').on('click', function() {
@@ -5296,42 +5633,26 @@ document.addEventListener('DOMContentLoaded', async function() {
                 $('#btn-sync-manager, #clear-session-button').hide();
             } else {
                 actualizarContadorPendientes();
-                updateClearSessionButton();
+                const hasSession = $('#fecha').val() || $('#colaborador').val() || equipoSeleccionado;
+                if (hasSession) {
+                    $('#clear-session-button').show();
+                } else {
+                    $('#clear-session-button').hide();
+                }
             }
         }, 300);
     });
 
-    function updateClearSessionButton() {
-        const hasSession = $('#fecha').val() || $('#colaborador').val() || equipoSeleccionado;
-        if (hasSession) {
-            $('#clear-session-button').show();
-        } else {
-            $('#clear-session-button').hide();
-        }
-    }
-
     $(document).on('change input', '.auto-save', function() {
-        setTimeout(updateClearSessionButton, 100);
-    });
-
-// Función para actualizar visibilidad según el estado del interruptor
-function actualizarVisibilidadSegunRevision() {
-    if (modoActual === 'salidas') {
-        const sinRevision = $('#toggleSinRevision').is(':checked');
-        
-        if (sinRevision) {
-            // Ocultar checklist y mostrar solo observaciones
-            $('#checklist-section').hide();
-            // Pero mantener el campo de observaciones disponible
-            $('#checklistObservaciones').closest('.question-container').show();
-        } else {
-            // Mostrar checklist normal
-            if (equipoSeleccionado) {
-                $('#checklist-section').show();
+        setTimeout(function() {
+            const hasSession = $('#fecha').val() || $('#colaborador').val() || equipoSeleccionado;
+            if (hasSession) {
+                $('#clear-session-button').show();
+            } else {
+                $('#clear-session-button').hide();
             }
-        }
-    }
-}
+        }, 100);
+    });
 
 </script>
 </body>

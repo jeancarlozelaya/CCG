@@ -1246,72 +1246,143 @@
             });
         }
         
-        function ejecutarEliminacionDuplicados() {
-            showLoading();
+function ejecutarEliminacionDuplicados() {
+    // Verificar si hay duplicados
+    if (duplicadosDetectados.length === 0) {
+        Swal.fire("Sin duplicados", "No hay registros duplicados para eliminar.", "info");
+        return;
+    }
+    
+    // Aquí guardaremos los registros que realmente debemos eliminar (los duplicados, no el original)
+    const registrosAEliminar = [];
+    
+    // Para cada grupo de duplicados
+    duplicadosDetectados.forEach(function(grupo) {
+        // Los items son los movimientosParaMostrar que son duplicados
+        const itemsDuplicados = grupo.items;
+        
+        if (itemsDuplicados.length <= 1) return;
+        
+        // Ordenar por fecha/hora (más reciente primero) para conservar el más reciente
+        const ordenados = [...itemsDuplicados].sort(function(a, b) {
+            const fechaA = a.fechaOrdenHora ? new Date(a.fechaOrdenHora) : new Date(0);
+            const fechaB = b.fechaOrdenHora ? new Date(b.fechaOrdenHora) : new Date(0);
+            return fechaB - fechaA;
+        });
+        
+        // Conservar el primero (el más reciente), eliminar los demás
+        for (var i = 1; i < ordenados.length; i++) {
+            const itemAEliminar = ordenados[i];
             
-            const registrosAEliminar = [];
-            
-            duplicadosDetectados.forEach(function(grupo) {
-                const ordenados = [...grupo.items].sort(function(a, b) {
-                    const fechaA = a.fechaOrdenHora ? new Date(a.fechaOrdenHora) : new Date(0);
-                    const fechaB = b.fechaOrdenHora ? new Date(b.fechaOrdenHora) : new Date(0);
-                    return fechaB - fechaA;
+            // Verificar si tiene salida para eliminar
+            if (itemAEliminar.salida && itemAEliminar.salida.fila) {
+                registrosAEliminar.push({
+                    fila: itemAEliminar.salida.fila,
+                    url: itemAEliminar.salida.url,
+                    tipo: 'salida',
+                    id: itemAEliminar.salida.id
                 });
-                
-                for (let i = 1; i < ordenados.length; i++) {
-                    const item = ordenados[i];
-                    registrosAEliminar.push({
-                        fila: item.salida?.fila || item.entrada?.fila,
-                        url: item.salida?.url || item.entrada?.url,
-                        tipo: item.salida ? 'salida' : 'entrada'
-                    });
-                }
-            });
-            
-            if (registrosAEliminar.length === 0) {
-                hideLoading();
-                Swal.fire("Operación completada", "No había duplicados para eliminar.", "success");
-                return;
             }
             
-            const promesas = registrosAEliminar.map(function(reg) {
-                return fetch(URL_SCRIPT_GOOGLE, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        action: "eliminarReporte",
-                        tipo: reg.tipo,
-                        mes: mesActual,
-                        anio: anioActual,
-                        fila: reg.fila,
-                        url: reg.url,
-                        contrasena: CONTRASENA_ELIMINAR
-                    })
+            // Verificar si tiene entrada para eliminar
+            if (itemAEliminar.entrada && itemAEliminar.entrada.fila) {
+                registrosAEliminar.push({
+                    fila: itemAEliminar.entrada.fila,
+                    url: itemAEliminar.entrada.url,
+                    tipo: 'entrada',
+                    id: itemAEliminar.entrada.id
                 });
-            });
-            
-            Promise.all(promesas)
-                .then(function(responses) {
-                    return Promise.all(responses.map(function(r) { return r.json(); }));
-                })
-                .then(function(results) {
-                    hideLoading();
-                    let exitosos = results.filter(function(r) { return r.status === "success"; }).length;
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Duplicados Eliminados',
-                        html: 'Se eliminaron <strong>' + exitosos + '</strong> de ' + registrosAEliminar.length + ' registros duplicados.',
-                        timer: 3000,
-                        showConfirmButton: false
-                    }).then(function() {
-                        consultarDatos();
-                    });
-                })
-                .catch(function(err) {
-                    hideLoading();
-                    Swal.fire("Error", "Problema al eliminar los duplicados.", "error");
-                    console.error(err);
-                });
+            }
         }
+    });
+    
+    if (registrosAEliminar.length === 0) {
+        Swal.fire("Operación completada", "No había duplicados para eliminar.", "success");
+        return;
+    }
+    
+    // Mostrar confirmación con los detalles (sin showLoading aquí)
+    let mensajeConfirmacion = 'Se eliminarán los siguientes registros duplicados:<br><br>';
+    registrosAEliminar.forEach(function(reg, idx) {
+        mensajeConfirmacion += (idx + 1) + '. ' + (reg.tipo === 'salida' ? 'Salida' : 'Entrada') + ' - Fila: ' + reg.fila + '<br>';
+    });
+    mensajeConfirmacion += '<br><br>El registro más reciente se conservará automáticamente.<br><br>Ingresa la contraseña para confirmar:';
+    
+    Swal.fire({
+        title: 'Eliminar Registros Duplicados',
+        html: mensajeConfirmacion,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, eliminar',
+        confirmButtonColor: '#e74c3c',
+        cancelButtonText: 'Cancelar',
+        input: 'password',
+        inputPlaceholder: 'Contraseña',
+        inputAttributes: {
+            autocapitalize: 'off'
+        },
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        preConfirm: function(password) {
+            if (password !== CONTRASENA_ELIMINAR) {
+                Swal.showValidationMessage('Contraseña incorrecta');
+                return false;
+            }
+            return password;
+        }
+    }).then(function(result) {
+        if (result.isConfirmed) {
+            // Ahora sí, mostrar loading y ejecutar la eliminación
+            showLoading();
+            ejecutarEliminacionDuplicadosFinal(registrosAEliminar);
+        }
+    });
+}
+
+
+function ejecutarEliminacionDuplicadosFinal(registrosAEliminar) {
+    // Crear las promesas de eliminación
+    const promesas = registrosAEliminar.map(function(reg) {
+        return fetch(URL_SCRIPT_GOOGLE, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: "eliminarReporte",
+                tipo: reg.tipo,
+                mes: mesActual,
+                anio: anioActual,
+                fila: parseInt(reg.fila),
+                url: reg.url,
+                contrasena: CONTRASENA_ELIMINAR
+            })
+        });
+    });
+    
+    Promise.all(promesas)
+        .then(function(responses) {
+            return Promise.all(responses.map(function(r) { return r.json(); }));
+        })
+        .then(function(results) {
+            hideLoading();
+            let exitosos = results.filter(function(r) { return r.status === "success"; }).length;
+            Swal.fire({
+                icon: 'success',
+                title: 'Duplicados Eliminados',
+                html: 'Se eliminaron <strong>' + exitosos + '</strong> de ' + registrosAEliminar.length + ' registros duplicados.<br><br>' +
+                      'El registro más reciente se ha conservado.',
+                timer: 4000,
+                showConfirmButton: true
+            }).then(function() {
+                consultarDatos();
+            });
+        })
+        .catch(function(err) {
+            hideLoading();
+            Swal.fire("Error", "Problema al eliminar los duplicados.", "error");
+            console.error(err);
+        });
+}
+
+
     </script>
 </body>
 </html>

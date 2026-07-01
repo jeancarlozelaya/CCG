@@ -1,7 +1,7 @@
 // Archivo: sw-index.js
 
 // CAMBIAMOS LA VERSIÓN PARA QUE EL NAVEGADOR ACTUALICE LA CACHÉ SÍ O SÍ
-const CACHE_NAME_INDEX = 'pibrisa-index-v5.5.3'; 
+const CACHE_NAME_INDEX = 'pibrisa-index-v5.6.0'; 
 
 const urlsToCacheIndex = [
     './',

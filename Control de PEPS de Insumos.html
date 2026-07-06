@@ -2080,6 +2080,52 @@ async function generarReporte() {
     const totalHigienicoDisponible = (papelHigienicoRestante || 0) + totalPapelHigienicoFixed;
     const totalToallaDisponible = (papelToallaRestante || 0) + totalPapelToallaFixed;
 
+    // 🔽 CÁLCULO AUTOMÁTICO DEL SOBRANTE DEL SISTEMA (RESTA)
+    let sistemaHigienico = 0;
+    let sistemaToalla = 0;
+    
+    if (edificio && dynamicLevelQuantities[edificio]) {
+        if (edificio === 'Cuerpos Bajos') {
+            const subBuildings = ['CBA', 'CBB', 'CBC'];
+            subBuildings.forEach(sub => {
+                const subBuildingData = dynamicLevelQuantities[edificio][sub] || {higienico: {}, toalla: {}};
+                // Sumar papel higiénico
+                Object.values(subBuildingData.higienico).forEach(value => {
+                    if (typeof value === 'number') {
+                        sistemaHigienico += value;
+                    }
+                });
+                // Sumar papel toalla
+                Object.values(subBuildingData.toalla).forEach(value => {
+                    if (typeof value === 'number') {
+                        sistemaToalla += value;
+                    }
+                });
+            });
+        } else {
+            // Sumar papel higiénico
+            if (dynamicLevelQuantities[edificio].higienico) {
+                Object.values(dynamicLevelQuantities[edificio].higienico).forEach(value => {
+                    if (typeof value === 'number') {
+                        sistemaHigienico += value;
+                    }
+                });
+            }
+            // Sumar papel toalla
+            if (dynamicLevelQuantities[edificio].toalla) {
+                Object.values(dynamicLevelQuantities[edificio].toalla).forEach(value => {
+                    if (typeof value === 'number') {
+                        sistemaToalla += value;
+                    }
+                });
+            }
+        }
+    }
+    
+    // Calcular sobrante del sistema: Total disponible - Distribuido
+    const sobranteSistemaHigienico = totalHigienicoDisponible - sistemaHigienico;
+    const sobranteSistemaToalla = totalToallaDisponible - sistemaToalla;
+
     // Función para verificar espacio en página
     function checkPageHeight(neededSpace) {
         if (currentY + neededSpace > 270) { // 270mm es aproximadamente el límite de una página A4
@@ -2170,7 +2216,7 @@ async function generarReporte() {
     });
     currentY = doc.autoTable.previous.finalY + styles.margins.section;
 
-    // 2. DISTRIBUCIÓN POR NIVELES (se mantiene igual pero con mejoras visuales)
+    // 2. DISTRIBUCIÓN POR NIVELES
     currentY = drawSectionTitle(`DISTRIBUCIÓN POR NIVELES - ${edificio.toUpperCase()}`, currentY);
 
     let grandTotalHigienicoNiveles = 0;
@@ -2181,7 +2227,6 @@ async function generarReporte() {
             const subBuildings = ['CBA', 'CBB', 'CBC'];
             
             subBuildings.forEach(sub => {
-                // Verificar si hay espacio para la siguiente tabla
                 checkPageHeight(50);
                 
                 const subBuildingData = dynamicLevelQuantities[edificio][sub] || {higienico: {}, toalla: {}};
@@ -2210,7 +2255,6 @@ async function generarReporte() {
                 });
 
                 if (combinedLevelData.length > 0) {
-                    // Subtítulo para el sub-edificio
                     doc.setFontSize(12);
                     doc.setTextColor(0, 96, 100);
                     doc.setFont('helvetica', 'bold');
@@ -2264,7 +2308,6 @@ async function generarReporte() {
                 grandTotalToallaNiveles += subTotalToalla;
             });
         } else {
-            // Verificar espacio para la tabla
             checkPageHeight(50);
             
             const higienicoLevels = dynamicLevelQuantities[edificio].higienico || {};
@@ -2342,7 +2385,7 @@ async function generarReporte() {
         }
     }
 
-    // 3. TABLA DE RESUMEN (con color en fila final)
+    // 3. TABLA DE RESUMEN - AHORA CON EL CÁLCULO AUTOMÁTICO
     checkPageHeight(40);
     currentY = drawSectionTitle("RESUMEN DE DISTRIBUCIÓN", currentY);
 
@@ -2352,7 +2395,8 @@ async function generarReporte() {
         body: [
             ['Total disponible', totalHigienicoDisponible, totalToallaDisponible],
             ['Distribuido por niveles', grandTotalHigienicoNiveles, grandTotalToallaNiveles],
-            ['Sobrante actual (Según Sistema)', (papelHigienicoSobrante || 0), (papelToallaSobrante || 0)]
+            // 🔽 AHORA USA EL CÁLCULO AUTOMÁTICO EN LUGAR DEL VALOR INGRESADO POR EL USUARIO
+            ['Sobrante actual (Según Sistema)', sobranteSistemaHigienico, sobranteSistemaToalla]
         ],
         styles: {
             fontSize: 11,
@@ -2400,7 +2444,7 @@ async function generarReporte() {
     });
     currentY = doc.autoTable.previous.finalY + styles.margins.section;
 
-    // 4. TABLA DE SOBRANTE (con color en fila final)
+    // 4. TABLA DE SOBRANTE (REALIDAD - VALOR INGRESADO POR EL USUARIO)
     checkPageHeight(40);
     currentY = drawSectionTitle("SOBRANTE PARA EL SIGUIENTE TURNO (REALIDAD)", currentY);
 
@@ -2444,17 +2488,17 @@ async function generarReporte() {
     currentY = doc.autoTable.previous.finalY + styles.margins.section;
 
     
-// --- INICIO: NUEVO BLOQUE PARA GOOGLE SHEETS (VERSIÓN doc.text() MÚLTIPLE) ---
+// --- BLOQUE PARA GOOGLE SHEETS ---
     
-    // 1. Forzar una nueva página y resetear la posición Y
     doc.addPage();
     currentY = styles.margins.top;
-    
-    // 2. Dibujar el título en la nueva página
     currentY = drawSectionTitle("DATOS PARA GOOGLE SHEETS", currentY);
 
     const sheetsData = [];
-    const productoHigienico = "PAPEL HIGIENICO SMARTONE MINI";
+    let productoHigienico = "PAPEL HIGIENICO SMARTONE MINI";
+    if (edificio === "Sótano") {
+        productoHigienico = "PAPEL HIGIENICO SMARTONE";
+    }
     const productoToalla = "TOALLA PARA MANOS 240MTS";
     
     const generationTime = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -2465,7 +2509,7 @@ async function generarReporte() {
             
             subBuildings.forEach(sub => {
                 const subBuildingData = dynamicLevelQuantities[edificio][sub] || {higienico: {}, toalla: {}};
-                const edificioLabel = sub; // Correcto: Solo "CBA"
+                const edificioLabel = sub;
 
                 const allLevels = new Set([
                     ...Object.keys(subBuildingData.higienico).filter(key => subBuildingData.higienico[key] > 0).map(key => parseInt(key.split('-')[key.split('-').length - 1])),
@@ -2479,7 +2523,7 @@ async function generarReporte() {
                     const toallaItemId = `toalla-${safeSubId}-${levelIndex}`;
                     const phQty = subBuildingData.higienico[higienicoItemId] || 0;
                     const ptQty = subBuildingData.toalla[toallaItemId] || 0;
-                    const nivelLabel = levelIndex; // Correcto: Solo "0"
+                    const nivelLabel = levelIndex;
                     
                     if (phQty > 0) {
                         sheetsData.push(`${formattedDate};${generationTime};${personaEncargada};${edificioLabel};${nivelLabel};${productoHigienico};${phQty}`);
@@ -2489,7 +2533,7 @@ async function generarReporte() {
                     }
                 });
             });
-        } else { // Edificios individuales
+        } else {
             const higienicoLevels = dynamicLevelQuantities[edificio].higienico || {};
             const toallaLevels = dynamicLevelQuantities[edificio].toalla || {};
             const edificioLabel = edificio;
@@ -2506,7 +2550,7 @@ async function generarReporte() {
                 const toallaItemId = `toalla-${safeEdificioId}-${levelIndex}`;
                 const phQty = higienicoLevels[higienicoItemId] || 0;
                 const ptQty = toallaLevels[toallaItemId] || 0;
-                const nivelLabel = levelIndex; // Correcto: Solo "0"
+                const nivelLabel = levelIndex;
 
                 if (phQty > 0) {
                     sheetsData.push(`${formattedDate};${generationTime};${personaEncargada};${edificioLabel};${nivelLabel};${productoHigienico};${phQty}`);
@@ -2518,42 +2562,33 @@ async function generarReporte() {
         }
     }
 
-    const finalSheetsString = sheetsData.join('\n'); // Texto con saltos de línea
+    const finalSheetsString = sheetsData.join('\n');
     
-    // --- BLOQUE DE INSTRUCCIONES ELIMINADO ---
-
-    // --- Dibujar el texto línea por línea ---
     const lines = finalSheetsString.split('\n');
-    const lineHeight = 4; // 4mm por línea
-    const blockHeight = (lines.length * lineHeight) + 6; // + padding
+    const lineHeight = 4;
+    const blockHeight = (lines.length * lineHeight) + 6;
 
-    // Dibujar el fondo
-    doc.setFillColor(248, 249, 250); // Fondo gris claro
-    doc.setDrawColor(206, 212, 218); // Borde
+    doc.setFillColor(248, 249, 250);
+    doc.setDrawColor(206, 212, 218);
     doc.roundedRect(styles.margins.left, currentY, styles.tableWidth, blockHeight, 3, 3, 'FD');
     
-    // Dibujar el texto
-    doc.setFont('courier', 'normal'); // Fuente monoespaciada
+    doc.setFont('courier', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(0, 0, 0);
 
-    let textY = currentY + 5; // Posición Y inicial con padding
+    let textY = currentY + 5;
     
     lines.forEach(line => {
-        // Verificar si el texto cabe en la página actual
-        if (textY + lineHeight > 280) { // 280mm es un margen seguro antes del pie de página
+        if (textY + lineHeight > 280) {
              doc.addPage();
              currentY = styles.margins.top;
              textY = currentY;
         }
-        doc.text(line, styles.margins.left + 3, textY); // + padding izquierdo
+        doc.text(line, styles.margins.left + 3, textY);
         textY += lineHeight;
     });
 
-    currentY = textY + 10; // Actualizar Y global
-
-    // --- FIN: NUEVO BLOQUE PARA GOOGLE SHEETS ---
-
+    currentY = textY + 10;
 
     // Número de página
     const pageCount = doc.internal.getNumberOfPages();
@@ -2570,7 +2605,6 @@ async function generarReporte() {
     const pdfBlob = doc.output('blob');
     Swal.close();
 
-    // Funciones para compartir o descargar
     function tryShareOrDownload() {
         if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([pdfBlob], filename, { type: 'application/pdf' })] })) {
             navigator.share({
@@ -2613,6 +2647,7 @@ async function generarReporte() {
     
     tryShareOrDownload();
 }
+
 
 // Funciones para scroll
 function scrollToTop() {

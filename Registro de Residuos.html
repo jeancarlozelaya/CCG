@@ -2075,284 +2075,336 @@
             }
         }
 
-        function sincronizarDatos() {
-            // Opción 4: Prevenir múltiples sincronizaciones simultáneas
-            if (sincronizando) {
-                Swal.fire({
-                    title: 'Sincronización en curso',
-                    text: 'Ya hay una sincronización en proceso. Por favor espera.',
-                    icon: 'info',
-                    confirmButtonText: 'Entendido',
-                    timer: 3000
-                });
-                return;
+function sincronizarDatos() {
+    // Opción 4: Prevenir múltiples sincronizaciones simultáneas
+    if (sincronizando) {
+        Swal.fire({
+            title: 'Sincronización en curso',
+            text: 'Ya hay una sincronización en proceso. Por favor espera.',
+            icon: 'info',
+            confirmButtonText: 'Entendido',
+            timer: 3000
+        });
+        return;
+    }
+
+    if (!isOnline) {
+        Swal.fire({
+            title: 'Sin conexión',
+            text: 'No hay conexión a internet. Verifica tu conexión e intenta nuevamente.',
+            icon: 'error',
+            confirmButtonText: 'Entendido',
+            confirmButtonColor: '#e74c3c'
+        });
+        return;
+    }
+
+    let datosActuales = pestañaActiva === 'residuos' ? datosResiduos : datosRecoleccion;
+    let scriptURL = pestañaActiva === 'residuos' ? SCRIPT_URL_RESIDUOS : SCRIPT_URL_RECOLECCION;
+
+    if (datosActuales.length === 0) {
+        Swal.fire({
+            title: 'Sin datos',
+            text: 'No hay registros pendientes para sincronizar.',
+            icon: 'info',
+            confirmButtonText: 'Entendido',
+            confirmButtonColor: '#3498db'
+        });
+        return;
+    }
+
+    if (!responsableActual) {
+        Swal.fire({
+            title: 'Responsable requerido',
+            text: 'Debe configurar un responsable antes de sincronizar',
+            icon: 'warning',
+            confirmButtonText: 'Configurar',
+            confirmButtonColor: '#f39c12',
+            showCancelButton: true,
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                cerrarModal();
+                mostrarModalResponsable();
             }
+        });
+        return;
+    }
 
-            if (!isOnline) {
-                Swal.fire({
-                    title: 'Sin conexión',
-                    text: 'No hay conexión a internet. Verifica tu conexión e intenta nuevamente.',
-                    icon: 'error',
-                    confirmButtonText: 'Entendido',
-                    confirmButtonColor: '#e74c3c'
-                });
-                return;
+    // Activar bandera de sincronización
+    sincronizando = true;
+    const btnSincronizar = document.getElementById('btn-sincronizar');
+    if (btnSincronizar) {
+        btnSincronizar.disabled = true;
+        btnSincronizar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sincronizando...';
+    }
+
+    // Guardar copia de los datos y los IDs antes de sincronizar
+    const datosBackup = JSON.parse(JSON.stringify(datosActuales));
+    const idsBackup = datosActuales.map(r => r.id);
+    const tipoRegistro = pestañaActiva === 'residuos' ? 'residuos' : 'recoleccion';
+
+    cerrarModal();
+    $('#sync-button').addClass('syncing');
+    $('#overlay').css('display', 'flex');
+    $('#loading-detail').text(`Sincronizando datos de ${tipoRegistro}... (Intento ${datosActuales[0]?.syncAttempts + 1 || 1})`);
+
+    // Incrementar contador de intentos
+    datosActuales.forEach(r => r.syncAttempts = (r.syncAttempts || 0) + 1);
+    if (pestañaActiva === 'residuos') {
+        guardarDatosResiduos();
+    } else {
+        guardarDatosRecoleccion();
+    }
+
+    const timeoutDuration = 60000;
+    const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Timeout')), timeoutDuration);
+    });
+
+    const ajaxPromise = new Promise((resolve, reject) => {
+        console.log(`📤 Enviando ${datosActuales.length} registros de ${tipoRegistro}...`);
+        
+        const datosParaEnviar = datosActuales.map(registro => ({
+            ...registro,
+            responsable: responsableActual
+        }));
+        
+        $.ajax({
+            url: scriptURL,
+            type: "POST",
+            data: {
+                registros: JSON.stringify(datosParaEnviar),
+                tipo: pestañaActiva,
+                ids: JSON.stringify(idsBackup)
+            },
+            timeout: timeoutDuration,
+            success: function(response) {
+                console.log('✅ Respuesta recibida:', response);
+                resolve(response);
+            },
+            error: function(xhr, status, error) {
+                console.log('❌ Error en AJAX:', status, error);
+                reject({status, error, responseText: xhr.responseText});
             }
+        });
+    });
 
-            let datosActuales = pestañaActiva === 'residuos' ? datosResiduos : datosRecoleccion;
-            let scriptURL = pestañaActiva === 'residuos' ? SCRIPT_URL_RESIDUOS : SCRIPT_URL_RECOLECCION;
-
-            if (datosActuales.length === 0) {
-                Swal.fire({
-                    title: 'Sin datos',
-                    text: 'No hay registros pendientes para sincronizar.',
-                    icon: 'info',
-                    confirmButtonText: 'Entendido',
-                    confirmButtonColor: '#3498db'
-                });
-                return;
+    Promise.race([ajaxPromise, timeoutPromise])
+        .then(function(response) {
+            $('#overlay').hide();
+            $('#sync-button').removeClass('syncing');
+            
+            console.log('✅ Procesando respuesta...');
+            let responseData;
+            try {
+                responseData = typeof response === 'string' ? JSON.parse(response) : response;
+            } catch (e) {
+                console.log('❌ Error parseando respuesta:', e);
+                responseData = {success: false, message: 'Respuesta no válida del servidor'};
             }
-
-            if (!responsableActual) {
-                Swal.fire({
-                    title: 'Responsable requerido',
-                    text: 'Debe configurar un responsable antes de sincronizar',
-                    icon: 'warning',
-                    confirmButtonText: 'Configurar',
-                    confirmButtonColor: '#f39c12',
-                    showCancelButton: true,
-                    cancelButtonText: 'Cancelar'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        cerrarModal();
-                        mostrarModalResponsable();
-                    }
-                });
-                return;
-            }
-
-            sincronizando = true;
-            const btnSincronizar = document.getElementById('btn-sincronizar');
-            if (btnSincronizar) {
-                btnSincronizar.disabled = true;
-                btnSincronizar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sincronizando...';
-            }
-
-            const datosBackup = JSON.parse(JSON.stringify(datosActuales));
-            const idsBackup = datosActuales.map(r => r.id);
-            const tipoRegistro = pestañaActiva === 'residuos' ? 'residuos' : 'recoleccion';
-
-            cerrarModal();
-            $('#sync-button').addClass('syncing');
-            $('#overlay').css('display', 'flex');
-            $('#loading-detail').text(`Sincronizando datos de ${tipoRegistro}... (Intento ${datosActuales[0]?.syncAttempts + 1 || 1})`);
-
-            datosActuales.forEach(r => r.syncAttempts = (r.syncAttempts || 0) + 1);
+            
+            // Obtener las listas de IDs del servidor
+            const idsProcesados = responseData.idsProcesados || [];
+            const idsExistentes = responseData.idsExistentes || [];
+            const idsConError = responseData.idsConError || [];
+            
+            console.log(`📊 Resultados del servidor:`);
+            console.log(`   ✅ Procesados: ${idsProcesados.length}`);
+            console.log(`   ⚠️ Existentes: ${idsExistentes.length}`);
+            console.log(`   ❌ Con error: ${idsConError.length}`);
+            
+            // ===== FILTRAR REGISTROS =====
+            // SOLO eliminar los que fueron procesados o existían
+            // MANTENER los que tuvieron error real para reintentar
+            let registrosEliminados = 0;
+            let registrosMantenidos = 0;
+            
             if (pestañaActiva === 'residuos') {
+                const originalLength = datosResiduos.length;
+                
+                datosResiduos = datosResiduos.filter(r => {
+                    // Si fue procesado correctamente → eliminar
+                    if (idsProcesados.includes(r.id)) {
+                        registrosEliminados++;
+                        console.log(`   🗑️ Eliminado (procesado): ${r.id}`);
+                        return false;
+                    }
+                    // Si ya existía en el servidor (duplicado) → eliminar
+                    if (idsExistentes.includes(r.id)) {
+                        registrosEliminados++;
+                        console.log(`   🗑️ Eliminado (duplicado): ${r.id}`);
+                        return false;
+                    }
+                    // Si tuvo error real → MANTENER para reintentar
+                    if (idsConError.includes(r.id)) {
+                        registrosMantenidos++;
+                        console.log(`   📌 Mantenido (error): ${r.id}`);
+                        return true;
+                    }
+                    // Si el ID no está en ninguna lista (no debería pasar) → mantener por seguridad
+                    registrosMantenidos++;
+                    console.log(`   ⚠️ Mantenido (no listado): ${r.id}`);
+                    return true;
+                });
+                
+                guardarDatosResiduos();
+                console.log(`🗑️ Residuos: ${registrosEliminados} eliminados, ${registrosMantenidos} mantenidos (de ${originalLength} originales)`);
+            } else {
+                const originalLength = datosRecoleccion.length;
+                
+                datosRecoleccion = datosRecoleccion.filter(r => {
+                    if (idsProcesados.includes(r.id)) {
+                        registrosEliminados++;
+                        console.log(`   🗑️ Eliminado (procesado): ${r.id}`);
+                        return false;
+                    }
+                    if (idsExistentes.includes(r.id)) {
+                        registrosEliminados++;
+                        console.log(`   🗑️ Eliminado (duplicado): ${r.id}`);
+                        return false;
+                    }
+                    if (idsConError.includes(r.id)) {
+                        registrosMantenidos++;
+                        console.log(`   📌 Mantenido (error): ${r.id}`);
+                        return true;
+                    }
+                    registrosMantenidos++;
+                    console.log(`   ⚠️ Mantenido (no listado): ${r.id}`);
+                    return true;
+                });
+                
+                guardarDatosRecoleccion();
+                console.log(`🗑️ Recolección: ${registrosEliminados} eliminados, ${registrosMantenidos} mantenidos (de ${originalLength} originales)`);
+            }
+            
+            actualizarContadores();
+            
+            // ===== CONSTRUIR MENSAJE =====
+            let mensajeHTML = `
+                <div style="text-align: center;">
+                    <p style="font-size: 1.1em; margin-bottom: 15px;">${responseData.message}</p>
+                    <div style="text-align: left; margin: 15px 0; padding: 15px; background-color: #f8f9fa; border-radius: 8px;">
+                        <p style="margin: 5px 0; color: #28a745;">
+                            <i class="fas fa-check-circle"></i> Sincronizados: ${idsProcesados.length}
+                        </p>
+                        ${idsExistentes.length > 0 ? `
+                            <p style="margin: 5px 0; color: #f39c12;">
+                                <i class="fas fa-exclamation-triangle"></i> Ya estaban en el servidor: ${idsExistentes.length}
+                            </p>
+                        ` : ''}
+                        ${idsConError.length > 0 ? `
+                            <p style="margin: 5px 0; color: #e74c3c;">
+                                <i class="fas fa-times-circle"></i> Con error (reintentar): ${idsConError.length}
+                            </p>
+                        ` : ''}
+                        <p style="margin: 5px 0; color: #3498db;">
+                            <i class="fas fa-user"></i> Responsable: ${responsableActual}
+                        </p>
+                    </div>
+                    <p style="font-size: 0.9em; color: #6c757d; margin-top: 10px;">
+                        <i class="fas fa-info-circle"></i> ${registrosEliminados} registros eliminados de la lista local
+                        ${registrosMantenidos > 0 ? ` | 📌 ${registrosMantenidos} registros mantenidos para reintentar` : ''}
+                    </p>
+                </div>
+            `;
+            
+            let icono = 'success';
+            let titulo = 'Sincronización Exitosa';
+            
+            if (idsConError.length > 0 && idsProcesados.length === 0 && idsExistentes.length === 0) {
+                icono = 'error';
+                titulo = 'Error en Sincronización';
+            } else if (idsConError.length > 0) {
+                icono = 'warning';
+                titulo = 'Sincronización Parcial';
+            } else if (idsExistentes.length > 0 && idsProcesados.length === 0 && idsConError.length === 0) {
+                icono = 'info';
+                titulo = 'Datos ya sincronizados';
+            }
+            
+            Swal.fire({
+                title: titulo,
+                html: mensajeHTML,
+                icon: icono,
+                confirmButtonText: 'Aceptar',
+                confirmButtonColor: icono === 'success' ? '#28a745' : '#f39c12',
+                width: '600px'
+            });
+            
+            // Desactivar bandera de sincronización
+            sincronizando = false;
+            if (btnSincronizar) {
+                btnSincronizar.disabled = false;
+                btnSincronizar.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Sincronizar';
+            }
+            
+            // Actualizar el modal si está abierto
+            if (document.getElementById('modal-registros').style.display === 'flex') {
+                mostrarModalRegistros();
+            }
+        })
+        .catch(function(error) {
+            $('#overlay').hide();
+            $('#sync-button').removeClass('syncing');
+            
+            console.log('❌ Error en sincronización:', error);
+            
+            // Desactivar bandera
+            sincronizando = false;
+            if (btnSincronizar) {
+                btnSincronizar.disabled = false;
+                btnSincronizar.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Sincronizar';
+            }
+            
+            // Determinar si el error es por timeout
+            const esTimeout = error.message && error.message.includes('Timeout');
+            
+            // Restaurar los contadores de intentos (reducir en 1)
+            if (pestañaActiva === 'residuos') {
+                datosResiduos.forEach(r => {
+                    if (r.syncAttempts > 0) r.syncAttempts--;
+                });
                 guardarDatosResiduos();
             } else {
+                datosRecoleccion.forEach(r => {
+                    if (r.syncAttempts > 0) r.syncAttempts--;
+                });
                 guardarDatosRecoleccion();
             }
-
-            const timeoutDuration = 60000;
-            const timeoutPromise = new Promise((_, reject) => {
-                setTimeout(() => reject(new Error('Timeout')), timeoutDuration);
+            actualizarContadores();
+            
+            let errorMessage = '';
+            if (esTimeout) {
+                errorMessage = 'La sincronización está tomando demasiado tiempo. ';
+                errorMessage += 'Es posible que los datos se hayan guardado. ';
+                errorMessage += 'Revisa los registros para verificar si se sincronizaron correctamente.';
+            } else {
+                errorMessage = 'No se pudo conectar al servidor. ';
+                errorMessage += 'Verifica tu conexión a internet.';
+            }
+            
+            Swal.fire({
+                title: esTimeout ? 'Tiempo de espera agotado' : 'Error de Conexión',
+                html: `
+                    <div style="text-align: center;">
+                        <p style="font-size: 1.1em; margin-bottom: 15px;">${errorMessage}</p>
+                        <p style="font-size: 0.9em; color: #7f8c8d; margin-top: 15px;">
+                            <i class="fas fa-info-circle"></i> Los registros se mantienen guardados localmente.
+                            ${esTimeout ? 'En el próximo intento se verificarán duplicados automáticamente.' : ''}
+                        </p>
+                        <div style="color: ${esTimeout ? '#f39c12' : '#e74c3c'}; font-size: 2em; margin-top: 15px;">
+                            <i class="fas ${esTimeout ? 'fa-clock' : 'fa-wifi-slash'}"></i>
+                        </div>
+                    </div>
+                `,
+                icon: esTimeout ? 'warning' : 'error',
+                confirmButtonText: 'Entendido',
+                confirmButtonColor: esTimeout ? '#f39c12' : '#e74c3c',
+                width: '500px'
             });
-
-            const ajaxPromise = new Promise((resolve, reject) => {
-                console.log(`📤 Enviando ${datosActuales.length} registros de ${tipoRegistro}...`);
-                
-                const datosParaEnviar = datosActuales.map(registro => ({
-                    ...registro,
-                    responsable: responsableActual
-                }));
-                
-                $.ajax({
-                    url: scriptURL,
-                    type: "POST",
-                    data: {
-                        registros: JSON.stringify(datosParaEnviar),
-                        tipo: pestañaActiva,
-                        ids: JSON.stringify(idsBackup)
-                    },
-                    timeout: timeoutDuration,
-                    success: function(response) {
-                        console.log('✅ Respuesta recibida:', response);
-                        resolve(response);
-                    },
-                    error: function(xhr, status, error) {
-                        console.log('❌ Error en AJAX:', status, error);
-                        reject({status, error, responseText: xhr.responseText});
-                    }
-                });
-            });
-
-            Promise.race([ajaxPromise, timeoutPromise])
-                .then(function(response) {
-                    $('#overlay').hide();
-                    $('#sync-button').removeClass('syncing');
-                    
-                    console.log('✅ Procesando respuesta...');
-                    let responseData;
-                    try {
-                        responseData = typeof response === 'string' ? JSON.parse(response) : response;
-                    } catch (e) {
-                        console.log('❌ Error parseando respuesta:', e);
-                        responseData = {success: false, message: 'Respuesta no válida del servidor'};
-                    }
-                    
-                    const idsExistentes = responseData.idsExistentes || [];
-                    const idsProcesados = responseData.idsProcesados || [];
-                    const idsConError = responseData.idsConError || [];
-                    
-                    let registrosEliminados = 0;
-                    let registrosMantenidos = 0;
-                    
-                    if (pestañaActiva === 'residuos') {
-                        datosResiduos = datosResiduos.filter(r => {
-                            if (idsProcesados.includes(r.id) || idsExistentes.includes(r.id)) {
-                                registrosEliminados++;
-                                return false;
-                            }
-                            if (idsConError.includes(r.id)) {
-                                registrosMantenidos++;
-                                return true;
-                            }
-                            registrosMantenidos++;
-                            return true;
-                        });
-                        guardarDatosResiduos();
-                    } else {
-                        datosRecoleccion = datosRecoleccion.filter(r => {
-                            if (idsProcesados.includes(r.id) || idsExistentes.includes(r.id)) {
-                                registrosEliminados++;
-                                return false;
-                            }
-                            if (idsConError.includes(r.id)) {
-                                registrosMantenidos++;
-                                return true;
-                            }
-                            registrosMantenidos++;
-                            return true;
-                        });
-                        guardarDatosRecoleccion();
-                    }
-                    
-                    actualizarContadores();
-                    
-let mensajeHTML = `
-    <div style="text-align: center;">
-        <p style="font-size: 1.1em; margin-bottom: 15px;">${responseData.message}</p>
-        <div style="text-align: left; margin: 15px 0; padding: 15px; background-color: #f8f9fa; border-radius: 8px;">
-            <p style="margin: 5px 0; color: #28a745;">
-                <i class="fas fa-check-circle"></i> Sincronizados: ${idsProcesados.length}
-            </p>
-            ${idsExistentes.length > 0 ? `
-                <p style="margin: 5px 0; color: #f39c12;">
-                    <i class="fas fa-exclamation-triangle"></i> Duplicados ignorados: ${idsExistentes.length}
-                </p>
-            ` : ''}
-            ${idsConError.length > 0 ? `
-                <p style="margin: 5px 0; color: #e74c3c;">
-                    <i class="fas fa-times-circle"></i> Con error: ${idsConError.length}
-                </p>
-            ` : ''}
-            <p style="margin: 5px 0; color: #3498db;">
-                <i class="fas fa-user"></i> Responsable: ${responsableActual}
-            </p>
-        </div>
-    </div>
-`;
-
-                    
-                    let icono = 'success';
-                    let titulo = 'Sincronización Exitosa';
-                    
-                    if (idsConError.length > 0 && idsProcesados.length === 0) {
-                        icono = 'error';
-                        titulo = 'Error en Sincronización';
-                    } else if (idsConError.length > 0) {
-                        icono = 'warning';
-                        titulo = 'Sincronización Parcial';
-                    } else if (idsExistentes.length > 0 && idsProcesados.length === 0) {
-                        icono = 'info';
-                        titulo = 'Datos ya sincronizados';
-                    }
-                    
-                    Swal.fire({
-                        title: titulo,
-                        html: mensajeHTML,
-                        icon: icono,
-                        confirmButtonText: 'Aceptar',
-                        confirmButtonColor: icono === 'success' ? '#28a745' : '#f39c12',
-                        width: '600px'
-                    });
-                    
-                    sincronizando = false;
-                    if (btnSincronizar) {
-                        btnSincronizar.disabled = false;
-                        btnSincronizar.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Sincronizar';
-                    }
-                })
-                .catch(function(error) {
-                    $('#overlay').hide();
-                    $('#sync-button').removeClass('syncing');
-                    
-                    console.log('❌ Error en sincronización:', error);
-                    
-                    sincronizando = false;
-                    if (btnSincronizar) {
-                        btnSincronizar.disabled = false;
-                        btnSincronizar.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Sincronizar';
-                    }
-                    
-                    const esTimeout = error.message && error.message.includes('Timeout');
-                    
-                    if (pestañaActiva === 'residuos') {
-                        datosResiduos.forEach(r => {
-                            if (r.syncAttempts > 0) r.syncAttempts--;
-                        });
-                        guardarDatosResiduos();
-                    } else {
-                        datosRecoleccion.forEach(r => {
-                            if (r.syncAttempts > 0) r.syncAttempts--;
-                        });
-                        guardarDatosRecoleccion();
-                    }
-                    actualizarContadores();
-                    
-                    let errorMessage = '';
-                    if (esTimeout) {
-                        errorMessage = 'La sincronización está tomando demasiado tiempo. ';
-                        errorMessage += 'Es posible que los datos se hayan guardado. ';
-                        errorMessage += 'Revisa los registros para verificar si se sincronizaron correctamente.';
-                    } else {
-                        errorMessage = 'No se pudo conectar al servidor. ';
-                        errorMessage += 'Verifica tu conexión a internet.';
-                    }
-                    
-                    Swal.fire({
-                        title: esTimeout ? 'Tiempo de espera agotado' : 'Error de Conexión',
-                        html: `
-                            <div style="text-align: center;">
-                                <p style="font-size: 1.1em; margin-bottom: 15px;">${errorMessage}</p>
-                                <p style="font-size: 0.9em; color: #7f8c8d; margin-top: 15px;">
-                                    <i class="fas fa-info-circle"></i> Los registros se mantienen guardados localmente.
-                                    ${esTimeout ? 'En el próximo intento se verificarán duplicados automáticamente.' : ''}
-                                </p>
-                                <div style="color: ${esTimeout ? '#f39c12' : '#e74c3c'}; font-size: 2em; margin-top: 15px;">
-                                    <i class="fas ${esTimeout ? 'fa-clock' : 'fa-wifi-slash'}"></i>
-                                </div>
-                            </div>
-                        `,
-                        icon: esTimeout ? 'warning' : 'error',
-                        confirmButtonText: 'Entendido',
-                        confirmButtonColor: esTimeout ? '#f39c12' : '#e74c3c',
-                        width: '500px'
-                    });
-                });
-        }
-
+        });
+}
         // ========== FUNCIONES DE CONEXIÓN ==========
         function actualizarEstadoConexion() {
             isOnline = navigator.onLine;

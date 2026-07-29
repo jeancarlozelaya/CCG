@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exportar Colaboradores</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+    <style>
+        body {
+            background-color: #f5f7fa;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .container-btn {
+            text-align: center;
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            max-width: 500px;
+            width: 100%;
+        }
+        h2 {
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-weight: 700;
+        }
+        .btn-print {
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            border-radius: 50px;
+            font-weight: 600;
+            width: 100%;
+            transition: all 0.3s ease;
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            border: none;
+        }
+        .btn-print:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+            background: linear-gradient(45deg, #2980b9, #3498db);
+        }
+        
+        /* ===== ESTILOS MEJORADOS PARA EL MODAL ===== */
+        .modal-contenedor {
+            width: 750px;
+            max-width: 100%;
+            margin: 0 auto;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        /* Encabezado del modal */
+        .modal-header-custom {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px 15px 0 0;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-header-custom h3 {
+            margin: 0;
+            font-weight: 600;
+            font-size: 1.5rem;
+        }
+        
+        .modal-header-custom i {
+            font-size: 2rem;
+            opacity: 0.8;
+        }
+        
+        /* Buscador mejorado */
+        .buscador-container {
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }
+        
+        .buscador-input-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .buscador-input-group .input-group-text {
+            background: #f1f5f9;
+            border: none;
+            color: #64748b;
+        }
+        
+        .buscador-input-group .form-control {
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 12px 15px;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+        
+        .buscador-input-group .form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        /* Botones de acción */
+        .acciones-container {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .btn-accion {
+            flex: 1;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            border: none;
+        }
+        
+        .btn-seleccionar {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-seleccionar:hover {
+            background: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+        }
+        
+        .btn-deseleccionar {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-deseleccionar:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(220, 53, 69, 0.3);
+        }
+        
+        /* Lista de colaboradores */
+        .lista-colaboradores {
+            max-height: 300px;
+            overflow-y: auto;
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 20px;
+        }
+        
+        .colaborador-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            border-bottom: 1px solid #edf2f7;
+            transition: background-color 0.2s;
+        }
+        
+        .colaborador-item:hover {
+            background-color: #f8fafc;
+        }
+        
+        .colaborador-item:last-child {
+            border-bottom: none;
+        }
+        
+        .colaborador-item input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            margin-right: 15px;
+            cursor: pointer;
+            accent-color: #667eea;
+        }
+        
+        .colaborador-info {
+            flex: 1;
+        }
+        
+        .colaborador-nombre {
+            font-weight: 600;
+            color: #2d3748;
+            font-size: 1rem;
+        }
+        
+        .colaborador-detalle {
+            font-size: 0.85rem;
+            color: #718096;
+        }
+        
+        /* Sección de agregar manual */
+        .manual-container {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 2px dashed #cbd5e0;
+        }
+        
+        .manual-container h6 {
+            color: #4a5568;
+            font-weight: 700;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .manual-container h6 i {
+            color: #667eea;
+        }
+        
+        .manual-input-group {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .manual-input-group .form-control {
+            flex: 1;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 10px 12px;
+        }
+        
+        .manual-input-group .form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .btn-agregar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0 20px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .btn-agregar:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        /* Lista de personas manuales */
+        .manuales-lista {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 20px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        
+        .persona-manual-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 15px;
+            border-bottom: 1px solid #edf2f7;
+            background: #fff3cd;
+        }
+        
+        .persona-manual-item:last-child {
+            border-bottom: none;
+        }
+        
+        .persona-manual-info {
+            flex: 1;
+        }
+        
+        .persona-manual-nombre {
+            font-weight: 600;
+            color: #856404;
+        }
+        
+        .persona-manual-identidad {
+            font-size: 0.85rem;
+            color: #856404;
+            opacity: 0.8;
+        }
+        
+        .btn-eliminar {
+            background: none;
+            border: none;
+            color: #dc3545;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 5px;
+            transition: all 0.2s;
+        }
+        
+        .btn-eliminar:hover {
+            background: #fee2e2;
+            color: #c82333;
+        }
+        
+        /* Contador */
+        .contador-seleccion {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);
+        }
+        
+        /* Botones finales */
+        .botones-finales {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+        
+        .btn-cancelar {
+            background: #e2e8f0;
+            color: #4a5568;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .btn-cancelar:hover {
+            background: #cbd5e0;
+        }
+        
+        .btn-generar {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .btn-generar:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+        }
+        
+        /* Scrollbar personalizado */
+        .lista-colaboradores::-webkit-scrollbar,
+        .manuales-lista::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .lista-colaboradores::-webkit-scrollbar-track,
+        .manuales-lista::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        
+        .lista-colaboradores::-webkit-scrollbar-thumb,
+        .manuales-lista::-webkit-scrollbar-thumb {
+            background: #cbd5e0;
+            border-radius: 10px;
+        }
+        
+        .lista-colaboradores::-webkit-scrollbar-thumb:hover,
+        .manuales-lista::-webkit-scrollbar-thumb:hover {
+            background: #a0aec0;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container-btn">
+        <h2><i class="fas fa-file-export me-2"></i>Formato de Capacitaciones</h2>
+        <p class="text-muted mb-4">Descargue el formato de capacitaciones en formato PDF con firma y turno.</p>
+        
+        <button id="btn-opciones" class="btn btn-primary btn-print">
+            <i class="fas fa-download me-2"></i>Descargar Formato
+        </button>
+    </div>
+
+    <script>
+        // URL del Script de Google
+        const SCRIPT_URL_OBTENER = "https://script.google.com/macros/s/AKfycbzzc0oprrMXsDIAOIkdHZaVj3gwI2u0uliSLtIKWRueTfHn8jJWAbYXkWOz0uPNwDDK/exec";
+
+        $(document).ready(function() {
+            $('#btn-opciones').on('click', function() {
+                procesarDatos('pdf-firma');
+            });
+        });
+
+        // ---------------------------------------------------------
+        // GENERAR PDF CON FIRMA Y TURNO (FORMATO CAPACITACIONES)
+        // ---------------------------------------------------------
+        async function procesarDatos(tipo) {
+            Swal.fire({
+                title: 'Obteniendo datos',
+                html: 'Descargando lista de colaboradores...<br>Esto puede tardar unos segundos.',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+
+            try {
+                const data = await $.get(SCRIPT_URL_OBTENER);
+                if (data.error) throw new Error(data.mensaje);
+
+                const colaboradores = data.activos || [];
+                if (colaboradores.length === 0) throw new Error("No hay colaboradores activos.");
+
+                colaboradores.sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+                await generarPDFConFirma(colaboradores);
+
+            } catch (error) {
+                console.error(error);
+                Swal.fire({ icon: 'error', title: 'Error', text: error.message });
+            }
+        }
+
+        function generarPDFConFirma(colaboradores) {
+            Swal.update({ html: 'Generando Formato de Capacitaciones...' });
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const marginLeft = 10;
+            const marginRight = 10;
+            const marginTop = 15;
+            const marginBottom = 20;
+
+            const usableWidth = pageWidth - marginLeft - marginRight;
+
+            const colWidths = {
+                num: 8,
+                nombreCompleto: 75,
+                identidad: 35,
+                firma: 60,
+                turno: 30
+            };
+
+            const totalWidth = Object.values(colWidths).reduce((a, b) => a + b, 0);
+
+            if (totalWidth > usableWidth) {
+                const factor = usableWidth / totalWidth;
+                for (let key in colWidths) {
+                    colWidths[key] = Math.floor(colWidths[key] * factor);
+                }
+            }
+
+            const rowHeight = 12;
+
+            function addPageHeader(pageNum, totalPages, isFirstPage = false) {
+                if (isFirstPage) {
+                    doc.setFontSize(16);
+                    doc.setFont("helvetica", "bold");
+                    doc.text("LISTA DE ASISTENCIA", pageWidth / 2, 10, { align: "center" });
+
+                    doc.setFontSize(10);
+                    doc.setFont("helvetica", "normal");
+                    doc.setTextColor(0, 0, 0);
+                    doc.text("Fecha: ", marginLeft, 18);
+
+                    doc.setDrawColor(0, 0, 0);
+                    doc.setLineWidth(0.2);
+                    const fechaLineStartX = marginLeft + 15;
+                    const fechaLineLength = 30;
+                    doc.line(fechaLineStartX, 18.5, fechaLineStartX + fechaLineLength, 18.5);
+
+                    doc.text("Tema: ", marginLeft + 60, 18);
+
+                    const temaLineStartX = marginLeft + 75;
+                    const temaLineLength = pageWidth - marginRight - temaLineStartX;
+                    doc.line(temaLineStartX, 18.5, temaLineStartX + temaLineLength, 18.5);
+
+                    doc.setDrawColor(200, 200, 200);
+                    doc.line(marginLeft, 22, pageWidth - marginRight, 22);
+                } else {
+                    doc.setDrawColor(200, 200, 200);
+                    doc.line(marginLeft, 10, pageWidth - marginRight, 10);
+                }
+
+                const headers = ["#", "Nombre Completo", "Identidad", "Firma", "Turno"];
+                const colPositions = [];
+                let currentX = marginLeft;
+
+                const headerRectY = isFirstPage ? 24 : 12;
+                const headerTextY = isFirstPage ? 28 : 16;
+
+                doc.setFontSize(9);
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(255, 255, 255);
+
+                doc.setFillColor(44, 62, 80);
+                doc.rect(marginLeft, headerRectY, usableWidth, 6, 'F');
+
+                Object.keys(colWidths).forEach((key, index) => {
+                    const width = colWidths[key];
+                    doc.text(headers[index], currentX + width / 2, headerTextY, { align: "center" });
+
+                    if (index < Object.keys(colWidths).length - 1) {
+                        doc.setDrawColor(255, 255, 255);
+                        doc.line(currentX + width, headerRectY, currentX + width, headerRectY + 6);
+                    }
+
+                    colPositions.push(currentX);
+                    currentX += width;
+                });
+
+                doc.setTextColor(0, 0, 0);
+                doc.setFont("helvetica", "normal");
+
+                return { colPositions, headerY: headerRectY + 6 };
+            }
+
+            const firstPageHeaderHeight = 32;
+            const otherPageHeaderHeight = 18;
+            const rowsPerPageFirst = Math.floor((pageHeight - marginTop - firstPageHeaderHeight - marginBottom) / rowHeight);
+            const rowsPerPageOther = Math.floor((pageHeight - marginTop - otherPageHeaderHeight - marginBottom) / rowHeight);
+
+            const maxRowsPerPage = 20;
+            const actualRowsPerPageFirst = Math.min(rowsPerPageFirst, maxRowsPerPage);
+            const actualRowsPerPageOther = Math.min(rowsPerPageOther, maxRowsPerPage);
+
+            let totalPages = 0;
+            let remainingCollaborators = colaboradores.length;
+
+            if (remainingCollaborators > 0) {
+                totalPages = 1;
+                remainingCollaborators -= actualRowsPerPageFirst;
+                while (remainingCollaborators > 0) {
+                    totalPages++;
+                    remainingCollaborators -= actualRowsPerPageOther;
+                }
+            }
+
+            for (let page = 0; page < totalPages; page++) {
+                if (page > 0) doc.addPage();
+
+                const isFirstPage = page === 0;
+                const rowsPerPage = isFirstPage ? actualRowsPerPageFirst : actualRowsPerPageOther;
+
+                const headerResult = addPageHeader(page + 1, totalPages, isFirstPage);
+                const colPositions = headerResult.colPositions;
+                const startY = headerResult.headerY;
+
+                let adjustedStartIdx = page * rowsPerPage;
+                if (page > 0) {
+                    adjustedStartIdx = (actualRowsPerPageFirst) + ((page - 1) * actualRowsPerPageOther);
+                }
+
+                const endIdx = Math.min(adjustedStartIdx + rowsPerPage, colaboradores.length);
+                const pageColaboradores = colaboradores.slice(adjustedStartIdx, endIdx);
+
+                doc.setFontSize(9);
+
+                pageColaboradores.forEach((col, idx) => {
+                    const globalIdx = adjustedStartIdx + idx;
+                    const rowY = startY + (idx * rowHeight);
+
+                    if (idx % 2 === 0) {
+                        doc.setFillColor(245, 245, 245);
+                        doc.rect(marginLeft, rowY, usableWidth, rowHeight, 'F');
+                    }
+
+                    doc.text(String(globalIdx + 1), colPositions[0] + colWidths.num / 2, rowY + rowHeight / 2, { align: "center" });
+
+                    const nombreCompleto = col.nombre || "";
+                    doc.text(nombreCompleto, colPositions[1] + 2, rowY + rowHeight / 2);
+
+                    const identidad = col.identidad || "";
+                    doc.text(identidad, colPositions[2] + 2, rowY + rowHeight / 2);
+
+                    doc.setDrawColor(180, 180, 180);
+                    doc.setLineWidth(0.2);
+
+                    const firmaStartX = colPositions[3] + 5;
+                    const firmaEndX = colPositions[3] + colWidths.firma - 5;
+                    const firmaY = rowY + rowHeight - 3;
+
+                    const dashLength = 2;
+                    const gapLength = 1;
+                    let currentX = firmaStartX;
+
+                    while (currentX < firmaEndX) {
+                        doc.line(currentX, firmaY, Math.min(currentX + dashLength, firmaEndX), firmaY);
+                        currentX += dashLength + gapLength;
+                    }
+
+                    doc.setFontSize(8);
+                    const turnoX = colPositions[4] + 2;
+                    const turnoY = rowY + rowHeight / 2;
+
+                    doc.text("A", turnoX, turnoY);
+                    const squareASize = 5;
+                    const squareAX = turnoX + 4;
+                    const squareAY = turnoY - squareASize / 2;
+                    doc.setDrawColor(0, 0, 0);
+                    doc.setLineWidth(0.2);
+                    doc.rect(squareAX, squareAY, squareASize, squareASize);
+
+                    doc.text("B", turnoX + 15, turnoY);
+                    const squareBSize = 5;
+                    const squareBX = turnoX + 19;
+                    const squareBY = turnoY - squareBSize / 2;
+                    doc.rect(squareBX, squareBY, squareBSize, squareBSize);
+
+                    doc.setFontSize(9);
+
+                    doc.setDrawColor(220, 220, 220);
+                    doc.line(marginLeft, rowY + rowHeight, pageWidth - marginRight, rowY + rowHeight);
+                });
+
+                doc.setDrawColor(220, 220, 220);
+                let currentX = marginLeft;
+                Object.keys(colWidths).forEach((key, index) => {
+                    if (index < Object.keys(colWidths).length - 1) {
+                        currentX += colWidths[key];
+                        const startLineY = isFirstPage ? 32 : 18;
+                        const endLineY = startY + (pageColaboradores.length * rowHeight);
+                        doc.line(currentX, startLineY, currentX, endLineY);
+                    }
+                });
+
+                doc.setFontSize(8);
+                doc.setTextColor(100);
+                doc.text(`Página ${page + 1} de ${totalPages}`, pageWidth / 2, pageHeight - 5, { align: "center" });
+            }
+
+            doc.save('Formato_Capacitaciones.pdf');
+            Swal.fire({
+                icon: 'success',
+                title: 'Formato Generado',
+                text: `Se ha generado el Formato de Capacitaciones con ${colaboradores.length} colaboradores en ${totalPages} páginas.`,
+                timer: 3000
+            });
+        }
+    </script>
+</body>
+</html>

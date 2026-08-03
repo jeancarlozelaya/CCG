@@ -988,7 +988,7 @@
         }
         
         #tipo-residuo-residuos.button-group {
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(4, 1fr);
         }
     }
     
@@ -1058,6 +1058,7 @@
                             <button type="button" data-value="Cartón">Cartón</button>
                             <button type="button" data-value="Papel">Papel</button>
                             <button type="button" data-value="Vidrio">Vidrio</button>
+                            <button type="button" data-value="Chatarra">Chatarra</button>
                             <button type="button" data-value="RPBI">RPBI</button>
                         </div>
                     </div>
@@ -1109,6 +1110,7 @@
                             <button type="button" data-value="Cartón"><span>Cartón</span> <i class="fas fa-check"></i></button>
                             <button type="button" data-value="Papel"><span>Papel</span> <i class="fas fa-check"></i></button>
                             <button type="button" data-value="Vidrio"><span>Vidrio</span> <i class="fas fa-check"></i></button>
+                            <button type="button" data-value="Chatarra"><span>Chatarra</span> <i class="fas fa-check"></i></button>
                             <button type="button" data-value="RPBI"><span>RPBI</span> <i class="fas fa-check"></i></button>
                         </div>
                         <div class="tipos-seleccionados" id="tipos-seleccionados-container" style="display: none;">
@@ -1525,7 +1527,7 @@
             const tieneComun = tiposResiduoRecoleccion.includes('Común');
             const tieneRPBI = tiposResiduoRecoleccion.includes('RPBI');
             const tieneReciclables = tiposResiduoRecoleccion.some(tipo => 
-                ['Plástico', 'Aluminio', 'Cartón', 'Papel', 'Vidrio'].includes(tipo)
+                ['Plástico', 'Aluminio', 'Cartón', 'Papel', 'Vidrio', 'Chatarra'].includes(tipo)
             );
             
             if (tieneComun && tiposResiduoRecoleccion.length === 1) {
@@ -1580,7 +1582,7 @@
                     }
                 });
                 destinoAyuda.style.display = 'block';
-                mensajeAyuda.textContent = 'Para residuos reciclables (Plástico, Aluminio, Cartón, Papel, Vidrio), el destino debe ser Recacel';
+                mensajeAyuda.textContent = 'Para residuos reciclables (Plástico, Aluminio, Cartón, Papel, Vidrio, Chatarra), el destino debe ser Recacel';
                 
                 if (destinoSeleccionado !== 'Recacel') {
                     destinoSeleccionado = '';
@@ -1618,83 +1620,84 @@
             }
         }
 
-        function registrarEntradaRecoleccion() {
-            let fecha = $('#fecha-recoleccion').val();
-            let destino = destinoSeleccionado;
-            
-            if ((tiposResiduoRecoleccion.includes('Común') && destino !== 'Basurero Municipal') ||
-                (tiposResiduoRecoleccion.includes('RPBI') && destino !== 'Monsol') ||
-                (tiposResiduoRecoleccion.some(t => ['Plástico', 'Aluminio', 'Cartón', 'Papel', 'Vidrio'].includes(t)) && !tiposResiduoRecoleccion.includes('Común') && !tiposResiduoRecoleccion.includes('RPBI') && destino !== 'Recacel')) {
-                
-                Swal.fire({
-                    title: 'Destino incorrecto',
-                    text: 'El destino seleccionado no es válido para los tipos de residuo elegidos',
-                    icon: 'error',
-                    confirmButtonText: 'Entendido'
-                });
-                return;
-            }
-            
-            if ((tiposResiduoRecoleccion.includes('RPBI') && tiposResiduoRecoleccion.length > 1) ||
-                (tiposResiduoRecoleccion.includes('Común') && tiposResiduoRecoleccion.some(t => t !== 'Común'))) {
-                
-                Swal.fire({
-                    title: 'Combinación no permitida',
-                    text: 'No se pueden mezclar tipos de residuo con diferentes destinos',
-                    icon: 'error',
-                    confirmButtonText: 'Entendido'
-                });
-                return;
-            }
-            
-            let fechaParts = fecha.split('-');
-            let fechaFormateada = fechaParts[2] + '/' + fechaParts[1] + '/' + fechaParts[0];
+function registrarEntradaRecoleccion() {
+    let fecha = $('#fecha-recoleccion').val();
+    let destino = destinoSeleccionado;
+    
+    if ((tiposResiduoRecoleccion.includes('Común') && destino !== 'Basurero Municipal') ||
+        (tiposResiduoRecoleccion.includes('RPBI') && destino !== 'Monsol') ||
+        (tiposResiduoRecoleccion.some(t => ['Plástico', 'Aluminio', 'Cartón', 'Papel', 'Vidrio', 'Chatarra'].includes(t)) && !tiposResiduoRecoleccion.includes('Común') && !tiposResiduoRecoleccion.includes('RPBI') && destino !== 'Recacel')) {
+        
+        Swal.fire({
+            title: 'Destino incorrecto',
+            text: 'El destino seleccionado no es válido para los tipos de residuo elegidos',
+            icon: 'error',
+            confirmButtonText: 'Entendido'
+        });
+        return;
+    }
+    
+    if ((tiposResiduoRecoleccion.includes('RPBI') && tiposResiduoRecoleccion.length > 1) ||
+        (tiposResiduoRecoleccion.includes('Común') && tiposResiduoRecoleccion.some(t => t !== 'Común'))) {
+        
+        Swal.fire({
+            title: 'Combinación no permitida',
+            text: 'No se pueden mezclar tipos de residuo con diferentes destinos',
+            icon: 'error',
+            confirmButtonText: 'Entendido'
+        });
+        return;
+    }
+    
+    let fechaParts = fecha.split('-');
+    let fechaFormateada = fechaParts[2] + '/' + fechaParts[1] + '/' + fechaParts[0];
 
-            let registro = {
-                id: generarIDUnico(),
-                fechaSalida: fechaFormateada,
-                fechaOriginal: fecha,
-                tiposResiduo: [...tiposResiduoRecoleccion],
-                destino: destino,
-                timestamp: new Date().getTime(),
-                syncAttempts: 0
-            };
+    let registro = {
+        id: generarIDUnico(),
+        fechaSalida: fechaFormateada,
+        fechaOriginal: fecha,
+        tiposResiduo: [...tiposResiduoRecoleccion],
+        destino: destino,
+        timestamp: new Date().getTime(),
+        syncAttempts: 0
+    };
 
-            datosRecoleccion.push(registro);
-            guardarDatosRecoleccion();
-            actualizarContadores();
+    datosRecoleccion.push(registro);
+    guardarDatosRecoleccion();
+    actualizarContadores();
 
-            Swal.fire({
-                title: 'Registro Exitoso',
-                html: `
-                    <div style="text-align: center;">
-                        <p style="font-size: 1.1em; margin-bottom: 15px;">El registro de recolección se ha guardado correctamente.</p>
-                        <p style="font-size: 0.9em; color: #7f8c8d;">Registros pendientes de sincronizar: ${datosRecoleccion.length}</p>
-                        <div style="color: #28a745; font-size: 2em;">
-                            <i class="fas fa-check-circle"></i>
-                        </div>
-                    </div>
-                `,
-                icon: 'success',
-                confirmButtonText: 'Aceptar',
-                confirmButtonColor: '#28a745'
-            }).then(() => {
-                $('#tipo-residuo-recoleccion button').removeClass('selected');
-                tiposResiduoRecoleccion = [];
-                actualizarTiposSeleccionados();
-                destinoSeleccionado = '';
-                $('#destino-recoleccion button').removeClass('active');
-                document.getElementById('destino-ayuda').style.display = 'none';
-                
-                var today = new Date();
-                var year = today.getFullYear();
-                var month = String(today.getMonth() + 1).padStart(2, '0');
-                var day = String(today.getDate()).padStart(2, '0');
-                document.getElementById("fecha-recoleccion").value = year + '-' + month + '-' + day;
-                
-                verificarFormularioRecoleccion();
-            });
-        }
+    Swal.fire({
+        title: 'Registro Exitoso',
+        html: `
+            <div style="text-align: center;">
+                <p style="font-size: 1.1em; margin-bottom: 15px;">El registro de recolección se ha guardado correctamente.</p>
+                <p style="font-size: 0.9em; color: #7f8c8d;">Registros pendientes de sincronizar: ${datosRecoleccion.length}</p>
+                <div style="color: #28a745; font-size: 2em;">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+            </div>
+        `,
+        icon: 'success',
+        confirmButtonText: 'Aceptar',
+        confirmButtonColor: '#28a745'
+    }).then(() => {
+        $('#tipo-residuo-recoleccion button').removeClass('selected');
+        tiposResiduoRecoleccion = [];
+        actualizarTiposSeleccionados();
+        destinoSeleccionado = '';
+        $('#destino-recoleccion button').removeClass('active');
+        document.getElementById('destino-ayuda').style.display = 'none';
+        
+        var today = new Date();
+        var year = today.getFullYear();
+        var month = String(today.getMonth() + 1).padStart(2, '0');
+        var day = String(today.getDate()).padStart(2, '0');
+        document.getElementById("fecha-recoleccion").value = year + '-' + month + '-' + day;
+        
+        verificarFormularioRecoleccion();
+    });
+}
+
 
         // ========== FUNCIONES DE MODAL ==========
         function mostrarModalRegistros() {

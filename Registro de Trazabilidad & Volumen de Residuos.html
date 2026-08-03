@@ -939,6 +939,7 @@
                 cartón: 0,
                 papel: 0,
                 vidrio: 0,
+                chatarra: 0,
                 rpbi: 0
             };
 
@@ -988,6 +989,10 @@
                 <tr>
                     <td>Vidrio</td>
                     <td>${(convertirCantidad(totales.vidrio)).toFixed(2)} ${simbolo}</td>
+                </tr>
+                <tr>
+                    <td>Chatarra</td>
+                    <td>${(convertirCantidad(totales.chatarra)).toFixed(2)} ${simbolo}</td>
                 </tr>
                 <tr>
                     <td>RPBI</td>
@@ -1154,7 +1159,7 @@
                     if (!datosAgrupados[reg.edificio]) {
                         datosAgrupados[reg.edificio] = {
                             registros: [],
-                            totales: { común: 0, plástico: 0, aluminio: 0, cartón: 0, papel: 0, vidrio: 0, rpbi: 0 }
+                            totales: { común: 0, plástico: 0, aluminio: 0, cartón: 0, papel: 0, vidrio: 0, chatarra: 0, rpbi: 0 }
                         };
                     }
                     datosAgrupados[reg.edificio].registros.push(reg);
@@ -1169,7 +1174,7 @@
                 const edificiosAProcesar = edificiosOrdenPDF.filter(e => datosAgrupados.hasOwnProperty(e));
 
                 // Calcular y mostrar totales generales
-                const grandTotals = { común: 0, plástico: 0, aluminio: 0, cartón: 0, papel: 0, vidrio: 0, rpbi: 0 };
+                const grandTotals = { común: 0, plástico: 0, aluminio: 0, cartón: 0, papel: 0, vidrio: 0, chatarra: 0, rpbi: 0 };
                 
                 for (const edif of edificiosAProcesar) {
                     if (datosAgrupados[edif]) {
@@ -1179,6 +1184,7 @@
                         grandTotals.cartón += datosAgrupados[edif].totales.cartón;
                         grandTotals.papel += datosAgrupados[edif].totales.papel;
                         grandTotals.vidrio += datosAgrupados[edif].totales.vidrio;
+                        grandTotals.chatarra += datosAgrupados[edif].totales.chatarra;
                         grandTotals.rpbi += datosAgrupados[edif].totales.rpbi;
                     }
                 }
@@ -1190,7 +1196,7 @@
                 startY += 6;
 
                 const grandTotalsData = [
-                    ['Común', 'Plástico', 'Aluminio', 'Cartón', 'Papel', 'Vidrio', 'RPBI'],
+                    ['Común', 'Plástico', 'Aluminio', 'Cartón', 'Papel', 'Vidrio', 'Chatarra', 'RPBI'],
                     [
                         `${convertirCantidadPDF(grandTotals.común).toFixed(2)} ${simboloUnidad}`,
                         `${convertirCantidadPDF(grandTotals.plástico).toFixed(2)} ${simboloUnidad}`,
@@ -1198,6 +1204,7 @@
                         `${convertirCantidadPDF(grandTotals.cartón).toFixed(2)} ${simboloUnidad}`,
                         `${convertirCantidadPDF(grandTotals.papel).toFixed(2)} ${simboloUnidad}`,
                         `${convertirCantidadPDF(grandTotals.vidrio).toFixed(2)} ${simboloUnidad}`,
+                        `${convertirCantidadPDF(grandTotals.chatarra).toFixed(2)} ${simboloUnidad}`,
                         `${convertirCantidadPDF(grandTotals.rpbi).toFixed(2)} ${simboloUnidad}`
                     ]
                 ];
@@ -1332,7 +1339,7 @@
                     doc.text(`TOTALES POR TIPO DE RESIDUO - UNIDAD: ${simboloUnidad.toUpperCase()}`, pageWidth / 2, startY, { align: 'center' });
                     
                     const totalesData = [
-                        ['Común', 'Plástico', 'Aluminio', 'Cartón', 'Papel', 'Vidrio', 'RPBI'],
+                        ['Común', 'Plástico', 'Aluminio', 'Cartón', 'Papel', 'Vidrio', 'Chatarra', 'RPBI'],
                         [
                             `${convertirCantidadPDF(dataEdificio.totales.común).toFixed(2)} ${simboloUnidad}`,
                             `${convertirCantidadPDF(dataEdificio.totales.plástico).toFixed(2)} ${simboloUnidad}`,
@@ -1340,6 +1347,7 @@
                             `${convertirCantidadPDF(dataEdificio.totales.cartón).toFixed(2)} ${simboloUnidad}`,
                             `${convertirCantidadPDF(dataEdificio.totales.papel).toFixed(2)} ${simboloUnidad}`,
                             `${convertirCantidadPDF(dataEdificio.totales.vidrio).toFixed(2)} ${simboloUnidad}`,
+                            `${convertirCantidadPDF(dataEdificio.totales.chatarra).toFixed(2)} ${simboloUnidad}`,
                             `${convertirCantidadPDF(dataEdificio.totales.rpbi).toFixed(2)} ${simboloUnidad}`
                         ]
                     ];
@@ -1392,6 +1400,7 @@
                             const cantidadCarton = registro.tipoResiduo.toLowerCase().includes('cartón') ? cantidadStr : '';
                             const cantidadPapel = registro.tipoResiduo.toLowerCase().includes('papel') ? cantidadStr : '';
                             const cantidadVidrio = registro.tipoResiduo.toLowerCase().includes('vidrio') ? cantidadStr : '';
+                            const cantidadChatarra = registro.tipoResiduo.toLowerCase().includes('chatarra') ? cantidadStr : '';
                             const cantidadRPBI = registro.tipoResiduo.toLowerCase().includes('rpbi') ? cantidadStr : '';
                             
                             const responsableFormateado = registro.responsable ? 
@@ -1406,6 +1415,7 @@
                                 cantidadCarton,
                                 cantidadPapel,
                                 cantidadVidrio,
+                                cantidadChatarra,
                                 cantidadRPBI,
                                 clasificacionOrganico,
                                 clasificacionInorganico,
@@ -1418,7 +1428,7 @@
 
                         const availableWidth = pageWidth - (2 * margin);
                         const columnWidths = {
-                            0: availableWidth * 0.07,
+                            0: availableWidth * 0.06,
                             1: availableWidth * 0.05,
                             2: availableWidth * 0.05,
                             3: availableWidth * 0.05,
@@ -1431,19 +1441,20 @@
                             10: availableWidth * 0.05,
                             11: availableWidth * 0.05,
                             12: availableWidth * 0.05,
-                            13: availableWidth * 0.13
+                            13: availableWidth * 0.05,
+                            14: availableWidth * 0.13
                         };
                         
                         const head = [
                             [
                                 { content: 'Fecha', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-                                { content: `Tipo de Residuo (${simboloUnidad.toUpperCase()})`, colSpan: 7, styles: { halign: 'center' } },
+                                { content: `Tipo de Residuo (${simboloUnidad.toUpperCase()})`, colSpan: 8, styles: { halign: 'center' } },
                                 { content: 'Clasificación', colSpan: 2, styles: { halign: 'center' } },
                                 { content: 'Estado Físico', colSpan: 3, styles: { halign: 'center' } },
                                 { content: 'Responsable', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } }
                             ],
                             [
-                                'Común', 'Plástico', 'Aluminio', 'Cartón', 'Papel', 'Vidrio', 'RPBI',
+                                'Común', 'Plástico', 'Aluminio', 'Cartón', 'Papel', 'Vidrio', 'Chatarra', 'RPBI',
                                 'Orgánico', 'Inorgánico',
                                 'Sólido', 'Líquido', 'Gaseoso'
                             ]

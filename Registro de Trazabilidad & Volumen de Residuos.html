@@ -16,6 +16,7 @@
             --accent-color: #e74c3c;
             --success-color: #2ecc71;
             --warning-color: #f39c12;
+            --info-color: #9b59b6;
             --light-color: #ecf0f1;
             --dark-color: #34495e;
             --text-color: #333;
@@ -119,7 +120,6 @@
             box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
         }
 
-        /* Estilos para el selector de unidades */
         .unidad-selector {
             display: flex;
             align-items: center;
@@ -204,7 +204,6 @@
             box-shadow: none;
         }
 
-        /* Overlay de carga */
         #overlay {
             display: none;
             position: fixed;
@@ -248,7 +247,6 @@
             color: #7f8c8d;
         }
 
-        /* Tabla de resultados */
         .resultados-container {
             display: none;
             margin-top: 30px;
@@ -259,17 +257,62 @@
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        
+
+        .result-tabs-header {
+            display: flex;
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+            padding: 0;
+            border-radius: 8px 8px 0 0;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .result-tab-button {
+            flex: 1;
+            padding: 12px 15px;
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .result-tab-button.active {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .result-tab-button:hover:not(.active) {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .result-tab-content {
+            display: none;
+        }
+
+        .result-tab-content.active {
+            display: block;
+        }
+
         .search-container {
             margin-bottom: 20px;
             position: relative;
         }
+
         .search-container label {
             font-weight: 600;
             color: var(--dark-color);
             margin-bottom: 5px;
             display: block;
         }
+
         .search-container input {
             width: 100%;
             padding: 12px 15px 12px 40px;
@@ -277,6 +320,7 @@
             border-radius: 6px;
             font-size: 16px;
         }
+
         .search-container::before {
             content: '\f002';
             font-family: 'Font Awesome 6 Free';
@@ -323,7 +367,7 @@
         .resultados-table tr:hover {
             background-color: #f8f9fa;
         }
-        
+
         .resultados-table tr.no-results td {
             text-align: center;
             padding: 40px 20px;
@@ -360,7 +404,6 @@
             font-size: 0.9em;
         }
 
-        /* Estilos para la tabla vertical de totales */
         .totales-vertical-table {
             width: 100%;
             border-collapse: collapse;
@@ -381,16 +424,13 @@
         .totales-vertical-table th {
             background-color: var(--primary-color);
             color: white;
-            width: 50%;
         }
 
         .totales-vertical-table td {
             background-color: white;
             font-size: 1.1em;
-            width: 50%;
         }
 
-        /* Estilos personalizados para SweetAlert */
         .swal-confirm-button {
             background: linear-gradient(135deg, #2ecc71, #27ae60) !important;
             color: white !important;
@@ -440,7 +480,6 @@
             font-size: 24px !important;
         }
 
-        /* MEDIA QUERIES */
         @media (max-width: 768px) {
             .form-container {
                 width: 95%;
@@ -489,6 +528,38 @@
                 flex-wrap: wrap;
                 justify-content: center;
             }
+
+            .result-tab-button {
+                font-size: 0.8rem;
+                padding: 10px 8px;
+            }
+
+            .result-tab-button span {
+                font-size: 0.7rem;
+            }
+
+            .totales-vertical-table th,
+            .totales-vertical-table td {
+                padding: 10px 8px;
+                font-size: 0.9em;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .result-tab-button {
+                font-size: 0.7rem;
+                padding: 8px 5px;
+            }
+
+            .result-tab-button i {
+                font-size: 0.8rem;
+            }
+
+            .totales-vertical-table th,
+            .totales-vertical-table td {
+                padding: 8px 5px;
+                font-size: 0.8em;
+            }
         }
     </style>
 </head>
@@ -526,7 +597,6 @@
                 <input type="number" id="anio" name="anio" min="2020" max="2030" placeholder="Ingrese el año">
             </div>
 
-            <!-- NUEVO: Selector de Unidades -->
             <div class="question-container">
                 <div class="unidad-selector">
                     <label><i class="fas fa-weight-scale"></i> <strong>Unidad de medida:</strong></label>
@@ -550,32 +620,75 @@
         <div class="resultados-container" id="resultados-container">
             <h2>Resultados</h2>
 
-            <div class="search-container" id="search-container" style="display: none;">
-                <label for="search-input">Buscar en resultados:</label>
-                <input type="text" id="search-input" placeholder="Filtrar por edificio, tipo, clasificación, estado..." autocomplete="off">
+            <div class="result-tabs-header">
+                <button class="result-tab-button active" id="tab-ingresos" onclick="cambiarResultTab('ingresos')">
+                    <i class="fas fa-arrow-down"></i>
+                    <span>Ingresos</span>
+                </button>
+                <button class="result-tab-button" id="tab-devoluciones" onclick="cambiarResultTab('devoluciones')">
+                    <i class="fas fa-arrow-up"></i>
+                    <span>Devoluciones</span>
+                </button>
             </div>
 
-            <div class="table-wrapper">
-                <table class="resultados-table" id="tabla-resultados">
-                    <thead>
-                        <tr>
-                            <th>Fecha</th>
-                            <th>Edificio</th>
-                            <th>Tipo Residuo</th>
-                            <th id="th-cantidad">Cantidad (Lbs)</th>
-                            <th>Clasificación</th>
-                            <th>Estado Físico</th>
-                            <th>Responsable</th>
-                        </tr>
-                    </thead>
-                    <tbody id="cuerpo-tabla">
+            <div class="result-tab-content active" id="tab-content-ingresos">
+                <div class="search-container" id="search-container" style="display: none;">
+                    <label for="search-input">Buscar en resultados:</label>
+                    <input type="text" id="search-input" placeholder="Filtrar por edificio, tipo, clasificación, estado..." autocomplete="off">
+                </div>
+
+                <div class="table-wrapper">
+                    <table class="resultados-table" id="tabla-resultados">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Edificio</th>
+                                <th>Tipo Residuo</th>
+                                <th id="th-cantidad">Cantidad (Lbs)</th>
+                                <th>Clasificación</th>
+                                <th>Estado Físico</th>
+                                <th>Responsable</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cuerpo-tabla">
                         </tbody>
-                </table>
+                    </table>
+                </div>
+                <div class="scroll-indicator">
+                    <i class="fas fa-arrows-alt-h"></i> Desliza horizontalmente para ver más información
+                    <br>
+                    <i class="fas fa-arrows-alt-v"></i> Desliza verticalmente para ver más registros
+                </div>
             </div>
-            <div class="scroll-indicator">
-                <i class="fas fa-arrows-alt-h"></i> Desliza horizontalmente para ver más información
-                <br>
-                <i class="fas fa-arrows-alt-v"></i> Desliza verticalmente para ver más registros
+
+            <div class="result-tab-content" id="tab-content-devoluciones">
+                <div class="search-container" id="search-devolucion-container" style="display: none;">
+                    <label for="search-devolucion">Buscar en devoluciones:</label>
+                    <input type="text" id="search-devolucion" placeholder="Filtrar por tipo, destino, responsable..." autocomplete="off">
+                </div>
+
+                <div class="table-wrapper">
+                    <table class="resultados-table" id="tabla-devoluciones">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Tipo Residuo</th>
+                                <th id="th-cantidad-devolucion">Cantidad (Lbs)</th>
+                                <th>Clasificación</th>
+                                <th>Estado Físico</th>
+                                <th>Destino</th>
+                                <th>Responsable</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cuerpo-tabla-devoluciones">
+                        </tbody>
+                    </table>
+                </div>
+                <div class="scroll-indicator">
+                    <i class="fas fa-arrows-alt-h"></i> Desliza horizontalmente para ver más información
+                    <br>
+                    <i class="fas fa-arrows-alt-v"></i> Desliza verticalmente para ver más registros
+                </div>
             </div>
 
             <h3 id="totales-titulo">Totales por Tipo de Residuo</h3>
@@ -583,14 +696,15 @@
                 <thead>
                     <tr>
                         <th>Tipo de Residuo</th>
-                        <th id="th-total-cantidad">Cantidad Total (Lbs)</th>
+                        <th id="th-total-ingresos">Ingresos - Cantidad Total (Lbs)</th>
+                        <th id="th-total-devoluciones">Devoluciones - Cantidad Total (Lbs)</th>
+                        <th id="th-total-diferencia">Cantidad Total (Lbs)</th>
                     </tr>
                 </thead>
                 <tbody id="cuerpo-totales">
-                    </tbody>
+                </tbody>
             </table>
 
-            <!-- SECCIÓN DE REGISTROS DE RECOLECCIÓN -->
             <div id="recoleccion-container" style="margin-top: 40px; display: none;">
                 <h3>Registros de Recolección</h3>
                 
@@ -632,22 +746,28 @@
     </div>
 
     <script>
-        // Variables globales
-        let datosFiltrados = []; 
+        // ============================================================
+        // VARIABLES GLOBALES
+        // ============================================================
+        let datosFiltrados = [];
         let datosRecoleccion = [];
-        let datosMostrados = []; 
+        let datosDevoluciones = [];
+        let datosIngresosMostrados = [];
+        let datosDevolucionesMostrados = [];
         let mesSeleccionado = "";
         let anioSeleccionado = "";
         let edificioSeleccionado = "Todos";
-        let unidadActual = "lbs"; // 'lbs' o 'kg'
-        const FACTOR_CONVERSION = 0.453592; // 1 lb = 0.453592 kg
+        let unidadActual = "lbs";
+        let tabResultadoActual = "ingresos";
+        const FACTOR_CONVERSION = 0.453592;
         const scriptURL = "https://script.google.com/macros/s/AKfycbwlz9tt9P_8iynjpyO0GzGfqm1zMFfUVOimkCiG2n9PHhjXtTHAoAAJVRcyT7_cZQ8t/exec";
 
-        // Función para cambiar unidad
+        // ============================================================
+        // FUNCIONES DE UNIDAD
+        // ============================================================
         function cambiarUnidad(unidad) {
             unidadActual = unidad;
             
-            // Actualizar clases de los botones
             document.getElementById('btn-libras').classList.remove('active');
             document.getElementById('btn-kilogramos').classList.remove('active');
             
@@ -657,26 +777,28 @@
                 document.getElementById('btn-kilogramos').classList.add('active');
             }
             
-            // Actualizar encabezados de las tablas
             const thCantidad = document.getElementById('th-cantidad');
-            const thTotalCantidad = document.getElementById('th-total-cantidad');
+            const thCantidadDev = document.getElementById('th-cantidad-devolucion');
+            const thTotalIngresos = document.getElementById('th-total-ingresos');
+            const thTotalDevoluciones = document.getElementById('th-total-devoluciones');
+            const thTotalDiferencia = document.getElementById('th-total-diferencia');
             
-            if (unidad === 'lbs') {
-                thCantidad.textContent = 'Cantidad (Lbs)';
-                thTotalCantidad.textContent = 'Cantidad Total (Lbs)';
-            } else {
-                thCantidad.textContent = 'Cantidad (Kg)';
-                thTotalCantidad.textContent = 'Cantidad Total (Kg)';
-            }
+            const label = unidad === 'lbs' ? 'Lbs' : 'Kg';
             
-            // Refrescar los resultados si ya hay datos
-            if (datosFiltrados.length > 0) {
+            if (thCantidad) thCantidad.textContent = `Cantidad (${label})`;
+            if (thCantidadDev) thCantidadDev.textContent = `Cantidad (${label})`;
+            if (thTotalIngresos) thTotalIngresos.textContent = `Ingresos - Cantidad Total (${label})`;
+            if (thTotalDevoluciones) thTotalDevoluciones.textContent = `Devoluciones - Cantidad Total (${label})`;
+            if (thTotalDiferencia) thTotalDiferencia.textContent = `Cantidad Total (${label})`;
+            
+            if (datosFiltrados.length > 0 || datosDevoluciones.length > 0) {
                 mostrarResultados();
+                mostrarDevoluciones();
                 mostrarRecoleccion();
+                mostrarTotales();
             }
         }
 
-        // Función para convertir cantidad según la unidad actual
         function convertirCantidad(cantidad) {
             if (unidadActual === 'kg') {
                 return cantidad * FACTOR_CONVERSION;
@@ -684,12 +806,13 @@
             return cantidad;
         }
 
-        // Función para obtener el símbolo de la unidad actual
         function getUnidadSimbolo() {
             return unidadActual === 'lbs' ? 'lbs' : 'kg';
         }
 
-        // Configuración inicial al cargar la página
+        // ============================================================
+        // INICIALIZACIÓN
+        // ============================================================
         document.addEventListener('DOMContentLoaded', function() {
             const today = new Date();
             const mesActual = String(today.getMonth() + 1).padStart(2, '0');
@@ -699,7 +822,7 @@
             document.getElementById("anio").value = anioActual;
             
             configurarEventos();
-            verificarFormulario(); 
+            verificarFormulario();
 
             document.addEventListener('contextmenu', function(e) {
                 e.preventDefault();
@@ -710,20 +833,22 @@
             });
         });
 
-        // Función para configurar eventos
         function configurarEventos() {
             $("#mes, #anio").on("change", verificarFormulario);
 
             $("#search-input").on("keyup", function() {
-                mostrarResultados(); 
+                mostrarResultados();
+            });
+
+            $("#search-devolucion").on("keyup", function() {
+                mostrarDevoluciones();
             });
 
             $("#search-recoleccion").on("keyup", function() {
-                mostrarRecoleccion(); 
+                mostrarRecoleccion();
             });
         }
 
-        // Función para verificar si el formulario está completo
         function verificarFormulario() {
             const mes = $("#mes").val();
             const anio = $("#anio").val();
@@ -735,15 +860,31 @@
             }
         }
 
-        // Función para filtrar datos
+        function cambiarResultTab(tab) {
+            tabResultadoActual = tab;
+            
+            document.getElementById('tab-ingresos').classList.remove('active');
+            document.getElementById('tab-devoluciones').classList.remove('active');
+            document.getElementById(`tab-${tab}`).classList.add('active');
+            
+            document.getElementById('tab-content-ingresos').classList.remove('active');
+            document.getElementById('tab-content-devoluciones').classList.remove('active');
+            document.getElementById(`tab-content-${tab}`).classList.add('active');
+        }
+
+        // ============================================================
+        // FILTRAR DATOS
+        // ============================================================
         function filtrarDatos() {
             mesSeleccionado = $("#mes").val();
             anioSeleccionado = $("#anio").val();
 
             $('#overlay').css('display', 'flex');
             $('#search-input').val('');
+            $('#search-devolucion').val('');
             $('#search-recoleccion').val('');
             $('#search-container').hide();
+            $('#search-devolucion-container').hide();
             $('#search-recoleccion-container').hide();
             $('#resultados-container').hide();
             $('#recoleccion-container').hide();
@@ -755,7 +896,7 @@
                     action: "obtenerReporte",
                     mes: mesSeleccionado,
                     anio: anioSeleccionado,
-                    edificio: edificioSeleccionado 
+                    edificio: edificioSeleccionado
                 },
                 success: function(response) {
                     $('#overlay').hide();
@@ -770,6 +911,7 @@
                     if (responseData.success) {
                         datosFiltrados = responseData.datos || [];
                         datosRecoleccion = responseData.recoleccion || [];
+                        datosDevoluciones = responseData.devoluciones || [];
 
                         const edificioOrden = {
                             "CBA": 1,
@@ -808,16 +950,36 @@
                             }
                         });
 
+                        datosDevoluciones.sort((a, b) => {
+                            try {
+                                const dateA = new Date(a.fecha.split('/').reverse().join('-'));
+                                const dateB = new Date(b.fecha.split('/').reverse().join('-'));
+                                if (isNaN(dateA.getTime())) return 1;
+                                if (isNaN(dateB.getTime())) return -1;
+                                return dateA.getTime() - dateB.getTime();
+                            } catch (e) {
+                                return 0;
+                            }
+                        });
+
                         mostrarResultados();
+                        mostrarDevoluciones();
                         mostrarRecoleccion();
+                        mostrarTotales();
                         
                         if (datosFiltrados.length > 0) {
                             $('#search-container').show();
                         }
                         
+                        if (datosDevoluciones.length > 0) {
+                            $('#search-devolucion-container').show();
+                        }
+                        
                         if (datosRecoleccion && datosRecoleccion.length > 0) {
                             $('#search-recoleccion-container').show();
                         }
+
+                        $('#resultados-container').show();
 
                     } else {
                         Swal.fire({
@@ -850,7 +1012,9 @@
             });
         }
 
-        // Función para formatear fecha a dd/mm/aaaa
+        // ============================================================
+        // FUNCIONES DE FORMATEO
+        // ============================================================
         function formatearFecha(fecha) {
             if (!fecha) return 'N/A';
             
@@ -868,7 +1032,7 @@
                 const mes = String(date.getUTCMonth() + 1).padStart(2, '0');
                 const anio = date.getUTCFullYear();
                 
-                if (anio < 2000) return fecha; 
+                if (anio < 2000) return fecha;
                 
                 return `${dia}/${mes}/${anio}`;
             } catch (e) {
@@ -876,20 +1040,48 @@
             }
         }
 
-        // Función para mostrar resultados en la tabla
+        function formatearNombre(nombre) {
+            if (!nombre || nombre === 'No especificado' || nombre === 'N/A') return nombre;
+            
+            return nombre.toLowerCase().split(' ').map(palabra => {
+                if (palabra.length > 0) {
+                    return palabra.charAt(0).toUpperCase() + palabra.slice(1);
+                }
+                return palabra;
+            }).join(' ');
+        }
+
+        function obtenerNombreMes(numeroMes) {
+            const meses = [
+                'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+            ];
+            return meses[parseInt(numeroMes) - 1];
+        }
+
+        function getUnidadSimboloPDF() {
+            return unidadActual === 'lbs' ? 'lbs' : 'kg';
+        }
+
+        function convertirCantidadPDF(cantidad) {
+            if (unidadActual === 'kg') {
+                return cantidad * FACTOR_CONVERSION;
+            }
+            return cantidad;
+        }
+
+        // ============================================================
+        // MOSTRAR INGRESOS
+        // ============================================================
         function mostrarResultados() {
             const cuerpoTabla = document.getElementById('cuerpo-tabla');
-            const cuerpoTotales = document.getElementById('cuerpo-totales');
-            const tituloTotales = document.getElementById('totales-titulo');
-            
             const fullSearchTerm = $('#search-input').val().toLowerCase().trim();
             const searchTerms = fullSearchTerm.split(' ').filter(term => term.length > 0);
 
             cuerpoTabla.innerHTML = '';
-            cuerpoTotales.innerHTML = '';
 
             if (searchTerms.length > 0) {
-                datosMostrados = datosFiltrados.filter(registro => {
+                datosIngresosMostrados = datosFiltrados.filter(registro => {
                     const searchableString = [
                         registro.edificio || '',
                         registro.tipoResiduo || '',
@@ -901,19 +1093,17 @@
                     return searchTerms.every(term => searchableString.includes(term));
                 });
             } else {
-                datosMostrados = datosFiltrados;
+                datosIngresosMostrados = datosFiltrados;
             }
 
-            tituloTotales.textContent = 'Totales Generales (Filtrados)';
-
-            if (datosMostrados.length === 0) {
+            if (datosIngresosMostrados.length === 0) {
                 let mensaje = "";
                 if (datosFiltrados.length === 0) {
                     mensaje = `
                         <td colspan="7" class="empty-state">
                             <i class="fas fa-inbox"></i>
                             <h3>No se encontraron registros</h3>
-                            <p>No hay datos para el mes y año seleccionados.</p>
+                            <p>No hay datos de ingresos para el mes y año seleccionados.</p>
                         </td>`;
                     $("#generar-pdf").prop("disabled", true).hide();
                 } else {
@@ -927,23 +1117,10 @@
                     $("#generar-pdf").prop("disabled", false).show();
                 }
                 cuerpoTabla.innerHTML = `<tr>${mensaje}</tr>`;
-                document.getElementById('resultados-container').style.display = 'block';
                 return;
             }
 
-            // Calcular totales
-            const totales = {
-                común: 0,
-                plástico: 0,
-                aluminio: 0,
-                cartón: 0,
-                papel: 0,
-                vidrio: 0,
-                chatarra: 0,
-                rpbi: 0
-            };
-
-            datosMostrados.forEach(registro => {
+            datosIngresosMostrados.forEach(registro => {
                 const fila = document.createElement('tr');
                 const cantidadConvertida = convertirCantidad(registro.cantidad);
                 fila.innerHTML = `
@@ -956,55 +1133,127 @@
                     <td>${formatearNombre(registro.responsable) || 'N/A'}</td>
                 `;
                 cuerpoTabla.appendChild(fila);
-
-                const tipo = registro.tipoResiduo.toLowerCase();
-                if (totales.hasOwnProperty(tipo)) {
-                    totales[tipo] += parseFloat(registro.cantidad) || 0;
-                }
             });
 
-            // Mostrar totales (convertidos si es necesario)
-            const simbolo = getUnidadSimbolo();
-            cuerpoTotales.innerHTML = `
-                <tr>
-                    <td>Común</td>
-                    <td>${(convertirCantidad(totales.común)).toFixed(2)} ${simbolo}</td>
-                </tr>
-                <tr>
-                    <td>Plástico</td>
-                    <td>${(convertirCantidad(totales.plástico)).toFixed(2)} ${simbolo}</td>
-                </tr>
-                <tr>
-                    <td>Aluminio</td>
-                    <td>${(convertirCantidad(totales.aluminio)).toFixed(2)} ${simbolo}</td>
-                </tr>
-                <tr>
-                    <td>Cartón</td>
-                    <td>${(convertirCantidad(totales.cartón)).toFixed(2)} ${simbolo}</td>
-                </tr>
-                <tr>
-                    <td>Papel</td>
-                    <td>${(convertirCantidad(totales.papel)).toFixed(2)} ${simbolo}</td>
-                </tr>
-                <tr>
-                    <td>Vidrio</td>
-                    <td>${(convertirCantidad(totales.vidrio)).toFixed(2)} ${simbolo}</td>
-                </tr>
-                <tr>
-                    <td>Chatarra</td>
-                    <td>${(convertirCantidad(totales.chatarra)).toFixed(2)} ${simbolo}</td>
-                </tr>
-                <tr>
-                    <td>RPBI</td>
-                    <td>${(convertirCantidad(totales.rpbi)).toFixed(2)} ${simbolo}</td>
-                </tr>
-            `;
-
-            document.getElementById('resultados-container').style.display = 'block';
             $("#generar-pdf").prop("disabled", false).show();
         }
 
-        // Función para mostrar resultados de recolección
+        // ============================================================
+        // MOSTRAR DEVOLUCIONES
+        // ============================================================
+        function mostrarDevoluciones() {
+            const cuerpoTabla = document.getElementById('cuerpo-tabla-devoluciones');
+            const fullSearchTerm = $('#search-devolucion').val().toLowerCase().trim();
+            const searchTerms = fullSearchTerm.split(' ').filter(term => term.length > 0);
+
+            cuerpoTabla.innerHTML = '';
+
+            if (searchTerms.length > 0) {
+                datosDevolucionesMostrados = datosDevoluciones.filter(registro => {
+                    const searchableString = [
+                        registro.tipoResiduo || '',
+                        registro.clasificacion || '',
+                        registro.estadoFisico || '',
+                        registro.destino || '',
+                        registro.responsable || ''
+                    ].join(' ').toLowerCase();
+                    
+                    return searchTerms.every(term => searchableString.includes(term));
+                });
+            } else {
+                datosDevolucionesMostrados = datosDevoluciones;
+            }
+
+            if (datosDevolucionesMostrados.length === 0) {
+                let mensaje = "";
+                if (datosDevoluciones.length === 0) {
+                    mensaje = `
+                        <td colspan="7" class="empty-state">
+                            <i class="fas fa-inbox"></i>
+                            <h3>No se encontraron devoluciones</h3>
+                            <p>No hay datos de devoluciones para el mes y año seleccionados.</p>
+                        </td>`;
+                } else {
+                    mensaje = `
+                        <tr class="no-results">
+                            <td colspan="7">
+                                <i class="fas fa-search" style="margin-right: 8px;"></i>
+                                No se encontraron devoluciones que coincidan con "<strong>${fullSearchTerm}</strong>".
+                            </td>
+                        </tr>`;
+                }
+                cuerpoTabla.innerHTML = `<tr>${mensaje}</tr>`;
+                return;
+            }
+
+            datosDevolucionesMostrados.forEach(registro => {
+                const fila = document.createElement('tr');
+                const cantidadConvertida = convertirCantidad(registro.cantidad);
+                fila.innerHTML = `
+                    <td>${formatearFecha(registro.fecha)}</td>
+                    <td>${registro.tipoResiduo}</td>
+                    <td>${cantidadConvertida.toFixed(2)}</td>
+                    <td>${registro.clasificacion}</td>
+                    <td>${registro.estadoFisico}</td>
+                    <td>${registro.destino || 'N/A'}</td>
+                    <td>${formatearNombre(registro.responsable) || 'N/A'}</td>
+                `;
+                cuerpoTabla.appendChild(fila);
+            });
+        }
+
+        // ============================================================
+        // MOSTRAR TOTALES (SIN SUMATORIA FINAL)
+        // ============================================================
+        function mostrarTotales() {
+            const cuerpoTotales = document.getElementById('cuerpo-totales');
+            cuerpoTotales.innerHTML = '';
+
+            const tipos = ['Común', 'Plástico', 'Aluminio', 'Cartón', 'Papel', 'Vidrio', 'Chatarra', 'RPBI'];
+            
+            const totalesIngresos = {};
+            const totalesDevoluciones = {};
+            
+            tipos.forEach(t => {
+                totalesIngresos[t] = 0;
+                totalesDevoluciones[t] = 0;
+            });
+
+            datosFiltrados.forEach(registro => {
+                const tipo = registro.tipoResiduo;
+                if (totalesIngresos.hasOwnProperty(tipo)) {
+                    totalesIngresos[tipo] += parseFloat(registro.cantidad) || 0;
+                }
+            });
+
+            datosDevoluciones.forEach(registro => {
+                const tipo = registro.tipoResiduo;
+                if (totalesDevoluciones.hasOwnProperty(tipo)) {
+                    totalesDevoluciones[tipo] += parseFloat(registro.cantidad) || 0;
+                }
+            });
+
+            const simbolo = getUnidadSimbolo();
+
+            tipos.forEach(tipo => {
+                const ingresos = convertirCantidad(totalesIngresos[tipo] || 0);
+                const devoluciones = convertirCantidad(totalesDevoluciones[tipo] || 0);
+                const diferencia = ingresos - devoluciones;
+                
+                const fila = document.createElement('tr');
+                fila.innerHTML = `
+                    <td>${tipo}</td>
+                    <td>${ingresos.toFixed(2)} ${simbolo}</td>
+                    <td>${devoluciones.toFixed(2)} ${simbolo}</td>
+                    <td>${diferencia.toFixed(2)} ${simbolo}</td>
+                `;
+                cuerpoTotales.appendChild(fila);
+            });
+        }
+
+        // ============================================================
+        // MOSTRAR RECOLECCIÓN
+        // ============================================================
         function mostrarRecoleccion() {
             const cuerpoRecoleccion = document.getElementById('cuerpo-tabla-recoleccion');
             const containerRecoleccion = document.getElementById('recoleccion-container');
@@ -1058,45 +1307,13 @@
             }
         }
 
-        // Función para formatear nombre (primera letra mayúscula de cada palabra)
-        function formatearNombre(nombre) {
-            if (!nombre || nombre === 'No especificado' || nombre === 'N/A') return nombre;
-            
-            return nombre.toLowerCase().split(' ').map(palabra => {
-                if (palabra.length > 0) {
-                    return palabra.charAt(0).toUpperCase() + palabra.slice(1);
-                }
-                return palabra;
-            }).join(' ');
-        }
-
-        // Función auxiliar para obtener el nombre del mes
-        function obtenerNombreMes(numeroMes) {
-            const meses = [
-                'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-                'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-            ];
-            return meses[parseInt(numeroMes) - 1];
-        }
-
-        // Función para obtener el símbolo de la unidad para el PDF
-        function getUnidadSimboloPDF() {
-            return unidadActual === 'lbs' ? 'lbs' : 'kg';
-        }
-
-        // Función para convertir cantidad para el PDF (usa la unidad actual)
-        function convertirCantidadPDF(cantidad) {
-            if (unidadActual === 'kg') {
-                return cantidad * FACTOR_CONVERSION;
-            }
-            return cantidad;
-        }
-
-        // Función para generar PDF
+        // ============================================================
+        // GENERAR PDF
+        // ============================================================
         function generarPDF() {
-            if (datosFiltrados.length === 0 && (!datosRecoleccion || datosRecoleccion.length === 0)) {
-                 Swal.fire('Error', 'No hay datos para generar el PDF.', 'error');
-                 return;
+            if (datosFiltrados.length === 0 && datosDevoluciones.length === 0 && (!datosRecoleccion || datosRecoleccion.length === 0)) {
+                Swal.fire('Error', 'No hay datos para generar el PDF.', 'error');
+                return;
             }
 
             $('#overlay').css('display', 'flex');
@@ -1112,16 +1329,19 @@
                 const pageWidth = doc.internal.pageSize.getWidth();
                 const pageHeight = doc.internal.pageSize.getHeight();
                 const margin = 10;
-                let startY = 40; 
+                let startY = 40;
                 let totalPagesExp = "{total_pages_count_placeholder}";
                 const simboloUnidad = getUnidadSimboloPDF();
+                let esPrimeraPagina = true;
 
-                // Función de encabezado
+                // ============================================================
+                // FUNCIÓN DE ENCABEZADO (SOLO PARA PRIMERA PÁGINA)
+                // ============================================================
                 function addHeader() {
                     const iconUrl = "https://raw.githubusercontent.com/jeancarlozelaya/CCG/refs/heads/main/Im%C3%A1genes/Icono.png";
                     const img = new Image();
                     img.src = iconUrl;
-                    doc.addImage(img, 'PNG', margin, 12, 20, 20); 
+                    doc.addImage(img, 'PNG', margin, 12, 20, 20);
 
                     doc.setFontSize(11);
                     doc.setFont('helvetica', 'bold');
@@ -1136,7 +1356,9 @@
                     doc.text(`Generado: ${new Date().toLocaleDateString('es-ES')}`, pageWidth - margin, 15, { align: 'right' });
                 }
 
-                // Función de pie de página
+                // ============================================================
+                // FUNCIÓN DE PIE DE PÁGINA
+                // ============================================================
                 function addFooter(data) {
                     doc.setFontSize(8);
                     doc.setFont('helvetica', 'normal');
@@ -1149,98 +1371,120 @@
                     doc.text(str, pageWidth - margin, pageHeight - 10, { align: 'right' });
                 }
 
-                // ----- INICIO DE LA CREACIÓN DEL PDF -----
-                addHeader();
-                
-                // Lógica de agrupación de datos
-                const datosAgrupados = {};
-                
-                datosFiltrados.forEach(reg => {
-                    if (!datosAgrupados[reg.edificio]) {
-                        datosAgrupados[reg.edificio] = {
-                            registros: [],
-                            totales: { común: 0, plástico: 0, aluminio: 0, cartón: 0, papel: 0, vidrio: 0, chatarra: 0, rpbi: 0 }
-                        };
-                    }
-                    datosAgrupados[reg.edificio].registros.push(reg);
-                    
-                    const tipo = reg.tipoResiduo.toLowerCase();
-                    if (datosAgrupados[reg.edificio].totales.hasOwnProperty(tipo)) {
-                        datosAgrupados[reg.edificio].totales[tipo] += parseFloat(reg.cantidad) || 0;
-                    }
-                });
+                // ============================================================
+                // FUNCIÓN PARA NUEVA PÁGINA (SOLO PIE DE PÁGINA, SIN ENCABEZADO)
+                // ============================================================
+                function nuevaPaginaSinHeader() {
+                    doc.addPage();
+                    // No llamamos a addHeader() aquí
+                    // Solo agregamos el pie de página automáticamente con autoTable
+                }
 
-                const edificiosOrdenPDF = ["CBA", "CBB", "CBC", "Torre #1", "Torre #2"];
-                const edificiosAProcesar = edificiosOrdenPDF.filter(e => datosAgrupados.hasOwnProperty(e));
-
-                // Calcular y mostrar totales generales
-                const grandTotals = { común: 0, plástico: 0, aluminio: 0, cartón: 0, papel: 0, vidrio: 0, chatarra: 0, rpbi: 0 };
-                
-                for (const edif of edificiosAProcesar) {
-                    if (datosAgrupados[edif]) {
-                        grandTotals.común += datosAgrupados[edif].totales.común;
-                        grandTotals.plástico += datosAgrupados[edif].totales.plástico;
-                        grandTotals.aluminio += datosAgrupados[edif].totales.aluminio;
-                        grandTotals.cartón += datosAgrupados[edif].totales.cartón;
-                        grandTotals.papel += datosAgrupados[edif].totales.papel;
-                        grandTotals.vidrio += datosAgrupados[edif].totales.vidrio;
-                        grandTotals.chatarra += datosAgrupados[edif].totales.chatarra;
-                        grandTotals.rpbi += datosAgrupados[edif].totales.rpbi;
+                // ============================================================
+                // FUNCIÓN PARA NUEVA PÁGINA CON ENCABEZADO (SOLO PRIMERA VEZ)
+                // ============================================================
+                function nuevaPaginaConHeader() {
+                    doc.addPage();
+                    if (esPrimeraPagina) {
+                        addHeader();
+                        esPrimeraPagina = false;
                     }
                 }
 
-                doc.setFontSize(14); 
+                // ============================================================
+                // PÁGINA 1: TOTALES POR TIPO DE RESIDUO
+                // ============================================================
+                // Primera página: mostramos el encabezado
+                addHeader();
+                esPrimeraPagina = false;
+                startY = 40;
+
+                const tipos = ['Común', 'Plástico', 'Aluminio', 'Cartón', 'Papel', 'Vidrio', 'Chatarra', 'RPBI'];
+                
+                const totalesIngresos = {};
+                const totalesDevoluciones = {};
+                
+                tipos.forEach(t => {
+                    totalesIngresos[t] = 0;
+                    totalesDevoluciones[t] = 0;
+                });
+
+                datosFiltrados.forEach(reg => {
+                    const tipo = reg.tipoResiduo;
+                    if (totalesIngresos.hasOwnProperty(tipo)) {
+                        totalesIngresos[tipo] += parseFloat(reg.cantidad) || 0;
+                    }
+                });
+
+                datosDevoluciones.forEach(reg => {
+                    const tipo = reg.tipoResiduo;
+                    if (totalesDevoluciones.hasOwnProperty(tipo)) {
+                        totalesDevoluciones[tipo] += parseFloat(reg.cantidad) || 0;
+                    }
+                });
+
+                doc.setFontSize(14);
                 doc.setFont('helvetica', 'bold');
                 doc.setTextColor(44, 62, 80);
-                doc.text(`TOTALES POR TIPO DE RESIDUO (GENERAL) - UNIDAD: ${simboloUnidad.toUpperCase()}`, pageWidth / 2, startY, { align: 'center' });
+                doc.text(`TOTALES POR TIPO DE RESIDUO - UNIDAD: ${simboloUnidad.toUpperCase()}`, pageWidth / 2, startY, { align: 'center' });
                 startY += 6;
 
-                const grandTotalsData = [
-                    ['Común', 'Plástico', 'Aluminio', 'Cartón', 'Papel', 'Vidrio', 'Chatarra', 'RPBI'],
-                    [
-                        `${convertirCantidadPDF(grandTotals.común).toFixed(2)} ${simboloUnidad}`,
-                        `${convertirCantidadPDF(grandTotals.plástico).toFixed(2)} ${simboloUnidad}`,
-                        `${convertirCantidadPDF(grandTotals.aluminio).toFixed(2)} ${simboloUnidad}`,
-                        `${convertirCantidadPDF(grandTotals.cartón).toFixed(2)} ${simboloUnidad}`,
-                        `${convertirCantidadPDF(grandTotals.papel).toFixed(2)} ${simboloUnidad}`,
-                        `${convertirCantidadPDF(grandTotals.vidrio).toFixed(2)} ${simboloUnidad}`,
-                        `${convertirCantidadPDF(grandTotals.chatarra).toFixed(2)} ${simboloUnidad}`,
-                        `${convertirCantidadPDF(grandTotals.rpbi).toFixed(2)} ${simboloUnidad}`
-                    ]
-                ];
+                const headerRow = ['Tipo'];
+                const ingresosRow = ['Ingresos'];
+                const devolucionesRow = ['Devoluciones'];
+                const diferenciaRow = ['Total (Diferencia)'];
+
+                tipos.forEach(tipo => {
+                    const ingresos = convertirCantidadPDF(totalesIngresos[tipo] || 0);
+                    const devoluciones = convertirCantidadPDF(totalesDevoluciones[tipo] || 0);
+                    const diferencia = ingresos - devoluciones;
+                    
+                    headerRow.push(tipo);
+                    ingresosRow.push(`${ingresos.toFixed(2)} ${simboloUnidad}`);
+                    devolucionesRow.push(`${devoluciones.toFixed(2)} ${simboloUnidad}`);
+                    diferenciaRow.push(`${diferencia.toFixed(2)} ${simboloUnidad}`);
+                });
+
+                const totalesData = [headerRow, ingresosRow, devolucionesRow, diferenciaRow];
 
                 doc.autoTable({
                     startY: startY,
-                    head: [grandTotalsData[0]],
-                    body: [grandTotalsData[1]],
+                    head: [totalesData[0]],
+                    body: totalesData.slice(1),
                     theme: 'grid',
                     headStyles: {
-                        fillColor: [46, 204, 113], 
+                        fillColor: [44, 62, 80],
                         textColor: 255,
                         fontStyle: 'bold',
-                        fontSize: 9,
+                        fontSize: 8,
                         halign: 'center'
                     },
-                    bodyStyles: { fontSize: 9, textColor: 0, halign: 'center', fontStyle: 'bold' },
+                    bodyStyles: {
+                        fontSize: 7,
+                        textColor: 0,
+                        halign: 'center'
+                    },
                     margin: { left: margin, right: margin },
                     tableWidth: pageWidth - (2 * margin),
-                    didDrawPage: addFooter 
+                    didDrawPage: addFooter
                 });
 
                 startY = doc.lastAutoTable.finalY + 15;
 
-                // ===== SECCIÓN DE REGISTROS DE RECOLECCIÓN =====
+                // ============================================================
+                // REGISTROS DE RECOLECCIÓN (MISMA PÁGINA, SIN ENCABEZADO)
+                // ============================================================
                 if (datosRecoleccion && datosRecoleccion.length > 0) {
                     const rectHeight = 8;
                     doc.setFillColor(46, 204, 113);
-                    doc.rect(margin, startY, pageWidth - (2 * margin), rectHeight, 'F'); 
+                    doc.rect(margin, startY, pageWidth - (2 * margin), rectHeight, 'F');
                     
                     doc.setFontSize(12);
                     doc.setFont('helvetica', 'bold');
                     doc.setTextColor(255, 255, 255);
-                    doc.text('REGISTROS DE RECOLECCIÓN DE RESIDUOS', pageWidth / 2, startY + (rectHeight / 2), { 
-                        align: 'center', 
-                        baseline: 'middle' 
+                    doc.text('REGISTROS DE RECOLECCIÓN DE RESIDUOS', pageWidth / 2, startY + (rectHeight / 2), {
+                        align: 'center',
+                        baseline: 'middle'
                     });
                     startY += rectHeight + 10;
 
@@ -1269,19 +1513,19 @@
                             fillColor: [46, 204, 113],
                             textColor: 255,
                             fontStyle: 'bold',
-                            fontSize: 9,
+                            fontSize: 8,
                             halign: 'center'
                         },
                         bodyStyles: {
-                            fontSize: 8,
+                            fontSize: 7,
                             textColor: 0,
                             halign: 'center'
                         },
                         margin: { left: margin, right: margin },
                         tableWidth: 'auto',
                         styles: {
-                            cellPadding: 3,
-                            fontSize: 8,
+                            cellPadding: 2,
+                            fontSize: 7,
                             lineColor: [0, 0, 0],
                             lineWidth: 0.1,
                             halign: 'center'
@@ -1294,211 +1538,308 @@
                         },
                         didDrawPage: addFooter
                     });
-                    
-                    startY = doc.lastAutoTable.finalY + 15;
                 }
-                
-                // AÑADIR NUEVA PÁGINA ANTES DE CBA SIEMPRE
-                doc.addPage();
-                startY = 20;
-                
-                // Procesar cada edificio
-                let primerEdificio = true;
-                
-                for (const edificio of edificiosAProcesar) {
-                    const dataEdificio = datosAgrupados[edificio];
-                    
-                    if (!dataEdificio || dataEdificio.registros.length === 0) {
-                        continue; 
-                    }
-                    
-                    if (!primerEdificio) {
-                        doc.addPage();
-                        startY = 20;
-                    }
-                    
-                    // Título del Edificio
-                    const rectHeight = 10;
-                    doc.setFillColor(52, 152, 219);
-                    doc.rect(margin, startY, pageWidth - (2 * margin), rectHeight, 'F'); 
-                    
-                    doc.setFontSize(14);
-                    doc.setFont('helvetica', 'bold');
-                    doc.setTextColor(255, 255, 255);
-                    
-                    doc.text(`Edificio: ${edificio}`, pageWidth / 2, startY + (rectHeight / 2), { 
-                        align: 'center', 
-                        baseline: 'middle' 
-                    });
-                    startY += rectHeight + 8;
 
-                    // TABLA DE TOTALES (por edificio)
+                // ============================================================
+                // REGISTROS DE DEVOLUCIÓN (NUEVA PÁGINA - SIN ENCABEZADO)
+                // ============================================================
+                if (datosDevoluciones && datosDevoluciones.length > 0) {
+                    // Nueva página sin encabezado
+                    doc.addPage();
+                    startY = 20;
+
+                    const rectHeight = 8;
+                    doc.setFillColor(155, 89, 182);
+                    doc.rect(margin, startY, pageWidth - (2 * margin), rectHeight, 'F');
+                    
                     doc.setFontSize(12);
                     doc.setFont('helvetica', 'bold');
-                    doc.setTextColor(44, 62, 80);
-                    doc.text(`TOTALES POR TIPO DE RESIDUO - UNIDAD: ${simboloUnidad.toUpperCase()}`, pageWidth / 2, startY, { align: 'center' });
-                    
-                    const totalesData = [
-                        ['Común', 'Plástico', 'Aluminio', 'Cartón', 'Papel', 'Vidrio', 'Chatarra', 'RPBI'],
-                        [
-                            `${convertirCantidadPDF(dataEdificio.totales.común).toFixed(2)} ${simboloUnidad}`,
-                            `${convertirCantidadPDF(dataEdificio.totales.plástico).toFixed(2)} ${simboloUnidad}`,
-                            `${convertirCantidadPDF(dataEdificio.totales.aluminio).toFixed(2)} ${simboloUnidad}`,
-                            `${convertirCantidadPDF(dataEdificio.totales.cartón).toFixed(2)} ${simboloUnidad}`,
-                            `${convertirCantidadPDF(dataEdificio.totales.papel).toFixed(2)} ${simboloUnidad}`,
-                            `${convertirCantidadPDF(dataEdificio.totales.vidrio).toFixed(2)} ${simboloUnidad}`,
-                            `${convertirCantidadPDF(dataEdificio.totales.chatarra).toFixed(2)} ${simboloUnidad}`,
-                            `${convertirCantidadPDF(dataEdificio.totales.rpbi).toFixed(2)} ${simboloUnidad}`
-                        ]
-                    ];
+                    doc.setTextColor(255, 255, 255);
+                    doc.text('REGISTROS DE DEVOLUCIÓN DE RESIDUOS', pageWidth / 2, startY + (rectHeight / 2), {
+                        align: 'center',
+                        baseline: 'middle'
+                    });
+                    startY += rectHeight + 10;
+
+                    const devData = datosDevoluciones.map(reg => {
+                        const cantidadConvertida = convertirCantidadPDF(reg.cantidad);
+                        return [
+                            reg.fecha || '',
+                            reg.tipoResiduo || '',
+                            cantidadConvertida.toFixed(2),
+                            reg.clasificacion || '',
+                            reg.estadoFisico || '',
+                            reg.destino || '',
+                            formatearNombre(reg.responsable) || ''
+                        ];
+                    });
+
+                    const availableWidth = pageWidth - (2 * margin);
                     
                     doc.autoTable({
-                        startY: startY + 4,
-                        head: [totalesData[0]],
-                        body: [totalesData[1]],
+                        startY: startY,
+                        head: [['Fecha', 'Tipo Residuo', `Cantidad (${simboloUnidad})`, 'Clasificación', 'Estado Físico', 'Destino', 'Responsable']],
+                        body: devData,
                         theme: 'grid',
                         headStyles: {
-                            fillColor: [44, 62, 80],
+                            fillColor: [155, 89, 182],
                             textColor: 255,
                             fontStyle: 'bold',
                             fontSize: 8,
                             halign: 'center'
                         },
                         bodyStyles: {
-                            fontSize: 8,
+                            fontSize: 7,
                             textColor: 0,
                             halign: 'center'
                         },
                         margin: { left: margin, right: margin },
-                        tableWidth: pageWidth - (2 * margin),
-                        styles: { cellPadding: 3, fontSize: 8, halign: 'center' },
+                        tableWidth: availableWidth,
+                        styles: {
+                            cellPadding: 2,
+                            fontSize: 7,
+                            lineColor: [0, 0, 0],
+                            lineWidth: 0.1,
+                            halign: 'center'
+                        },
+                        columnStyles: {
+                            0: { cellWidth: availableWidth * 0.12 },
+                            1: { cellWidth: availableWidth * 0.14 },
+                            2: { cellWidth: availableWidth * 0.14 },
+                            3: { cellWidth: availableWidth * 0.14 },
+                            4: { cellWidth: availableWidth * 0.14 },
+                            5: { cellWidth: availableWidth * 0.16 },
+                            6: { cellWidth: availableWidth * 0.16 }
+                        },
                         didDrawPage: addFooter
                     });
-                    
-                    startY = doc.lastAutoTable.finalY + 10; 
+                }
 
-                    // DETALLE DE REGISTROS (por edificio)
-                    if (dataEdificio.registros.length > 0) {
+                // ============================================================
+                // DETALLE DE INGRESOS POR EDIFICIO (NUEVA PÁGINA - SIN ENCABEZADO)
+                // ============================================================
+                const datosAgrupados = {};
+                
+                datosFiltrados.forEach(reg => {
+                    if (!datosAgrupados[reg.edificio]) {
+                        datosAgrupados[reg.edificio] = {
+                            registros: [],
+                            totales: { común: 0, plástico: 0, aluminio: 0, cartón: 0, papel: 0, vidrio: 0, chatarra: 0, rpbi: 0 }
+                        };
+                    }
+                    datosAgrupados[reg.edificio].registros.push(reg);
+                    
+                    const tipo = reg.tipoResiduo.toLowerCase();
+                    if (datosAgrupados[reg.edificio].totales.hasOwnProperty(tipo)) {
+                        datosAgrupados[reg.edificio].totales[tipo] += parseFloat(reg.cantidad) || 0;
+                    }
+                });
+
+                const edificiosOrdenPDF = ["CBA", "CBB", "CBC", "Torre #1", "Torre #2"];
+                const edificiosAProcesar = edificiosOrdenPDF.filter(e => datosAgrupados.hasOwnProperty(e));
+
+                if (edificiosAProcesar.length > 0) {
+                    // Primera página de edificios (sin encabezado)
+                    doc.addPage();
+                    startY = 20;
+                    
+                    let primerEdificio = true;
+
+                    for (const edificio of edificiosAProcesar) {
+                        const dataEdificio = datosAgrupados[edificio];
+                        
+                        if (!dataEdificio || dataEdificio.registros.length === 0) {
+                            continue;
+                        }
+                        
+                        if (!primerEdificio) {
+                            doc.addPage();
+                            startY = 20;
+                        } else {
+                            primerEdificio = false;
+                        }
+                        
+                        // Título del Edificio
+                        const rectHeight = 10;
+                        doc.setFillColor(52, 152, 219);
+                        doc.rect(margin, startY, pageWidth - (2 * margin), rectHeight, 'F');
+                        
+                        doc.setFontSize(14);
+                        doc.setFont('helvetica', 'bold');
+                        doc.setTextColor(255, 255, 255);
+                        
+                        doc.text(`Edificio: ${edificio}`, pageWidth / 2, startY + (rectHeight / 2), {
+                            align: 'center',
+                            baseline: 'middle'
+                        });
+                        startY += rectHeight + 8;
+
+                        // TABLA DE TOTALES (por edificio)
                         doc.setFontSize(12);
                         doc.setFont('helvetica', 'bold');
                         doc.setTextColor(44, 62, 80);
-                        doc.text('DETALLE DE REGISTROS', pageWidth / 2, startY, { align: 'center' });
-
-                        const datosTabla = dataEdificio.registros.map(registro => {
-                            const clasificacionOrganico = registro.clasificacion.toLowerCase().includes('orgánico') ? 'X' : '';
-                            const clasificacionInorganico = registro.clasificacion.toLowerCase().includes('inorgánico') ? 'X' : '';
-                            const estadoSolido = registro.estadoFisico.toLowerCase().includes('sólido') ? 'X' : '';
-                            const estadoLiquido = registro.estadoFisico.toLowerCase().includes('líquido') ? 'X' : '';
-                            const estadoGaseoso = registro.estadoFisico.toLowerCase().includes('gaseoso') ? 'X' : '';
-                            
-                            const cantidadConvertida = convertirCantidadPDF(registro.cantidad);
-                            const cantidadStr = cantidadConvertida.toFixed(2);
-                            
-                            const cantidadComun = registro.tipoResiduo.toLowerCase().includes('común') ? cantidadStr : '';
-                            const cantidadPlastico = registro.tipoResiduo.toLowerCase().includes('plástico') ? cantidadStr : '';
-                            const cantidadAluminio = registro.tipoResiduo.toLowerCase().includes('aluminio') ? cantidadStr : '';
-                            const cantidadCarton = registro.tipoResiduo.toLowerCase().includes('cartón') ? cantidadStr : '';
-                            const cantidadPapel = registro.tipoResiduo.toLowerCase().includes('papel') ? cantidadStr : '';
-                            const cantidadVidrio = registro.tipoResiduo.toLowerCase().includes('vidrio') ? cantidadStr : '';
-                            const cantidadChatarra = registro.tipoResiduo.toLowerCase().includes('chatarra') ? cantidadStr : '';
-                            const cantidadRPBI = registro.tipoResiduo.toLowerCase().includes('rpbi') ? cantidadStr : '';
-                            
-                            const responsableFormateado = registro.responsable ? 
-                                registro.responsable.toLowerCase().split(' ').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ') : 
-                                'N/A';
-                            
-                            return [
-                                formatearFecha(registro.fecha),
-                                cantidadComun,
-                                cantidadPlastico,
-                                cantidadAluminio,
-                                cantidadCarton,
-                                cantidadPapel,
-                                cantidadVidrio,
-                                cantidadChatarra,
-                                cantidadRPBI,
-                                clasificacionOrganico,
-                                clasificacionInorganico,
-                                estadoSolido,
-                                estadoLiquido,
-                                estadoGaseoso,
-                                responsableFormateado
-                            ];
-                        });
-
-                        const availableWidth = pageWidth - (2 * margin);
-                        const columnWidths = {
-                            0: availableWidth * 0.06,
-                            1: availableWidth * 0.05,
-                            2: availableWidth * 0.05,
-                            3: availableWidth * 0.05,
-                            4: availableWidth * 0.05,
-                            5: availableWidth * 0.05,
-                            6: availableWidth * 0.05,
-                            7: availableWidth * 0.05,
-                            8: availableWidth * 0.05,
-                            9: availableWidth * 0.05,
-                            10: availableWidth * 0.05,
-                            11: availableWidth * 0.05,
-                            12: availableWidth * 0.05,
-                            13: availableWidth * 0.05,
-                            14: availableWidth * 0.13
-                        };
+                        doc.text(`TOTALES POR TIPO DE RESIDUO - UNIDAD: ${simboloUnidad.toUpperCase()}`, pageWidth / 2, startY, { align: 'center' });
                         
-                        const head = [
+                        const totalesDataEdif = [
+                            ['Común', 'Plástico', 'Aluminio', 'Cartón', 'Papel', 'Vidrio', 'Chatarra', 'RPBI'],
                             [
-                                { content: 'Fecha', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-                                { content: `Tipo de Residuo (${simboloUnidad.toUpperCase()})`, colSpan: 8, styles: { halign: 'center' } },
-                                { content: 'Clasificación', colSpan: 2, styles: { halign: 'center' } },
-                                { content: 'Estado Físico', colSpan: 3, styles: { halign: 'center' } },
-                                { content: 'Responsable', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } }
-                            ],
-                            [
-                                'Común', 'Plástico', 'Aluminio', 'Cartón', 'Papel', 'Vidrio', 'Chatarra', 'RPBI',
-                                'Orgánico', 'Inorgánico',
-                                'Sólido', 'Líquido', 'Gaseoso'
+                                `${convertirCantidadPDF(dataEdificio.totales.común).toFixed(2)} ${simboloUnidad}`,
+                                `${convertirCantidadPDF(dataEdificio.totales.plástico).toFixed(2)} ${simboloUnidad}`,
+                                `${convertirCantidadPDF(dataEdificio.totales.aluminio).toFixed(2)} ${simboloUnidad}`,
+                                `${convertirCantidadPDF(dataEdificio.totales.cartón).toFixed(2)} ${simboloUnidad}`,
+                                `${convertirCantidadPDF(dataEdificio.totales.papel).toFixed(2)} ${simboloUnidad}`,
+                                `${convertirCantidadPDF(dataEdificio.totales.vidrio).toFixed(2)} ${simboloUnidad}`,
+                                `${convertirCantidadPDF(dataEdificio.totales.chatarra).toFixed(2)} ${simboloUnidad}`,
+                                `${convertirCantidadPDF(dataEdificio.totales.rpbi).toFixed(2)} ${simboloUnidad}`
                             ]
                         ];
-
+                        
                         doc.autoTable({
                             startY: startY + 4,
-                            head: head,
-                            body: datosTabla,
+                            head: [totalesDataEdif[0]],
+                            body: [totalesDataEdif[1]],
                             theme: 'grid',
                             headStyles: {
-                                fillColor: [52, 152, 219],
+                                fillColor: [44, 62, 80],
                                 textColor: 255,
                                 fontStyle: 'bold',
-                                fontSize: 5,
-                                halign: 'center',
-                                valign: 'middle',
-                                cellPadding: 1
+                                fontSize: 8,
+                                halign: 'center'
                             },
                             bodyStyles: {
-                                fontSize: 5,
+                                fontSize: 8,
                                 textColor: 0,
-                                halign: 'center',
-                                valign: 'middle',
-                                cellPadding: 1
+                                halign: 'center'
                             },
                             margin: { left: margin, right: margin },
-                            tableWidth: availableWidth,
-                            styles: {
-                                cellPadding: 1,
-                                fontSize: 5,
-                                lineColor: [0, 0, 0],
-                                lineWidth: 0.1
-                            },
-                            columnStyles: columnWidths,
+                            tableWidth: pageWidth - (2 * margin),
+                            styles: { cellPadding: 3, fontSize: 8, halign: 'center' },
                             didDrawPage: addFooter
                         });
                         
-                        startY = doc.lastAutoTable.finalY + 15;
-                    } else {
-                        startY += 15;
+                        startY = doc.lastAutoTable.finalY + 10;
+
+                        // DETALLE DE REGISTROS (por edificio)
+                        if (dataEdificio.registros.length > 0) {
+                            doc.setFontSize(12);
+                            doc.setFont('helvetica', 'bold');
+                            doc.setTextColor(44, 62, 80);
+                            doc.text('DETALLE DE REGISTROS', pageWidth / 2, startY, { align: 'center' });
+
+                            const datosTabla = dataEdificio.registros.map(registro => {
+                                const clasificacionOrganico = registro.clasificacion.toLowerCase().includes('orgánico') ? 'X' : '';
+                                const clasificacionInorganico = registro.clasificacion.toLowerCase().includes('inorgánico') ? 'X' : '';
+                                const estadoSolido = registro.estadoFisico.toLowerCase().includes('sólido') ? 'X' : '';
+                                const estadoLiquido = registro.estadoFisico.toLowerCase().includes('líquido') ? 'X' : '';
+                                const estadoGaseoso = registro.estadoFisico.toLowerCase().includes('gaseoso') ? 'X' : '';
+                                
+                                const cantidadConvertida = convertirCantidadPDF(registro.cantidad);
+                                const cantidadStr = cantidadConvertida.toFixed(2);
+                                
+                                const cantidadComun = registro.tipoResiduo.toLowerCase().includes('común') ? cantidadStr : '';
+                                const cantidadPlastico = registro.tipoResiduo.toLowerCase().includes('plástico') ? cantidadStr : '';
+                                const cantidadAluminio = registro.tipoResiduo.toLowerCase().includes('aluminio') ? cantidadStr : '';
+                                const cantidadCarton = registro.tipoResiduo.toLowerCase().includes('cartón') ? cantidadStr : '';
+                                const cantidadPapel = registro.tipoResiduo.toLowerCase().includes('papel') ? cantidadStr : '';
+                                const cantidadVidrio = registro.tipoResiduo.toLowerCase().includes('vidrio') ? cantidadStr : '';
+                                const cantidadChatarra = registro.tipoResiduo.toLowerCase().includes('chatarra') ? cantidadStr : '';
+                                const cantidadRPBI = registro.tipoResiduo.toLowerCase().includes('rpbi') ? cantidadStr : '';
+                                
+                                const responsableFormateado = registro.responsable ? 
+                                    registro.responsable.toLowerCase().split(' ').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ') : 
+                                    'N/A';
+                                
+                                return [
+                                    formatearFecha(registro.fecha),
+                                    cantidadComun,
+                                    cantidadPlastico,
+                                    cantidadAluminio,
+                                    cantidadCarton,
+                                    cantidadPapel,
+                                    cantidadVidrio,
+                                    cantidadChatarra,
+                                    cantidadRPBI,
+                                    clasificacionOrganico,
+                                    clasificacionInorganico,
+                                    estadoSolido,
+                                    estadoLiquido,
+                                    estadoGaseoso,
+                                    responsableFormateado
+                                ];
+                            });
+
+                            const availableWidth = pageWidth - (2 * margin);
+                            const columnWidths = {
+                                0: availableWidth * 0.06,
+                                1: availableWidth * 0.05,
+                                2: availableWidth * 0.05,
+                                3: availableWidth * 0.05,
+                                4: availableWidth * 0.05,
+                                5: availableWidth * 0.05,
+                                6: availableWidth * 0.05,
+                                7: availableWidth * 0.05,
+                                8: availableWidth * 0.05,
+                                9: availableWidth * 0.05,
+                                10: availableWidth * 0.05,
+                                11: availableWidth * 0.05,
+                                12: availableWidth * 0.05,
+                                13: availableWidth * 0.05,
+                                14: availableWidth * 0.13
+                            };
+                            
+                            const head = [
+                                [
+                                    { content: 'Fecha', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+                                    { content: `Tipo de Residuo (${simboloUnidad.toUpperCase()})`, colSpan: 8, styles: { halign: 'center' } },
+                                    { content: 'Clasificación', colSpan: 2, styles: { halign: 'center' } },
+                                    { content: 'Estado Físico', colSpan: 3, styles: { halign: 'center' } },
+                                    { content: 'Responsable', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } }
+                                ],
+                                [
+                                    'Común', 'Plástico', 'Aluminio', 'Cartón', 'Papel', 'Vidrio', 'Chatarra', 'RPBI',
+                                    'Orgánico', 'Inorgánico',
+                                    'Sólido', 'Líquido', 'Gaseoso'
+                                ]
+                            ];
+
+                            doc.autoTable({
+                                startY: startY + 4,
+                                head: head,
+                                body: datosTabla,
+                                theme: 'grid',
+                                headStyles: {
+                                    fillColor: [52, 152, 219],
+                                    textColor: 255,
+                                    fontStyle: 'bold',
+                                    fontSize: 5,
+                                    halign: 'center',
+                                    valign: 'middle',
+                                    cellPadding: 1
+                                },
+                                bodyStyles: {
+                                    fontSize: 5,
+                                    textColor: 0,
+                                    halign: 'center',
+                                    valign: 'middle',
+                                    cellPadding: 1
+                                },
+                                margin: { left: margin, right: margin },
+                                tableWidth: availableWidth,
+                                styles: {
+                                    cellPadding: 1,
+                                    fontSize: 5,
+                                    lineColor: [0, 0, 0],
+                                    lineWidth: 0.1
+                                },
+                                columnStyles: columnWidths,
+                                didDrawPage: addFooter
+                            });
+                            
+                            startY = doc.lastAutoTable.finalY + 15;
+                        } else {
+                            startY += 15;
+                        }
                     }
-                    
-                    primerEdificio = false;
                 }
 
                 if (typeof doc.putTotalPages === 'function') {
@@ -1522,7 +1863,7 @@
                                 <strong>Reporte:</strong> General<br>
                                 <strong>Período:</strong> ${obtenerNombreMes(mesSeleccionado)} ${anioSeleccionado}<br>
                                 <strong>Unidad:</strong> ${simboloUnidad.toUpperCase()}<br>
-                                <strong>Registros:</strong> ${datosFiltrados.length} residuos | ${datosRecoleccion ? datosRecoleccion.length : 0} recolecciones
+                                <strong>Registros:</strong> ${datosFiltrados.length} ingresos | ${datosDevoluciones.length} devoluciones | ${datosRecoleccion ? datosRecoleccion.length : 0} recolecciones
                             </p>
                             <p style="font-size: 0.9em; color: #666; margin-bottom: 20px;">¿Qué deseas hacer con el PDF?</p>
                             <div style="display: flex; justify-content: center; gap: 10px;">
@@ -1571,6 +1912,8 @@
 
             }, 500);
         }
+
+
     </script>
 </body>
 </html>

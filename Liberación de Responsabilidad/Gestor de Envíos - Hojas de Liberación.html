@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gestor de Envíos - Pisos Brillantes</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<style>
+    /* --- Estilos Base --- */
+    :root {
+        --primary-color: #2c3e50;
+        --secondary-color: #3498db;
+        --accent-color: #e74c3c;
+        --success-color: #2ecc71;
+        --warning-color: #f39c12;
+        --dark-color: #34495e;
+        --text-color: #333;
+        --border-color: #ddd;
+        --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        --transition: all 0.3s ease;
+        --light-gray: #f0f2f5;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: var(--light-gray);
+        color: var(--dark-color);
+        line-height: 1.6;
+        padding-bottom: 30px;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+    }
+
+    /* --- CABECERA --- */
+    .header {
+        background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+        color: white;
+        text-align: center;
+        padding: 18px 0;
+        font-size: 1.5rem;
+        font-weight: bold;
+        box-shadow: var(--shadow);
+        position: sticky;
+        top: 0;
+        z-index: 100;
+    }
+    .header-title {
+        font-size: 1.5rem;
+        letter-spacing: 1px;
+    }
+
+    .container {
+        max-width: 900px;
+        margin: 25px auto;
+        padding: 0 15px;
+    }
+
+    .card {
+        border-radius: 12px;
+        box-shadow: var(--shadow);
+        border: none;
+        margin-bottom: 25px;
+        border-top: 5px solid var(--secondary-color);
+        background: white;
+    }
+    .card-body { padding: 2rem; }
+
+    h1 {
+        text-align: center;
+        color: var(--primary-color);
+        margin-bottom: 25px;
+        font-size: 1.5rem;
+        position: relative;
+        padding-bottom: 10px;
+        font-weight: bold;
+    }
+    h1:after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 80px;
+        height: 4px;
+        background-color: var(--secondary-color);
+        border-radius: 2px;
+    }
+
+    .info-box {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px 20px;
+        margin-bottom: 20px;
+        border-left: 4px solid var(--secondary-color);
+    }
+    .info-box i { color: var(--secondary-color); margin-right: 8px; }
+
+    /* --- ÁREA DE CARGA --- */
+    .drop-zone {
+        border: 2px dashed var(--secondary-color);
+        border-radius: 12px;
+        padding: 40px 20px;
+        text-align: center;
+        cursor: pointer;
+        transition: var(--transition);
+        background: #f8f9fa;
+        margin-bottom: 20px;
+        min-height: 180px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+    .drop-zone:hover {
+        background: #e8f4fd;
+        border-color: var(--primary-color);
+    }
+    .drop-zone.drag-over {
+        background: #d4e8f7;
+        border-color: var(--primary-color);
+    }
+    .drop-zone i {
+        font-size: 3rem;
+        color: var(--secondary-color);
+        margin-bottom: 10px;
+    }
+    .drop-zone .drop-text {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--dark-color);
+    }
+    .drop-zone .drop-subtext {
+        font-size: 0.9rem;
+        color: #6c757d;
+    }
+
+    /* --- LISTA DE ARCHIVOS --- */
+    .list-group-item {
+        border-left: none;
+        border-right: none;
+        border-bottom: 1px solid #eaeaea;
+        padding: 15px 15px;
+        transition: background-color 0.2s;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .list-group-item:first-child { border-top: 1px solid #eaeaea; }
+    .list-group-item:hover { background-color: #f8f9fa; }
+    .list-group-item .checkbox-container { display: flex; align-items: center; }
+    .list-group-item .form-check-input { width: 18px; height: 18px; cursor: pointer; }
+    .list-group-item .info-text { flex: 1; padding: 0 12px; min-width: 150px; }
+    .list-group-item .info-text h6 { margin: 0; font-weight: 600; color: var(--dark-color); }
+    .list-group-item .info-text small { color: #6c757d; }
+    .list-group-item .status-badge { 
+        font-size: 0.7rem; 
+        padding: 4px 12px; 
+        border-radius: 20px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        white-space: nowrap;
+    }
+    .list-group-item .action-buttons { 
+        display: flex; 
+        gap: 4px;
+        align-items: center;
+    }
+    .list-group-item .action-buttons .btn { 
+        padding: 4px 8px; 
+        font-size: 0.8rem; 
+    }
+
+    .list-group-item.list-group-item-success {
+        background-color: #d4edda;
+        border-left: 4px solid var(--success-color);
+    }
+    .list-group-item.list-group-item-danger {
+        background-color: #f8d7da;
+        border-left: 4px solid var(--accent-color);
+    }
+
+    .lista-scrollable {
+        max-height: 400px;
+        overflow-y: auto;
+        border: 1px solid #dee2e6;
+        border-radius: 0.25rem;
+        background-color: #fff;
+    }
+    .lista-scrollable::-webkit-scrollbar { width: 6px; }
+    .lista-scrollable::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 3px; }
+    .lista-scrollable::-webkit-scrollbar-thumb { background: #bdc3c7; border-radius: 3px; }
+
+    .toolbar-lista {
+        background-color: #f8f9fa;
+        padding: 10px 15px;
+        border: 1px solid #dee2e6;
+        border-bottom: none;
+        border-top-left-radius: 0.25rem;
+        border-top-right-radius: 0.25rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .toolbar-lista .form-check { margin: 0; }
+
+    .btn-primary, .btn-success, .btn-secondary, .btn-danger {
+        border: none;
+        font-weight: 600;
+        padding: 8px 20px;
+        font-size: 0.9rem;
+        border-radius: 50px;
+        transition: var(--transition);
+        color: white !important;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .btn-primary { background: linear-gradient(45deg, var(--secondary-color), #5dade2); }
+    .btn-success { background: linear-gradient(45deg, #2ecc71, #58d68d); }
+    .btn-danger { background: linear-gradient(45deg, var(--accent-color), #e74c3c); }
+    .btn-secondary { background: linear-gradient(45deg, var(--dark-color), var(--primary-color)); }
+    .btn-outline-danger { background: transparent; color: var(--accent-color) !important; border: 1px solid var(--accent-color); box-shadow: none; }
+    .btn-outline-danger:hover { background: var(--accent-color); color: white !important; }
+
+    .btn-primary:hover, .btn-success:hover, .btn-danger:hover, .btn-secondary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+    }
+    .btn:disabled {
+        opacity: 0.6;
+        transform: none !important;
+        box-shadow: none !important;
+    }
+
+    /* --- Modal --- */
+    .modal-content { border-radius: 12px; border: none; }
+    .modal-header {
+        background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+        color: white;
+        border-radius: 12px 12px 0 0;
+        padding: 15px 20px;
+    }
+    .modal-header .btn-close { filter: invert(1); }
+    .modal-title i { margin-right: 10px; }
+
+    .nav-tabs .nav-link {
+        color: #6c757d;
+        font-weight: 600;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 0;
+        border-bottom: 3px solid transparent;
+        transition: var(--transition);
+    }
+    .nav-tabs .nav-link:hover { color: var(--primary-color); background: #f8f9fa; }
+    .nav-tabs .nav-link.active {
+        color: var(--primary-color);
+        background: transparent;
+        border-bottom: 3px solid var(--secondary-color);
+        font-weight: 700;
+    }
+    .nav-tabs .nav-link i { margin-right: 8px; }
+    .nav-tabs .nav-link .badge { margin-left: 6px; font-size: 0.7rem; }
+
+    .tab-pane { padding: 15px 0; }
+
+    /* --- Overlay --- */
+    #overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(255, 255, 255, 0.95);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        flex-direction: column;
+    }
+    .spinner {
+        width: 60px;
+        height: 60px;
+        border: 5px solid rgba(52, 152, 219, 0.2);
+        border-radius: 50%;
+        border-top-color: var(--secondary-color);
+        animation: spin 1s ease-in-out infinite;
+        margin-bottom: 20px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loadingMessage { text-align: center; color: var(--dark-color); }
+    #loadingMessage h4 { margin: 0 0 10px; font-size: 1.3rem; font-weight: bold; }
+    #loadingMessage p { margin: 0; color: #7f8c8d; }
+
+    /* --- Responsive --- */
+    @media (max-width: 600px) {
+        .header { font-size: 1.2rem; padding: 14px 0; }
+        .header-title { font-size: 1.2rem; }
+        .card-body { padding: 1rem; }
+        .container { margin: 10px auto; }
+        .toolbar-lista { flex-direction: column; align-items: stretch; }
+        .toolbar-lista .d-flex { justify-content: space-between; }
+        .list-group-item { flex-wrap: wrap; gap: 6px; }
+        .list-group-item .action-buttons { margin-left: auto; }
+        .list-group-item .info-text { min-width: 100px; }
+        .list-group-item .info-text h6 { font-size: 0.9rem; }
+        .drop-zone { padding: 20px 10px; min-height: 120px; }
+        .drop-zone i { font-size: 2rem; }
+        .btn { font-size: 0.8rem; padding: 6px 14px; }
+    }
+
+    @media (max-width: 400px) {
+        .list-group-item .info-text h6 { font-size: 0.8rem; }
+        .list-group-item .action-buttons .btn { padding: 2px 6px; font-size: 0.7rem; }
+        .list-group-item .status-badge { font-size: 0.6rem; padding: 2px 8px; }
+    }
+</style>
+</head>
+<body>
+
+    <!-- CABECERA -->
+    <div class="header">
+        <div class="header-title">Pisos Brillantes</div>
+    </div>
+
+    <!-- CONTENIDO -->
+    <div class="container">
+        <div class="card">
+            <div class="card-body">
+                <h1>Gestor de Envíos - Hojas de Liberación</h1>
+
+                <div class="info-box">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Arrastra o selecciona los archivos PDF</strong>
+                    <span class="text-muted ms-2">El sistema extraerá la información del nombre del archivo.</span>
+                </div>
+
+                <!-- ÁREA DE ARRASTRE -->
+                <div class="drop-zone" id="dropZone">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <div class="drop-text">Arrastra tus archivos PDF aquí</div>
+                    <div class="drop-subtext">o haz clic para seleccionarlos</div>
+                    <input type="file" id="fileInput" accept=".pdf" multiple style="display:none;">
+                </div>
+
+                <!-- PESTAÑAS -->
+                <ul class="nav nav-tabs" id="tabsGestor" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="tab-pendientes" data-bs-toggle="tab" data-bs-target="#content-pendientes" type="button" role="tab">
+                            <i class="fas fa-hourglass-half text-warning"></i> Pendientes
+                            <span class="badge bg-danger" id="badge-pendientes">0</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="tab-subidos" data-bs-toggle="tab" data-bs-target="#content-subidos" type="button" role="tab">
+                            <i class="fas fa-check-circle text-success"></i> Subidos
+                            <span class="badge bg-secondary" id="badge-subidos">0</span>
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="tabsContent">
+                    <!-- PESTAÑA PENDIENTES -->
+                    <div class="tab-pane fade show active" id="content-pendientes" role="tabpanel">
+                        <div class="toolbar-lista">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="check-all-pendientes">
+                                <label class="form-check-label small fw-bold" for="check-all-pendientes">Seleccionar Todos</label>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-outline-danger btn-sm" id="btn-delete-pendientes-sel" disabled>
+                                    <i class="fas fa-trash-alt me-1"></i> Eliminar
+                                </button>
+                            </div>
+                        </div>
+                        <div class="lista-scrollable" id="lista-pendientes">
+                            <div class="text-center p-4 text-muted">No hay archivos pendientes.</div>
+                        </div>
+                        <div class="d-grid gap-2 mt-3">
+                            <button type="button" class="btn btn-success" id="btn-subir-seleccionados" disabled>
+                                <i class="fas fa-cloud-upload-alt me-2"></i>Subir Seleccionados
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- PESTAÑA SUBIDOS -->
+                    <div class="tab-pane fade" id="content-subidos" role="tabpanel">
+                        <div class="toolbar-lista">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="check-all-subidos">
+                                <label class="form-check-label small fw-bold" for="check-all-subidos">Seleccionar Todos</label>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-outline-danger btn-sm" id="btn-delete-subidos-sel" disabled>
+                                    <i class="fas fa-trash-alt me-1"></i> Eliminar
+                                </button>
+                            </div>
+                        </div>
+                        <div class="lista-scrollable" id="lista-subidos">
+                            <div class="text-center p-4 text-muted">No hay archivos subidos.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- OVERLAY -->
+    <div id="overlay">
+        <div class="spinner"></div>
+        <div id="loadingMessage">
+            <h4>Procesando...</h4>
+            <p>Por favor, espera un momento.</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    // =========================================================================
+    // CONFIGURACIÓN
+    // =========================================================================
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzDiZ3fj-4MxJTrj827S6-G6vamtQxC4sfYtaoDWyPF-fdx9SODCd8W1Aj1NtIpr3bI/exec";
+
+    let archivosPendientes = [];
+    let archivosSubidos = [];
+    let isSyncing = false;
+
+    // =========================================================================
+    // FUNCIÓN PARA EXTRAER DATOS DEL NOMBRE DEL ARCHIVO
+    // =========================================================================
+    function extraerDatosDelNombre(nombreArchivo) {
+        const nombre = nombreArchivo.replace(/\.pdf$/i, '');
+        
+        let fecha = '';
+        let edificio = '';
+        let nivel = '';
+        let ubicacion = '';
+        let numeroOficina = '';
+        
+        const partes = nombre.split(' - ');
+        
+        if (partes.length >= 1) fecha = partes[0] || '';
+        if (partes.length >= 2) edificio = partes[1] || '';
+        
+        if (partes.length >= 3) {
+            const nivelMatch = partes[2]?.match(/Nivel\s*(\d+)/i);
+            if (nivelMatch) {
+                nivel = nivelMatch[1];
+            } else {
+                nivel = partes[2] || '';
+            }
+        }
+        
+        if (partes.length >= 4) {
+            const ubicacionParte = partes[3] || '';
+            if (ubicacionParte.match(/Oficina Privada|Sala de Juntas/i)) {
+                if (partes.length >= 5) {
+                    ubicacion = ubicacionParte;
+                    numeroOficina = partes[4] || '';
+                } else {
+                    ubicacion = ubicacionParte;
+                    numeroOficina = '';
+                }
+            } else {
+                ubicacion = ubicacionParte;
+                numeroOficina = '';
+            }
+        }
+        
+        if (!nivel) {
+            const nivelMatchGlobal = nombre.match(/Nivel\s*(\d+)/i);
+            if (nivelMatchGlobal) {
+                nivel = nivelMatchGlobal[1];
+            }
+        }
+        
+        return {
+            fecha: fecha,
+            edificio: edificio,
+            nivel: nivel,
+            ubicacion: ubicacion,
+            numeroOficina: numeroOficina,
+            nombreOriginal: nombreArchivo
+        };
+    }
+
+    // =========================================================================
+    // FUNCIONES DE MANEJO DE ARCHIVOS
+    // =========================================================================
+    function leerArchivoComoBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result.split(',')[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async function agregarArchivos(files) {
+        const archivosValidos = Array.from(files).filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
+        
+        if (archivosValidos.length === 0) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Archivos no válidos',
+                text: 'Solo se aceptan archivos PDF.',
+                timer: 2000,
+                showConfirmButton: false
+            });
+            return;
+        }
+        
+        for (const file of archivosValidos) {
+            try {
+                const base64 = await leerArchivoComoBase64(file);
+                const datos = extraerDatosDelNombre(file.name);
+                
+                const existe = archivosPendientes.some(a => a.nombreOriginal === file.name) ||
+                              archivosSubidos.some(a => a.nombreOriginal === file.name);
+                
+                if (existe) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Archivo duplicado',
+                        text: `"${file.name}" ya fue agregado.`,
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                    continue;
+                }
+                
+                archivosPendientes.push({
+                    id: Date.now() + Math.random(),
+                    nombreOriginal: file.name,
+                    base64: base64,
+                    ...datos,
+                    subido: false,
+                    timestamp: new Date().toISOString()
+                });
+                
+            } catch (error) {
+                console.error('Error procesando archivo:', error);
+            }
+        }
+        
+        renderizarListas();
+        actualizarBadges();
+        $('#fileInput').val('');
+        guardarEnLocalStorage();
+    }
+
+    // =========================================================================
+    // RENDERIZAR LISTAS
+    // =========================================================================
+    function renderizarListas() {
+        renderizarPendientes();
+        renderizarSubidos();
+        actualizarBotones();
+    }
+
+    function renderizarPendientes() {
+        const container = document.getElementById('lista-pendientes');
+        
+        if (archivosPendientes.length === 0) {
+            container.innerHTML = `
+                <div class="text-center p-4 text-muted">
+                    <i class="fas fa-check-circle fa-2x mb-2 d-block text-success"></i>
+                    No hay archivos pendientes de subir.
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+        archivosPendientes.forEach((a) => {
+            const ubicacionCompleta = a.edificio || 'Sin proyecto';
+            const nivelTexto = a.nivel ? `Nivel ${a.nivel}` : '';
+            const ubicacionTexto = a.ubicacion || '';
+            const numeroTexto = a.numeroOficina || '';
+            
+            let infoTexto = ubicacionCompleta;
+            if (nivelTexto) infoTexto += ` - ${nivelTexto}`;
+            if (ubicacionTexto) infoTexto += ` - ${ubicacionTexto}`;
+            if (numeroTexto) infoTexto += ` - ${numeroTexto}`;
+            
+            html += `
+                <div class="list-group-item d-flex align-items-center" id="row-pendiente-${a.id}">
+                    <div class="checkbox-container me-2">
+                        <input class="form-check-input check-pendiente" type="checkbox" value="${a.id}">
+                    </div>
+                    <div class="info-text">
+                        <h6>${infoTexto}</h6>
+                        <small>
+                            <i class="far fa-calendar-alt me-1"></i>${a.fecha || 'Sin fecha'}
+                            <span class="mx-2">|</span>
+                            <i class="far fa-file-pdf me-1"></i>${a.nombreOriginal}
+                        </small>
+                    </div>
+                    <div class="action-buttons">
+                        <span class="status-badge bg-warning text-dark" id="status-pendiente-${a.id}">
+                            <i class="fas fa-hourglass-half me-1"></i>Pendiente
+                        </span>
+                        <button class="btn btn-sm btn-outline-danger btn-eliminar-pendiente" data-id="${a.id}" title="Eliminar">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        container.innerHTML = html;
+    }
+
+    function renderizarSubidos() {
+        const container = document.getElementById('lista-subidos');
+        
+        if (archivosSubidos.length === 0) {
+            container.innerHTML = `
+                <div class="text-center p-4 text-muted">
+                    <i class="fas fa-cloud-upload-alt fa-2x mb-2 d-block text-secondary"></i>
+                    No hay archivos subidos aún.
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+        archivosSubidos.forEach(a => {
+            const ubicacionCompleta = a.edificio || 'Sin proyecto';
+            const nivelTexto = a.nivel ? `Nivel ${a.nivel}` : '';
+            const ubicacionTexto = a.ubicacion || '';
+            const numeroTexto = a.numeroOficina || '';
+            
+            let infoTexto = ubicacionCompleta;
+            if (nivelTexto) infoTexto += ` - ${nivelTexto}`;
+            if (ubicacionTexto) infoTexto += ` - ${ubicacionTexto}`;
+            if (numeroTexto) infoTexto += ` - ${numeroTexto}`;
+            
+            html += `
+                <div class="list-group-item list-group-item-success d-flex align-items-center" id="row-subido-${a.id}">
+                    <div class="checkbox-container me-2">
+                        <input class="form-check-input check-subido" type="checkbox" value="${a.id}">
+                    </div>
+                    <div class="info-text">
+                        <h6>${infoTexto}</h6>
+                        <small>
+                            <i class="far fa-calendar-alt me-1"></i>${a.fecha || 'Sin fecha'}
+                            <span class="mx-2">|</span>
+                            <i class="far fa-file-pdf me-1"></i>${a.nombreOriginal}
+                        </small>
+                    </div>
+                    <div class="action-buttons">
+                        <span class="status-badge bg-success">
+                            <i class="fas fa-check me-1"></i>Subido
+                        </span>
+                        <button class="btn btn-sm btn-outline-danger btn-eliminar-subido" data-id="${a.id}" title="Eliminar">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        container.innerHTML = html;
+    }
+
+    // =========================================================================
+    // ACTUALIZAR BADGES Y BOTONES
+    // =========================================================================
+    function actualizarBadges() {
+        document.getElementById('badge-pendientes').textContent = archivosPendientes.length;
+        document.getElementById('badge-subidos').textContent = archivosSubidos.length;
+    }
+
+    function actualizarBotones() {
+        const pendSeleccionados = document.querySelectorAll('.check-pendiente:checked').length;
+        const subSeleccionados = document.querySelectorAll('.check-subido:checked').length;
+        
+        document.getElementById('btn-subir-seleccionados').disabled = pendSeleccionados === 0 || isSyncing;
+        document.getElementById('btn-delete-pendientes-sel').disabled = pendSeleccionados === 0 || isSyncing;
+        document.getElementById('btn-delete-subidos-sel').disabled = subSeleccionados === 0 || isSyncing;
+    }
+
+    // =========================================================================
+    // SUBIR ARCHIVOS A GOOGLE DRIVE
+    // =========================================================================
+    async function subirArchivos(ids) {
+        if (ids.length === 0) return;
+        if (isSyncing) return;
+        
+        isSyncing = true;
+        actualizarBotones();
+        
+        document.querySelectorAll('.check-pendiente').forEach(el => el.disabled = true);
+        document.querySelectorAll('.action-buttons .btn').forEach(el => el.disabled = true);
+        
+        let exitos = 0;
+        let errores = 0;
+        const erroresLista = [];
+        
+        for (const id of ids) {
+            const index = archivosPendientes.findIndex(a => a.id === id);
+            if (index === -1) continue;
+            
+            const archivo = archivosPendientes[index];
+            const row = document.getElementById(`row-pendiente-${id}`);
+            
+            if (row) {
+                const statusSpan = document.getElementById(`status-pendiente-${id}`);
+                if (statusSpan) {
+                    statusSpan.className = 'status-badge bg-info text-white';
+                    statusSpan.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Subiendo...';
+                }
+            }
+            
+            try {
+                const requestData = {
+                    proyecto: archivo.edificio || 'SinProyecto',
+                    nivel: archivo.nivel || '',
+                    ubicacion: archivo.ubicacion || '',
+                    numeroOficina: archivo.numeroOficina || '',
+                    fecha: archivo.fecha || new Date().toISOString().split('T')[0],
+                    nombreArchivo: archivo.nombreOriginal,
+                    pdfBase64: archivo.base64,
+                    descripcion: '',
+                    usuario: '',
+                    motivoSinFirma: '',
+                    checkSinFirma: false,
+                    checkFolio: false,
+                    folio: '',
+                    checkTicket: false,
+                    ticket: ''
+                };
+                
+                await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestData)
+                });
+                
+                const subido = { ...archivo, subido: true, subidoEn: new Date().toISOString() };
+                archivosSubidos.push(subido);
+                archivosPendientes.splice(index, 1);
+                exitos++;
+                
+                if (row) {
+                    row.remove();
+                }
+                
+            } catch (error) {
+                console.error(`Error subiendo archivo ${archivo.nombreOriginal}:`, error);
+                errores++;
+                erroresLista.push(`${archivo.nombreOriginal}: ${error.message}`);
+                
+                if (row) {
+                    const statusSpan = document.getElementById(`status-pendiente-${id}`);
+                    if (statusSpan) {
+                        statusSpan.className = 'status-badge bg-danger';
+                        statusSpan.innerHTML = '<i class="fas fa-times me-1"></i>Error';
+                    }
+                }
+            }
+            
+            await new Promise(r => setTimeout(r, 500));
+        }
+        
+        renderizarListas();
+        actualizarBadges();
+        guardarEnLocalStorage();
+        
+        isSyncing = false;
+        actualizarBotones();
+        
+        if (errores === 0) {
+            Swal.fire({
+                icon: 'success',
+                title: '¡Proceso completado!',
+                text: `Se subieron ${exitos} archivo(s) correctamente a la nube.`,
+                timer: 3000,
+                showConfirmButton: false
+            });
+        } else {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Proceso con errores',
+                html: `
+                    <strong>Exitosos:</strong> ${exitos}<br>
+                    <strong>Errores:</strong> ${errores}<br>
+                    <div style="font-size:0.85rem;color:#6c757d;margin-top:10px;text-align:left;max-height:150px;overflow-y:auto;">
+                        ${erroresLista.map(e => `<div>• ${e}</div>`).join('')}
+                    </div>
+                `
+            });
+        }
+    }
+
+    // =========================================================================
+    // ELIMINAR ARCHIVOS
+    // =========================================================================
+    function eliminarArchivos(ids, tipo) {
+        if (ids.length === 0) return;
+        
+        Swal.fire({
+            title: '¿Eliminar archivos?',
+            text: `Se eliminarán ${ids.length} archivo(s) de la lista.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#e74c3c'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                if (tipo === 'pendientes') {
+                    archivosPendientes = archivosPendientes.filter(a => !ids.includes(a.id));
+                } else {
+                    archivosSubidos = archivosSubidos.filter(a => !ids.includes(a.id));
+                }
+                renderizarListas();
+                actualizarBadges();
+                guardarEnLocalStorage();
+            }
+        });
+    }
+
+    // =========================================================================
+    // LOCAL STORAGE
+    // =========================================================================
+    function guardarEnLocalStorage() {
+        const todos = [...archivosPendientes, ...archivosSubidos];
+        localStorage.setItem('archivosPendientes', JSON.stringify(todos));
+    }
+
+    function cargarDeLocalStorage() {
+        const guardados = localStorage.getItem('archivosPendientes');
+        if (guardados) {
+            try {
+                const parsed = JSON.parse(guardados);
+                archivosPendientes = parsed.filter(a => !a.subido);
+                archivosSubidos = parsed.filter(a => a.subido);
+                renderizarListas();
+                actualizarBadges();
+            } catch (e) {}
+        }
+    }
+
+    // =========================================================================
+    // EVENTOS
+    // =========================================================================
+    document.addEventListener('DOMContentLoaded', function() {
+        cargarDeLocalStorage();
+        
+        // --- Drag & Drop ---
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        
+        dropZone.addEventListener('click', () => fileInput.click());
+        
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+        
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('drag-over');
+        });
+        
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            if (e.dataTransfer.files.length > 0) {
+                agregarArchivos(e.dataTransfer.files);
+            }
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                agregarArchivos(e.target.files);
+            }
+        });
+        
+        // --- Seleccionar todos ---
+        document.getElementById('check-all-pendientes').addEventListener('change', function() {
+            document.querySelectorAll('.check-pendiente').forEach(el => {
+                el.checked = this.checked;
+            });
+            actualizarBotones();
+        });
+        
+        document.getElementById('check-all-subidos').addEventListener('change', function() {
+            document.querySelectorAll('.check-subido').forEach(el => {
+                el.checked = this.checked;
+            });
+            actualizarBotones();
+        });
+        
+        // --- Cambio en checkboxes ---
+        document.addEventListener('change', function(e) {
+            if (e.target.classList.contains('check-pendiente') || e.target.classList.contains('check-subido')) {
+                actualizarBotones();
+            }
+        });
+        
+        // --- Subir seleccionados ---
+        document.getElementById('btn-subir-seleccionados').addEventListener('click', function() {
+            const ids = [];
+            document.querySelectorAll('.check-pendiente:checked').forEach(el => {
+                ids.push(parseFloat(el.value));
+            });
+            if (ids.length > 0) {
+                subirArchivos(ids);
+            }
+        });
+        
+        // --- Eliminar pendientes seleccionados ---
+        document.getElementById('btn-delete-pendientes-sel').addEventListener('click', function() {
+            const ids = [];
+            document.querySelectorAll('.check-pendiente:checked').forEach(el => {
+                ids.push(parseFloat(el.value));
+            });
+            if (ids.length > 0) {
+                eliminarArchivos(ids, 'pendientes');
+            }
+        });
+        
+        // --- Eliminar subidos seleccionados ---
+        document.getElementById('btn-delete-subidos-sel').addEventListener('click', function() {
+            const ids = [];
+            document.querySelectorAll('.check-subido:checked').forEach(el => {
+                ids.push(parseFloat(el.value));
+            });
+            if (ids.length > 0) {
+                eliminarArchivos(ids, 'subidos');
+            }
+        });
+        
+        // --- Eliminar pendiente individual ---
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.btn-eliminar-pendiente')) {
+                const btn = e.target.closest('.btn-eliminar-pendiente');
+                const id = parseFloat(btn.dataset.id);
+                eliminarArchivos([id], 'pendientes');
+            }
+        });
+        
+        // --- Eliminar subido individual ---
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.btn-eliminar-subido')) {
+                const btn = e.target.closest('.btn-eliminar-subido');
+                const id = parseFloat(btn.dataset.id);
+                eliminarArchivos([id], 'subidos');
+            }
+        });
+    });
+
+</script>
+</body>
+</html>

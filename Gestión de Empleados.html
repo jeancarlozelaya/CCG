@@ -1194,7 +1194,27 @@
 
 
 
+/* Estilos para botones de cambio de vista de gráficos */
+.btn-group .btn-sm {
+    font-size: 0.8rem;
+    padding: 5px 12px;
+}
 
+.btn-group .btn-outline-primary.active,
+.btn-group .btn-primary {
+    background: var(--secondary-color);
+    color: white;
+}
+
+.btn-group .btn-outline-primary {
+    color: var(--secondary-color);
+    border-color: var(--secondary-color);
+}
+
+.btn-group .btn-outline-primary:hover {
+    background: var(--secondary-color);
+    color: white;
+}
 
 </style>
 
@@ -1924,20 +1944,39 @@
                                 </div>
                             </div>
 
-                            <div class="card mb-4">
-                                <div class="card-header">Ausencias por Día</div>
-                                <div class="card-body">
-                                    <div class="d-flex flex-wrap gap-2 mb-3">
-                                        <select id="filtro-mes-grafico" class="form-select" style="width: auto;"></select>
-                                        <select id="filtro-ano-grafico" class="form-select" style="width: auto;"></select>
-                                        <button id="btn-filtrar-grafico" class="btn btn-primary btn-sm">Filtrar</button>
-                                    </div>
-                                    <div class="chart-container">
-                                        <canvas id="graficoAusencias"></canvas>
-                                    </div>
-                                </div>
-                            </div>
-
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-chart-bar me-2"></i>Ausencias</span>
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-primary btn-sm" id="btn-ver-mensual-ausencias">Mensual</button>
+            <button type="button" class="btn btn-outline-primary btn-sm" id="btn-ver-anual-ausencias">Anual</button>
+        </div>
+    </div>
+    <div class="card-body">
+        <!-- Filtros unificados -->
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            <select id="filtro-mes-grafico" class="form-select" style="width: auto;">
+                <option value="0">Enero</option>
+                <option value="1">Febrero</option>
+                <option value="2">Marzo</option>
+                <option value="3">Abril</option>
+                <option value="4">Mayo</option>
+                <option value="5">Junio</option>
+                <option value="6">Julio</option>
+                <option value="7">Agosto</option>
+                <option value="8">Septiembre</option>
+                <option value="9">Octubre</option>
+                <option value="10">Noviembre</option>
+                <option value="11">Diciembre</option>
+            </select>
+            <select id="filtro-ano-grafico" class="form-select" style="width: auto;"></select>
+            <button id="btn-filtrar-grafico" class="btn btn-primary btn-sm">Filtrar</button>
+        </div>
+        <div class="chart-container">
+            <canvas id="graficoAusencias"></canvas>
+        </div>
+    </div>
+</div>
                             <div class="card mb-4">
                                 <div class="card-header">Distribución de Ausencias por Motivo</div>
                                 <div class="card-body">
@@ -2660,6 +2699,8 @@ let graficoHorasExtras = null; // NUEVA: Gráfico de horas extras
 
         // Gráficos Ausencias
         let graficoAusencias = null;
+        let vistaAusencias = 'mensual'; // 'mensual' o 'anual'
+        let graficoAusenciasAnual = null;
         let graficoAusenciasMotivoActual = null;
         let graficoAusenciasMotivoHistorico = null;
         let graficoAusenciasMotivoFiltrado = null;
@@ -2798,13 +2839,18 @@ function cargarTodosLosDatos() {
         mostrarColaboradoresEgresados();
         generarPlanilla(todayStr);
 
-        // Pestaña Ausencias
-        mostrarAusencias();
-        calcularEstadisticasAusencias();
-        popularFiltrosGrafico('#filtro-mes-grafico', '#filtro-ano-grafico', ausencias, 'fecha');
-        crearGraficoAusencias(hoy.getFullYear(), hoy.getMonth());
-        crearGraficoAusenciasMotivoActual();
-        crearGraficoAusenciasMotivoHistorico();
+// Pestaña Ausencias
+mostrarAusencias();
+calcularEstadisticasAusencias();
+popularFiltrosGrafico('#filtro-mes-grafico', '#filtro-ano-grafico', ausencias, 'fecha');
+// Configuración inicial: Vista mensual por defecto
+vistaAusencias = 'mensual';
+$('#filtro-mes-grafico').show();
+$('#btn-ver-mensual-ausencias').removeClass('btn-outline-primary').addClass('btn-primary');
+$('#btn-ver-anual-ausencias').removeClass('btn-primary').addClass('btn-outline-primary');
+crearGraficoAusencias(hoy.getFullYear(), hoy.getMonth());
+crearGraficoAusenciasMotivoActual();
+crearGraficoAusenciasMotivoHistorico();
 
         // Pestaña Disciplina
         mostrarHistorialDisciplina();
@@ -2881,7 +2927,6 @@ function parsearFechaUTC(fechaStr) {
 }
         
 
-
 function configurarEventos() {
     // --- Eventos Generales y Formularios ---
     $('#btn-registrar-colaborador').on('click', registrarColaborador);
@@ -2956,15 +3001,20 @@ function configurarEventos() {
     });
 
     // --- Filtros de Gráficos ---
-    $('#btn-filtrar-grafico').on('click', function() {
-        const ano = parseInt($('#filtro-ano-grafico').val());
+$('#btn-filtrar-grafico').on('click', function() {
+    const ano = parseInt($('#filtro-ano-grafico').val());
+    if (vistaAusencias === 'mensual') {
         const mes = parseInt($('#filtro-mes-grafico').val());
         crearGraficoAusencias(ano, mes);
         $('#contenedorGraficoFiltradoAusencias').toggle(ano !== new Date().getFullYear() || mes !== new Date().getMonth());
         if ($('#contenedorGraficoFiltradoAusencias').is(':visible')) {
             crearGraficoAusenciasMotivoFiltrado(ano, mes);
         }
-    });
+    } else {
+        crearGraficoAusenciasAnual(ano);
+    }
+});
+
     $('#btn-filtrar-disciplina-grafico').on('click', function() {
         const ano = parseInt($('#filtro-ano-disciplina').val());
         const mes = parseInt($('#filtro-mes-disciplina').val());
@@ -3000,6 +3050,39 @@ function configurarEventos() {
             crearGraficoIncidentesCategoriaFiltrado(ano, mes);
         }
     });
+
+// --- Botones para cambiar vista de ausencias ---
+$('#btn-ver-mensual-ausencias').on('click', function() {
+    vistaAusencias = 'mensual';
+    $(this).removeClass('btn-outline-primary').addClass('btn-primary');
+    $('#btn-ver-anual-ausencias').removeClass('btn-primary').addClass('btn-outline-primary');
+    // Mostrar filtro de mes
+    $('#filtro-mes-grafico').show();
+    // Ocultar selector de año (ya está visible, pero lo mantenemos)
+    const ano = parseInt($('#filtro-ano-grafico').val());
+    const mes = parseInt($('#filtro-mes-grafico').val());
+    crearGraficoAusencias(ano, mes);
+});
+
+
+$('#btn-ver-anual-ausencias').on('click', function() {
+    vistaAusencias = 'anual';
+    $(this).removeClass('btn-outline-primary').addClass('btn-primary');
+    $('#btn-ver-mensual-ausencias').removeClass('btn-primary').addClass('btn-outline-primary');
+    // Ocultar filtro de mes
+    $('#filtro-mes-grafico').hide();
+    const ano = parseInt($('#filtro-ano-grafico').val());
+    crearGraficoAusenciasAnual(ano);
+});
+
+
+// --- Filtrar gráfico anual de ausencias ---
+$('#btn-filtrar-ausencias-anual').on('click', function() {
+    if (vistaAusencias === 'anual') {
+        const ano = parseInt($('#filtro-ano-ausencias-anual').val());
+        crearGraficoAusenciasAnual(ano);
+    }
+});
 
     // --- Autocompletado ---
     $(document).on('input', '.colaborador-ausencia, .colaborador-incidente', function() {
@@ -3264,6 +3347,7 @@ function configurarEventos() {
         mostrarContactosEgresado(identidad);
     });
 }
+
 
 
 /**
@@ -4849,111 +4933,420 @@ function filtrarEgresadosTabla() {
             mostrarDetalleColaboradorCompleto(identidad, true);
         }
         
-        // Función unificada para mostrar historial (activos y egresados)
-        function mostrarDetalleColaboradorCompleto(identidad, esEgresado = false) {
-            const colaborador = esEgresado 
-                ? colaboradoresEgresos.find(c => c.identidad === identidad)
-                : colaboradoresActivos.find(c => c.identidad === identidad);
+function mostrarDetalleColaboradorCompleto(identidad, esEgresado = false) {
+    const colaborador = esEgresado 
+        ? colaboradoresEgresos.find(c => c.identidad === identidad)
+        : colaboradoresActivos.find(c => c.identidad === identidad);
+    
+    if (!colaborador) return;
+
+    // Obtener historiales
+    const historialAusencias = ausencias.filter(d => d.identidad === identidad).sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
+    const historialDisciplina = disciplina.filter(d => d.identidad === identidad).sort((a,b) => new Date(b.fechaFalta) - new Date(a.fechaFalta));
+    const historialEvaluaciones = evaluaciones.filter(d => d.identidad === identidad).sort((a,b) => new Date(a.fechaEvaluacion) - new Date(b.fechaEvaluacion));
+    const historialIncidentes = incidentes.filter(d => d.identidad === identidad).sort((a,b) => new Date(b.fechaIncidente) - new Date(a.fechaIncidente));
+
+    // Colores según estado
+    const estadoColor = esEgresado ? '#e74c3c' : '#2ecc71';
+    const estadoBg = esEgresado ? 'rgba(231, 76, 60, 0.1)' : 'rgba(46, 204, 113, 0.1)';
+    const estadoIcono = esEgresado ? 'fa-user-slash' : 'fa-user-check';
+    const estadoTexto = esEgresado ? 'Egresado' : 'Activo';
+
+    const fotoSrc = colaborador.fotoUrl || `https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=3498db&color=fff&size=200&font-size=0.5`;
+
+    // Calcular edad
+    let edad = '';
+    if (colaborador.fechaNacimiento) {
+        const edadCalculada = calcularEdad(colaborador.fechaNacimiento);
+        if (edadCalculada !== null) {
+            edad = edadCalculada;
+        }
+    }
+
+    // Generar contenido de cada pestaña
+    function generarContenidoAusencias() {
+        if (historialAusencias.length === 0) {
+            return `
+                <div class="text-center py-5">
+                    <div style="width: 70px; height: 70px; background: rgba(46, 204, 113, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;">
+                        <i class="fas fa-calendar-check" style="font-size: 30px; color: #2ecc71;"></i>
+                    </div>
+                    <h6 style="color: #2c3e50; font-weight: 600; margin: 0;">Sin Ausencias</h6>
+                    <p style="color: #95a5a6; font-size: 0.85rem; margin: 4px 0 0;">No hay ausencias registradas</p>
+                </div>`;
+        }
+        let html = '<div style="max-height: 380px; overflow-y: auto; padding-right: 5px; text-align: left;">';
+        historialAusencias.forEach((a, index) => {
+            const fechaFin = a.fechaFin && a.fechaFin !== a.fecha ? ` → ${formatearFecha(a.fechaFin)}` : '';
+            let badgeColor = 'secondary';
+            let icono = 'fa-clock';
+            if (a.motivo === 'Incapacidad') { badgeColor = 'warning'; icono = 'fa-ambulance'; }
+            else if (a.motivo === 'Falta Injustificada') { badgeColor = 'danger'; icono = 'fa-times-circle'; }
+            else if (a.motivo === 'Permiso') { badgeColor = 'info'; icono = 'fa-check-circle'; }
             
-            if (!colaborador) return;
+            html += `
+                <div style="background: ${index % 2 === 0 ? '#f8f9fa' : 'white'}; border-radius: 10px; padding: 12px 15px; margin-bottom: 6px; border-left: 4px solid var(--bs-${badgeColor});">
+                    <div>
+                        <span class="badge bg-${badgeColor} me-2"><i class="fas ${icono} me-1"></i>${a.motivo}</span>
+                        <span style="font-weight: 600; color: #2c3e50;">${formatearFecha(a.fecha)}${fechaFin}</span>
+                        <span class="badge bg-secondary ms-2">${a.diasIncapacidad || 1} día(s)</span>
+                        ${a.observaciones ? `<div style="margin-top: 6px; font-size: 0.85rem; color: #7f8c8d;"><i class="fas fa-comment me-1"></i>${a.observaciones}</div>` : ''}
+                    </div>
+                </div>`;
+        });
+        html += '</div>';
+        return html;
+    }
 
-            const historialAusencias = ausencias.filter(d => d.identidad === identidad).sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
-            const historialDisciplina = disciplina.filter(d => d.identidad === identidad).sort((a,b) => new Date(b.fechaFalta) - new Date(a.fechaFalta));
-            const historialEvaluaciones = evaluaciones.filter(d => d.identidad === identidad).sort((a,b) => new Date(a.fechaEvaluacion) - new Date(b.fechaEvaluacion));
+    function generarContenidoDisciplina() {
+        if (historialDisciplina.length === 0) {
+            return `
+                <div class="text-center py-5">
+                    <div style="width: 70px; height: 70px; background: rgba(46, 204, 113, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;">
+                        <i class="fas fa-check-circle" style="font-size: 30px; color: #2ecc71;"></i>
+                    </div>
+                    <h6 style="color: #2c3e50; font-weight: 600; margin: 0;">Sin Disciplina</h6>
+                    <p style="color: #95a5a6; font-size: 0.85rem; margin: 4px 0 0;">No hay acciones disciplinarias</p>
+                </div>`;
+        }
+        let html = '<div style="max-height: 380px; overflow-y: auto; padding-right: 5px; text-align: left;">';
+        historialDisciplina.forEach((d, index) => {
+            const faltasLista = d.descripcionFaltas.split('; ').map(f => `<li style="font-size: 0.85rem;">${f}</li>`).join('');
+            html += `
+                <div style="background: ${index % 2 === 0 ? '#f8f9fa' : 'white'}; border-radius: 10px; padding: 12px 15px; margin-bottom: 6px; border-left: 4px solid #e74c3c;">
+                    <div>
+                        <span class="badge bg-danger me-2"><i class="fas fa-calendar me-1"></i>${formatearFecha(d.fechaFalta)}</span>
+                        <ul style="margin: 6px 0 0 0; padding-left: 20px;">${faltasLista}</ul>
+                        ${d.observaciones ? `<div style="margin-top: 6px; font-size: 0.85rem; color: #7f8c8d;"><i class="fas fa-comment me-1"></i>${d.observaciones}</div>` : ''}
+                    </div>
+                </div>`;
+        });
+        html += '</div>';
+        return html;
+    }
 
-            let historialHtml = '<div style="max-height: 400px; overflow-y: auto; text-align: left;">';
-
-            historialHtml += '<h5><i class="fas fa-clock me-2"></i>Historial de Ausencias</h5>';
-            if (historialAusencias.length > 0) {
-                historialHtml += '<ul>';
-                historialAusencias.forEach(a => {
-                    historialHtml += `<li>${formatearFecha(a.fecha)} (${a.diasIncapacidad || 1} día(s)): ${a.motivo}</li>`;
-                });
-                historialHtml += '</ul>';
-            } else {
-                historialHtml += '<p class="text-muted small">Sin ausencias registradas.</p>';
-            }
-
-            historialHtml += '<h5 class="mt-3"><i class="fas fa-gavel me-2"></i>Historial de Disciplina</h5>';
-            if (historialDisciplina.length > 0) {
-                historialHtml += '<ul>';
-                historialDisciplina.forEach(d => {
-                    historialHtml += `<li>${formatearFecha(d.fechaFalta)}: ${d.descripcionFaltas}</li>`;
-                });
-                historialHtml += '</ul>';
-            } else {
-                historialHtml += '<p class="text-muted small">Sin acciones disciplinarias registradas.</p>';
-            }
-
-            historialHtml += '<h5 class="mt-3"><i class="fas fa-chart-bar me-2"></i>Historial de Evaluaciones</h5>';
-            if (historialEvaluaciones.length > 0) {
-                 historialHtml += '<div class="chart-container" style="height: 250px;"><canvas id="graficoProgresoCompleto"></canvas></div>';
-                 historialEvaluaciones.forEach(reg => { // De más reciente a más antigua
-                    const hasInfo = reg.observaciones || reg.compromiso || reg.recomendaciones;
-                    const aspectosMejorarHtml = generarHtmlAspectosMejorar(reg);
-                    historialHtml += `
-                        <div class="evaluacion-detalle-item">
-                            <h6><i class="fas fa-calendar-alt me-2"></i>Evaluación del ${formatearFecha(reg.fechaEvaluacion)} (Nota: ${reg.notaFinal})</h6>`;
-                    if (hasInfo) {
-                        historialHtml += `
-                            ${reg.observaciones ? `<p><strong>Observaciones:</strong> ${reg.observaciones}</p>` : ''}
-                            ${reg.compromiso ? `<p><strong>Compromiso de Mejora:</strong> ${reg.compromiso}</p>` : ''}
-                            ${reg.recomendaciones ? `<p><strong>Recomendaciones:</strong> ${reg.recomendaciones}</p>` : ''}`;
-                    }
-                    historialHtml += aspectosMejorarHtml;
-                    if (!hasInfo && !aspectosMejorarHtml) {
-                        historialHtml += `<p class="no-info">No se especificó información adicional.</p>`;
-                    }
-                    historialHtml += '</div>';
-                });
-            } else {
-                historialHtml += '<p class="text-muted small">Sin evaluaciones registradas.</p>';
-            }
-            historialHtml += '</div>';
-            
-            const fotoSrc = colaborador.fotoUrl || `https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=random`;
-            let infoHeader = esEgresado ?
-                `<p class="mt-2">Fecha de Egreso: <strong>${formatearFecha(colaborador.fechaEgreso)}</strong><br>Razón: <strong>${colaborador.razon}</strong></p>` :
-                `<p class="mt-2">Fecha de Inicio: <strong>${formatearFecha(colaborador.fechaInicio)}</strong></p>`;
-
-            const detailModalHtml = `
-                <div class="text-center mb-3">
-                    <img src="${fotoSrc}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid #dee2e6;" onerror="this.src='https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=random'">
-                    <h5 class="mt-2 mb-0">${colaborador.nombre}</h5>
-                    <span class="badge bg-secondary">${colaborador.identidad}</span>
-                    ${infoHeader}
+    function generarContenidoEvaluaciones() {
+        if (historialEvaluaciones.length === 0) {
+            return `
+                <div class="text-center py-5">
+                    <div style="width: 70px; height: 70px; background: rgba(46, 204, 113, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;">
+                        <i class="fas fa-chart-line" style="font-size: 30px; color: #2ecc71;"></i>
+                    </div>
+                    <h6 style="color: #2c3e50; font-weight: 600; margin: 0;">Sin Evaluaciones</h6>
+                    <p style="color: #95a5a6; font-size: 0.85rem; margin: 4px 0 0;">No hay evaluaciones registradas</p>
+                </div>`;
+        }
+        let html = '';
+        // Gráfico
+        html += `
+            <div style="background: #f8f9fa; border-radius: 12px; padding: 15px; margin-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <span style="font-weight: 600; color: #2c3e50; font-size: 0.9rem;"><i class="fas fa-chart-area me-2" style="color: #3498db;"></i>Progreso de Notas</span>
+                    <span class="badge bg-primary">${historialEvaluaciones.length} evaluación(es)</span>
                 </div>
-                ${historialHtml}
-            `;
+                <div class="chart-container" style="height: 160px;"><canvas id="graficoProgresoCompleto"></canvas></div>
+            </div>`;
+        html += '<div style="max-height: 200px; overflow-y: auto; padding-right: 5px; text-align: left;">';
+        historialEvaluaciones.forEach((e, index) => {
+            const nota = parseFloat(e.notaFinal);
+            let badgeColor = 'success';
+            let icono = 'fa-star';
+            if (nota < 60) { badgeColor = 'danger'; icono = 'fa-times-circle'; }
+            else if (nota < 70) { badgeColor = 'warning'; icono = 'fa-exclamation-triangle'; }
+            else if (nota < 80) { badgeColor = 'info'; icono = 'fa-info-circle'; }
+            else if (nota < 90) { badgeColor = 'primary'; icono = 'fa-thumbs-up'; }
+            else { badgeColor = 'success'; icono = 'fa-crown'; }
+            
+            html += `
+                <div style="background: ${index % 2 === 0 ? '#f8f9fa' : 'white'}; border-radius: 10px; padding: 10px 15px; margin-bottom: 4px; border-left: 4px solid var(--bs-${badgeColor});">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span style="font-size: 0.85rem; color: #7f8c8d;">${formatearFecha(e.fechaEvaluacion)}</span>
+                        <span class="badge bg-${badgeColor}" style="font-size: 0.9rem; padding: 5px 12px;">
+                            <i class="fas ${icono} me-1"></i>${e.notaFinal}
+                        </span>
+                    </div>
+                    ${e.observaciones ? `<div style="margin-top: 4px; font-size: 0.8rem; color: #7f8c8d;"><i class="fas fa-comment me-1"></i>${e.observaciones}</div>` : ''}
+                </div>`;
+        });
+        html += '</div>';
+        return html;
+    }
 
-            Swal.fire({
-                title: 'Historial del Colaborador',
-                html: detailModalHtml,
-                width: '800px',
-                showCloseButton: true,
-                showConfirmButton: false,
-                didOpen: () => {
-                    if (historialEvaluaciones.length > 0) {
-                        const ctx = document.getElementById('graficoProgresoCompleto').getContext('2d');
-                        new Chart(ctx, {
-                            type: 'line',
-                            data: {
-                                labels: [...historialEvaluaciones].sort((a,b) => new Date(a.fechaEvaluacion) - new Date(b.fechaEvaluacion)).map(e => formatearFecha(e.fechaEvaluacion)),
-                                datasets: [{
-                                    label: 'Nota Final',
-                                    data: [...historialEvaluaciones].sort((a,b) => new Date(a.fechaEvaluacion) - new Date(b.fechaEvaluacion)).map(e => e.notaFinal),
-                                    borderColor: '#3498db',
-                                    backgroundColor: 'rgba(52, 152, 219, 0.2)',
-                                    fill: true,
-                                    tension: 0.1
-                                }]
+    function generarContenidoIncidentes() {
+        if (historialIncidentes.length === 0) {
+            return `
+                <div class="text-center py-5">
+                    <div style="width: 70px; height: 70px; background: rgba(46, 204, 113, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;">
+                        <i class="fas fa-shield-alt" style="font-size: 30px; color: #2ecc71;"></i>
+                    </div>
+                    <h6 style="color: #2c3e50; font-weight: 600; margin: 0;">Sin Incidentes</h6>
+                    <p style="color: #95a5a6; font-size: 0.85rem; margin: 4px 0 0;">No hay incidentes registrados</p>
+                </div>`;
+        }
+        let html = '<div style="max-height: 380px; overflow-y: auto; padding-right: 5px; text-align: left;">';
+        historialIncidentes.forEach((inc, index) => {
+            let badgeColor = 'secondary';
+            let icono = 'fa-info-circle';
+            if (inc.categoriaSiso === 'FAT') { badgeColor = 'danger'; icono = 'fa-skull'; }
+            else if (inc.categoriaSiso === 'LWC') { badgeColor = 'danger'; icono = 'fa-clock'; }
+            else if (inc.categoriaSiso === 'MTC') { badgeColor = 'warning'; icono = 'fa-notes-medical'; }
+            else if (inc.categoriaSiso === 'FAC') { badgeColor = 'info'; icono = 'fa-band-aid'; }
+            else if (inc.categoriaSiso === 'N-M') { badgeColor = 'success'; icono = 'fa-check-circle'; }
+            
+            const categoriaNombres = {
+                'FAT': 'Fatalidad',
+                'LWC': 'Pérdida de Tiempo',
+                'MTC': 'Tratamiento Médico',
+                'FAC': 'Primeros Auxilios',
+                'N-M': 'Casi Incidente'
+            };
+            const categoriaNombre = categoriaNombres[inc.categoriaSiso] || inc.categoriaSiso;
+            
+            html += `
+                <div style="background: ${index % 2 === 0 ? '#f8f9fa' : 'white'}; border-radius: 10px; padding: 12px 15px; margin-bottom: 6px; border-left: 4px solid var(--bs-${badgeColor});">
+                    <div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px;">
+                            <span class="badge bg-secondary"><i class="fas fa-calendar me-1"></i>${formatearFecha(inc.fechaIncidente)}</span>
+                            <span class="badge bg-${badgeColor}"><i class="fas ${icono} me-1"></i>${inc.categoriaSiso} - ${categoriaNombre}</span>
+                            ${inc.parteAfectada ? `<span class="badge bg-primary"><i class="fas fa-user-injured me-1"></i>${inc.parteAfectada}</span>` : ''}
+                        </div>
+                        <div style="font-size: 0.85rem; color: #2c3e50;">
+                            <div><span style="font-weight: 600;">Causa:</span> ${inc.causa}</div>
+                            <div><span style="font-weight: 600;">Descripción:</span> ${inc.descripcion}</div>
+                            ${inc.medidas ? `<div style="margin-top: 4px;"><span style="font-weight: 600;">Medidas:</span> <span style="color: #27ae60;">${inc.medidas}</span></div>` : ''}
+                        </div>
+                    </div>
+                </div>`;
+        });
+        html += '</div>';
+        return html;
+    }
+
+    // Contar registros
+    const totalAusencias = historialAusencias.length;
+    const totalDisciplina = historialDisciplina.length;
+    const totalEvaluaciones = historialEvaluaciones.length;
+    const totalIncidentes = historialIncidentes.length;
+
+    const modalHtml = `
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 5px;">
+        
+        <!-- CABECERA CON EFECTO GLASSMORPHISM -->
+        <div style="background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460); border-radius: 16px; padding: 25px 30px; margin: -20px -25px 25px -25px; color: white; position: relative; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+            <div style="position: absolute; top: -50%; right: -20%; width: 300px; height: 300px; background: radial-gradient(circle, rgba(52, 152, 219, 0.1) 0%, transparent 70%); border-radius: 50%;"></div>
+            <div style="position: absolute; bottom: -40%; left: -10%; width: 250px; height: 250px; background: radial-gradient(circle, rgba(46, 204, 113, 0.08) 0%, transparent 70%); border-radius: 50%;"></div>
+            
+            <div class="d-flex align-items-center" style="gap: 25px; flex-wrap: wrap; position: relative; z-index: 1;">
+                <!-- Foto con efecto glow -->
+                <div style="position: relative; flex-shrink: 0;">
+                    <div style="position: absolute; inset: -4px; background: linear-gradient(135deg, ${estadoColor}, #3498db); border-radius: 50%; padding: 3px; box-shadow: 0 0 30px rgba(52,152,219,0.3);">
+                        <div style="width: 100%; height: 100%; border-radius: 50%; background: #1a1a2e;"></div>
+                    </div>
+                    <img src="${fotoSrc}" 
+                         style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid rgba(255,255,255,0.2); position: relative; z-index: 1;"
+                         onerror="this.src='https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=3498db&color=fff&size=150&font-size=0.5'">
+                    <div style="position: absolute; bottom: 2px; right: 2px; background: ${estadoColor}; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border: 3px solid white; z-index: 2; box-shadow: 0 2px 10px rgba(0,0,0,0.3);">
+                        <i class="fas ${estadoIcono}" style="font-size: 12px; color: white;"></i>
+                    </div>
+                </div>
+                
+                <!-- Información del colaborador -->
+                <div style="flex: 1; min-width: 200px;">
+                    <h3 style="margin: 0; font-weight: 700; font-size: 1.5rem; letter-spacing: -0.5px; background: linear-gradient(135deg, #fff, #a8d8ea); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                        ${colaborador.nombre}
+                    </h3>
+                    <div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px;">
+                        <span class="badge" style="background: rgba(255,255,255,0.15); padding: 5px 12px; font-size: 0.8rem;">
+                            <i class="fas fa-id-card me-1"></i>${colaborador.identidad}
+                        </span>
+                        ${colaborador.sexo ? `<span class="badge" style="background: ${colaborador.sexo === 'Masculino' ? 'rgba(52, 152, 219, 0.3)' : 'rgba(231, 76, 60, 0.3)'}; padding: 5px 12px; font-size: 0.8rem;">
+                            <i class="fas ${colaborador.sexo === 'Masculino' ? 'fa-mars' : 'fa-venus'} me-1"></i>${colaborador.sexo}
+                        </span>` : ''}
+                        ${edad ? `<span class="badge" style="background: rgba(241, 196, 15, 0.25); padding: 5px 12px; font-size: 0.8rem;">
+                            <i class="fas fa-birthday-cake me-1"></i>${edad} años
+                        </span>` : ''}
+                        <span class="badge" style="background: ${estadoBg}; color: ${estadoColor}; border: 1px solid ${estadoColor}; padding: 5px 12px; font-size: 0.8rem;">
+                            <i class="fas ${estadoIcono} me-1"></i>${estadoTexto}
+                        </span>
+                        ${esEgresado ? `<span class="badge" style="background: rgba(231, 76, 60, 0.2); color: #e74c3c; border: 1px solid #e74c3c; padding: 5px 12px; font-size: 0.8rem;">
+                            <i class="fas fa-calendar-times me-1"></i>${formatearFecha(colaborador.fechaEgreso)}
+                        </span>` : `<span class="badge" style="background: rgba(46, 204, 113, 0.2); color: #2ecc71; border: 1px solid #2ecc71; padding: 5px 12px; font-size: 0.8rem;">
+                            <i class="fas fa-calendar-plus me-1"></i>${formatearFecha(colaborador.fechaInicio)}
+                        </span>`}
+                        ${esEgresado ? `<span class="badge" style="background: rgba(243, 156, 18, 0.2); color: #f39c12; border: 1px solid #f39c12; padding: 5px 12px; font-size: 0.8rem;">
+                            <i class="fas fa-info-circle me-1"></i>${colaborador.razon}
+                        </span>` : ''}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PESTAÑAS MEJORADAS -->
+        <ul class="nav nav-tabs" id="historialTabs" role="tablist" style="border-bottom: none; margin-bottom: 20px; gap: 4px; background: #f8f9fa; border-radius: 12px; padding: 4px;">
+            <li class="nav-item" role="presentation" style="flex: 1;">
+                <button class="nav-link active" id="tab-ausencias" data-bs-toggle="tab" data-bs-target="#content-ausencias" type="button" role="tab" 
+                        style="border: none; border-radius: 8px; padding: 10px 15px; width: 100%; font-weight: 600; font-size: 0.85rem; transition: all 0.3s;">
+                    <i class="fas fa-clock me-1"></i>Ausencias
+                    <span class="badge ${totalAusencias > 0 ? 'bg-danger' : 'bg-secondary'}" style="margin-left: 5px;">${totalAusencias}</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation" style="flex: 1;">
+                <button class="nav-link" id="tab-disciplina" data-bs-toggle="tab" data-bs-target="#content-disciplina" type="button" role="tab"
+                        style="border: none; border-radius: 8px; padding: 10px 15px; width: 100%; font-weight: 600; font-size: 0.85rem; transition: all 0.3s;">
+                    <i class="fas fa-gavel me-1"></i>Disciplina
+                    <span class="badge ${totalDisciplina > 0 ? 'bg-danger' : 'bg-secondary'}" style="margin-left: 5px;">${totalDisciplina}</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation" style="flex: 1;">
+                <button class="nav-link" id="tab-evaluaciones" data-bs-toggle="tab" data-bs-target="#content-evaluaciones" type="button" role="tab"
+                        style="border: none; border-radius: 8px; padding: 10px 15px; width: 100%; font-weight: 600; font-size: 0.85rem; transition: all 0.3s;">
+                    <i class="fas fa-chart-bar me-1"></i>Evaluaciones
+                    <span class="badge ${totalEvaluaciones > 0 ? 'bg-danger' : 'bg-secondary'}" style="margin-left: 5px;">${totalEvaluaciones}</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation" style="flex: 1;">
+                <button class="nav-link" id="tab-incidentes" data-bs-toggle="tab" data-bs-target="#content-incidentes" type="button" role="tab"
+                        style="border: none; border-radius: 8px; padding: 10px 15px; width: 100%; font-weight: 600; font-size: 0.85rem; transition: all 0.3s;">
+                    <i class="fas fa-exclamation-triangle me-1"></i>Incidentes
+                    <span class="badge ${totalIncidentes > 0 ? 'bg-danger' : 'bg-secondary'}" style="margin-left: 5px;">${totalIncidentes}</span>
+                </button>
+            </li>
+        </ul>
+
+        <!-- CONTENIDO DE PESTAÑAS -->
+        <div class="tab-content" style="background: white; border-radius: 12px; padding: 5px;">
+            <div class="tab-pane fade show active" id="content-ausencias" role="tabpanel">
+                ${generarContenidoAusencias()}
+            </div>
+            <div class="tab-pane fade" id="content-disciplina" role="tabpanel">
+                ${generarContenidoDisciplina()}
+            </div>
+            <div class="tab-pane fade" id="content-evaluaciones" role="tabpanel">
+                ${generarContenidoEvaluaciones()}
+            </div>
+            <div class="tab-pane fade" id="content-incidentes" role="tabpanel">
+                ${generarContenidoIncidentes()}
+            </div>
+        </div>
+    </div>
+    `;
+
+    Swal.fire({
+        title: null,
+        html: modalHtml,
+        width: '900px',
+        showCloseButton: true,
+        showConfirmButton: false,
+        customClass: {
+            popup: 'animated fadeInDown',
+            closeButton: 'btn-close-white'
+        },
+        didOpen: () => {
+            // Inicializar gráfico si hay evaluaciones
+            if (historialEvaluaciones.length > 0) {
+                const ctx = document.getElementById('graficoProgresoCompleto').getContext('2d');
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: [...historialEvaluaciones].sort((a,b) => new Date(a.fechaEvaluacion) - new Date(b.fechaEvaluacion)).map(e => formatearFecha(e.fechaEvaluacion)),
+                        datasets: [{
+                            label: 'Nota Final',
+                            data: [...historialEvaluaciones].sort((a,b) => new Date(a.fechaEvaluacion) - new Date(b.fechaEvaluacion)).map(e => parseFloat(e.notaFinal)),
+                            borderColor: '#3498db',
+                            backgroundColor: 'rgba(52, 152, 219, 0.15)',
+                            fill: true,
+                            tension: 0.4,
+                            pointBackgroundColor: '#3498db',
+                            pointBorderColor: 'white',
+                            pointBorderWidth: 2,
+                            pointRadius: 5,
+                            pointHoverRadius: 7
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return 'Nota: ' + context.parsed.y;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: { 
+                                beginAtZero: true, 
+                                max: 100,
+                                ticks: { stepSize: 20 },
+                                grid: { color: 'rgba(0,0,0,0.05)' }
                             },
-                            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100 } } }
-                        });
+                            x: {
+                                grid: { display: false }
+                            }
+                        }
                     }
+                });
+            }
+            
+            // Estilos para las pestañas activas
+            const style = document.createElement('style');
+            style.textContent = `
+                #historialTabs .nav-link {
+                    color: #7f8c8d;
+                    background: transparent;
+                }
+                #historialTabs .nav-link:hover {
+                    color: #2c3e50;
+                    background: rgba(52, 152, 219, 0.05);
+                }
+                #historialTabs .nav-link.active {
+                    color: #2c3e50;
+                    background: white;
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+                }
+                #historialTabs .nav-link .badge {
+                    transition: all 0.3s;
+                }
+                .swal2-popup {
+                    border-radius: 20px !important;
+                    padding: 25px !important;
+                }
+                .swal2-close {
+                    color: white !important;
+                    opacity: 0.6;
+                    transition: all 0.3s;
+                    background: rgba(255,255,255,0.1);
+                    border-radius: 50%;
+                    width: 35px;
+                    height: 35px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                .swal2-close:hover {
+                    opacity: 1;
+                    background: rgba(255,255,255,0.2);
+                }
+                .swal2-close:focus {
+                    box-shadow: none;
+                }
+            `;
+            document.head.appendChild(style);
+        },
+        willClose: () => {
+            // Limpiar estilos agregados
+            const styles = document.querySelectorAll('style');
+            styles.forEach(style => {
+                if (style.textContent.includes('#historialTabs .nav-link')) {
+                    style.remove();
                 }
             });
         }
+    });
+}
         
         function reingresarColaborador(colaborador) {
             Swal.fire({
@@ -5474,39 +5867,34 @@ empleadosUnicos.forEach(emp => {
         }
 
 function crearGraficoAusencias(ano, mes) {
-    // Destruir gráfico anterior si existe
-    const canvas = document.getElementById('graficoAusencias');
-    const chartInstance = Chart.getChart(canvas);
-    
-    if (chartInstance) {
-        chartInstance.destroy();
+    // Destruir gráficos anteriores
+    if (graficoAusencias) {
+        graficoAusencias.destroy();
+        graficoAusencias = null;
+    }
+    if (graficoAusenciasAnual) {
+        graficoAusenciasAnual.destroy();
+        graficoAusenciasAnual = null;
     }
 
+    const canvas = document.getElementById('graficoAusencias');
     const ctx = canvas.getContext('2d');
-    // Usar UTC para obtener el número de días del mes correctamente
     const diasEnMes = new Date(Date.UTC(ano, mes + 1, 0)).getUTCDate();
     const labels = Array.from({ length: diasEnMes }, (_, i) => `${i + 1}/${mes + 1}`);
     const datosAusentes = Array(diasEnMes).fill(0);
 
     ausencias.forEach(a => {
-        // Crear fechas explícitamente en UTC agregando 'Z' (Zulu time)
-        try { // Añadir try-catch por si alguna fecha está mal formateada
+        try {
             const fechaInicioAbs = new Date(a.fecha + 'T00:00:00Z');
             const fechaFinAbs = new Date((a.fechaFin || a.fecha) + 'T00:00:00Z');
 
-            // Asegurarse que las fechas sean válidas antes de iterar
             if (isNaN(fechaInicioAbs.getTime()) || isNaN(fechaFinAbs.getTime())) {
-                console.warn("Fecha inválida encontrada para ausencia:", a);
-                return; // Saltar esta ausencia si las fechas no son válidas
+                return;
             }
 
-            // Iterar usando métodos UTC
             for (let d = new Date(fechaInicioAbs); d <= fechaFinAbs; d.setUTCDate(d.getUTCDate() + 1)) {
-                // Comparar usando métodos UTC
                 if (d.getUTCMonth() === mes && d.getUTCFullYear() === ano) {
-                    // Usar el día UTC para el índice (restando 1 porque es base 0)
                     const dayIndex = d.getUTCDate() - 1;
-                    // Comprobación de límites (seguridad extra)
                     if (dayIndex >= 0 && dayIndex < diasEnMes) {
                          datosAusentes[dayIndex]++;
                     }
@@ -5517,9 +5905,8 @@ function crearGraficoAusencias(ano, mes) {
         }
     });
 
-    // Usar UTC también para el nombre del mes para consistencia
     const nombreMes = new Date(Date.UTC(ano, mes)).toLocaleString('es-ES', { month: 'long', timeZone: 'UTC' });
-    graficoAusencias = new Chart(ctx, { // Reasignar a la variable global
+    graficoAusencias = new Chart(ctx, {
         type: 'line',
         data: {
             labels,
@@ -5563,6 +5950,111 @@ function crearGraficoAusencias(ano, mes) {
         }
     });
 }
+
+
+function crearGraficoAusenciasAnual(ano) {
+    // Destruir gráficos anteriores
+    if (graficoAusenciasAnual) {
+        graficoAusenciasAnual.destroy();
+        graficoAusenciasAnual = null;
+    }
+    if (graficoAusencias) {
+        graficoAusencias.destroy();
+        graficoAusencias = null;
+    }
+    
+    const canvas = document.getElementById('graficoAusencias');
+    const ctx = canvas.getContext('2d');
+    const labels = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+    const datos = Array(12).fill(0);
+
+    ausencias.forEach(a => {
+        try {
+            const fechaInicioAbs = new Date(a.fecha + 'T00:00:00Z');
+            const fechaFinAbs = new Date((a.fechaFin || a.fecha) + 'T00:00:00Z');
+
+            if (isNaN(fechaInicioAbs.getTime()) || isNaN(fechaFinAbs.getTime())) {
+                return;
+            }
+
+            for (let d = new Date(fechaInicioAbs); d <= fechaFinAbs; d.setUTCDate(d.getUTCDate() + 1)) {
+                if (d.getUTCFullYear() === ano) {
+                    const mesIndex = d.getUTCMonth();
+                    datos[mesIndex]++;
+                }
+            }
+        } catch (error) {
+            console.error("Error procesando fecha de ausencia:", a, error);
+        }
+    });
+
+    graficoAusenciasAnual = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: `Ausencias por Mes en ${ano}`,
+                data: datos,
+                borderColor: '#e74c3c',
+                backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                fill: true,
+                tension: 0.4,
+                pointBackgroundColor: '#e74c3c',
+                pointBorderColor: 'white',
+                pointBorderWidth: 2,
+                pointRadius: 5,
+                pointHoverRadius: 7
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { stepSize: 1 },
+                    title: {
+                        display: true,
+                        text: 'Número de Ausencias'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Mes'
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `Ausencias: ${context.parsed.y}`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function popularFiltroAnualAusencias() {
+    const filtroAno = $('#filtro-ano-ausencias-anual');
+    filtroAno.empty();
+    const anos = [...new Set(ausencias.map(a => {
+        try {
+            const fecha = new Date(a.fecha + 'T00:00:00Z');
+            return fecha.getUTCFullYear();
+        } catch (e) {
+            return null;
+        }
+    }).filter(Boolean))];
+    if (!anos.includes(new Date().getFullYear())) anos.push(new Date().getFullYear());
+    anos.sort((a, b) => b - a).forEach(ano => filtroAno.append(`<option value="${ano}">${ano}</option>`));
+    filtroAno.val(new Date().getFullYear());
+}
+
+
 
 
         
@@ -6242,110 +6734,6 @@ function eliminarEvaluacion(identidad, fechaEvaluacion) {
             });
         }
         
-        function mostrarDetalleColaboradorCompleto(identidad, esEgresado = false) {
-            const colaborador = esEgresado 
-                ? colaboradoresEgresos.find(c => c.identidad === identidad)
-                : colaboradoresActivos.find(c => c.identidad === identidad);
-            
-            if (!colaborador) return;
-
-            const historialAusencias = ausencias.filter(d => d.identidad === identidad).sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
-            const historialDisciplina = disciplina.filter(d => d.identidad === identidad).sort((a,b) => new Date(b.fechaFalta) - new Date(a.fechaFalta));
-            const historialEvaluaciones = evaluaciones.filter(d => d.identidad === identidad).sort((a,b) => new Date(a.fechaEvaluacion) - new Date(b.fechaEvaluacion));
-
-            let historialHtml = '<div style="max-height: 400px; overflow-y: auto; text-align: left;">';
-
-            historialHtml += '<h5><i class="fas fa-clock me-2"></i>Historial de Ausencias</h5>';
-            if (historialAusencias.length > 0) {
-                historialHtml += '<ul>';
-                historialAusencias.forEach(a => {
-                    historialHtml += `<li>${formatearFecha(a.fecha)} (${a.diasIncapacidad || 1} día(s)): ${a.motivo}</li>`;
-                });
-                historialHtml += '</ul>';
-            } else {
-                historialHtml += '<p class="text-muted small">Sin ausencias registradas.</p>';
-            }
-
-            historialHtml += '<h5 class="mt-3"><i class="fas fa-gavel me-2"></i>Historial de Disciplina</h5>';
-            if (historialDisciplina.length > 0) {
-                historialHtml += '<ul>';
-                historialDisciplina.forEach(d => {
-                    historialHtml += `<li>${formatearFecha(d.fechaFalta)}: ${d.descripcionFaltas}</li>`;
-                });
-                historialHtml += '</ul>';
-            } else {
-                historialHtml += '<p class="text-muted small">Sin acciones disciplinarias registradas.</p>';
-            }
-
-            historialHtml += '<h5 class="mt-3"><i class="fas fa-chart-bar me-2"></i>Historial de Evaluaciones</h5>';
-            if (historialEvaluaciones.length > 0) {
-                 historialHtml += '<div class="chart-container" style="height: 250px;"><canvas id="graficoProgresoCompleto"></canvas></div>';
-                 historialEvaluaciones.forEach(reg => { // De más reciente a más antigua
-                    const hasInfo = reg.observaciones || reg.compromiso || reg.recomendaciones;
-                    const aspectosMejorarHtml = generarHtmlAspectosMejorar(reg);
-                    historialHtml += `
-                        <div class="evaluacion-detalle-item">
-                            <h6><i class="fas fa-calendar-alt me-2"></i>Evaluación del ${formatearFecha(reg.fechaEvaluacion)} (Nota: ${reg.notaFinal})</h6>`;
-                    if (hasInfo) {
-                        historialHtml += `
-                            ${reg.observaciones ? `<p><strong>Observaciones:</strong> ${reg.observaciones}</p>` : ''}
-                            ${reg.compromiso ? `<p><strong>Compromiso de Mejora:</strong> ${reg.compromiso}</p>` : ''}
-                            ${reg.recomendaciones ? `<p><strong>Recomendaciones:</strong> ${reg.recomendaciones}</p>` : ''}`;
-                    }
-                    historialHtml += aspectosMejorarHtml;
-                    if (!hasInfo && !aspectosMejorarHtml) {
-                        historialHtml += `<p class="no-info">No se especificó información adicional.</p>`;
-                    }
-                    historialHtml += '</div>';
-                });
-            } else {
-                historialHtml += '<p class="text-muted small">Sin evaluaciones registradas.</p>';
-            }
-            historialHtml += '</div>';
-            
-            const fotoSrc = colaborador.fotoUrl || `https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=random`;
-            let infoHeader = esEgresado ?
-                `<p class="mt-2">Fecha de Egreso: <strong>${formatearFecha(colaborador.fechaEgreso)}</strong><br>Razón: <strong>${colaborador.razon}</strong></p>` :
-                `<p class="mt-2">Fecha de Inicio: <strong>${formatearFecha(colaborador.fechaInicio)}</strong></p>`;
-
-            const detailModalHtml = `
-                <div class="text-center mb-3">
-                    <img src="${fotoSrc}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid #dee2e6;" onerror="this.src='https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=random'">
-                    <h5 class="mt-2 mb-0">${colaborador.nombre}</h5>
-                    <span class="badge bg-secondary">${colaborador.identidad}</span>
-                    ${infoHeader}
-                </div>
-                ${historialHtml}
-            `;
-
-            Swal.fire({
-                title: 'Historial del Colaborador',
-                html: detailModalHtml,
-                width: '800px',
-                showCloseButton: true,
-                showConfirmButton: false,
-                didOpen: () => {
-                    if (historialEvaluaciones.length > 0) {
-                        const ctx = document.getElementById('graficoProgresoCompleto').getContext('2d');
-                        new Chart(ctx, {
-                            type: 'line',
-                            data: {
-                                labels: [...historialEvaluaciones].sort((a,b) => new Date(a.fechaEvaluacion) - new Date(b.fechaEvaluacion)).map(e => formatearFecha(e.fechaEvaluacion)),
-                                datasets: [{
-                                    label: 'Nota Final',
-                                    data: [...historialEvaluaciones].sort((a,b) => new Date(a.fechaEvaluacion) - new Date(b.fechaEvaluacion)).map(e => e.notaFinal),
-                                    borderColor: '#3498db',
-                                    backgroundColor: 'rgba(52, 152, 219, 0.2)',
-                                    fill: true,
-                                    tension: 0.1
-                                }]
-                            },
-                            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100 } } }
-                        });
-                    }
-                }
-            });
-        }
 
 function actualizarAlertasBajoRendimiento() {
     const container = $('#contenedor-bajo-rendimiento');
@@ -7038,25 +7426,40 @@ function actualizarTabActual() {
                 // No necesita refrescar datos, es un formulario
                 // Las variables (ej. nombresActivos) ya se actualizaron
                 break;
-            case 'ausencias':
-                mostrarAusencias(); // Mostrar tabla principal
-                filtrarAusenciasPersonalizado(); // Aplicar filtros si existen
-                calcularEstadisticasAusencias();
-                popularFiltrosGrafico('#filtro-mes-grafico', '#filtro-ano-grafico', ausencias, 'fecha');
-                crearGraficoAusencias(hoy.getFullYear(), hoy.getMonth());
-                crearGraficoAusenciasMotivoActual();
-                crearGraficoAusenciasMotivoHistorico();
-                break;
+case 'ausencias':
+    mostrarAusencias();
+    filtrarAusenciasPersonalizado();
+    calcularEstadisticasAusencias();
+    popularFiltrosGrafico('#filtro-mes-grafico', '#filtro-ano-grafico', ausencias, 'fecha');
+    if (vistaAusencias === 'mensual') {
+        $('#filtro-mes-grafico').show();
+        $('#btn-ver-mensual-ausencias').removeClass('btn-outline-primary').addClass('btn-primary');
+        $('#btn-ver-anual-ausencias').removeClass('btn-primary').addClass('btn-outline-primary');
+        const mes = parseInt($('#filtro-mes-grafico').val());
+        const ano = parseInt($('#filtro-ano-grafico').val());
+        crearGraficoAusencias(ano, mes);
+    } else {
+        $('#filtro-mes-grafico').hide();
+        $('#btn-ver-anual-ausencias').removeClass('btn-outline-primary').addClass('btn-primary');
+        $('#btn-ver-mensual-ausencias').removeClass('btn-primary').addClass('btn-outline-primary');
+        const ano = parseInt($('#filtro-ano-grafico').val());
+        crearGraficoAusenciasAnual(ano);
+    }
+    crearGraficoAusenciasMotivoActual();
+    crearGraficoAusenciasMotivoHistorico();
+    break;
+
+
             case 'disciplina':
-                mostrarHistorialDisciplina(); // Mostrar tabla principal
-                filtrarDisciplinaPersonalizado(); // Aplicar filtros si existen
+                mostrarHistorialDisciplina();
+                filtrarDisciplinaPersonalizado();
                 calcularEstadisticasDisciplina();
                 popularFiltrosGrafico('#filtro-mes-disciplina', '#filtro-ano-disciplina', disciplina, 'fechaFalta');
                 crearGraficoDisciplinaPorDia(hoy.getFullYear(), hoy.getMonth());
                 break;
             case 'evaluaciones':
-                mostrarHistorialEvaluaciones(); // Mostrar tabla principal
-                filtrarEvaluacionesPersonalizado(); // Aplicar filtros si existen
+                mostrarHistorialEvaluaciones();
+                filtrarEvaluacionesPersonalizado();
                 calcularEstadisticasEvaluaciones();
                 actualizarAlertasBajoRendimiento();
                 popularFiltrosGraficoAnual('#filtro-ano-evaluaciones-grafico', evaluaciones, 'fechaEvaluacion');
@@ -7065,32 +7468,30 @@ function actualizarTabActual() {
                 crearGraficoEvaluacionesDesempenoHistorico();
                 break;
 
-case 'asistencia':
-    mostrarHistorialAsistencia();
-    popularFiltrosAsistencia();
-    crearGraficoAsistenciaMensual();
-    break;
+            case 'asistencia':
+                mostrarHistorialAsistencia();
+                popularFiltrosAsistencia();
+                crearGraficoAsistenciaMensual();
+                break;
 
-
-            
             // INICIO: Casos Incidentes 
             case 'registrar-incidente':
                 // No necesita refrescar datos, es un formulario
                 break;
-case 'historial-incidentes':
-    if (typeof incidentes !== 'undefined') {
-        mostrarHistorialIncidentes();
-        filtrarIncidentesPersonalizado();
-        calcularEstadisticasIncidentes();
-        generarSimbologiaIncidentes(); 
-        popularFiltrosGraficoAnual('#filtro-ano-incidentes', incidentes, 'fechaIncidente');
-        crearGraficoIncidentesAnual(hoy.getFullYear());
-        crearGraficoPartesCuerpo();
-        popularFiltrosGrafico('#filtro-mes-incidentes', '#filtro-ano-incidentes-pie', incidentes, 'fechaIncidente'); 
-        crearGraficoIncidentesCategoriaActual();
-        crearGraficoIncidentesCategoriaHistorico();
-    }
-    break;
+            case 'historial-incidentes':
+                if (typeof incidentes !== 'undefined') {
+                    mostrarHistorialIncidentes();
+                    filtrarIncidentesPersonalizado();
+                    calcularEstadisticasIncidentes();
+                    generarSimbologiaIncidentes(); 
+                    popularFiltrosGraficoAnual('#filtro-ano-incidentes', incidentes, 'fechaIncidente');
+                    crearGraficoIncidentesAnual(hoy.getFullYear());
+                    crearGraficoPartesCuerpo();
+                    popularFiltrosGrafico('#filtro-mes-incidentes', '#filtro-ano-incidentes-pie', incidentes, 'fechaIncidente'); 
+                    crearGraficoIncidentesCategoriaActual();
+                    crearGraficoIncidentesCategoriaHistorico();
+                }
+                break;
             // FIN: Casos Incidentes
 
             case 'cumpleaneros':

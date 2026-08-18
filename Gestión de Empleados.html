@@ -2080,19 +2080,39 @@
                                 </div>
                             </div>
                             
-                            <div class="card mb-4">
-                                <div class="card-header">Acciones Disciplinarias por Día</div>
-                                <div class="card-body">
-                                    <div class="d-flex flex-wrap gap-2 mb-3">
-                                        <select id="filtro-mes-disciplina" class="form-select" style="width: auto;"></select>
-                                        <select id="filtro-ano-disciplina" class="form-select" style="width: auto;"></select>
-                                        <button id="btn-filtrar-disciplina-grafico" class="btn btn-primary btn-sm">Filtrar</button>
-                                    </div>
-                                    <div class="chart-container">
-                                        <canvas id="graficoDisciplinaPorDia"></canvas>
-                                    </div>
-                                </div>
-                            </div>
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-chart-bar me-2"></i>Acciones Disciplinarias</span>
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-primary btn-sm" id="btn-ver-mensual-disciplina">Mensual</button>
+            <button type="button" class="btn btn-outline-primary btn-sm" id="btn-ver-anual-disciplina">Anual</button>
+        </div>
+    </div>
+    <div class="card-body">
+        <!-- Filtros unificados -->
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            <select id="filtro-mes-disciplina" class="form-select" style="width: auto;">
+                <option value="0">Enero</option>
+                <option value="1">Febrero</option>
+                <option value="2">Marzo</option>
+                <option value="3">Abril</option>
+                <option value="4">Mayo</option>
+                <option value="5">Junio</option>
+                <option value="6">Julio</option>
+                <option value="7">Agosto</option>
+                <option value="8">Septiembre</option>
+                <option value="9">Octubre</option>
+                <option value="10">Noviembre</option>
+                <option value="11">Diciembre</option>
+            </select>
+            <select id="filtro-ano-disciplina" class="form-select" style="width: auto;"></select>
+            <button id="btn-filtrar-disciplina-grafico" class="btn btn-primary btn-sm">Filtrar</button>
+        </div>
+        <div class="chart-container">
+            <canvas id="graficoDisciplina"></canvas>
+        </div>
+    </div>
+</div>
 
                             <div class="card">
                                 <div class="card-header d-flex justify-content-between align-items-center">
@@ -2700,6 +2720,11 @@ let graficoHorasExtras = null; // NUEVA: Gráfico de horas extras
         // Gráficos Ausencias
         let graficoAusencias = null;
         let vistaAusencias = 'mensual'; // 'mensual' o 'anual'
+
+        let vistaDisciplina = 'mensual'; // 'mensual' o 'anual'
+        let graficoDisciplina = null;
+        let graficoDisciplinaAnual = null;
+
         let graficoAusenciasAnual = null;
         let graficoAusenciasMotivoActual = null;
         let graficoAusenciasMotivoHistorico = null;
@@ -2839,23 +2864,28 @@ function cargarTodosLosDatos() {
         mostrarColaboradoresEgresados();
         generarPlanilla(todayStr);
 
-// Pestaña Ausencias
-mostrarAusencias();
-calcularEstadisticasAusencias();
-popularFiltrosGrafico('#filtro-mes-grafico', '#filtro-ano-grafico', ausencias, 'fecha');
-// Configuración inicial: Vista mensual por defecto
-vistaAusencias = 'mensual';
-$('#filtro-mes-grafico').show();
-$('#btn-ver-mensual-ausencias').removeClass('btn-outline-primary').addClass('btn-primary');
-$('#btn-ver-anual-ausencias').removeClass('btn-primary').addClass('btn-outline-primary');
-crearGraficoAusencias(hoy.getFullYear(), hoy.getMonth());
-crearGraficoAusenciasMotivoActual();
-crearGraficoAusenciasMotivoHistorico();
+        // Pestaña Ausencias
+        mostrarAusencias();
+        calcularEstadisticasAusencias();
+        popularFiltrosGrafico('#filtro-mes-grafico', '#filtro-ano-grafico', ausencias, 'fecha');
+        // Configuración inicial: Vista mensual por defecto
+        vistaAusencias = 'mensual';
+        $('#filtro-mes-grafico').show();
+        $('#btn-ver-mensual-ausencias').removeClass('btn-outline-primary').addClass('btn-primary');
+        $('#btn-ver-anual-ausencias').removeClass('btn-primary').addClass('btn-outline-primary');
+        crearGraficoAusencias(hoy.getFullYear(), hoy.getMonth());
+        crearGraficoAusenciasMotivoActual();
+        crearGraficoAusenciasMotivoHistorico();
 
         // Pestaña Disciplina
         mostrarHistorialDisciplina();
         calcularEstadisticasDisciplina();
         popularFiltrosGrafico('#filtro-mes-disciplina', '#filtro-ano-disciplina', disciplina, 'fechaFalta');
+        // Configuración inicial: Vista mensual por defecto
+        vistaDisciplina = 'mensual';
+        $('#filtro-mes-disciplina').show();
+        $('#btn-ver-mensual-disciplina').removeClass('btn-outline-primary').addClass('btn-primary');
+        $('#btn-ver-anual-disciplina').removeClass('btn-primary').addClass('btn-outline-primary');
         crearGraficoDisciplinaPorDia(hoy.getFullYear(), hoy.getMonth());
 
         // Pestaña Evaluaciones
@@ -3001,25 +3031,30 @@ function configurarEventos() {
     });
 
     // --- Filtros de Gráficos ---
-$('#btn-filtrar-grafico').on('click', function() {
-    const ano = parseInt($('#filtro-ano-grafico').val());
-    if (vistaAusencias === 'mensual') {
-        const mes = parseInt($('#filtro-mes-grafico').val());
-        crearGraficoAusencias(ano, mes);
-        $('#contenedorGraficoFiltradoAusencias').toggle(ano !== new Date().getFullYear() || mes !== new Date().getMonth());
-        if ($('#contenedorGraficoFiltradoAusencias').is(':visible')) {
-            crearGraficoAusenciasMotivoFiltrado(ano, mes);
+    $('#btn-filtrar-grafico').on('click', function() {
+        const ano = parseInt($('#filtro-ano-grafico').val());
+        if (vistaAusencias === 'mensual') {
+            const mes = parseInt($('#filtro-mes-grafico').val());
+            crearGraficoAusencias(ano, mes);
+            $('#contenedorGraficoFiltradoAusencias').toggle(ano !== new Date().getFullYear() || mes !== new Date().getMonth());
+            if ($('#contenedorGraficoFiltradoAusencias').is(':visible')) {
+                crearGraficoAusenciasMotivoFiltrado(ano, mes);
+            }
+        } else {
+            crearGraficoAusenciasAnual(ano);
         }
-    } else {
-        crearGraficoAusenciasAnual(ano);
-    }
-});
+    });
 
     $('#btn-filtrar-disciplina-grafico').on('click', function() {
         const ano = parseInt($('#filtro-ano-disciplina').val());
-        const mes = parseInt($('#filtro-mes-disciplina').val());
-        crearGraficoDisciplinaPorDia(ano, mes);
+        if (vistaDisciplina === 'mensual') {
+            const mes = parseInt($('#filtro-mes-disciplina').val());
+            crearGraficoDisciplinaPorDia(ano, mes);
+        } else {
+            crearGraficoDisciplinaAnual(ano);
+        }
     });
+
     $('#btn-filtrar-evaluaciones-grafico').on('click', function() {
         const ano = parseInt($('#filtro-ano-evaluaciones-grafico').val());
         crearGraficoEvaluacionesAnual(ano);
@@ -3051,38 +3086,45 @@ $('#btn-filtrar-grafico').on('click', function() {
         }
     });
 
-// --- Botones para cambiar vista de ausencias ---
-$('#btn-ver-mensual-ausencias').on('click', function() {
-    vistaAusencias = 'mensual';
-    $(this).removeClass('btn-outline-primary').addClass('btn-primary');
-    $('#btn-ver-anual-ausencias').removeClass('btn-primary').addClass('btn-outline-primary');
-    // Mostrar filtro de mes
-    $('#filtro-mes-grafico').show();
-    // Ocultar selector de año (ya está visible, pero lo mantenemos)
-    const ano = parseInt($('#filtro-ano-grafico').val());
-    const mes = parseInt($('#filtro-mes-grafico').val());
-    crearGraficoAusencias(ano, mes);
-});
+    // --- Botones para cambiar vista de ausencias ---
+    $('#btn-ver-mensual-ausencias').on('click', function() {
+        vistaAusencias = 'mensual';
+        $(this).removeClass('btn-outline-primary').addClass('btn-primary');
+        $('#btn-ver-anual-ausencias').removeClass('btn-primary').addClass('btn-outline-primary');
+        $('#filtro-mes-grafico').show();
+        const ano = parseInt($('#filtro-ano-grafico').val());
+        const mes = parseInt($('#filtro-mes-grafico').val());
+        crearGraficoAusencias(ano, mes);
+    });
 
-
-$('#btn-ver-anual-ausencias').on('click', function() {
-    vistaAusencias = 'anual';
-    $(this).removeClass('btn-outline-primary').addClass('btn-primary');
-    $('#btn-ver-mensual-ausencias').removeClass('btn-primary').addClass('btn-outline-primary');
-    // Ocultar filtro de mes
-    $('#filtro-mes-grafico').hide();
-    const ano = parseInt($('#filtro-ano-grafico').val());
-    crearGraficoAusenciasAnual(ano);
-});
-
-
-// --- Filtrar gráfico anual de ausencias ---
-$('#btn-filtrar-ausencias-anual').on('click', function() {
-    if (vistaAusencias === 'anual') {
-        const ano = parseInt($('#filtro-ano-ausencias-anual').val());
+    $('#btn-ver-anual-ausencias').on('click', function() {
+        vistaAusencias = 'anual';
+        $(this).removeClass('btn-outline-primary').addClass('btn-primary');
+        $('#btn-ver-mensual-ausencias').removeClass('btn-primary').addClass('btn-outline-primary');
+        $('#filtro-mes-grafico').hide();
+        const ano = parseInt($('#filtro-ano-grafico').val());
         crearGraficoAusenciasAnual(ano);
-    }
-});
+    });
+
+    // --- Botones para cambiar vista de disciplina ---
+    $('#btn-ver-mensual-disciplina').on('click', function() {
+        vistaDisciplina = 'mensual';
+        $(this).removeClass('btn-outline-primary').addClass('btn-primary');
+        $('#btn-ver-anual-disciplina').removeClass('btn-primary').addClass('btn-outline-primary');
+        $('#filtro-mes-disciplina').show();
+        const ano = parseInt($('#filtro-ano-disciplina').val());
+        const mes = parseInt($('#filtro-mes-disciplina').val());
+        crearGraficoDisciplinaPorDia(ano, mes);
+    });
+
+    $('#btn-ver-anual-disciplina').on('click', function() {
+        vistaDisciplina = 'anual';
+        $(this).removeClass('btn-outline-primary').addClass('btn-primary');
+        $('#btn-ver-mensual-disciplina').removeClass('btn-primary').addClass('btn-outline-primary');
+        $('#filtro-mes-disciplina').hide();
+        const ano = parseInt($('#filtro-ano-disciplina').val());
+        crearGraficoDisciplinaAnual(ano);
+    });
 
     // --- Autocompletado ---
     $(document).on('input', '.colaborador-ausencia, .colaborador-incidente', function() {
@@ -3347,7 +3389,6 @@ $('#btn-filtrar-ausencias-anual').on('click', function() {
         mostrarContactosEgresado(identidad);
     });
 }
-
 
 
 /**
@@ -5719,27 +5760,149 @@ function eliminarDisciplina(identidad, fechaFalta) {
             $('#disciplina-historico').text(porcentajeHistorico + '%');
         }
 
-        function crearGraficoDisciplinaPorDia(ano, mes) {
-            if (graficoDisciplinaPorDia) graficoDisciplinaPorDia.destroy();
-            const ctx = document.getElementById('graficoDisciplinaPorDia').getContext('2d');
-            const diasEnMes = new Date(ano, mes + 1, 0).getDate();
-            const labels = Array.from({ length: diasEnMes }, (_, i) => `${i + 1}/${mes + 1}`);
-            const datos = Array(diasEnMes).fill(0);
+function crearGraficoDisciplinaPorDia(ano, mes) {
+    // Destruir gráficos anteriores
+    if (graficoDisciplina) {
+        graficoDisciplina.destroy();
+        graficoDisciplina = null;
+    }
+    if (graficoDisciplinaAnual) {
+        graficoDisciplinaAnual.destroy();
+        graficoDisciplinaAnual = null;
+    }
 
-            disciplina.forEach(d => {
-                const fechaFalta = new Date(d.fechaFalta + 'T00:00:00');
-                if (fechaFalta.getMonth() === mes && fechaFalta.getFullYear() === ano) {
-                    datos[fechaFalta.getDate() - 1]++;
-                }
-            });
-            
-            const nombreMes = new Date(ano, mes).toLocaleString('es-ES', { month: 'long' });
-            graficoDisciplinaPorDia = new Chart(ctx, {
-                type: 'line',
-                data: { labels, datasets: [{ label: `Acciones por día en ${nombreMes} ${ano}`, data: datos, borderColor: '#c0392b', backgroundColor: 'rgba(192, 57, 43, 0.1)', fill: true, tension: 0.4 }] },
-                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
-            });
+    const canvas = document.getElementById('graficoDisciplina');
+    const ctx = canvas.getContext('2d');
+    const diasEnMes = new Date(ano, mes + 1, 0).getDate();
+    const labels = Array.from({ length: diasEnMes }, (_, i) => `${i + 1}/${mes + 1}`);
+    const datos = Array(diasEnMes).fill(0);
+
+    disciplina.forEach(d => {
+        const fechaFalta = new Date(d.fechaFalta + 'T00:00:00');
+        if (fechaFalta.getMonth() === mes && fechaFalta.getFullYear() === ano) {
+            datos[fechaFalta.getDate() - 1]++;
         }
+    });
+    
+    const nombreMes = new Date(ano, mes).toLocaleString('es-ES', { month: 'long' });
+    graficoDisciplina = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: `Acciones por día en ${nombreMes} ${ano}`,
+                data: datos,
+                borderColor: '#c0392b',
+                backgroundColor: 'rgba(192, 57, 43, 0.1)',
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { stepSize: 1 },
+                    title: {
+                        display: true,
+                        text: 'Número de Acciones'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Días del Mes'
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `Acciones: ${context.parsed.y}`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+
+function crearGraficoDisciplinaAnual(ano) {
+    // Destruir gráficos anteriores
+    if (graficoDisciplinaAnual) {
+        graficoDisciplinaAnual.destroy();
+        graficoDisciplinaAnual = null;
+    }
+    if (graficoDisciplina) {
+        graficoDisciplina.destroy();
+        graficoDisciplina = null;
+    }
+    
+    const canvas = document.getElementById('graficoDisciplina');
+    const ctx = canvas.getContext('2d');
+    const labels = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+    const datos = Array(12).fill(0);
+
+    disciplina.forEach(d => {
+        const fechaFalta = new Date(d.fechaFalta + 'T00:00:00');
+        if (fechaFalta.getFullYear() === ano) {
+            datos[fechaFalta.getMonth()]++;
+        }
+    });
+
+    graficoDisciplinaAnual = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: `Acciones Disciplinarias por Mes en ${ano}`,
+                data: datos,
+                borderColor: '#c0392b',
+                backgroundColor: 'rgba(192, 57, 43, 0.1)',
+                fill: true,
+                tension: 0.4,
+                pointBackgroundColor: '#c0392b',
+                pointBorderColor: 'white',
+                pointBorderWidth: 2,
+                pointRadius: 5,
+                pointHoverRadius: 7
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { stepSize: 1 },
+                    title: {
+                        display: true,
+                        text: 'Número de Acciones'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Mes'
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `Acciones: ${context.parsed.y}`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
         
 
         
@@ -5850,6 +6013,7 @@ empleadosUnicos.forEach(emp => {
     
     $('#ausentismo-historico').text(porcentajeHistorico + '%');
 }
+
 
 
 
@@ -7426,36 +7590,47 @@ function actualizarTabActual() {
                 // No necesita refrescar datos, es un formulario
                 // Las variables (ej. nombresActivos) ya se actualizaron
                 break;
-case 'ausencias':
-    mostrarAusencias();
-    filtrarAusenciasPersonalizado();
-    calcularEstadisticasAusencias();
-    popularFiltrosGrafico('#filtro-mes-grafico', '#filtro-ano-grafico', ausencias, 'fecha');
-    if (vistaAusencias === 'mensual') {
-        $('#filtro-mes-grafico').show();
-        $('#btn-ver-mensual-ausencias').removeClass('btn-outline-primary').addClass('btn-primary');
-        $('#btn-ver-anual-ausencias').removeClass('btn-primary').addClass('btn-outline-primary');
-        const mes = parseInt($('#filtro-mes-grafico').val());
-        const ano = parseInt($('#filtro-ano-grafico').val());
-        crearGraficoAusencias(ano, mes);
-    } else {
-        $('#filtro-mes-grafico').hide();
-        $('#btn-ver-anual-ausencias').removeClass('btn-outline-primary').addClass('btn-primary');
-        $('#btn-ver-mensual-ausencias').removeClass('btn-primary').addClass('btn-outline-primary');
-        const ano = parseInt($('#filtro-ano-grafico').val());
-        crearGraficoAusenciasAnual(ano);
-    }
-    crearGraficoAusenciasMotivoActual();
-    crearGraficoAusenciasMotivoHistorico();
-    break;
-
-
+            case 'ausencias':
+                mostrarAusencias();
+                filtrarAusenciasPersonalizado();
+                calcularEstadisticasAusencias();
+                popularFiltrosGrafico('#filtro-mes-grafico', '#filtro-ano-grafico', ausencias, 'fecha');
+                if (vistaAusencias === 'mensual') {
+                    $('#filtro-mes-grafico').show();
+                    $('#btn-ver-mensual-ausencias').removeClass('btn-outline-primary').addClass('btn-primary');
+                    $('#btn-ver-anual-ausencias').removeClass('btn-primary').addClass('btn-outline-primary');
+                    const mes = parseInt($('#filtro-mes-grafico').val());
+                    const ano = parseInt($('#filtro-ano-grafico').val());
+                    crearGraficoAusencias(ano, mes);
+                } else {
+                    $('#filtro-mes-grafico').hide();
+                    $('#btn-ver-anual-ausencias').removeClass('btn-outline-primary').addClass('btn-primary');
+                    $('#btn-ver-mensual-ausencias').removeClass('btn-primary').addClass('btn-outline-primary');
+                    const ano = parseInt($('#filtro-ano-grafico').val());
+                    crearGraficoAusenciasAnual(ano);
+                }
+                crearGraficoAusenciasMotivoActual();
+                crearGraficoAusenciasMotivoHistorico();
+                break;
             case 'disciplina':
                 mostrarHistorialDisciplina();
                 filtrarDisciplinaPersonalizado();
                 calcularEstadisticasDisciplina();
                 popularFiltrosGrafico('#filtro-mes-disciplina', '#filtro-ano-disciplina', disciplina, 'fechaFalta');
-                crearGraficoDisciplinaPorDia(hoy.getFullYear(), hoy.getMonth());
+                if (vistaDisciplina === 'mensual') {
+                    $('#filtro-mes-disciplina').show();
+                    $('#btn-ver-mensual-disciplina').removeClass('btn-outline-primary').addClass('btn-primary');
+                    $('#btn-ver-anual-disciplina').removeClass('btn-primary').addClass('btn-outline-primary');
+                    const mes = parseInt($('#filtro-mes-disciplina').val());
+                    const ano = parseInt($('#filtro-ano-disciplina').val());
+                    crearGraficoDisciplinaPorDia(ano, mes);
+                } else {
+                    $('#filtro-mes-disciplina').hide();
+                    $('#btn-ver-anual-disciplina').removeClass('btn-outline-primary').addClass('btn-primary');
+                    $('#btn-ver-mensual-disciplina').removeClass('btn-primary').addClass('btn-outline-primary');
+                    const ano = parseInt($('#filtro-ano-disciplina').val());
+                    crearGraficoDisciplinaAnual(ano);
+                }
                 break;
             case 'evaluaciones':
                 mostrarHistorialEvaluaciones();

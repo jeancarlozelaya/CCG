@@ -3396,7 +3396,6 @@ function configurarEventos() {
  * @param {object} incidenteOriginal - El objeto de incidente de la variable global 'incidentes'.
  */
 function abrirModalEditarIncidente(incidenteOriginal) {
-
     // --- Generar el dropdown de colaboradores activos ---
     let opcionesColaboradores = '';
     colaboradoresActivos.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(col => {
@@ -3410,44 +3409,101 @@ function abrirModalEditarIncidente(incidenteOriginal) {
     let checkboxesHtml = '';
     const partesSeleccionadasOriginal = incidenteOriginal.parteAfectada ? incidenteOriginal.parteAfectada.split('; ') : [];
 
-    partesCuerpo.forEach((parte, index) => {
-        const id = `edit-parte-${parte.toLowerCase().replace(/[^a-z0-9]/gi, '-')}`; // Crear ID único
+    partesCuerpo.forEach((parte) => {
+        const id = `edit-parte-${parte.toLowerCase().replace(/[^a-z0-9]/gi, '-')}`;
         const isChecked = partesSeleccionadasOriginal.includes(parte) ? 'checked' : '';
         checkboxesHtml += `
-            <div class="form-check form-check-inline">
-              <input class="form-check-input edit-parte-afectada-check" type="checkbox" value="${parte}" id="${id}" ${isChecked}>
-              <label class="form-check-label" for="${id}">${parte}</label>
+            <div class="form-check form-check-inline" style="margin-right: 8px; margin-bottom: 4px;">
+                <input class="form-check-input edit-parte-afectada-check" type="checkbox" value="${parte}" id="${id}" ${isChecked}>
+                <label class="form-check-label" for="${id}" style="font-size: 0.8rem;">${parte}</label>
             </div>`;
     });
 
-    Swal.fire({
-        title: 'Editar Incidente',
-        html: `
-            <div class="text-start">
+    const isMobile = window.innerWidth < 576;
+    const styleId = 'editar-incidente-style-' + Date.now();
 
-                <div class="mb-3">
-                    <label for="editar-fecha-incidente" class="form-label">Fecha de Incidente</label>
-                    <input type="date" class="form-control" id="editar-fecha-incidente" value="${incidenteOriginal.fechaIncidente}" required>
+    // Estilos comunes
+    const labelStyle = 'font-weight: 600; color: #2c3e50; font-size: 0.85rem; margin-bottom: 5px; display: block; text-align: left;';
+    const inputStyle = 'width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 0.9rem; transition: all 0.3s; background: white; color: #2c3e50;';
+    const selectStyle = inputStyle + ' appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\'%3E%3Cpath fill=\'%23333\' d=\'M6 8L1 3h10z\'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center;';
+
+    // Obtener info del colaborador para mostrar en cabecera
+    const colaboradorInfo = colaboradoresActivos.find(c => c.identidad === incidenteOriginal.identidad);
+    const fotoSrc = colaboradorInfo?.fotoUrl || `https://ui-avatars.com/api/?name=${(colaboradorInfo?.nombre || 'Colaborador').replace(/\s/g, "+")}&background=e74c3c&color=fff&size=100`;
+
+    const modalHtml = `
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0;">
+        
+        <!-- CABECERA -->
+        <div style="background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460); border-radius: 16px 16px 0 0; padding: ${isMobile ? '16px 20px' : '20px 25px'}; margin: -20px -25px 20px -25px; color: white; position: relative; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+            <div style="position: absolute; top: -50%; right: -20%; width: 150px; height: 150px; background: radial-gradient(circle, rgba(52, 152, 219, 0.1) 0%, transparent 70%); border-radius: 50%;"></div>
+            <div style="position: absolute; bottom: -40%; left: -10%; width: 130px; height: 130px; background: radial-gradient(circle, rgba(231, 76, 60, 0.08) 0%, transparent 70%); border-radius: 50%;"></div>
+            
+            <div style="display: flex; align-items: center; gap: ${isMobile ? '12px' : '18px'}; flex-wrap: wrap; position: relative; z-index: 1; justify-content: flex-start;">
+                <!-- Foto -->
+                <div style="position: relative; flex-shrink: 0;">
+                    <div style="position: absolute; inset: -3px; background: linear-gradient(135deg, #e74c3c, #f39c12); border-radius: 50%; padding: 3px; box-shadow: 0 0 20px rgba(231,76,60,0.25);">
+                        <div style="width: 100%; height: 100%; border-radius: 50%; background: #1a1a2e;"></div>
+                    </div>
+                    <img src="${fotoSrc}" 
+                         style="width: ${isMobile ? '55px' : '65px'}; height: ${isMobile ? '55px' : '65px'}; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.15); position: relative; z-index: 1;"
+                         onerror="this.src='https://ui-avatars.com/api/?name=${(colaboradorInfo?.nombre || 'Colaborador').replace(/\s/g, "+")}&background=e74c3c&color=fff&size=100&font-size=0.5'">
+                    <div style="position: absolute; bottom: 0px; right: 0px; background: #e74c3c; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border: 2px solid white; z-index: 2; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">
+                        <i class="fas fa-edit" style="font-size: 9px; color: white;"></i>
+                    </div>
                 </div>
+                
+                <!-- Información -->
+                <div style="flex: 1; min-width: 120px; text-align: left;">
+                    <h3 style="margin: 0; font-weight: 700; font-size: ${isMobile ? '1rem' : '1.2rem'}; letter-spacing: -0.5px; background: linear-gradient(135deg, #fff, #a8d8ea); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; text-align: left;">
+                        ${colaboradorInfo?.nombre || 'Editar Incidente'}
+                    </h3>
+                    <div style="margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-start;">
+                        <span class="badge" style="background: rgba(255,255,255,0.12); padding: 2px 10px; font-size: 0.65rem;">
+                            <i class="fas fa-id-card me-1"></i>${incidenteOriginal.identidad}
+                        </span>
+                        <span class="badge" style="background: rgba(231, 76, 60, 0.2); color: #e74c3c; border: 1px solid #e74c3c; padding: 2px 10px; font-size: 0.65rem;">
+                            <i class="fas fa-exclamation-triangle me-1"></i>Editando Incidente
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-                <div class="mb-3">
-                    <label for="editar-colaborador-incidente" class="form-label">Colaborador</label>
-                    <select class="form-select" id="editar-colaborador-incidente" required>
+        <!-- FORMULARIO -->
+        <form id="form-editar-incidente" style="padding: 5px 0;">
+            <!-- Fila 1: Fecha y Colaborador -->
+            <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: ${isMobile ? '10px' : '15px'}; margin-bottom: 12px;">
+                <div style="text-align: left;">
+                    <label class="form-label" style="${labelStyle}">Fecha de Incidente <span style="color: #e74c3c;">*</span></label>
+                    <input type="date" class="form-control" id="editar-fecha-incidente" value="${incidenteOriginal.fechaIncidente}" required
+                           style="${inputStyle}" onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                           onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">
+                </div>
+                <div style="text-align: left;">
+                    <label class="form-label" style="${labelStyle}">Colaborador <span style="color: #e74c3c;">*</span></label>
+                    <select class="form-select" id="editar-colaborador-incidente" required style="${selectStyle}"
+                            onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                            onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">
                         <option value="">Seleccionar...</option>
                         ${opcionesColaboradores}
                     </select>
                 </div>
+            </div>
 
-                 <div class="mb-3">
-                    <label class="form-label">Parte Afectada (Opcional)</label>
-                    <div class="border p-2 rounded" style="max-height: 150px; overflow-y: auto;">
+            <!-- Fila 2: Parte Afectada y Categoría SISO -->
+            <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: ${isMobile ? '10px' : '15px'}; margin-bottom: 12px;">
+                <div style="text-align: left;">
+                    <label class="form-label" style="${labelStyle}">Parte Afectada (Opcional)</label>
+                    <div style="border: 2px solid #e9ecef; border-radius: 10px; padding: 10px 12px; max-height: 120px; overflow-y: auto; background: white;">
                         ${checkboxesHtml}
                     </div>
-                 </div>
-
-                <div class="mb-3">
-                    <label for="editar-categoria-siso" class="form-label">Categoría SISO</label>
-                    <select class="form-select" id="editar-categoria-siso" required>
+                </div>
+                <div style="text-align: left;">
+                    <label class="form-label" style="${labelStyle}">Categoría SISO <span style="color: #e74c3c;">*</span></label>
+                    <select class="form-select" id="editar-categoria-siso" required style="${selectStyle}"
+                            onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                            onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">
                         <option value="FAT" ${incidenteOriginal.categoriaSiso === 'FAT' ? 'selected' : ''}>FAT: Fatalidades</option>
                         <option value="LWC" ${incidenteOriginal.categoriaSiso === 'LWC' ? 'selected' : ''}>LWC: Incidentes con pérdida de tiempo</option>
                         <option value="MTC" ${incidenteOriginal.categoriaSiso === 'MTC' ? 'selected' : ''}>MTC: Incidentes de tratamiento médico</option>
@@ -3455,25 +3511,135 @@ function abrirModalEditarIncidente(incidenteOriginal) {
                         <option value="N-M" ${incidenteOriginal.categoriaSiso === 'N-M' ? 'selected' : ''}>N-M: Casi Incidentes</option>
                     </select>
                 </div>
+            </div>
 
-                <div class="mb-3">
-                    <label for="editar-causa-incidente" class="form-label">Causa del Incidente</label>
-                    <textarea class="form-control" id="editar-causa-incidente" rows="2" required>${incidenteOriginal.causa || ''}</textarea>
-                </div>
+            <!-- Fila 3: Causa -->
+            <div style="margin-bottom: 12px; text-align: left;">
+                <label class="form-label" style="${labelStyle}">Causa del Incidente <span style="color: #e74c3c;">*</span></label>
+                <textarea class="form-control" id="editar-causa-incidente" rows="2" required
+                          style="${inputStyle} resize: vertical; min-height: 60px;"
+                          onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                          onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">${incidenteOriginal.causa || ''}</textarea>
+            </div>
 
-                <div class="mb-3">
-                    <label for="editar-descripcion-incidente" class="form-label">Descripción del incidente</label>
-                    <textarea class="form-control" id="editar-descripcion-incidente" rows="2" required>${incidenteOriginal.descripcion || ''}</textarea>
-                </div>
+            <!-- Fila 4: Descripción -->
+            <div style="margin-bottom: 12px; text-align: left;">
+                <label class="form-label" style="${labelStyle}">Descripción del Incidente <span style="color: #e74c3c;">*</span></label>
+                <textarea class="form-control" id="editar-descripcion-incidente" rows="2" required
+                          style="${inputStyle} resize: vertical; min-height: 60px;"
+                          onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                          onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">${incidenteOriginal.descripcion || ''}</textarea>
+            </div>
 
-                <div class="mb-3">
-                    <label for="editar-medidas-incidente" class="form-label">Medidas Implementadas (Opcional)</label>
-                    <textarea class="form-control" id="editar-medidas-incidente" rows="2">${incidenteOriginal.medidas || ''}</textarea>
-                </div>
-            </div>`,
+            <!-- Fila 5: Medidas -->
+            <div style="margin-bottom: 12px; text-align: left;">
+                <label class="form-label" style="${labelStyle}">Medidas Implementadas (Opcional)</label>
+                <textarea class="form-control" id="editar-medidas-incidente" rows="2"
+                          style="${inputStyle} resize: vertical; min-height: 60px;"
+                          onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                          onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">${incidenteOriginal.medidas || ''}</textarea>
+            </div>
+        </form>
+    </div>`;
+
+    Swal.fire({
+        title: null,
+        html: modalHtml,
+        width: window.innerWidth < 576 ? '95%' : '700px',
         showCancelButton: true,
         confirmButtonText: 'Guardar Cambios',
         cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#2ecc71',
+        cancelButtonColor: '#e74c3c',
+        customClass: {
+            popup: 'animated fadeInDown',
+            closeButton: 'btn-close-white',
+            confirmButton: 'btn-edit-save',
+            cancelButton: 'btn-edit-cancel'
+        },
+        didOpen: () => {
+            const style = document.createElement('style');
+            style.id = styleId;
+            style.textContent = `
+                .swal2-popup {
+                    border-radius: 16px !important;
+                    padding: 20px !important;
+                }
+                .swal2-close {
+                    color: white !important;
+                    opacity: 0.6;
+                    transition: all 0.3s;
+                    background: rgba(255,255,255,0.1);
+                    border-radius: 50%;
+                    width: 30px;
+                    height: 30px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 20px;
+                    position: absolute !important;
+                    top: 15px !important;
+                    right: 15px !important;
+                    z-index: 10 !important;
+                }
+                .swal2-close:hover {
+                    opacity: 1;
+                    background: rgba(255,255,255,0.2);
+                }
+                .swal2-close:focus {
+                    box-shadow: none;
+                }
+                .btn-edit-save {
+                    background: linear-gradient(135deg, #2ecc71, #27ae60) !important;
+                    border: none !important;
+                    font-weight: 600 !important;
+                    padding: 12px 30px !important;
+                    border-radius: 50px !important;
+                    font-size: 0.95rem !important;
+                    box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3) !important;
+                    transition: all 0.3s !important;
+                    min-width: 140px !important;
+                }
+                .btn-edit-save:hover {
+                    transform: translateY(-2px) !important;
+                    box-shadow: 0 6px 20px rgba(46, 204, 113, 0.4) !important;
+                }
+                .btn-edit-cancel {
+                    background: linear-gradient(135deg, #e74c3c, #c0392b) !important;
+                    border: none !important;
+                    font-weight: 600 !important;
+                    padding: 12px 30px !important;
+                    border-radius: 50px !important;
+                    font-size: 0.95rem !important;
+                    box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3) !important;
+                    transition: all 0.3s !important;
+                    min-width: 140px !important;
+                }
+                .btn-edit-cancel:hover {
+                    transform: translateY(-2px) !important;
+                    box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4) !important;
+                }
+                .swal2-actions {
+                    gap: 12px !important;
+                }
+                @media (max-width: 576px) {
+                    .swal2-popup {
+                        padding: 15px !important;
+                        margin: 10px !important;
+                    }
+                    .swal2-actions {
+                        flex-direction: column !important;
+                        gap: 8px !important;
+                    }
+                    .btn-edit-save, .btn-edit-cancel {
+                        width: 100% !important;
+                        min-width: unset !important;
+                        padding: 12px 20px !important;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        },
         preConfirm: () => {
             const nuevaIdentidad = $('#editar-colaborador-incidente').val();
             const fechaIncidente = $('#editar-fecha-incidente').val();
@@ -3482,39 +3648,41 @@ function abrirModalEditarIncidente(incidenteOriginal) {
             const descripcion = $('#editar-descripcion-incidente').val();
             const medidas = $('#editar-medidas-incidente').val();
 
-            // Leer checkboxes seleccionados
             const partesAfectadasArray = [];
             $('.edit-parte-afectada-check:checked').each(function() {
                 partesAfectadasArray.push($(this).val());
             });
             const parteAfectada = partesAfectadasArray.join('; ');
 
-            if (!nuevaIdentidad || !fechaIncidente || !categoriaSiso || !causa || !descripcion ) {
-                Swal.showValidationMessage('Fecha, Colaborador, Categoría, Causa y Descripción son obligatorios.');
+            if (!nuevaIdentidad || !fechaIncidente || !categoriaSiso || !causa || !descripcion) {
+                Swal.showValidationMessage('⚠️ Fecha, Colaborador, Categoría, Causa y Descripción son obligatorios.');
                 return false;
             }
 
             const nuevoColaboradorInfo = colaboradoresActivos.find(col => col.identidad === nuevaIdentidad);
             if (!nuevoColaboradorInfo) {
-                Swal.showValidationMessage('El colaborador seleccionado no es válido.');
+                Swal.showValidationMessage('⚠️ El colaborador seleccionado no es válido.');
                 return false;
             }
 
             const datosNuevos = {
-                // Info del nuevo colaborador (por si cambia)
                 nombre: nuevoColaboradorInfo.nombre,
                 identidad: nuevoColaboradorInfo.identidad,
-
-                // Info del incidente
-                fechaIncidente,
-                categoriaSiso,
-                causa,
-                descripcion,
+                fechaIncidente: fechaIncidente,
+                categoriaSiso: categoriaSiso,
+                causa: causa,
+                descripcion: descripcion,
                 medidas: medidas || '',
-                parteAfectada: parteAfectada || '' // Enviar vacío si no se seleccionó nada
+                parteAfectada: parteAfectada || ''
             };
 
             return { datosNuevos };
+        },
+        willClose: () => {
+            const styleElement = document.getElementById(styleId);
+            if (styleElement) {
+                styleElement.remove();
+            }
         }
     }).then((result) => {
         if (result.isConfirmed) {
@@ -3523,12 +3691,11 @@ function abrirModalEditarIncidente(incidenteOriginal) {
             $('#overlay').css('display', 'flex');
             $.post(SCRIPT_URL_ENVIAR, {
                 accion: 'editar_incidente',
-                // La clave original NO cambia (identidad + fecha de incidente original)
                 incidenteOriginal: JSON.stringify({
                     identidad: incidenteOriginal.identidad,
                     fechaIncidente: incidenteOriginal.fechaIncidente
                 }),
-                datosNuevos: JSON.stringify(datosNuevos), // Coma corregida aquí
+                datosNuevos: JSON.stringify(datosNuevos)
             }, function(response) {
                 $('#overlay').hide();
                 if (response === 'Éxito') {
@@ -3541,10 +3708,11 @@ function abrirModalEditarIncidente(incidenteOriginal) {
             }).fail(() => {
                 $('#overlay').hide();
                 Swal.fire('Error', 'Error de conexión al actualizar.', 'error');
-            }); // Cierre del .fail()
-        } // Cierre del if(result.isConfirmed)
-    }); // Cierre del .then() que sigue a Swal.fire({...})
+            });
+        }
+    });
 }
+
 
 
 
@@ -3581,100 +3749,257 @@ function toggleVistaActivos(vista) {
  * @param {object} ausenciaOriginal - El objeto de ausencia de la variable global 'ausencias'.
  */
 function abrirModalEditarAusencia(ausenciaOriginal) {
-    
-    // --- NUEVO: Generar el dropdown de colaboradores ---
-    // Crear la lista de opciones de colaboradores activos
+    // --- Generar el dropdown de colaboradores activos ---
     let opcionesColaboradores = '';
     colaboradoresActivos.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(col => {
         opcionesColaboradores += `<option value="${col.identidad}" ${col.identidad === ausenciaOriginal.identidad ? 'selected' : ''}>
             ${col.nombre}
         </option>`;
     });
-    // --- FIN NUEVO ---
+
+    const isMobile = window.innerWidth < 576;
+    const styleId = 'editar-ausencia-style-' + Date.now();
+
+    // Estilos comunes
+    const labelStyle = 'font-weight: 600; color: #2c3e50; font-size: 0.85rem; margin-bottom: 5px; display: block; text-align: left;';
+    const inputStyle = 'width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 0.9rem; transition: all 0.3s; background: white; color: #2c3e50;';
+    const selectStyle = inputStyle + ' appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\'%3E%3Cpath fill=\'%23333\' d=\'M6 8L1 3h10z\'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center;';
+
+    // Obtener info del colaborador para mostrar en cabecera
+    const colaboradorInfo = colaboradoresActivos.find(c => c.identidad === ausenciaOriginal.identidad);
+    const fotoSrc = colaboradorInfo?.fotoUrl || `https://ui-avatars.com/api/?name=${(colaboradorInfo?.nombre || 'Colaborador').replace(/\s/g, "+")}&background=3498db&color=fff&size=100`;
+
+    const modalHtml = `
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0;">
+        
+        <!-- CABECERA -->
+        <div style="background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460); border-radius: 16px 16px 0 0; padding: ${isMobile ? '16px 20px' : '20px 25px'}; margin: -20px -25px 20px -25px; color: white; position: relative; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+            <div style="position: absolute; top: -50%; right: -20%; width: 150px; height: 150px; background: radial-gradient(circle, rgba(52, 152, 219, 0.1) 0%, transparent 70%); border-radius: 50%;"></div>
+            <div style="position: absolute; bottom: -40%; left: -10%; width: 130px; height: 130px; background: radial-gradient(circle, rgba(231, 76, 60, 0.08) 0%, transparent 70%); border-radius: 50%;"></div>
+            
+            <div style="display: flex; align-items: center; gap: ${isMobile ? '12px' : '18px'}; flex-wrap: wrap; position: relative; z-index: 1; justify-content: flex-start;">
+                <!-- Foto -->
+                <div style="position: relative; flex-shrink: 0;">
+                    <div style="position: absolute; inset: -3px; background: linear-gradient(135deg, #f39c12, #e74c3c); border-radius: 50%; padding: 3px; box-shadow: 0 0 20px rgba(243,156,18,0.25);">
+                        <div style="width: 100%; height: 100%; border-radius: 50%; background: #1a1a2e;"></div>
+                    </div>
+                    <img src="${fotoSrc}" 
+                         style="width: ${isMobile ? '55px' : '65px'}; height: ${isMobile ? '55px' : '65px'}; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.15); position: relative; z-index: 1;"
+                         onerror="this.src='https://ui-avatars.com/api/?name=${(colaboradorInfo?.nombre || 'Colaborador').replace(/\s/g, "+")}&background=3498db&color=fff&size=100&font-size=0.5'">
+                    <div style="position: absolute; bottom: 0px; right: 0px; background: #f39c12; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border: 2px solid white; z-index: 2; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">
+                        <i class="fas fa-edit" style="font-size: 9px; color: white;"></i>
+                    </div>
+                </div>
+                
+                <!-- Información -->
+                <div style="flex: 1; min-width: 120px; text-align: left;">
+                    <h3 style="margin: 0; font-weight: 700; font-size: ${isMobile ? '1rem' : '1.2rem'}; letter-spacing: -0.5px; background: linear-gradient(135deg, #fff, #a8d8ea); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; text-align: left;">
+                        ${colaboradorInfo?.nombre || 'Editar Ausencia'}
+                    </h3>
+                    <div style="margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-start;">
+                        <span class="badge" style="background: rgba(255,255,255,0.12); padding: 2px 10px; font-size: 0.65rem;">
+                            <i class="fas fa-id-card me-1"></i>${ausenciaOriginal.identidad}
+                        </span>
+                        <span class="badge" style="background: rgba(243, 156, 18, 0.2); color: #f39c12; border: 1px solid #f39c12; padding: 2px 10px; font-size: 0.65rem;">
+                            <i class="fas fa-clock me-1"></i>Editando Ausencia
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FORMULARIO -->
+        <form id="form-editar-ausencia" style="padding: 5px 0;">
+            <!-- Fila 1: Colaborador -->
+            <div style="margin-bottom: 12px; text-align: left;">
+                <label class="form-label" style="${labelStyle}">Colaborador <span style="color: #e74c3c;">*</span></label>
+                <select class="form-select" id="editar-colaborador-ausencia" required style="${selectStyle}" 
+                        onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                        onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">
+                    <option value="">Seleccionar...</option>
+                    ${opcionesColaboradores}
+                </select>
+            </div>
+
+            <!-- Fila 2: Fecha y Días -->
+            <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: ${isMobile ? '10px' : '15px'}; margin-bottom: 12px;">
+                <div style="text-align: left;">
+                    <label class="form-label" style="${labelStyle}">Fecha de Inicio <span style="color: #e74c3c;">*</span></label>
+                    <input type="date" class="form-control" id="editar-fecha-ausencia" value="${ausenciaOriginal.fecha}" required
+                           style="${inputStyle}" onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                           onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">
+                </div>
+                <div style="text-align: left;">
+                    <label class="form-label" style="${labelStyle}">Días de Ausencia <span style="color: #e74c3c;">*</span></label>
+                    <input type="number" class="form-control" id="editar-dias-ausencia" min="1" value="${ausenciaOriginal.diasIncapacidad || 1}" required
+                           style="${inputStyle}" onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                           onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">
+                </div>
+            </div>
+
+            <!-- Fila 3: Motivo -->
+            <div style="margin-bottom: 12px; text-align: left;">
+                <label class="form-label" style="${labelStyle}">Motivo <span style="color: #e74c3c;">*</span></label>
+                <select class="form-select" id="editar-motivo-ausencia" required style="${selectStyle}"
+                        onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                        onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">
+                    <option value="Incapacidad" ${ausenciaOriginal.motivo === 'Incapacidad' ? 'selected' : ''}>Incapacidad</option>
+                    <option value="Permiso" ${ausenciaOriginal.motivo === 'Permiso' ? 'selected' : ''}>Permiso</option>
+                    <option value="Falta Injustificada" ${ausenciaOriginal.motivo === 'Falta Injustificada' ? 'selected' : ''}>Falta Injustificada</option>
+                </select>
+            </div>
+
+            <!-- Fila 4: Observaciones -->
+            <div style="margin-bottom: 12px; text-align: left;">
+                <label class="form-label" style="${labelStyle}">Observaciones</label>
+                <textarea class="form-control" id="editar-obs-ausencia" rows="2" 
+                          style="${inputStyle} resize: vertical; min-height: 60px;"
+                          onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                          onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">${ausenciaOriginal.observaciones || ''}</textarea>
+            </div>
+        </form>
+    </div>`;
 
     Swal.fire({
-        title: 'Editar Ausencia',
-        html: `
-            <div class="text-start">
-                
-                <div class="mb-3">
-                    <label for="editar-colaborador-ausencia" class="form-label">Colaborador</label>
-                    <select class="form-select" id="editar-colaborador-ausencia" required>
-                        <option value="">Seleccionar...</option>
-                        ${opcionesColaboradores}
-                    </select>
-                </div>
-                <div class="mb-3">
-                    <label for="editar-fecha-ausencia" class="form-label">Fecha de Inicio</label>
-                    <input type="date" class="form-control" id="editar-fecha-ausencia" value="${ausenciaOriginal.fecha}" required>
-                </div>
-                
-                <div class="mb-3">
-                    <label for="editar-dias-ausencia" class="form-label">Días de Ausencia</label>
-                    <input type="number" class="form-control" id="editar-dias-ausencia" min="1" value="${ausenciaOriginal.diasIncapacidad || 1}" required>
-                </div>
-                
-                <div class="mb-3">
-                    <label for="editar-motivo-ausencia" class="form-label">Motivo</label>
-                    <select class="form-select" id="editar-motivo-ausencia" required>
-                        <option value="Incapacidad" ${ausenciaOriginal.motivo === 'Incapacidad' ? 'selected' : ''}>Incapacidad</option>
-                        <option value="Permiso" ${ausenciaOriginal.motivo === 'Permiso' ? 'selected' : ''}>Permiso</option>
-                        <option value="Falta Injustificada" ${ausenciaOriginal.motivo === 'Falta Injustificada' ? 'selected' : ''}>Falta Injustificada</option>
-                    </select>
-                </div>
-                
-                <div class="mb-3">
-                    <label for="editar-obs-ausencia" class="form-label">Observaciones</label>
-                    <textarea class="form-control" id="editar-obs-ausencia" rows="2">${ausenciaOriginal.observaciones || ''}</textarea>
-                </div>
-            </div>`,
+        title: null,
+        html: modalHtml,
+        width: window.innerWidth < 576 ? '95%' : '600px',
         showCancelButton: true,
         confirmButtonText: 'Guardar Cambios',
         cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#2ecc71',
+        cancelButtonColor: '#e74c3c',
+        customClass: {
+            popup: 'animated fadeInDown',
+            closeButton: 'btn-close-white',
+            confirmButton: 'btn-edit-save',
+            cancelButton: 'btn-edit-cancel'
+        },
+        didOpen: () => {
+            const style = document.createElement('style');
+            style.id = styleId;
+            style.textContent = `
+                .swal2-popup {
+                    border-radius: 16px !important;
+                    padding: 20px !important;
+                }
+                .swal2-close {
+                    color: white !important;
+                    opacity: 0.6;
+                    transition: all 0.3s;
+                    background: rgba(255,255,255,0.1);
+                    border-radius: 50%;
+                    width: 30px;
+                    height: 30px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 20px;
+                    position: absolute !important;
+                    top: 15px !important;
+                    right: 15px !important;
+                    z-index: 10 !important;
+                }
+                .swal2-close:hover {
+                    opacity: 1;
+                    background: rgba(255,255,255,0.2);
+                }
+                .swal2-close:focus {
+                    box-shadow: none;
+                }
+                .btn-edit-save {
+                    background: linear-gradient(135deg, #2ecc71, #27ae60) !important;
+                    border: none !important;
+                    font-weight: 600 !important;
+                    padding: 12px 30px !important;
+                    border-radius: 50px !important;
+                    font-size: 0.95rem !important;
+                    box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3) !important;
+                    transition: all 0.3s !important;
+                    min-width: 140px !important;
+                }
+                .btn-edit-save:hover {
+                    transform: translateY(-2px) !important;
+                    box-shadow: 0 6px 20px rgba(46, 204, 113, 0.4) !important;
+                }
+                .btn-edit-cancel {
+                    background: linear-gradient(135deg, #e74c3c, #c0392b) !important;
+                    border: none !important;
+                    font-weight: 600 !important;
+                    padding: 12px 30px !important;
+                    border-radius: 50px !important;
+                    font-size: 0.95rem !important;
+                    box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3) !important;
+                    transition: all 0.3s !important;
+                    min-width: 140px !important;
+                }
+                .btn-edit-cancel:hover {
+                    transform: translateY(-2px) !important;
+                    box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4) !important;
+                }
+                .swal2-actions {
+                    gap: 12px !important;
+                }
+                @media (max-width: 576px) {
+                    .swal2-popup {
+                        padding: 15px !important;
+                        margin: 10px !important;
+                    }
+                    .swal2-actions {
+                        flex-direction: column !important;
+                        gap: 8px !important;
+                    }
+                    .btn-edit-save, .btn-edit-cancel {
+                        width: 100% !important;
+                        min-width: unset !important;
+                        padding: 12px 20px !important;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        },
         preConfirm: () => {
-            // --- INICIO DE MODIFICACIÓN ---
-            const nuevaIdentidad = $('#editar-colaborador-ausencia').val(); // Leer la identidad del select
+            const nuevaIdentidad = $('#editar-colaborador-ausencia').val();
             const fecha = $('#editar-fecha-ausencia').val();
             const diasIncapacidad = parseInt($('#editar-dias-ausencia').val());
             const motivo = $('#editar-motivo-ausencia').val();
             const observaciones = $('#editar-obs-ausencia').val();
 
             if (!nuevaIdentidad || !fecha || !diasIncapacidad || diasIncapacidad < 1) {
-                Swal.showValidationMessage('Colaborador, fecha y días (1 o más) son obligatorios.');
+                Swal.showValidationMessage('⚠️ Colaborador, fecha y días (1 o más) son obligatorios.');
                 return false;
             }
 
-            // Buscar la info completa del *nuevo* colaborador
             const nuevoColaboradorInfo = colaboradoresActivos.find(col => col.identidad === nuevaIdentidad);
             if (!nuevoColaboradorInfo) {
-                // Esto no debería pasar si el select está bien, pero es buena validación
-                Swal.showValidationMessage('El colaborador seleccionado no es válido.');
+                Swal.showValidationMessage('⚠️ El colaborador seleccionado no es válido.');
                 return false;
             }
             
-            // Calcular nueva fecha fin
             const fechaInicio = new Date(fecha + 'T00:00:00');
             const fechaFin = new Date(fechaInicio);
             fechaFin.setDate(fechaFin.getDate() + diasIncapacidad - 1);
             const fechaFinStr = fechaFin.toISOString().split('T')[0];
 
             const datosNuevos = {
-                // Info del nuevo colaborador
                 nombre: nuevoColaboradorInfo.nombre,
                 identidad: nuevoColaboradorInfo.identidad,
-                fechaNacimiento: nuevoColaboradorInfo.fechaNacimiento || '', // Asegurar que no sea undefined
+                fechaNacimiento: nuevoColaboradorInfo.fechaNacimiento || '',
                 sexo: nuevoColaboradorInfo.sexo,
-                
-                // Info de la ausencia
-                fecha,
-                diasIncapacidad,
-                motivo,
-                observaciones,
+                fecha: fecha,
+                diasIncapacidad: diasIncapacidad,
+                motivo: motivo,
+                observaciones: observaciones,
                 fechaFin: fechaFinStr
             };
-            // --- FIN DE MODIFICACIÓN ---
-            
+
             return { datosNuevos };
+        },
+        willClose: () => {
+            const styleElement = document.getElementById(styleId);
+            if (styleElement) {
+                styleElement.remove();
+            }
         }
     }).then((result) => {
         if (result.isConfirmed) {
@@ -3683,10 +4008,9 @@ function abrirModalEditarAusencia(ausenciaOriginal) {
             $('#overlay').css('display', 'flex');
             $.post(SCRIPT_URL_ENVIAR, {
                 accion: 'editar_ausencia',
-                // La clave original NO cambia (identidad + fecha de inicio original)
                 ausenciaOriginal: JSON.stringify({
                     identidad: ausenciaOriginal.identidad,
-                    fecha: ausenciaOriginal.fecha 
+                    fecha: ausenciaOriginal.fecha
                 }),
                 datosNuevos: JSON.stringify(datosNuevos)
             }, function(response) {
@@ -3705,7 +4029,6 @@ function abrirModalEditarAusencia(ausenciaOriginal) {
         }
     });
 }
-
 
 
         

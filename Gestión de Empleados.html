@@ -4881,73 +4881,205 @@ function mostrarContactosEgresado(identidad) {
         return `https://wa.me/${numeroCompleto}?text=${encodeURIComponent(mensaje)}`;
     }
 
-    let contenidoHtml = `
-        <div class="text-center mb-4">
-            <img src="${colaborador.fotoUrl || `https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=random`}" 
-                 style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid #e74c3c; margin-bottom: 10px;">
-            <h5 class="mb-1">${colaborador.nombre}</h5>
-            <span class="badge bg-danger">Egresado</span>
-            <span class="badge bg-secondary">${colaborador.identidad}</span>
-        </div>
-    `;
+    const fotoSrc = colaborador.fotoUrl || `https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=e74c3c&color=fff&size=200`;
 
-    contenidoHtml += `<div class="text-start mb-3">`;
+    const isMobile = window.innerWidth < 576;
+    const fotoSize = isMobile ? '80px' : '100px';
+    const nombreSize = isMobile ? '1.2rem' : '1.5rem';
+
+    let contenidoHtml = `
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0;">
+        
+        <!-- CABECERA CON FOTO E INFORMACIÓN -->
+        <div style="background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460); border-radius: 16px; padding: ${isMobile ? '20px' : '25px 30px'}; margin: -20px -25px 20px -25px; color: white; position: relative; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+            <div style="position: absolute; top: -50%; right: -20%; width: 200px; height: 200px; background: radial-gradient(circle, rgba(52, 152, 219, 0.1) 0%, transparent 70%); border-radius: 50%;"></div>
+            <div style="position: absolute; bottom: -40%; left: -10%; width: 180px; height: 180px; background: radial-gradient(circle, rgba(46, 204, 113, 0.08) 0%, transparent 70%); border-radius: 50%;"></div>
+            
+            <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap; position: relative; z-index: 1; justify-content: flex-start;">
+                <!-- Foto -->
+                <div style="position: relative; flex-shrink: 0;">
+                    <div style="position: absolute; inset: -3px; background: linear-gradient(135deg, #e74c3c, #f39c12); border-radius: 50%; padding: 3px; box-shadow: 0 0 25px rgba(231,76,60,0.3);">
+                        <div style="width: 100%; height: 100%; border-radius: 50%; background: #1a1a2e;"></div>
+                    </div>
+                    <img src="${fotoSrc}" 
+                         style="width: ${fotoSize}; height: ${fotoSize}; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.15); position: relative; z-index: 1;"
+                         onerror="this.src='https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=e74c3c&color=fff&size=200&font-size=0.5'">
+                    <div style="position: absolute; bottom: 0px; right: 0px; background: #e74c3c; border-radius: 50%; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; border: 2px solid white; z-index: 2; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">
+                        <i class="fas fa-phone" style="font-size: 11px; color: white;"></i>
+                    </div>
+                </div>
+                
+                <!-- Información -->
+                <div style="flex: 1; min-width: 150px; text-align: left;">
+                    <h3 style="margin: 0; font-weight: 700; font-size: ${nombreSize}; letter-spacing: -0.5px; background: linear-gradient(135deg, #fff, #a8d8ea); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; text-align: left;">
+                        ${colaborador.nombre}
+                    </h3>
+                    <div style="margin-top: 5px; display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-start;">
+                        <span class="badge" style="background: rgba(255,255,255,0.12); padding: 3px 12px; font-size: 0.7rem;">
+                            <i class="fas fa-id-card me-1"></i>${colaborador.identidad}
+                        </span>
+                        ${colaborador.sexo ? `<span class="badge" style="background: ${colaborador.sexo === 'Masculino' ? 'rgba(52, 152, 219, 0.25)' : 'rgba(231, 76, 60, 0.25)'}; padding: 3px 12px; font-size: 0.7rem;">
+                            <i class="fas ${colaborador.sexo === 'Masculino' ? 'fa-mars' : 'fa-venus'} me-1"></i>${colaborador.sexo}
+                        </span>` : ''}
+                        <span class="badge" style="background: rgba(231, 76, 60, 0.15); color: #e74c3c; border: 1px solid #e74c3c; padding: 3px 12px; font-size: 0.7rem;">
+                            <i class="fas fa-user-slash me-1"></i>Egresado
+                        </span>
+                        <span class="badge" style="background: rgba(243, 156, 18, 0.15); color: #f39c12; border: 1px solid #f39c12; padding: 3px 12px; font-size: 0.65rem;">
+                            <i class="fas fa-calendar-times me-1"></i>${formatearFecha(colaborador.fechaEgreso)}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONTENIDO DE CONTACTOS -->
+        <div style="padding: 5px 0;">`;
+
+    // Sección: Móvil Personal
+    contenidoHtml += `<div style="margin-bottom: 16px; text-align: left;">`;
     if (movil && movil !== '') {
         contenidoHtml += `
-            <h6 class="border-bottom pb-2"><i class="fas fa-mobile-alt me-2 text-primary"></i>Móvil Personal</h6>
-            <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
-                <span class="fw-bold">${movil}</span>
-                <div>
-                    <a href="tel:${movilLimpio}" class="btn btn-sm btn-success me-1" title="Llamar">
-                        <i class="fas fa-phone-alt"></i>
+            <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #f8f9fa; border-radius: 12px; border-left: 4px solid #3498db; transition: all 0.2s;">
+                <div style="width: 40px; height: 40px; background: rgba(52, 152, 219, 0.12); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                    <i class="fas fa-mobile-alt" style="font-size: 18px; color: #3498db;"></i>
+                </div>
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Móvil Personal</div>
+                    <div style="font-weight: 600; font-size: 1rem; color: #2c3e50;">${movil}</div>
+                </div>
+                <div style="display: flex; gap: 6px; flex-shrink: 0;">
+                    <a href="tel:${movilLimpio}" class="btn btn-sm" style="background: #2ecc71; color: white; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; padding: 0; transition: all 0.2s; text-decoration: none;"
+                       onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                        <i class="fas fa-phone-alt" style="font-size: 14px;"></i>
                     </a>
                     <a href="${generarEnlaceWhatsApp(movilLimpio, `Hola ${colaborador.nombre}, te contactamos desde la empresa (egresado).`)}" 
-                       class="btn btn-sm btn-success" 
-                       target="_blank" 
-                       title="WhatsApp">
-                        <i class="fab fa-whatsapp"></i>
+                       class="btn btn-sm" style="background: #25D366; color: white; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; padding: 0; transition: all 0.2s; text-decoration: none;"
+                       target="_blank"
+                       onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                        <i class="fab fa-whatsapp" style="font-size: 16px;"></i>
                     </a>
                 </div>
             </div>`;
     } else {
-        contenidoHtml += `<p class="text-muted fst-italic"><i class="fas fa-info-circle me-1"></i>No se ha registrado un móvil personal.</p>`;
+        contenidoHtml += `
+            <div style="padding: 12px 16px; background: #f8f9fa; border-radius: 12px; border-left: 4px solid #bdc3c7; display: flex; align-items: center; gap: 12px;">
+                <div style="width: 40px; height: 40px; background: rgba(189, 195, 199, 0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                    <i class="fas fa-mobile-alt" style="font-size: 18px; color: #bdc3c7;"></i>
+                </div>
+                <div>
+                    <div style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Móvil Personal</div>
+                    <div style="color: #95a5a6; font-style: italic; font-size: 0.9rem;">No registrado</div>
+                </div>
+            </div>`;
     }
     contenidoHtml += `</div>`;
 
-    contenidoHtml += `<div class="text-start mb-3">`;
+    // Sección: Contacto de Emergencia
+    contenidoHtml += `<div style="margin-bottom: 16px; text-align: left;">`;
     if ((contactoEmergencia && contactoEmergencia !== '') || (movilEmergencia && movilEmergencia !== '')) {
-        contenidoHtml += `<h6 class="border-bottom pb-2"><i class="fas fa-shield-alt me-2 text-danger"></i>Contacto de Emergencia</h6>`;
-        if (contactoEmergencia && contactoEmergencia !== '') {
-            contenidoHtml += `<p class="mb-1"><strong>Nombre:</strong> ${contactoEmergencia}</p>`;
-        }
-        if (movilEmergencia && movilEmergencia !== '') {
-            contenidoHtml += `
-                <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded mt-2">
-                    <span class="fw-bold">${movilEmergencia}</span>
+        contenidoHtml += `
+            <div style="padding: 12px 16px; background: #f8f9fa; border-radius: 12px; border-left: 4px solid #e74c3c;">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: ${(contactoEmergencia && contactoEmergencia !== '') ? '8px' : '0'};">
+                    <div style="width: 40px; height: 40px; background: rgba(231, 76, 60, 0.12); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                        <i class="fas fa-shield-alt" style="font-size: 18px; color: #e74c3c;"></i>
+                    </div>
                     <div>
-                        <a href="tel:${movilEmergenciaLimpio}" class="btn btn-sm btn-outline-danger me-1" title="Llamar">
-                            <i class="fas fa-phone-alt"></i>
+                        <div style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Contacto de Emergencia</div>
+                        ${contactoEmergencia && contactoEmergencia !== '' ? `<div style="font-weight: 600; font-size: 1rem; color: #2c3e50;">${contactoEmergencia}</div>` : ''}
+                    </div>
+                </div>
+                ${movilEmergencia && movilEmergencia !== '' ? `
+                <div style="display: flex; align-items: center; justify-content: space-between; padding-left: 52px; flex-wrap: wrap; gap: 8px;">
+                    <div style="font-weight: 500; font-size: 0.95rem; color: #2c3e50;">
+                        <i class="fas fa-phone me-2" style="color: #e74c3c;"></i>${movilEmergencia}
+                    </div>
+                    <div style="display: flex; gap: 6px;">
+                        <a href="tel:${movilEmergenciaLimpio}" class="btn btn-sm" style="background: #e74c3c; color: white; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; padding: 0; transition: all 0.2s; text-decoration: none;"
+                           onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                            <i class="fas fa-phone-alt" style="font-size: 13px;"></i>
                         </a>
                         <a href="${generarEnlaceWhatsApp(movilEmergenciaLimpio, `Hola, es una emergencia relacionada con ${colaborador.nombre} (egresado).`)}" 
-                           class="btn btn-sm btn-outline-success" 
-                           target="_blank" 
-                           title="WhatsApp">
-                            <i class="fab fa-whatsapp"></i>
+                           class="btn btn-sm" style="background: #25D366; color: white; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; padding: 0; transition: all 0.2s; text-decoration: none;"
+                           target="_blank"
+                           onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                            <i class="fab fa-whatsapp" style="font-size: 14px;"></i>
                         </a>
                     </div>
-                </div>`;
-        }
+                </div>` : ''}
+            </div>`;
     } else {
-        contenidoHtml += `<p class="text-muted fst-italic"><i class="fas fa-info-circle me-1"></i>No se ha registrado un contacto de emergencia.</p>`;
+        contenidoHtml += `
+            <div style="padding: 12px 16px; background: #f8f9fa; border-radius: 12px; border-left: 4px solid #bdc3c7; display: flex; align-items: center; gap: 12px;">
+                <div style="width: 40px; height: 40px; background: rgba(189, 195, 199, 0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                    <i class="fas fa-shield-alt" style="font-size: 18px; color: #bdc3c7;"></i>
+                </div>
+                <div>
+                    <div style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Contacto de Emergencia</div>
+                    <div style="color: #95a5a6; font-style: italic; font-size: 0.9rem;">No registrado</div>
+                </div>
+            </div>`;
     }
     contenidoHtml += `</div>`;
 
+    contenidoHtml += `
+        </div>
+    </div>`;
+
+    const styleId = 'contact-egresado-style-' + Date.now();
+
     Swal.fire({
-        title: 'Contacto de Egresado',
+        title: null,
         html: contenidoHtml,
-        width: '550px',
+        width: window.innerWidth < 576 ? '95%' : '550px',
         showCloseButton: true,
-        showConfirmButton: false
+        showConfirmButton: false,
+        customClass: {
+            popup: 'animated fadeInDown',
+            closeButton: 'btn-close-white'
+        },
+        didOpen: () => {
+            const style = document.createElement('style');
+            style.id = styleId;
+            style.textContent = `
+                .swal2-popup {
+                    border-radius: 16px !important;
+                    padding: 20px !important;
+                }
+                .swal2-close {
+                    color: white !important;
+                    opacity: 0.6;
+                    transition: all 0.3s;
+                    background: rgba(255,255,255,0.1);
+                    border-radius: 50%;
+                    width: 30px;
+                    height: 30px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 20px;
+                }
+                .swal2-close:hover {
+                    opacity: 1;
+                    background: rgba(255,255,255,0.2);
+                }
+                .swal2-close:focus {
+                    box-shadow: none;
+                }
+                @media (max-width: 576px) {
+                    .swal2-popup {
+                        padding: 15px !important;
+                        margin: 10px !important;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        },
+        willClose: () => {
+            const styleElement = document.getElementById(styleId);
+            if (styleElement) {
+                styleElement.remove();
+            }
+        }
     });
 }
         
@@ -9653,12 +9785,11 @@ function mostrarContactos(identidad) {
         return;
     }
 
-    // --- CORREGIDO: Convertir a string y trim, manejar undefined/null ---
+    // Convertir a string y trim, manejar undefined/null
     const movil = (colaborador.movil !== undefined && colaborador.movil !== null) ? String(colaborador.movil).trim() : '';
     const contactoEmergencia = (colaborador.contactoEmergencia !== undefined && colaborador.contactoEmergencia !== null) ? String(colaborador.contactoEmergencia).trim() : '';
     const movilEmergencia = (colaborador.movilEmergencia !== undefined && colaborador.movilEmergencia !== null) ? String(colaborador.movilEmergencia).trim() : '';
 
-    // Función auxiliar para limpiar número de teléfono (eliminar guiones, espacios)
     function limpiarNumero(numero) {
         if (!numero || numero === '') return '';
         return numero.replace(/[\s-]/g, '');
@@ -9667,86 +9798,210 @@ function mostrarContactos(identidad) {
     const movilLimpio = limpiarNumero(movil);
     const movilEmergenciaLimpio = limpiarNumero(movilEmergencia);
     
-    // --- NUEVO: Función para generar enlace de WhatsApp con código de país +504 ---
     function generarEnlaceWhatsApp(numero, mensaje) {
         if (!numero || numero === '') return '#';
-        // Agregar código de país +504 (Honduras)
-        const numeroCompleto = '504' + numero; // Sin el '+' porque wa.me no lo necesita
+        const numeroCompleto = '504' + numero;
         return `https://wa.me/${numeroCompleto}?text=${encodeURIComponent(mensaje)}`;
     }
 
+    const fotoSrc = colaborador.fotoUrl || `https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=3498db&color=fff&size=200`;
+
+    const isMobile = window.innerWidth < 576;
+    const fotoSize = isMobile ? '80px' : '100px';
+    const nombreSize = isMobile ? '1.2rem' : '1.5rem';
+
     let contenidoHtml = `
-        <div class="text-center mb-4">
-            <img src="${colaborador.fotoUrl || `https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=random`}" 
-                 style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid #3498db; margin-bottom: 10px;">
-            <h5 class="mb-1">${colaborador.nombre}</h5>
-            <span class="badge bg-secondary">${colaborador.identidad}</span>
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0;">
+        
+        <!-- CABECERA CON FOTO E INFORMACIÓN -->
+        <div style="background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460); border-radius: 16px; padding: ${isMobile ? '20px' : '25px 30px'}; margin: -20px -25px 20px -25px; color: white; position: relative; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+            <div style="position: absolute; top: -50%; right: -20%; width: 200px; height: 200px; background: radial-gradient(circle, rgba(52, 152, 219, 0.1) 0%, transparent 70%); border-radius: 50%;"></div>
+            <div style="position: absolute; bottom: -40%; left: -10%; width: 180px; height: 180px; background: radial-gradient(circle, rgba(46, 204, 113, 0.08) 0%, transparent 70%); border-radius: 50%;"></div>
+            
+            <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap; position: relative; z-index: 1; justify-content: flex-start;">
+                <!-- Foto -->
+                <div style="position: relative; flex-shrink: 0;">
+                    <div style="position: absolute; inset: -3px; background: linear-gradient(135deg, #3498db, #2ecc71); border-radius: 50%; padding: 3px; box-shadow: 0 0 25px rgba(52,152,219,0.3);">
+                        <div style="width: 100%; height: 100%; border-radius: 50%; background: #1a1a2e;"></div>
+                    </div>
+                    <img src="${fotoSrc}" 
+                         style="width: ${fotoSize}; height: ${fotoSize}; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.15); position: relative; z-index: 1;"
+                         onerror="this.src='https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=3498db&color=fff&size=200&font-size=0.5'">
+                    <div style="position: absolute; bottom: 0px; right: 0px; background: #2ecc71; border-radius: 50%; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; border: 2px solid white; z-index: 2; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">
+                        <i class="fas fa-phone" style="font-size: 11px; color: white;"></i>
+                    </div>
+                </div>
+                
+                <!-- Información -->
+                <div style="flex: 1; min-width: 150px; text-align: left;">
+                    <h3 style="margin: 0; font-weight: 700; font-size: ${nombreSize}; letter-spacing: -0.5px; background: linear-gradient(135deg, #fff, #a8d8ea); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; text-align: left;">
+                        ${colaborador.nombre}
+                    </h3>
+                    <div style="margin-top: 5px; display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-start;">
+                        <span class="badge" style="background: rgba(255,255,255,0.12); padding: 3px 12px; font-size: 0.7rem;">
+                            <i class="fas fa-id-card me-1"></i>${colaborador.identidad}
+                        </span>
+                        ${colaborador.sexo ? `<span class="badge" style="background: ${colaborador.sexo === 'Masculino' ? 'rgba(52, 152, 219, 0.25)' : 'rgba(231, 76, 60, 0.25)'}; padding: 3px 12px; font-size: 0.7rem;">
+                            <i class="fas ${colaborador.sexo === 'Masculino' ? 'fa-mars' : 'fa-venus'} me-1"></i>${colaborador.sexo}
+                        </span>` : ''}
+                        <span class="badge" style="background: rgba(46, 204, 113, 0.15); color: #2ecc71; border: 1px solid #2ecc71; padding: 3px 12px; font-size: 0.7rem;">
+                            <i class="fas fa-user-check me-1"></i>Activo
+                        </span>
+                    </div>
+                </div>
+            </div>
         </div>
-    `;
+
+        <!-- CONTENIDO DE CONTACTOS -->
+        <div style="padding: 5px 0;">`;
 
     // Sección: Móvil Personal
-    contenidoHtml += `<div class="text-start mb-3">`;
+    contenidoHtml += `<div style="margin-bottom: 16px; text-align: left;">`;
     if (movil && movil !== '') {
         contenidoHtml += `
-            <h6 class="border-bottom pb-2"><i class="fas fa-mobile-alt me-2 text-primary"></i>Móvil Personal</h6>
-            <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
-                <span class="fw-bold">${movil}</span>
-                <div>
-                    <a href="tel:${movilLimpio}" class="btn btn-sm btn-success me-1" title="Llamar">
-                        <i class="fas fa-phone-alt"></i> Llamar
+            <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #f8f9fa; border-radius: 12px; border-left: 4px solid #3498db; transition: all 0.2s;">
+                <div style="width: 40px; height: 40px; background: rgba(52, 152, 219, 0.12); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                    <i class="fas fa-mobile-alt" style="font-size: 18px; color: #3498db;"></i>
+                </div>
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Móvil Personal</div>
+                    <div style="font-weight: 600; font-size: 1rem; color: #2c3e50;">${movil}</div>
+                </div>
+                <div style="display: flex; gap: 6px; flex-shrink: 0;">
+                    <a href="tel:${movilLimpio}" class="btn btn-sm" style="background: #2ecc71; color: white; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; padding: 0; transition: all 0.2s; text-decoration: none;"
+                       onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                        <i class="fas fa-phone-alt" style="font-size: 14px;"></i>
                     </a>
                     <a href="${generarEnlaceWhatsApp(movilLimpio, `Hola ${colaborador.nombre}, te escribo desde la gestión de empleados.`)}" 
-                       class="btn btn-sm btn-success" 
+                       class="btn btn-sm" style="background: #25D366; color: white; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; padding: 0; transition: all 0.2s; text-decoration: none;"
                        target="_blank" 
-                       title="WhatsApp">
-                        <i class="fab fa-whatsapp"></i> WhatsApp
+                       onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                        <i class="fab fa-whatsapp" style="font-size: 16px;"></i>
                     </a>
                 </div>
             </div>`;
     } else {
-        contenidoHtml += `<p class="text-muted fst-italic"><i class="fas fa-info-circle me-1"></i>No se ha registrado un móvil personal.</p>`;
+        contenidoHtml += `
+            <div style="padding: 12px 16px; background: #f8f9fa; border-radius: 12px; border-left: 4px solid #bdc3c7; display: flex; align-items: center; gap: 12px;">
+                <div style="width: 40px; height: 40px; background: rgba(189, 195, 199, 0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                    <i class="fas fa-mobile-alt" style="font-size: 18px; color: #bdc3c7;"></i>
+                </div>
+                <div>
+                    <div style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Móvil Personal</div>
+                    <div style="color: #95a5a6; font-style: italic; font-size: 0.9rem;">No registrado</div>
+                </div>
+            </div>`;
     }
     contenidoHtml += `</div>`;
 
     // Sección: Contacto de Emergencia
-    contenidoHtml += `<div class="text-start mb-3">`;
+    contenidoHtml += `<div style="margin-bottom: 16px; text-align: left;">`;
     if ((contactoEmergencia && contactoEmergencia !== '') || (movilEmergencia && movilEmergencia !== '')) {
-        contenidoHtml += `<h6 class="border-bottom pb-2"><i class="fas fa-shield-alt me-2 text-danger"></i>Contacto de Emergencia</h6>`;
-        if (contactoEmergencia && contactoEmergencia !== '') {
-            contenidoHtml += `<p class="mb-1"><strong>Nombre:</strong> ${contactoEmergencia}</p>`;
-        }
-        if (movilEmergencia && movilEmergencia !== '') {
-            contenidoHtml += `
-                <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded mt-2">
-                    <span class="fw-bold">${movilEmergencia}</span>
+        contenidoHtml += `
+            <div style="padding: 12px 16px; background: #f8f9fa; border-radius: 12px; border-left: 4px solid #e74c3c;">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: ${(contactoEmergencia && contactoEmergencia !== '') ? '8px' : '0'};">
+                    <div style="width: 40px; height: 40px; background: rgba(231, 76, 60, 0.12); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                        <i class="fas fa-shield-alt" style="font-size: 18px; color: #e74c3c;"></i>
+                    </div>
                     <div>
-                        <a href="tel:${movilEmergenciaLimpio}" class="btn btn-sm btn-outline-danger me-1" title="Llamar">
-                            <i class="fas fa-phone-alt"></i>
+                        <div style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Contacto de Emergencia</div>
+                        ${contactoEmergencia && contactoEmergencia !== '' ? `<div style="font-weight: 600; font-size: 1rem; color: #2c3e50;">${contactoEmergencia}</div>` : ''}
+                    </div>
+                </div>
+                ${movilEmergencia && movilEmergencia !== '' ? `
+                <div style="display: flex; align-items: center; justify-content: space-between; padding-left: 52px; flex-wrap: wrap; gap: 8px;">
+                    <div style="font-weight: 500; font-size: 0.95rem; color: #2c3e50;">
+                        <i class="fas fa-phone me-2" style="color: #e74c3c;"></i>${movilEmergencia}
+                    </div>
+                    <div style="display: flex; gap: 6px;">
+                        <a href="tel:${movilEmergenciaLimpio}" class="btn btn-sm" style="background: #e74c3c; color: white; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; padding: 0; transition: all 0.2s; text-decoration: none;"
+                           onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                            <i class="fas fa-phone-alt" style="font-size: 13px;"></i>
                         </a>
                         <a href="${generarEnlaceWhatsApp(movilEmergenciaLimpio, `Hola, es una emergencia relacionada con ${colaborador.nombre}.`)}" 
-                           class="btn btn-sm btn-outline-success" 
-                           target="_blank" 
-                           title="WhatsApp">
-                            <i class="fab fa-whatsapp"></i>
+                           class="btn btn-sm" style="background: #25D366; color: white; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; padding: 0; transition: all 0.2s; text-decoration: none;"
+                           target="_blank"
+                           onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                            <i class="fab fa-whatsapp" style="font-size: 14px;"></i>
                         </a>
                     </div>
-                </div>`;
-        }
+                </div>` : ''}
+            </div>`;
     } else {
-        contenidoHtml += `<p class="text-muted fst-italic"><i class="fas fa-info-circle me-1"></i>No se ha registrado un contacto de emergencia.</p>`;
+        contenidoHtml += `
+            <div style="padding: 12px 16px; background: #f8f9fa; border-radius: 12px; border-left: 4px solid #bdc3c7; display: flex; align-items: center; gap: 12px;">
+                <div style="width: 40px; height: 40px; background: rgba(189, 195, 199, 0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                    <i class="fas fa-shield-alt" style="font-size: 18px; color: #bdc3c7;"></i>
+                </div>
+                <div>
+                    <div style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Contacto de Emergencia</div>
+                    <div style="color: #95a5a6; font-style: italic; font-size: 0.9rem;">No registrado</div>
+                </div>
+            </div>`;
     }
     contenidoHtml += `</div>`;
 
+    contenidoHtml += `
+        </div>
+    </div>`;
+
+    // Usar un ID único para el estilo
+    const styleId = 'contact-style-' + Date.now();
+
     Swal.fire({
-        title: 'Información de Contacto',
+        title: null,
         html: contenidoHtml,
-        width: '550px',
+        width: window.innerWidth < 576 ? '95%' : '550px',
         showCloseButton: true,
         showConfirmButton: false,
+        customClass: {
+            popup: 'animated fadeInDown',
+            closeButton: 'btn-close-white'
+        },
         didOpen: () => {
-            $('a[href^="tel:"], a[href^="https://wa.me"]').on('click', function(e) {
-                e.stopPropagation();
-            });
+            // Agregar estilos con un ID único
+            const style = document.createElement('style');
+            style.id = styleId;
+            style.textContent = `
+                .swal2-popup {
+                    border-radius: 16px !important;
+                    padding: 20px !important;
+                }
+                .swal2-close {
+                    color: white !important;
+                    opacity: 0.6;
+                    transition: all 0.3s;
+                    background: rgba(255,255,255,0.1);
+                    border-radius: 50%;
+                    width: 30px;
+                    height: 30px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 20px;
+                }
+                .swal2-close:hover {
+                    opacity: 1;
+                    background: rgba(255,255,255,0.2);
+                }
+                .swal2-close:focus {
+                    box-shadow: none;
+                }
+                @media (max-width: 576px) {
+                    .swal2-popup {
+                        padding: 15px !important;
+                        margin: 10px !important;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        },
+        willClose: () => {
+            // Eliminar el estilo específico por ID
+            const styleElement = document.getElementById(styleId);
+            if (styleElement) {
+                styleElement.remove();
+            }
         }
     });
 }
@@ -10242,41 +10497,79 @@ function mostrarTodosLosIngresos() {
 
     const ingresosOrdenados = [...colaboradoresIngresos].sort((a, b) => new Date(b.fechaInicio) - new Date(a.fechaInicio));
     
+    // Determinar si es móvil
+    const isMobile = window.innerWidth < 576;
+    const fotoSize = isMobile ? '45px' : '55px';
+    
     let html = `
-        <div class="mb-3">
-            <input type="text" id="filtro-ingresos-modal" class="form-control" placeholder="Buscar por nombre o identidad...">
-        </div>
-        <div id="lista-ingresos-modal" style="max-height: 500px; overflow-y: auto;">`;
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0;">
+            <!-- Buscador -->
+            <div style="margin-bottom: 15px; position: relative;">
+                <input type="text" id="filtro-ingresos-modal" class="form-control" placeholder="🔍 Buscar por nombre o identidad..." 
+                       style="border-radius: 10px; padding: 10px 15px; border: 2px solid #e9ecef; font-size: 0.9rem;">
+            </div>
+            
+            <!-- Lista de ingresos -->
+            <div id="lista-ingresos-modal" style="max-height: 500px; overflow-y: auto; padding-right: 5px;">`;
 
     ingresosOrdenados.forEach(ing => {
         const fotoSrc = ing.fotoUrl || `https://ui-avatars.com/api/?name=${ing.nombre.replace(/\s/g, "+")}&background=3498db&color=fff&size=100`;
+        
+        // Calcular edad si tiene fecha de nacimiento
+        let edadInfo = '';
+        if (ing.fechaNacimiento) {
+            const edad = calcularEdad(ing.fechaNacimiento);
+            if (edad !== null) {
+                edadInfo = `<span class="badge bg-info" style="font-size: 0.65rem; background: rgba(52, 152, 219, 0.15) !important; color: #2c3e50; border: 1px solid rgba(52, 152, 219, 0.2);"><i class="fas fa-birthday-cake me-1"></i>${edad} años</span>`;
+            }
+        }
+        
         html += `
-            <div class="resumen-disciplina-item" data-identidad="${ing.identidad}" style="cursor: pointer; border-bottom: 1px solid #eee; padding: 12px;">
-                <img src="${fotoSrc}" class="resumen-disciplina-img" onerror="this.src='https://ui-avatars.com/api/?name=${ing.nombre.replace(/\s/g, "+")}&background=3498db&color=fff&size=100'">
-                <div class="resumen-disciplina-info">
-                    <h6 style="margin-bottom: 2px;">${ing.nombre}</h6>
-                    <p class="mb-0 small text-muted">
-                        <i class="fas fa-id-card me-1"></i>${ing.identidad} 
-                        <span class="mx-2">|</span>
-                        <i class="fas fa-calendar-plus me-1"></i>${formatearFecha(ing.fechaInicio)}
-                        ${ing.sexo ? `<span class="mx-2">|</span> <i class="fas ${ing.sexo === 'Masculino' ? 'fa-mars' : 'fa-venus'} me-1"></i>${ing.sexo}` : ''}
-                    </p>
+            <div class="resumen-disciplina-item" data-identidad="${ing.identidad}" 
+                 style="cursor: pointer; border-bottom: 1px solid #f0f0f0; padding: 12px 15px; display: flex; align-items: center; gap: 15px; transition: all 0.2s; border-radius: 8px; margin-bottom: 2px;"
+                 onmouseover="this.style.backgroundColor='#f8f9fa'"
+                 onmouseout="this.style.backgroundColor='transparent'">
+                <img src="${fotoSrc}" class="resumen-disciplina-img" 
+                     style="width: ${fotoSize}; height: ${fotoSize}; border-radius: 50%; object-fit: cover; border: 2px solid #2ecc71; box-shadow: 0 2px 8px rgba(46, 204, 113, 0.2); flex-shrink: 0;"
+                     onerror="this.src='https://ui-avatars.com/api/?name=${ing.nombre.replace(/\s/g, "+")}&background=3498db&color=fff&size=100'">
+                <div class="resumen-disciplina-info" style="flex: 1; min-width: 0; text-align: left;">
+                    <h6 style="margin: 0; font-weight: 700; color: #2c3e50; font-size: 0.95rem; text-align: left;">${ing.nombre}</h6>
+                    <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; align-items: center; justify-content: flex-start;">
+                        <span style="font-size: 0.75rem; color: #7f8c8d;">
+                            <i class="fas fa-id-card me-1"></i>${ing.identidad}
+                        </span>
+                        <span style="font-size: 0.75rem; color: #7f8c8d;">
+                            <i class="fas fa-calendar-plus me-1"></i>${formatearFecha(ing.fechaInicio)}
+                        </span>
+                        ${ing.sexo ? `<span style="font-size: 0.75rem; color: #7f8c8d;">
+                            <i class="fas ${ing.sexo === 'Masculino' ? 'fa-mars' : 'fa-venus'} me-1"></i>${ing.sexo}
+                        </span>` : ''}
+                        ${edadInfo}
+                    </div>
                 </div>
-                <div>
-                    <span class="badge bg-success"><i class="fas fa-user-plus me-1"></i>Ingreso</span>
+                <div style="flex-shrink: 0;">
+                    <span class="badge" style="background: #2ecc71; color: white; padding: 5px 12px; font-size: 0.7rem; border-radius: 20px;">
+                        <i class="fas fa-user-plus me-1"></i>Ingreso
+                    </span>
                 </div>
             </div>`;
     });
 
-    html += '</div>';
+    html += `
+            </div>
+        </div>`;
 
     Swal.fire({
         title: '<i class="fas fa-user-plus text-success me-2"></i>Todos los Ingresos Registrados',
         html: html,
-        width: '700px',
+        width: window.innerWidth < 576 ? '95%' : '700px',
         showCloseButton: true,
         showConfirmButton: false,
+        customClass: {
+            popup: 'animated fadeInDown'
+        },
         didOpen: () => {
+            // Filtro de búsqueda
             $('#filtro-ingresos-modal').on('input', function() {
                 const texto = $(this).val().toLowerCase();
                 $('#lista-ingresos-modal .resumen-disciplina-item').each(function() {
@@ -10286,6 +10579,7 @@ function mostrarTodosLosIngresos() {
                 });
             });
 
+            // Click para ver detalle
             $(document).on('click', '#lista-ingresos-modal .resumen-disciplina-item', function() {
                 const identidad = $(this).data('identidad');
                 const colaborador = colaboradoresIngresos.find(c => c.identidad === identidad);
@@ -10300,6 +10594,7 @@ function mostrarTodosLosIngresos() {
         }
     });
 }
+
 
 function mostrarDetalleIngresoCompleto(colaborador) {
     const fotoSrc = colaborador.fotoUrl || `https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=3498db&color=fff&size=200`;
@@ -10378,42 +10673,88 @@ function mostrarTodosLosEgresos() {
 
     const egresosOrdenados = [...colaboradoresEgresos].sort((a, b) => new Date(b.fechaEgreso) - new Date(a.fechaEgreso));
     
+    // Determinar si es móvil
+    const isMobile = window.innerWidth < 576;
+    const fotoSize = isMobile ? '45px' : '55px';
+    
     let html = `
-        <div class="mb-3">
-            <input type="text" id="filtro-egresos-modal" class="form-control" placeholder="Buscar por nombre o identidad...">
-        </div>
-        <div id="lista-egresos-modal" style="max-height: 500px; overflow-y: auto;">`;
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0;">
+            <!-- Buscador -->
+            <div style="margin-bottom: 15px; position: relative;">
+                <input type="text" id="filtro-egresos-modal" class="form-control" placeholder="🔍 Buscar por nombre o identidad..." 
+                       style="border-radius: 10px; padding: 10px 15px; border: 2px solid #e9ecef; font-size: 0.9rem;">
+            </div>
+            
+            <!-- Lista de egresos -->
+            <div id="lista-egresos-modal" style="max-height: 500px; overflow-y: auto; padding-right: 5px;">`;
 
     egresosOrdenados.forEach(eg => {
         const fotoSrc = eg.fotoUrl || `https://ui-avatars.com/api/?name=${eg.nombre.replace(/\s/g, "+")}&background=e74c3c&color=fff&size=100`;
+        
+        // Calcular edad si tiene fecha de nacimiento
+        let edadInfo = '';
+        if (eg.fechaNacimiento) {
+            const edad = calcularEdad(eg.fechaNacimiento);
+            if (edad !== null) {
+                edadInfo = `<span class="badge bg-info" style="font-size: 0.65rem; background: rgba(52, 152, 219, 0.15) !important; color: #2c3e50; border: 1px solid rgba(52, 152, 219, 0.2);"><i class="fas fa-birthday-cake me-1"></i>${edad} años</span>`;
+            }
+        }
+        
+        // Determinar color según motivo de egreso
+        let motivoColor = '#e74c3c';
+        let motivoIcono = 'fa-user-minus';
+        if (eg.razon === 'Renuncia') { motivoColor = '#f39c12'; motivoIcono = 'fa-hand-peace'; }
+        else if (eg.razon === 'Fin de Contrato') { motivoColor = '#3498db'; motivoIcono = 'fa-file-contract'; }
+        else if (eg.razon === 'Despido') { motivoColor = '#e74c3c'; motivoIcono = 'fa-ban'; }
+        else if (eg.razon === 'Abandono') { motivoColor = '#e67e22'; motivoIcono = 'fa-sign-out-alt'; }
+        else if (eg.razon === 'Denegación de Período de Prueba') { motivoColor = '#9b59b6'; motivoIcono = 'fa-times-circle'; }
+        
         html += `
-            <div class="resumen-disciplina-item" data-identidad="${eg.identidad}" style="cursor: pointer; border-bottom: 1px solid #eee; padding: 12px;">
-                <img src="${fotoSrc}" class="resumen-disciplina-img" onerror="this.src='https://ui-avatars.com/api/?name=${eg.nombre.replace(/\s/g, "+")}&background=e74c3c&color=fff&size=100'">
-                <div class="resumen-disciplina-info">
-                    <h6 style="margin-bottom: 2px;">${eg.nombre}</h6>
-                    <p class="mb-0 small text-muted">
-                        <i class="fas fa-id-card me-1"></i>${eg.identidad} 
-                        <span class="mx-2">|</span>
-                        <i class="fas fa-calendar-times me-1"></i>${formatearFecha(eg.fechaEgreso)}
-                        <span class="mx-2">|</span>
-                        <i class="fas fa-info-circle me-1"></i>${eg.razon}
-                    </p>
+            <div class="resumen-disciplina-item" data-identidad="${eg.identidad}" 
+                 style="cursor: pointer; border-bottom: 1px solid #f0f0f0; padding: 12px 15px; display: flex; align-items: center; gap: 15px; transition: all 0.2s; border-radius: 8px; margin-bottom: 2px;"
+                 onmouseover="this.style.backgroundColor='#f8f9fa'"
+                 onmouseout="this.style.backgroundColor='transparent'">
+                <img src="${fotoSrc}" class="resumen-disciplina-img" 
+                     style="width: ${fotoSize}; height: ${fotoSize}; border-radius: 50%; object-fit: cover; border: 2px solid ${motivoColor}; box-shadow: 0 2px 8px rgba(231, 76, 60, 0.2); flex-shrink: 0;"
+                     onerror="this.src='https://ui-avatars.com/api/?name=${eg.nombre.replace(/\s/g, "+")}&background=e74c3c&color=fff&size=100'">
+                <div class="resumen-disciplina-info" style="flex: 1; min-width: 0; text-align: left;">
+                    <h6 style="margin: 0; font-weight: 700; color: #2c3e50; font-size: 0.95rem; text-align: left;">${eg.nombre}</h6>
+                    <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; align-items: center; justify-content: flex-start;">
+                        <span style="font-size: 0.75rem; color: #7f8c8d;">
+                            <i class="fas fa-id-card me-1"></i>${eg.identidad}
+                        </span>
+                        <span style="font-size: 0.75rem; color: #7f8c8d;">
+                            <i class="fas fa-calendar-times me-1"></i>${formatearFecha(eg.fechaEgreso)}
+                        </span>
+                        ${eg.sexo ? `<span style="font-size: 0.75rem; color: #7f8c8d;">
+                            <i class="fas ${eg.sexo === 'Masculino' ? 'fa-mars' : 'fa-venus'} me-1"></i>${eg.sexo}
+                        </span>` : ''}
+                        ${edadInfo}
+                    </div>
                 </div>
-                <div>
-                    <span class="badge bg-danger"><i class="fas fa-user-minus me-1"></i>Egreso</span>
+                <div style="flex-shrink: 0;">
+                    <span class="badge" style="background: ${motivoColor}; color: white; padding: 5px 12px; font-size: 0.7rem; border-radius: 20px;">
+                        <i class="fas ${motivoIcono} me-1"></i>${eg.razon}
+                    </span>
                 </div>
             </div>`;
     });
 
-    html += '</div>';
+    html += `
+            </div>
+        </div>`;
 
     Swal.fire({
         title: '<i class="fas fa-user-minus text-danger me-2"></i>Todos los Egresos Registrados',
         html: html,
-        width: '700px',
+        width: window.innerWidth < 576 ? '95%' : '700px',
         showCloseButton: true,
         showConfirmButton: false,
+        customClass: {
+            popup: 'animated fadeInDown'
+        },
         didOpen: () => {
+            // Filtro de búsqueda
             $('#filtro-egresos-modal').on('input', function() {
                 const texto = $(this).val().toLowerCase();
                 $('#lista-egresos-modal .resumen-disciplina-item').each(function() {
@@ -10423,6 +10764,7 @@ function mostrarTodosLosEgresos() {
                 });
             });
 
+            // Click para ver detalle
             $(document).on('click', '#lista-egresos-modal .resumen-disciplina-item', function() {
                 const identidad = $(this).data('identidad');
                 const colaborador = colaboradoresEgresos.find(c => c.identidad === identidad);
@@ -10437,6 +10779,7 @@ function mostrarTodosLosEgresos() {
         }
     });
 }
+
 
 function mostrarDetalleEgresoCompleto(colaborador) {
     const fotoSrc = colaborador.fotoUrl || `https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=e74c3c&color=fff&size=200`;

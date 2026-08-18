@@ -4394,50 +4394,310 @@ function editarColaborador(identidad) {
     const contactoEmergencia = (colaborador.contactoEmergencia !== undefined && colaborador.contactoEmergencia !== null) ? String(colaborador.contactoEmergencia) : '';
     const movilEmergencia = (colaborador.movilEmergencia !== undefined && colaborador.movilEmergencia !== null) ? String(colaborador.movilEmergencia) : '';
 
-    Swal.fire({
-        title: 'Editar Colaborador',
-        html: `<form id="form-editar-colaborador">
-                <div class="mb-3 text-start"><label class="form-label">Fecha de Inicio</label><input type="date" class="form-control" id="editar-fecha-inicio" value="${colaborador.fechaInicio}" required></div>
-                <div class="mb-3 text-start"><label class="form-label">Nombre</label><input type="text" class="form-control" id="editar-nombre" value="${colaborador.nombre}" style="text-transform: uppercase;" required>
-</div>
-                <div class="mb-3 text-start"><label class="form-label">Identidad</label><input type="text" class="form-control" id="editar-identidad" value="${colaborador.identidad}" pattern="\\d{4}-\\d{4}-\\d{5}" required></div>
-                <div class="mb-3 text-start"><label class="form-label">Nacimiento</label><input type="date" class="form-control" id="editar-fecha-nacimiento" value="${colaborador.fechaNacimiento || ''}"></div>
-                <div class="mb-3 text-start"><label class="form-label">Sexo</label><select class="form-select" id="editar-sexo" required><option value="Masculino" ${colaborador.sexo === 'Masculino' ? 'selected' : ''}>Masculino</option><option value="Femenino" ${colaborador.sexo === 'Femenino' ? 'selected' : ''}>Femenino</option></select></div>
+    const fotoSrc = colaborador.fotoUrl || `https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=3498db&color=fff&size=150`;
+    const isMobile = window.innerWidth < 576;
+
+    // Estilos comunes
+    const labelStyle = 'font-weight: 600; color: #2c3e50; font-size: 0.85rem; margin-bottom: 5px; display: block; text-align: left;';
+    const inputStyle = 'width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 0.9rem; transition: all 0.3s; background: white; color: #2c3e50;';
+    const inputFocusStyle = 'border-color: #3498db; box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15); outline: none;';
+    const selectStyle = inputStyle + ' appearance: none; background-image: url(\"data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\'%3E%3Cpath fill=\'%23333\' d=\'M6 8L1 3h10z\'/%3E%3C/svg%3E\"); background-repeat: no-repeat; background-position: right 14px center;';
+
+    const modalHtml = `
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0;">
+        
+        <!-- CABECERA -->
+        <div style="background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460); border-radius: 16px; padding: ${isMobile ? '20px' : '25px 30px'}; margin: -20px -25px 25px -25px; color: white; position: relative; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+            <div style="position: absolute; top: -50%; right: -20%; width: 200px; height: 200px; background: radial-gradient(circle, rgba(52, 152, 219, 0.1) 0%, transparent 70%); border-radius: 50%;"></div>
+            <div style="position: absolute; bottom: -40%; left: -10%; width: 180px; height: 180px; background: radial-gradient(circle, rgba(46, 204, 113, 0.08) 0%, transparent 70%); border-radius: 50%;"></div>
+            
+            <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap; position: relative; z-index: 1; justify-content: flex-start;">
+                <!-- Foto -->
+                <div style="position: relative; flex-shrink: 0;">
+                    <div style="position: absolute; inset: -3px; background: linear-gradient(135deg, #f39c12, #3498db); border-radius: 50%; padding: 3px; box-shadow: 0 0 25px rgba(52,152,219,0.25);">
+                        <div style="width: 100%; height: 100%; border-radius: 50%; background: #1a1a2e;"></div>
+                    </div>
+                    <img src="${fotoSrc}" 
+                         style="width: ${isMobile ? '70px' : '85px'}; height: ${isMobile ? '70px' : '85px'}; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.15); position: relative; z-index: 1;"
+                         onerror="this.src='https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=3498db&color=fff&size=150&font-size=0.5'">
+                    <div style="position: absolute; bottom: 0px; right: 0px; background: #f39c12; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border: 2px solid white; z-index: 2; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">
+                        <i class="fas fa-edit" style="font-size: 10px; color: white;"></i>
+                    </div>
+                </div>
                 
-                <!-- NUEVA SECCIÓN: Datos de Contacto (Opcionales) -->
-                <div class="mt-4 mb-2"><hr><h6 class="text-muted"><i class="fas fa-phone-alt me-2"></i>Datos de Contacto</h6></div>
-<div class="mb-3 text-start">
-    <label class="form-label">Móvil (Opcional)</label>
-    <input type="tel" class="form-control" id="editar-movil" value="${movil}" placeholder="0000-0000" pattern="\\d{4}-\\d{4}" maxlength="9" oninput="formatearTelefono(this)">
-</div>
-<div class="mb-3 text-start">
-    <label class="form-label">Contacto de Emergencia (Opcional)</label>
-    <input type="text" class="form-control" id="editar-contacto-emergencia" value="${contactoEmergencia}" placeholder="Nombre completo" style="text-transform: uppercase;">
-</div>
-<div class="mb-3 text-start">
-    <label class="form-label">Móvil de Emergencia (Opcional)</label>
-    <input type="tel" class="form-control" id="editar-movil-emergencia" value="${movilEmergencia}" placeholder="0000-0000" pattern="\\d{4}-\\d{4}" maxlength="9" oninput="formatearTelefono(this)">
-</div>
-                <!-- FIN NUEVA SECCIÓN -->
-                
-                <div class="mb-3 text-start">
-                    <div class="row align-items-center">
-                        <div class="col-md-7">
-                            <label for="editar-foto" class="form-label">Foto (opcional)</label>
-                            <input type="file" class="form-control" id="editar-foto" accept="image/*" onchange="mostrarVistaPreviaEdicion(this)" capture="environment">
-                            <div class="form-text">JPG, PNG. Máx 5MB</div>
-                            ${colaborador.fotoUrl ? `<div class="mt-2"><small>Foto actual:</small><br><img src="${colaborador.fotoUrl}" style="max-width: 80px; border-radius: 5px;" onerror="this.style.display='none'"></div>` : ''}
+                <!-- Información -->
+                <div style="flex: 1; min-width: 150px; text-align: left;">
+                    <h3 style="margin: 0; font-weight: 700; font-size: ${isMobile ? '1.2rem' : '1.4rem'}; letter-spacing: -0.5px; background: linear-gradient(135deg, #fff, #a8d8ea); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; text-align: left;">
+                        ${colaborador.nombre}
+                    </h3>
+                    <div style="margin-top: 5px; display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-start;">
+                        <span class="badge" style="background: rgba(255,255,255,0.12); padding: 3px 12px; font-size: 0.7rem;">
+                            <i class="fas fa-id-card me-1"></i>${colaborador.identidad}
+                        </span>
+                        <span class="badge" style="background: rgba(46, 204, 113, 0.15); color: #2ecc71; border: 1px solid #2ecc71; padding: 3px 12px; font-size: 0.7rem;">
+                            <i class="fas fa-user-check me-1"></i>Activo
+                        </span>
+                        <span class="badge" style="background: rgba(255,255,255,0.08); padding: 3px 12px; font-size: 0.65rem;">
+                            <i class="fas fa-calendar-plus me-1"></i>${formatearFecha(colaborador.fechaInicio)}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FORMULARIO -->
+        <form id="form-editar-colaborador" style="padding: 5px 0;">
+            <!-- Fila 1: Fecha de Inicio y Nombre -->
+            <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: ${isMobile ? '10px' : '15px'}; margin-bottom: 12px;">
+                <div style="text-align: left;">
+                    <label class="form-label" style="${labelStyle}">Fecha de Inicio <span style="color: #e74c3c;">*</span></label>
+                    <input type="date" class="form-control" id="editar-fecha-inicio" value="${colaborador.fechaInicio}" required
+                           style="${inputStyle}" onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                           onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">
+                </div>
+                <div style="text-align: left;">
+                    <label class="form-label" style="${labelStyle}">Nombre Completo <span style="color: #e74c3c;">*</span></label>
+                    <input type="text" class="form-control" id="editar-nombre" value="${colaborador.nombre}" style="text-transform: uppercase; ${inputStyle}" required
+                           onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                           onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';"
+                           oninput="this.value = this.value.toUpperCase();">
+                </div>
+            </div>
+
+            <!-- Fila 2: Identidad y Fecha Nacimiento -->
+            <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: ${isMobile ? '10px' : '15px'}; margin-bottom: 12px;">
+                <div style="text-align: left;">
+                    <label class="form-label" style="${labelStyle}">Identidad <span style="color: #e74c3c;">*</span></label>
+                    <input type="text" class="form-control" id="editar-identidad" value="${colaborador.identidad}" pattern="\\d{4}-\\d{4}-\\d{5}" required
+                           style="${inputStyle}" onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                           onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';"
+                           oninput="formatearIdentidad(this);">
+                </div>
+                <div style="text-align: left;">
+                    <label class="form-label" style="${labelStyle}">Fecha de Nacimiento</label>
+                    <input type="date" class="form-control" id="editar-fecha-nacimiento" value="${colaborador.fechaNacimiento || ''}"
+                           style="${inputStyle}" onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                           onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">
+                </div>
+            </div>
+
+            <!-- Fila 3: Sexo y Foto -->
+            <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: ${isMobile ? '10px' : '15px'}; margin-bottom: 12px;">
+                <div style="text-align: left;">
+                    <label class="form-label" style="${labelStyle}">Sexo <span style="color: #e74c3c;">*</span></label>
+                    <select class="form-select" id="editar-sexo" required style="${selectStyle}" 
+                            onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                            onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">
+                        <option value="Masculino" ${colaborador.sexo === 'Masculino' ? 'selected' : ''}>Masculino</option>
+                        <option value="Femenino" ${colaborador.sexo === 'Femenino' ? 'selected' : ''}>Femenino</option>
+                    </select>
+                </div>
+                <div style="text-align: left;">
+                    <label class="form-label" style="${labelStyle}">Foto</label>
+                    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                        <div style="flex: 1; min-width: 120px;">
+                            <input type="file" class="form-control" id="editar-foto" accept="image/*" onchange="mostrarVistaPreviaEdicion(this)" capture="environment"
+                                   style="${inputStyle} padding: 8px 12px; font-size: 0.8rem;"
+                                   onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                                   onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">
+                            <div style="font-size: 0.7rem; color: #95a5a6; margin-top: 3px;">JPG, PNG. Máx 5MB</div>
                         </div>
-                        <div class="col-md-5">
-                            <div id="vista-previa-edicion-container" class="vista-previa-container mt-2 mt-md-0 text-center"></div>
+                        <div id="vista-previa-edicion-container" style="flex-shrink: 0; text-align: center;">
+                            ${colaborador.fotoUrl ? `<div style="position: relative; display: inline-block;">
+                                <img src="${colaborador.fotoUrl}" style="width: 60px; height: 60px; border-radius: 8px; object-fit: cover; border: 2px solid #e9ecef;">
+                                <button type="button" class="btn btn-danger btn-sm" onclick="quitarVistaPreviaEdicion(this)" 
+                                        style="position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; border-radius: 50%; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; background: #e74c3c; border: 2px solid white; color: white;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>` : ''}
                         </div>
                     </div>
                 </div>
-            </form>`,
-        showCancelButton: true, 
-        confirmButtonText: 'Guardar', 
-        cancelButtonText: 'Cancelar', 
-        width: '600px',
+            </div>
+
+            <!-- DIVISOR: Datos de Contacto -->
+            <div style="margin: 16px 0 12px 0; border-top: 2px solid #e9ecef; position: relative;">
+                <span style="position: absolute; top: -11px; left: 16px; background: white; padding: 0 12px; font-size: 0.75rem; font-weight: 600; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px;">
+                    <i class="fas fa-phone-alt me-1"></i>Datos de Contacto
+                </span>
+            </div>
+
+            <!-- Fila 4: Móvil -->
+            <div style="margin-bottom: 12px; text-align: left;">
+                <label class="form-label" style="${labelStyle}">Móvil</label>
+                <input type="tel" class="form-control" id="editar-movil" value="${movil}" placeholder="0000-0000" pattern="\\d{4}-\\d{4}" maxlength="9"
+                       style="${inputStyle}" onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                       onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';"
+                       oninput="formatearTelefono(this);">
+            </div>
+
+            <!-- Fila 5: Contacto Emergencia y Móvil Emergencia -->
+            <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: ${isMobile ? '10px' : '15px'}; margin-bottom: 12px;">
+                <div style="text-align: left;">
+                    <label class="form-label" style="${labelStyle}">Contacto de Emergencia</label>
+                    <input type="text" class="form-control" id="editar-contacto-emergencia" value="${contactoEmergencia}" placeholder="Nombre completo"
+                           style="text-transform: uppercase; ${inputStyle}" onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                           onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';"
+                           oninput="this.value = this.value.toUpperCase();">
+                </div>
+                <div style="text-align: left;">
+                    <label class="form-label" style="${labelStyle}">Móvil de Emergencia</label>
+                    <input type="tel" class="form-control" id="editar-movil-emergencia" value="${movilEmergencia}" placeholder="0000-0000" pattern="\\d{4}-\\d{4}" maxlength="9"
+                           style="${inputStyle}" onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                           onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';"
+                           oninput="formatearTelefono(this);">
+                </div>
+            </div>
+        </form>
+    </div>`;
+
+    const styleId = 'edit-colaborador-style-' + Date.now();
+
+    Swal.fire({
+        title: null,
+        html: modalHtml,
+        width: window.innerWidth < 576 ? '95%' : '650px',
+        showCancelButton: true,
+        confirmButtonText: 'Guardar Cambios',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#2ecc71',
+        cancelButtonColor: '#e74c3c',
+        customClass: {
+            popup: 'animated fadeInDown',
+            closeButton: 'btn-close-white',
+            confirmButton: 'btn-edit-save',
+            cancelButton: 'btn-edit-cancel'
+        },
+        didOpen: () => {
+            // Estilos
+            const style = document.createElement('style');
+            style.id = styleId;
+            style.textContent = `
+                .swal2-popup {
+                    border-radius: 16px !important;
+                    padding: 20px !important;
+                }
+                .swal2-close {
+                    color: white !important;
+                    opacity: 0.6;
+                    transition: all 0.3s;
+                    background: rgba(255,255,255,0.1);
+                    border-radius: 50%;
+                    width: 30px;
+                    height: 30px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 20px;
+                }
+                .swal2-close:hover {
+                    opacity: 1;
+                    background: rgba(255,255,255,0.2);
+                }
+                .swal2-close:focus {
+                    box-shadow: none;
+                }
+                .btn-edit-save {
+                    background: linear-gradient(135deg, #2ecc71, #27ae60) !important;
+                    border: none !important;
+                    font-weight: 600 !important;
+                    padding: 12px 30px !important;
+                    border-radius: 50px !important;
+                    font-size: 0.95rem !important;
+                    box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3) !important;
+                    transition: all 0.3s !important;
+                    min-width: 140px !important;
+                }
+                .btn-edit-save:hover {
+                    transform: translateY(-2px) !important;
+                    box-shadow: 0 6px 20px rgba(46, 204, 113, 0.4) !important;
+                }
+                .btn-edit-cancel {
+                    background: linear-gradient(135deg, #e74c3c, #c0392b) !important;
+                    border: none !important;
+                    font-weight: 600 !important;
+                    padding: 12px 30px !important;
+                    border-radius: 50px !important;
+                    font-size: 0.95rem !important;
+                    box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3) !important;
+                    transition: all 0.3s !important;
+                    min-width: 140px !important;
+                }
+                .btn-edit-cancel:hover {
+                    transform: translateY(-2px) !important;
+                    box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4) !important;
+                }
+                .swal2-actions {
+                    gap: 12px !important;
+                }
+                @media (max-width: 576px) {
+                    .swal2-popup {
+                        padding: 15px !important;
+                        margin: 10px !important;
+                    }
+                    .swal2-actions {
+                        flex-direction: column !important;
+                        gap: 8px !important;
+                    }
+                    .btn-edit-save, .btn-edit-cancel {
+                        width: 100% !important;
+                        min-width: unset !important;
+                        padding: 12px 20px !important;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+
+            // Validación en tiempo real
+            $('#editar-identidad').on('input', function() {
+                const regex = /^\d{4}-\d{4}-\d{5}$/;
+                if (regex.test(this.value)) {
+                    this.style.borderColor = '#2ecc71';
+                    this.style.boxShadow = '0 0 0 3px rgba(46, 204, 113, 0.15)';
+                } else if (this.value.length > 0) {
+                    this.style.borderColor = '#e74c3c';
+                    this.style.boxShadow = '0 0 0 3px rgba(231, 76, 60, 0.15)';
+                }
+            });
+
+            // Validación de teléfonos
+            $('#editar-movil, #editar-movil-emergencia').on('input', function() {
+                const regex = /^\d{4}-\d{4}$/;
+                if (regex.test(this.value) || this.value === '') {
+                    this.style.borderColor = '#2ecc71';
+                    this.style.boxShadow = '0 0 0 3px rgba(46, 204, 113, 0.15)';
+                } else if (this.value.length > 0) {
+                    this.style.borderColor = '#e74c3c';
+                    this.style.boxShadow = '0 0 0 3px rgba(231, 76, 60, 0.15)';
+                }
+            });
+
+            // Evento para vista previa de foto
+            window.mostrarVistaPreviaEdicion = function(input) {
+                const container = $('#vista-previa-edicion-container');
+                container.empty();
+                if (input.files && input.files[0]) {
+                    const reader = new FileReader();
+                    reader.onload = e => {
+                        container.html(`
+                            <div style="position: relative; display: inline-block;">
+                                <img src="${e.target.result}" style="width: 60px; height: 60px; border-radius: 8px; object-fit: cover; border: 2px solid #e9ecef;">
+                                <button type="button" class="btn btn-danger btn-sm" onclick="quitarVistaPreviaEdicion(this)" 
+                                        style="position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; border-radius: 50%; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; background: #e74c3c; border: 2px solid white; color: white;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        `);
+                    };
+                    reader.readAsDataURL(input.files[0]);
+                }
+            };
+
+            window.quitarVistaPreviaEdicion = function(button) {
+                $('#editar-foto').val('');
+                $(button).closest('#vista-previa-edicion-container').empty();
+            };
+        },
         preConfirm: () => {
             const datos = { 
                 fechaInicio: $('#editar-fecha-inicio').val(), 
@@ -4450,15 +4710,36 @@ function editarColaborador(identidad) {
                 movilEmergencia: $('#editar-movil-emergencia').val() || '',
                 foto: $('#editar-foto')[0].files[0] 
             };
+
+            // Validaciones
             if (!datos.fechaInicio || !datos.nombre || !datos.identidad || !datos.sexo) { 
-                Swal.showValidationMessage('Complete campos obligatorios'); 
+                Swal.showValidationMessage('⚠️ Complete todos los campos obligatorios');
                 return false; 
             }
             if (!/^\d{4}-\d{4}-\d{5}$/.test(datos.identidad)) { 
-                Swal.showValidationMessage('Formato de identidad incorrecto'); 
+                Swal.showValidationMessage('⚠️ Formato de identidad incorrecto. Use: 0000-0000-00000');
                 return false; 
             }
+            // Validar teléfonos si tienen contenido
+            if (datos.movil && !/^\d{4}-\d{4}$/.test(datos.movil)) {
+                Swal.showValidationMessage('⚠️ Formato de móvil incorrecto. Use: 0000-0000');
+                return false;
+            }
+            if (datos.movilEmergencia && !/^\d{4}-\d{4}$/.test(datos.movilEmergencia)) {
+                Swal.showValidationMessage('⚠️ Formato de móvil de emergencia incorrecto. Use: 0000-0000');
+                return false;
+            }
+
             return datos;
+        },
+        willClose: () => {
+            const styleElement = document.getElementById(styleId);
+            if (styleElement) {
+                styleElement.remove();
+            }
+            // Limpiar funciones globales
+            delete window.mostrarVistaPreviaEdicion;
+            delete window.quitarVistaPreviaEdicion;
         }
     }).then((result) => {
         if (result.isConfirmed) {
@@ -4499,6 +4780,7 @@ function editarColaborador(identidad) {
         }
     });
 }
+
         
         function eliminarColaborador(index) {
             const colaborador = colaboradoresActivos[index];

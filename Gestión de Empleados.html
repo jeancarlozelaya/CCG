@@ -1216,6 +1216,49 @@
     color: white;
 }
 
+
+/* Estilos para el botón flotante de asistencia (discreto) */
+#btn-asistencia-flotante {
+    transition: all 0.3s ease;
+}
+
+#btn-asistencia-flotante:hover {
+    transform: scale(1.08);
+}
+
+#btn-asistencia-flotante:hover > div > div {
+    box-shadow: 0 6px 25px rgba(231, 76, 60, 0.5);
+}
+
+#badge-asistencia {
+    animation: pulse-badge 1.5s infinite;
+}
+
+@keyframes pulse-badge {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+}
+
+/* Versión móvil */
+@media (max-width: 576px) {
+    #btn-asistencia-flotante {
+        bottom: 15px;
+        right: 15px;
+    }
+    #btn-asistencia-flotante > div > div {
+        width: 45px;
+        height: 45px;
+    }
+    #btn-asistencia-flotante > div > div i {
+        font-size: 18px;
+    }
+    #badge-asistencia {
+        width: 18px;
+        height: 18px;
+        font-size: 9px;
+    }
+}
+
 </style>
 
 </head>
@@ -1556,16 +1599,6 @@
                                 <input type="text" class="form-control" id="buscador-activos" placeholder="Buscar por nombre o identidad...">
                             </div>
                             
-                            <div class="d-flex justify-content-end mb-3">
-                                <div class="btn-group" role="group" aria-label="Cambiar vista">
-                                    <button type="button" class="btn btn-outline-primary active btn-vista" data-vista="tabla" title="Vista de Tabla">
-                                        <i class="fas fa-list"></i>
-                                    </button>
-                                    <button type="button" class="btn btn-outline-primary btn-vista" data-vista="grid" title="Vista de Miniaturas">
-                                        <i class="fas fa-th-large"></i>
-                                    </button>
-                                </div>
-                            </div>
 
                             <div class="table-responsive">
                                 <table class="table table-striped table-hover" id="tabla-activos">
@@ -1746,16 +1779,7 @@
                                 <input type="text" class="form-control" id="buscador-egresados-tabla" placeholder="Buscar por nombre o identidad...">
                             </div>
 
-                            <div class="d-flex justify-content-end mb-3">
-                                <div class="btn-group" role="group" aria-label="Cambiar vista Egresados">
-                                    <button type="button" class="btn btn-outline-primary active btn-vista" data-vista="tabla" title="Vista de Tabla">
-                                        <i class="fas fa-list"></i>
-                                    </button>
-                                    <button type="button" class="btn btn-outline-primary btn-vista" data-vista="grid" title="Vista de Miniaturas">
-                                        <i class="fas fa-th-large"></i>
-                                    </button>
-                                </div>
-                            </div>
+
 
                             <div class="table-responsive">
                                 <table class="table table-striped table-hover">
@@ -2688,6 +2712,21 @@
         </div>
     </div>
 
+
+
+    <!-- BOTÓN FLOTANTE PARA REGISTRAR ASISTENCIA (DISCRETO) -->
+    <div id="btn-asistencia-flotante" style="display: none; position: fixed; bottom: 25px; right: 25px; z-index: 9998; cursor: pointer;">
+        <div style="position: relative; display: inline-block;">
+            <!-- Círculo con número de notificación -->
+            <span id="badge-asistencia" style="position: absolute; top: -5px; right: -5px; background: #e74c3c; color: white; border-radius: 50%; width: 20px; height: 20px; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 2px 8px rgba(231, 76, 60, 0.4);">1</span>
+            <!-- Icono -->
+            <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #e74c3c, #c0392b); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3); transition: all 0.3s ease; border: 2px solid rgba(255,255,255,0.2);">
+                <i class="fas fa-calendar-check" style="font-size: 22px; color: white;"></i>
+            </div>
+        </div>
+    </div>
+
+
     <!-- OVERLAY DE CARGA -->
     <div id="overlay">
         <div class="spinner"></div>
@@ -2808,6 +2847,7 @@ let graficoHorasExtras = null; // NUEVA: Gráfico de horas extras
         }
         
 function initializeApp() {
+   
     const today = new Date();
     const yyyy = today.getFullYear();
     const mm = String(today.getMonth() + 1).padStart(2, '0');
@@ -2820,31 +2860,26 @@ function initializeApp() {
     document.getElementById('planilla-date-picker').value = todayStr;
     document.querySelector(".fecha-incidente").value = todayStr;
     
-    // NUEVO: Establecer fecha por defecto para horas extras
     const fechaHoraExtraInput = document.querySelector('#fecha-hora-extra-default');
     if (fechaHoraExtraInput) {
         fechaHoraExtraInput.value = todayStr;
     }
 
-    // --- NUEVO: Eventos globales para convertir a mayúsculas mientras el usuario escribe ---
+    // Eventos globales para convertir a mayúsculas mientras el usuario escribe
     $(document).on('input', '.nombre-completo, .contacto-emergencia, #editar-contacto-emergencia, .contacto-emergencia-edit', function() {
         this.value = this.value.toUpperCase();
     });
 
-
     cargarTodosLosDatos();
     configurarEventos();
 
-    // --- Recordar vista Activos (Existente) ---
+    // Recordar vista Activos
     const vistaPreferida = localStorage.getItem('vistaActivosPreferida') || 'tabla';
     toggleVistaActivos(vistaPreferida);
     
-    // --- INICIO: AÑADIR ESTO (Recordar vista Egresados) ---
     const vistaEgresadosPreferida = localStorage.getItem('vistaEgresadosPreferida') || 'tabla';
     toggleVistaEgresados(vistaEgresadosPreferida);
-    // --- FIN: AÑADIR ESTO ---
 }
-
 
 
 function cargarTodosLosDatos() {
@@ -2868,7 +2903,6 @@ function cargarTodosLosDatos() {
         mostrarAusencias();
         calcularEstadisticasAusencias();
         popularFiltrosGrafico('#filtro-mes-grafico', '#filtro-ano-grafico', ausencias, 'fecha');
-        // Configuración inicial: Vista mensual por defecto
         vistaAusencias = 'mensual';
         $('#filtro-mes-grafico').show();
         $('#btn-ver-mensual-ausencias').removeClass('btn-outline-primary').addClass('btn-primary');
@@ -2881,7 +2915,6 @@ function cargarTodosLosDatos() {
         mostrarHistorialDisciplina();
         calcularEstadisticasDisciplina();
         popularFiltrosGrafico('#filtro-mes-disciplina', '#filtro-ano-disciplina', disciplina, 'fechaFalta');
-        // Configuración inicial: Vista mensual por defecto
         vistaDisciplina = 'mensual';
         $('#filtro-mes-disciplina').show();
         $('#btn-ver-mensual-disciplina').removeClass('btn-outline-primary').addClass('btn-primary');
@@ -2923,11 +2956,16 @@ function cargarTodosLosDatos() {
             mostrarHistorialAsistencia();
             popularFiltrosAsistencia();
             crearGraficoAsistenciaMensual();
-            // Esto actualiza $('#porcentaje-asistencia-mes')
         }
 
         // --- FINALMENTE: Actualizar el dashboard (DESPUÉS de todo) ---
         actualizarDashboard();
+        
+        // --- Iniciar el verificador de asistencia (solo si no está ya iniciado) ---
+        if (typeof verificadorAsistenciaIniciado === 'undefined') {
+            window.verificadorAsistenciaIniciado = true;
+            iniciarVerificadorAsistencia();
+        }
     });
 }
 
@@ -2973,7 +3011,6 @@ function configurarEventos() {
     // --- INICIO: LISTENERS DE VALIDACIÓN VISUAL ---
     const formContainers = '#contenedor-formularios-colaborador, #contenedor-formularios-ausencia, #contenedor-formularios-incidente';
 
-    // Para inputs de texto, número, fecha y textareas (evento 'input')
     $(formContainers).on('input', 'input[required], textarea[required]', function() {
         if ($(this).hasClass('identidad')) {
             formatearIdentidad(this);
@@ -2982,22 +3019,19 @@ function configurarEventos() {
         }
     });
 
-    // Para selects (evento 'change')
     $(formContainers).on('change', 'select[required]', function() {
         validarCampo(this);
     });
     
-    // Para checkboxes de parte afectada (evento 'change') - No son required
     $('#contenedor-formularios-incidente').on('change', '.parte-afectada-check', function() {
         // No se necesita validación visual aquí ya que es opcional
     });
     // --- FIN: LISTENERS DE VALIDACIÓN VISUAL ---
 
-    // --- NUEVO: Validación en tiempo real para campos de teléfono ---
+    // --- Validación en tiempo real para campos de teléfono ---
     $(document).on('input', '.movil, .movil-emergencia, #editar-movil, #editar-movil-emergencia', function() {
         formatearTelefono(this);
     });
-    // --- FIN: Validación en tiempo real para campos de teléfono ---
 
     // --- Buscadores ---
     $('#buscador-activos').on('input', filtrarActivos);
@@ -3072,7 +3106,6 @@ function configurarEventos() {
         }
     });
     
-    // Incidentes Chart Filters
     $('#btn-filtrar-incidentes-grafico').on('click', function() {
         const ano = parseInt($('#filtro-ano-incidentes').val());
         crearGraficoIncidentesAnual(ano);
@@ -3238,25 +3271,86 @@ function configurarEventos() {
         const fechaEvaluacion = $(this).data('fechaevaluacion');
         eliminarEvaluacion(identidad, fechaEvaluacion);
     });
-    
-    // --- Editar Egreso (Eliminado para evitar el error) ---
 
-    // --- Cambiar Vista (Activos) ---
+    // --- Cambiar Vista (Activos) - Forzar grid ---
     $('#activos .btn-vista').on('click', function() {
-        const vistaSeleccionada = $(this).data('vista');
-        toggleVistaActivos(vistaSeleccionada);
+        toggleVistaActivos('grid');
     });
-    
-    // --- Cambiar Vista (Egresados) ---
+
+    // --- Cambiar Vista (Egresados) - Forzar grid ---
     $('#egresados .btn-vista').on('click', function() {
-        const vistaSeleccionada = $(this).data('vista');
-        toggleVistaEgresados(vistaSeleccionada);
+        toggleVistaEgresados('grid');
+        setTimeout(function() {
+            const texto = $('#buscador-egresados-tabla').val();
+            if (texto && texto.trim() !== '') {
+                filtrarEgresadosTabla();
+            }
+        }, 50);
+    });
+
+    // --- Forzar el filtro cuando se recargan los datos de egresados ---
+    $(document).on('egresadosActualizados', function() {
+        const texto = $('#buscador-egresados-tabla').val();
+        if (texto && texto.trim() !== '') {
+            filtrarEgresadosTabla();
+        }
+    });
+
+    // --- Botón flotante de asistencia (SIN REDIRECCIÓN) ---
+    $('#btn-asistencia-flotante').on('click', function(e) {
+        e.stopPropagation();
+        // Mostrar mensaje informativo
+        Swal.fire({
+            title: '⚠️ Registro de Asistencia Pendiente',
+            html: `
+                <div style="text-align: left; padding: 5px 0;">
+                    <p style="font-size: 0.95rem; color: #2c3e50; margin-bottom: 12px;">
+                        <i class="fas fa-info-circle text-warning me-2"></i>
+                        <strong>Importante:</strong> La asistencia de hoy <strong>no ha sido registrada</strong>.
+                    </p>
+                    <div style="background: #f8f9fa; border-radius: 10px; padding: 15px; margin-bottom: 12px; border-left: 4px solid #f39c12;">
+                        <p style="font-size: 0.9rem; color: #2c3e50; margin-bottom: 8px;">
+                            <i class="fas fa-clock me-2 text-primary"></i>
+                            <strong>¿Cuándo registrar?</strong>
+                        </p>
+                        <p style="font-size: 0.85rem; color: #7f8c8d; margin: 0;">
+                            Al <strong>final del día</strong>, después de haber actualizado:
+                        </p>
+                        <ul style="font-size: 0.85rem; color: #7f8c8d; margin: 6px 0 0 0; padding-left: 20px;">
+                            <li>✅ Ausencias del día</li>
+                            <li>✅ Ingresos de nuevos colaboradores</li>
+                            <li>✅ Egresos de colaboradores</li>
+                        </ul>
+                        <p style="font-size: 0.85rem; color: #e74c3c; margin: 8px 0 0 0;">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            Si registra antes, el dato no reflejará la realidad del día.
+                        </p>
+                    </div>
+                    <div style="display: flex; justify-content: center; margin-top: 10px;">
+
+                    </div>
+                </div>
+            `,
+            icon: 'warning',
+            showConfirmButton: false,
+            showCloseButton: true,
+            width: '550px',
+            customClass: {
+                popup: 'animated fadeInDown'
+            },
+            didOpen: () => {
+                // Evento para cerrar el aviso
+                $('#btn-cerrar-aviso-asistencia').on('click', function() {
+                    Swal.close();
+                    // El botón flotante permanece visible (no se oculta)
+                });
+            }
+        });
     });
 
     // --- Botones de Acción (Delegados desde #myTabContent) ---
     const tabContent = $('#myTabContent');
     
-    // Botón de Foto (Activos y Egresados)
     tabContent.on('click', '#activos .btn-photo, #egresados .btn-photo-egresado', function(e) {
         e.stopPropagation();
         const identidad = $(this).data('identidad');
@@ -3267,26 +3361,21 @@ function configurarEventos() {
         if (colaboradorData) mostrarFoto(colaboradorData);
     });
     
-    // NUEVO: Botón de Contacto (Solo Activos)
     tabContent.on('click', '#activos .btn-contacto', function(e) {
         e.stopPropagation();
         const identidad = $(this).data('identidad');
         mostrarContactos(identidad);
     });
     
-    // Botón Editar
     tabContent.on('click', '#activos .btn-edit', function(e) {
         e.stopPropagation();
         const identidad = $(this).data('identidad');
-        // Buscar el colaborador por identidad en lugar de índice
         const colaborador = colaboradoresActivos.find(c => c.identidad === identidad);
         if (colaborador) {
-            // Pasamos la identidad, la función editarColaborador buscará el objeto completo
             editarColaborador(identidad);
         }
     });
     
-    // Botón Eliminar
     tabContent.on('click', '#activos .btn-delete', function(e) {
         e.stopPropagation();
         const identidad = $(this).data('identidad');
@@ -3294,7 +3383,6 @@ function configurarEventos() {
         if (index !== -1) eliminarColaborador(index);
     });
     
-    // Botón Historial (Activos y Egresados)
     tabContent.on('click', '#activos .btn-historial, #egresados .btn-historial-egresado', function(e) {
         e.stopPropagation();
         const identidad = $(this).data('identidad');
@@ -3303,15 +3391,14 @@ function configurarEventos() {
         else mostrarDetalleColaboradorCompleto(identidad, false);
     });
     
-    // Botón Reingreso (Egresados)
     tabContent.on('click', '#egresados .btn-reingreso', function(e) {
         e.stopPropagation();
-        const identidad = $(this).closest('tr, .empleado-card-grid-item').data('identidad');
+        const identidad = $(this).closest('.empleado-card-grid-item').data('identidad');
         const egresado = colaboradoresEgresos.find(eg => eg.identidad === identidad);
         if (egresado) reingresarColaborador(egresado);
     });
 
-    // --- NUEVO: Horas Extras ---
+    // --- Horas Extras ---
     $(document).on('click', '#btn-agregar-hora-extra', agregarFormularioHoraExtra);
     $(document).on('click', '.btn-quitar-item-hora-extra', function() { 
         $(this).closest('.formulario-item').remove(); 
@@ -3325,7 +3412,6 @@ function configurarEventos() {
         else Swal.fire('Error', 'No se pudo encontrar el registro de hora extra.', 'error');
     });
 
-    // --- NUEVO: Autocompletado para horas extras ---
     $(document).on('input', '.colaborador-hora-extra', function() {
         const input = $(this);
         const valor = input.val().toLowerCase();
@@ -3346,7 +3432,6 @@ function configurarEventos() {
         });
     });
 
-    // --- NUEVO: Evento para seleccionar del autocompletado de horas extras ---
     $(document).on('click', '#contenedor-formularios-horas-extras .autocomplete-item', function() {
         const item = $(this);
         const nombreSeleccionado = item.text();
@@ -3357,7 +3442,6 @@ function configurarEventos() {
         item.closest('.autocomplete-list').hide();
     });
 
-    // --- NUEVO: Eventos para horas extras (resumen y eliminar) ---
     $(document).on('click', '#btn-resumen-horas-extras', mostrarResumenHorasExtras);
     $(document).on('click', '.btn-delete-hora-extra', function(e) {
         e.stopPropagation();
@@ -3375,14 +3459,12 @@ function configurarEventos() {
         crearGraficoAsistenciaMensual(ano, mes);
     });
 
-    // --- Eliminar Asistencia ---
     $(document).on('click', '.btn-delete-asistencia', function(e) {
         e.stopPropagation();
         const fecha = $(this).data('fecha');
         eliminarRegistroAsistencia(fecha);
     });
 
-    // Botón de Contacto para Egresados
     tabContent.on('click', '#egresados .btn-contacto-egresado', function(e) {
         e.stopPropagation();
         const identidad = $(this).data('identidad');
@@ -3390,328 +3472,6 @@ function configurarEventos() {
     });
 }
 
-
-/**
- * Abre un modal (SweetAlert) para editar un registro de incidente existente.
- * @param {object} incidenteOriginal - El objeto de incidente de la variable global 'incidentes'.
- */
-function abrirModalEditarIncidente(incidenteOriginal) {
-    // --- Generar el dropdown de colaboradores activos ---
-    let opcionesColaboradores = '';
-    colaboradoresActivos.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(col => {
-        opcionesColaboradores += `<option value="${col.identidad}" ${col.identidad === incidenteOriginal.identidad ? 'selected' : ''}>
-            ${col.nombre}
-        </option>`;
-    });
-
-    // --- Generar checkboxes para partes afectadas ---
-    const partesCuerpo = ["Cabeza", "Ojos", "Torso", "Brazo Izquierdo", "Brazo Derecho", "Mano Izquierda", "Mano Derecha", "Pierna Izquierda", "Pierna Derecha", "Pie Izquierdo", "Pie Derecho", "Otro"];
-    let checkboxesHtml = '';
-    const partesSeleccionadasOriginal = incidenteOriginal.parteAfectada ? incidenteOriginal.parteAfectada.split('; ') : [];
-
-    partesCuerpo.forEach((parte) => {
-        const id = `edit-parte-${parte.toLowerCase().replace(/[^a-z0-9]/gi, '-')}`;
-        const isChecked = partesSeleccionadasOriginal.includes(parte) ? 'checked' : '';
-        checkboxesHtml += `
-            <div class="form-check form-check-inline" style="margin-right: 8px; margin-bottom: 4px;">
-                <input class="form-check-input edit-parte-afectada-check" type="checkbox" value="${parte}" id="${id}" ${isChecked}>
-                <label class="form-check-label" for="${id}" style="font-size: 0.8rem;">${parte}</label>
-            </div>`;
-    });
-
-    const isMobile = window.innerWidth < 576;
-    const styleId = 'editar-incidente-style-' + Date.now();
-
-    // Estilos comunes
-    const labelStyle = 'font-weight: 600; color: #2c3e50; font-size: 0.85rem; margin-bottom: 5px; display: block; text-align: left;';
-    const inputStyle = 'width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 0.9rem; transition: all 0.3s; background: white; color: #2c3e50;';
-    const selectStyle = inputStyle + ' appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\'%3E%3Cpath fill=\'%23333\' d=\'M6 8L1 3h10z\'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center;';
-
-    // Obtener info del colaborador para mostrar en cabecera
-    const colaboradorInfo = colaboradoresActivos.find(c => c.identidad === incidenteOriginal.identidad);
-    const fotoSrc = colaboradorInfo?.fotoUrl || `https://ui-avatars.com/api/?name=${(colaboradorInfo?.nombre || 'Colaborador').replace(/\s/g, "+")}&background=e74c3c&color=fff&size=100`;
-
-    const modalHtml = `
-    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0;">
-        
-        <!-- CABECERA -->
-        <div style="background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460); border-radius: 16px 16px 0 0; padding: ${isMobile ? '16px 20px' : '20px 25px'}; margin: -20px -25px 20px -25px; color: white; position: relative; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
-            <div style="position: absolute; top: -50%; right: -20%; width: 150px; height: 150px; background: radial-gradient(circle, rgba(52, 152, 219, 0.1) 0%, transparent 70%); border-radius: 50%;"></div>
-            <div style="position: absolute; bottom: -40%; left: -10%; width: 130px; height: 130px; background: radial-gradient(circle, rgba(231, 76, 60, 0.08) 0%, transparent 70%); border-radius: 50%;"></div>
-            
-            <div style="display: flex; align-items: center; gap: ${isMobile ? '12px' : '18px'}; flex-wrap: wrap; position: relative; z-index: 1; justify-content: flex-start;">
-                <!-- Foto -->
-                <div style="position: relative; flex-shrink: 0;">
-                    <div style="position: absolute; inset: -3px; background: linear-gradient(135deg, #e74c3c, #f39c12); border-radius: 50%; padding: 3px; box-shadow: 0 0 20px rgba(231,76,60,0.25);">
-                        <div style="width: 100%; height: 100%; border-radius: 50%; background: #1a1a2e;"></div>
-                    </div>
-                    <img src="${fotoSrc}" 
-                         style="width: ${isMobile ? '55px' : '65px'}; height: ${isMobile ? '55px' : '65px'}; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.15); position: relative; z-index: 1;"
-                         onerror="this.src='https://ui-avatars.com/api/?name=${(colaboradorInfo?.nombre || 'Colaborador').replace(/\s/g, "+")}&background=e74c3c&color=fff&size=100&font-size=0.5'">
-                    <div style="position: absolute; bottom: 0px; right: 0px; background: #e74c3c; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border: 2px solid white; z-index: 2; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">
-                        <i class="fas fa-edit" style="font-size: 9px; color: white;"></i>
-                    </div>
-                </div>
-                
-                <!-- Información -->
-                <div style="flex: 1; min-width: 120px; text-align: left;">
-                    <h3 style="margin: 0; font-weight: 700; font-size: ${isMobile ? '1rem' : '1.2rem'}; letter-spacing: -0.5px; background: linear-gradient(135deg, #fff, #a8d8ea); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; text-align: left;">
-                        ${colaboradorInfo?.nombre || 'Editar Incidente'}
-                    </h3>
-                    <div style="margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-start;">
-                        <span class="badge" style="background: rgba(255,255,255,0.12); padding: 2px 10px; font-size: 0.65rem;">
-                            <i class="fas fa-id-card me-1"></i>${incidenteOriginal.identidad}
-                        </span>
-                        <span class="badge" style="background: rgba(231, 76, 60, 0.2); color: #e74c3c; border: 1px solid #e74c3c; padding: 2px 10px; font-size: 0.65rem;">
-                            <i class="fas fa-exclamation-triangle me-1"></i>Editando Incidente
-                        </span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- FORMULARIO -->
-        <form id="form-editar-incidente" style="padding: 5px 0;">
-            <!-- Fila 1: Fecha y Colaborador -->
-            <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: ${isMobile ? '10px' : '15px'}; margin-bottom: 12px;">
-                <div style="text-align: left;">
-                    <label class="form-label" style="${labelStyle}">Fecha de Incidente <span style="color: #e74c3c;">*</span></label>
-                    <input type="date" class="form-control" id="editar-fecha-incidente" value="${incidenteOriginal.fechaIncidente}" required
-                           style="${inputStyle}" onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
-                           onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">
-                </div>
-                <div style="text-align: left;">
-                    <label class="form-label" style="${labelStyle}">Colaborador <span style="color: #e74c3c;">*</span></label>
-                    <select class="form-select" id="editar-colaborador-incidente" required style="${selectStyle}"
-                            onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
-                            onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">
-                        <option value="">Seleccionar...</option>
-                        ${opcionesColaboradores}
-                    </select>
-                </div>
-            </div>
-
-            <!-- Fila 2: Parte Afectada y Categoría SISO -->
-            <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: ${isMobile ? '10px' : '15px'}; margin-bottom: 12px;">
-                <div style="text-align: left;">
-                    <label class="form-label" style="${labelStyle}">Parte Afectada (Opcional)</label>
-                    <div style="border: 2px solid #e9ecef; border-radius: 10px; padding: 10px 12px; max-height: 120px; overflow-y: auto; background: white;">
-                        ${checkboxesHtml}
-                    </div>
-                </div>
-                <div style="text-align: left;">
-                    <label class="form-label" style="${labelStyle}">Categoría SISO <span style="color: #e74c3c;">*</span></label>
-                    <select class="form-select" id="editar-categoria-siso" required style="${selectStyle}"
-                            onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
-                            onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">
-                        <option value="FAT" ${incidenteOriginal.categoriaSiso === 'FAT' ? 'selected' : ''}>FAT: Fatalidades</option>
-                        <option value="LWC" ${incidenteOriginal.categoriaSiso === 'LWC' ? 'selected' : ''}>LWC: Incidentes con pérdida de tiempo</option>
-                        <option value="MTC" ${incidenteOriginal.categoriaSiso === 'MTC' ? 'selected' : ''}>MTC: Incidentes de tratamiento médico</option>
-                        <option value="FAC" ${incidenteOriginal.categoriaSiso === 'FAC' ? 'selected' : ''}>FAC: Incidentes de primeros auxilios</option>
-                        <option value="N-M" ${incidenteOriginal.categoriaSiso === 'N-M' ? 'selected' : ''}>N-M: Casi Incidentes</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Fila 3: Causa -->
-            <div style="margin-bottom: 12px; text-align: left;">
-                <label class="form-label" style="${labelStyle}">Causa del Incidente <span style="color: #e74c3c;">*</span></label>
-                <textarea class="form-control" id="editar-causa-incidente" rows="2" required
-                          style="${inputStyle} resize: vertical; min-height: 60px;"
-                          onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
-                          onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">${incidenteOriginal.causa || ''}</textarea>
-            </div>
-
-            <!-- Fila 4: Descripción -->
-            <div style="margin-bottom: 12px; text-align: left;">
-                <label class="form-label" style="${labelStyle}">Descripción del Incidente <span style="color: #e74c3c;">*</span></label>
-                <textarea class="form-control" id="editar-descripcion-incidente" rows="2" required
-                          style="${inputStyle} resize: vertical; min-height: 60px;"
-                          onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
-                          onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">${incidenteOriginal.descripcion || ''}</textarea>
-            </div>
-
-            <!-- Fila 5: Medidas -->
-            <div style="margin-bottom: 12px; text-align: left;">
-                <label class="form-label" style="${labelStyle}">Medidas Implementadas (Opcional)</label>
-                <textarea class="form-control" id="editar-medidas-incidente" rows="2"
-                          style="${inputStyle} resize: vertical; min-height: 60px;"
-                          onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
-                          onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">${incidenteOriginal.medidas || ''}</textarea>
-            </div>
-        </form>
-    </div>`;
-
-    Swal.fire({
-        title: null,
-        html: modalHtml,
-        width: window.innerWidth < 576 ? '95%' : '700px',
-        showCancelButton: true,
-        confirmButtonText: 'Guardar Cambios',
-        cancelButtonText: 'Cancelar',
-        confirmButtonColor: '#2ecc71',
-        cancelButtonColor: '#e74c3c',
-        customClass: {
-            popup: 'animated fadeInDown',
-            closeButton: 'btn-close-white',
-            confirmButton: 'btn-edit-save',
-            cancelButton: 'btn-edit-cancel'
-        },
-        didOpen: () => {
-            const style = document.createElement('style');
-            style.id = styleId;
-            style.textContent = `
-                .swal2-popup {
-                    border-radius: 16px !important;
-                    padding: 20px !important;
-                }
-                .swal2-close {
-                    color: white !important;
-                    opacity: 0.6;
-                    transition: all 0.3s;
-                    background: rgba(255,255,255,0.1);
-                    border-radius: 50%;
-                    width: 30px;
-                    height: 30px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 20px;
-                    position: absolute !important;
-                    top: 15px !important;
-                    right: 15px !important;
-                    z-index: 10 !important;
-                }
-                .swal2-close:hover {
-                    opacity: 1;
-                    background: rgba(255,255,255,0.2);
-                }
-                .swal2-close:focus {
-                    box-shadow: none;
-                }
-                .btn-edit-save {
-                    background: linear-gradient(135deg, #2ecc71, #27ae60) !important;
-                    border: none !important;
-                    font-weight: 600 !important;
-                    padding: 12px 30px !important;
-                    border-radius: 50px !important;
-                    font-size: 0.95rem !important;
-                    box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3) !important;
-                    transition: all 0.3s !important;
-                    min-width: 140px !important;
-                }
-                .btn-edit-save:hover {
-                    transform: translateY(-2px) !important;
-                    box-shadow: 0 6px 20px rgba(46, 204, 113, 0.4) !important;
-                }
-                .btn-edit-cancel {
-                    background: linear-gradient(135deg, #e74c3c, #c0392b) !important;
-                    border: none !important;
-                    font-weight: 600 !important;
-                    padding: 12px 30px !important;
-                    border-radius: 50px !important;
-                    font-size: 0.95rem !important;
-                    box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3) !important;
-                    transition: all 0.3s !important;
-                    min-width: 140px !important;
-                }
-                .btn-edit-cancel:hover {
-                    transform: translateY(-2px) !important;
-                    box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4) !important;
-                }
-                .swal2-actions {
-                    gap: 12px !important;
-                }
-                @media (max-width: 576px) {
-                    .swal2-popup {
-                        padding: 15px !important;
-                        margin: 10px !important;
-                    }
-                    .swal2-actions {
-                        flex-direction: column !important;
-                        gap: 8px !important;
-                    }
-                    .btn-edit-save, .btn-edit-cancel {
-                        width: 100% !important;
-                        min-width: unset !important;
-                        padding: 12px 20px !important;
-                    }
-                }
-            `;
-            document.head.appendChild(style);
-        },
-        preConfirm: () => {
-            const nuevaIdentidad = $('#editar-colaborador-incidente').val();
-            const fechaIncidente = $('#editar-fecha-incidente').val();
-            const categoriaSiso = $('#editar-categoria-siso').val();
-            const causa = $('#editar-causa-incidente').val();
-            const descripcion = $('#editar-descripcion-incidente').val();
-            const medidas = $('#editar-medidas-incidente').val();
-
-            const partesAfectadasArray = [];
-            $('.edit-parte-afectada-check:checked').each(function() {
-                partesAfectadasArray.push($(this).val());
-            });
-            const parteAfectada = partesAfectadasArray.join('; ');
-
-            if (!nuevaIdentidad || !fechaIncidente || !categoriaSiso || !causa || !descripcion) {
-                Swal.showValidationMessage('⚠️ Fecha, Colaborador, Categoría, Causa y Descripción son obligatorios.');
-                return false;
-            }
-
-            const nuevoColaboradorInfo = colaboradoresActivos.find(col => col.identidad === nuevaIdentidad);
-            if (!nuevoColaboradorInfo) {
-                Swal.showValidationMessage('⚠️ El colaborador seleccionado no es válido.');
-                return false;
-            }
-
-            const datosNuevos = {
-                nombre: nuevoColaboradorInfo.nombre,
-                identidad: nuevoColaboradorInfo.identidad,
-                fechaIncidente: fechaIncidente,
-                categoriaSiso: categoriaSiso,
-                causa: causa,
-                descripcion: descripcion,
-                medidas: medidas || '',
-                parteAfectada: parteAfectada || ''
-            };
-
-            return { datosNuevos };
-        },
-        willClose: () => {
-            const styleElement = document.getElementById(styleId);
-            if (styleElement) {
-                styleElement.remove();
-            }
-        }
-    }).then((result) => {
-        if (result.isConfirmed) {
-            const { datosNuevos } = result.value;
-
-            $('#overlay').css('display', 'flex');
-            $.post(SCRIPT_URL_ENVIAR, {
-                accion: 'editar_incidente',
-                incidenteOriginal: JSON.stringify({
-                    identidad: incidenteOriginal.identidad,
-                    fechaIncidente: incidenteOriginal.fechaIncidente
-                }),
-                datosNuevos: JSON.stringify(datosNuevos)
-            }, function(response) {
-                $('#overlay').hide();
-                if (response === 'Éxito') {
-                    Swal.fire('Éxito', 'Incidente actualizado correctamente.', 'success').then(() => {
-                        actualizarTabActual();
-                    });
-                } else {
-                    Swal.fire('Error', 'Hubo un problema al actualizar: ' + response, 'error');
-                }
-            }).fail(() => {
-                $('#overlay').hide();
-                Swal.fire('Error', 'Error de conexión al actualizar.', 'error');
-            });
-        }
-    });
-}
 
 
 
@@ -3721,27 +3481,15 @@ function abrirModalEditarIncidente(incidenteOriginal) {
  * @param {string} vista - 'tabla' o 'grid'.
  */
 function toggleVistaActivos(vista) {
-    if (vista === 'tabla') {
-        $('#tabla-activos').closest('.table-responsive').show();
-        $('#grid-activos').css('display', 'none'); // Correcto: usar .css()
-        
-        // --- INICIO DE LA CORRECCIÓN ---
-        // Añadir el ID #activos para ser específico
-        $('#activos .btn-vista[data-vista="tabla"]').addClass('active');
-        $('#activos .btn-vista[data-vista="grid"]').removeClass('active');
-        // --- FIN DE LA CORRECCIÓN ---
-
-    } else { // Asumimos 'grid'
-        $('#tabla-activos').closest('.table-responsive').hide();
-        $('#grid-activos').css('display', 'flex'); // Correcto: usar .css()
-        
-        // --- INICIO DE LA CORRECCIÓN ---
-        // Añadir el ID #activos para ser específico
-        $('#activos .btn-vista[data-vista="tabla"]').removeClass('active');
-        $('#activos .btn-vista[data-vista="grid"]').addClass('active');
-        // --- FIN DE LA CORRECCIÓN ---
-    }
-    localStorage.setItem('vistaActivosPreferida', vista);
+    // Forzar siempre la vista de grid (miniatura)
+    $('#tabla-activos').closest('.table-responsive').hide();
+    $('#grid-activos').css('display', 'flex');
+    
+    // Marcar el botón de grid como activo
+    $('#activos .btn-vista[data-vista="grid"]').addClass('active');
+    $('#activos .btn-vista[data-vista="tabla"]').removeClass('active');
+    
+    localStorage.setItem('vistaActivosPreferida', 'grid');
 }
 
 /**
@@ -4581,56 +4329,25 @@ function actualizarDashboard() {
 }
 
 function mostrarColaboradoresActivos() {
-    const tablaActivosBody = $('#tabla-activos tbody').empty();
     const gridActivosContainer = $('#grid-activos').empty();
+    // Ocultar la tabla
+    $('#tabla-activos').closest('.table-responsive').hide();
 
     const colaboradoresOrdenados = [...colaboradoresActivos].sort((a, b) => a.nombre.localeCompare(b.nombre));
 
     colaboradoresOrdenados.forEach((col, index) => {
-
-        let filaClase = 'no-hover';
-        let fotoPendienteHtml = `<i class="fas fa-user-circle"></i>`;
-        if (!col.fotoUrl || col.fotoUrl.trim() === '') {
-            filaClase = 'no-hover fila-incompleta';
-        }
-
         // --- CORREGIDO: Validación segura para datos de contacto ---
-        // Convertir a string y hacer trim, manejar undefined/null/no-string
         const movil = (col.movil !== undefined && col.movil !== null) ? String(col.movil).trim() : '';
         const contactoEmergencia = (col.contactoEmergencia !== undefined && col.contactoEmergencia !== null) ? String(col.contactoEmergencia).trim() : '';
         const movilEmergencia = (col.movilEmergencia !== undefined && col.movilEmergencia !== null) ? String(col.movilEmergencia).trim() : '';
         
-        // NUEVO: Determinar si tiene datos de contacto para habilitar/deshabilitar botón
         const tieneContacto = movil !== '' || contactoEmergencia !== '' || movilEmergencia !== '';
         
         const botonContactoClase = tieneContacto ? 'btn-primary' : 'btn-secondary';
         const botonContactoDisabled = tieneContacto ? '' : 'disabled';
         const botonContactoTitulo = tieneContacto ? 'Ver Contactos' : 'Sin información de contacto';
 
-        // --- Generar Fila de Tabla (SIN PAGINACIÓN - TODAS LAS FILAS VISIBLES) ---
-        tablaActivosBody.append(`
-            <tr class="${filaClase}" data-identidad="${col.identidad}">
-                <td>${formatearFecha(col.fechaInicio)}</td>
-                <td>${col.nombre}</td>
-                <td>${col.identidad}</td>
-                <td>${formatearFecha(col.fechaNacimiento)}</td>
-                <td>${col.sexo}</td>
-                <td>
-                    <button class="btn btn-secondary btn-sm btn-action btn-historial" data-identidad="${col.identidad}" title="Ver Historial"><i class="fas fa-history"></i></button>
-                    <button class="btn btn-info btn-sm btn-action btn-photo" data-identidad="${col.identidad}" title="Ver Foto"><i class="fas fa-camera"></i></button>
-                    <!-- NUEVO BOTÓN: Teléfono/Contacto -->
-                    <button class="btn ${botonContactoClase} btn-sm btn-action btn-contacto" 
-                            data-identidad="${col.identidad}" 
-                            title="${botonContactoTitulo}"
-                            ${botonContactoDisabled}>
-                        <i class="fas fa-phone-alt"></i>
-                    </button>
-                    <button class="btn btn-warning btn-sm btn-action btn-edit" data-identidad="${col.identidad}" title="Editar"><i class="fas fa-edit"></i></button>
-                    <button class="btn btn-danger btn-sm btn-action btn-delete" data-identidad="${col.identidad}" title="Eliminar"><i class="fas fa-trash"></i></button>
-                </td>
-            </tr>`);
-
-        // --- Generar Tarjeta de Miniatura (CON CLICK EN IMAGEN PARA FOTO y SIN BOTÓN CÁMARA) ---
+        // --- Generar Tarjeta de Miniatura ---
         const fotoHtml = col.fotoUrl
             ? `<img src="${col.fotoUrl}" alt="${col.nombre}" style="cursor: pointer;" onerror="this.parentElement.innerHTML = '<i class=\\'fas fa-user-circle\\' style=\\'cursor: pointer;\\'></i>';">`
             : `<i class="fas fa-user-circle" style="cursor: pointer;"></i>`;
@@ -4647,8 +4364,6 @@ function mostrarColaboradoresActivos() {
                     <p>${col.identidad}</p>
                     <div class="actions">
                         <button class="btn btn-secondary btn-sm btn-action btn-historial" data-identidad="${col.identidad}" title="Ver Historial"><i class="fas fa-history"></i></button>
-                        <!-- BOTÓN CÁMARA ELIMINADO -->
-                        <!-- NUEVO BOTÓN: Teléfono/Contacto (en grid) -->
                         <button class="btn ${botonContactoClase} btn-sm btn-action btn-contacto" 
                                 data-identidad="${col.identidad}" 
                                 title="${botonContactoTitulo}"
@@ -4661,10 +4376,8 @@ function mostrarColaboradoresActivos() {
                 </div>
             </div>`);
     });
-
-    // ELIMINADA la llamada a agregarPaginacionTabla('#tabla-activos', 10);
-    // Las filas se muestran todas automáticamente
 }
+
 
 function mostrarFotoCompletaPorIdentidad(identidad) {
     const colaborador = colaboradoresActivos.find(col => col.identidad === identidad);
@@ -4677,28 +4390,20 @@ function filtrarActivos() {
     const texto = $('#buscador-activos').val().toLowerCase();
     
     if (!texto) {
-        // Mostrar todos si no hay texto
-        $('#tabla-activos tbody tr').show();
         $('#grid-activos .empleado-card-grid-item').show();
         return;
     }
 
-    // Filtrar Tabla
-    $('#tabla-activos tbody tr').each(function() {
-        const $fila = $(this);
-        const nombre = $fila.find('td:eq(1)').text();
-        const identidad = $fila.find('td:eq(2)').text();
-        const coincide = nombre.toLowerCase().includes(texto) || identidad.toLowerCase().includes(texto);
-        $fila.toggle(coincide);
-    });
-
-    // Filtrar Grid
     $('#grid-activos .empleado-card-grid-item').each(function() {
         const $item = $(this);
-        const nombre = $item.find('h6').text();
-        const identidad = $item.find('p').text();
-        const coincide = nombre.toLowerCase().includes(texto) || identidad.toLowerCase().includes(texto);
-        $item.toggle(coincide);
+        const nombre = $item.find('h6').text().toLowerCase();
+        const identidad = $item.find('p').text().toLowerCase();
+        const coincide = nombre.includes(texto) || identidad.includes(texto);
+        if (coincide) {
+            $item.show();
+        } else {
+            $item.hide();
+        }
     });
 }
 
@@ -5367,18 +5072,17 @@ function mostrarEgresos(egresos) {
         }
         
 function mostrarColaboradoresEgresados() {
-    const tablaEgresados = $('#tabla-colaboradores-egresados').empty();
     const gridEgresadosContainer = $('#grid-egresados').empty();
+    // Ocultar la tabla
+    $('#tabla-colaboradores-egresados').closest('.table-responsive').hide();
 
     if (colaboradoresEgresos.length === 0) {
-        tablaEgresados.append('<tr><td colspan="6" class="text-center">No hay colaboradores egresados.</td></tr>');
         gridEgresadosContainer.html('<div class="col-12"><p class="text-center text-muted">No hay colaboradores egresados.</p></div>');
         return;
     }
 
     [...colaboradoresEgresos].sort((a,b) => new Date(b.fechaEgreso) - new Date(a.fechaEgreso)).forEach(egreso => {
         
-        // --- Determinar si tiene datos de contacto para habilitar/deshabilitar botón ---
         const movil = (egreso.movil !== undefined && egreso.movil !== null) ? String(egreso.movil).trim() : '';
         const contactoEmergencia = (egreso.contactoEmergencia !== undefined && egreso.contactoEmergencia !== null) ? String(egreso.contactoEmergencia).trim() : '';
         const movilEmergencia = (egreso.movilEmergencia !== undefined && egreso.movilEmergencia !== null) ? String(egreso.movilEmergencia).trim() : '';
@@ -5389,7 +5093,6 @@ function mostrarColaboradoresEgresados() {
         const botonContactoDisabled = tieneContacto ? '' : 'disabled';
         const botonContactoTitulo = tieneContacto ? 'Ver Contactos' : 'Sin información de contacto';
 
-        // --- Botones de acción ---
         const historialButtonHtml = `<button class="btn btn-secondary btn-sm btn-action btn-historial-egresado" data-identidad="${egreso.identidad}" title="Ver Historial"><i class="fas fa-history"></i></button>`;
         const contactoButtonHtml = `<button class="btn ${botonContactoClase} btn-sm btn-action btn-contacto-egresado" 
                                         data-identidad="${egreso.identidad}" 
@@ -5399,27 +5102,11 @@ function mostrarColaboradoresEgresados() {
                                  </button>`;
         const reingresoButtonHtml = `<button class="btn btn-success btn-sm btn-action btn-reingreso" data-identidad="${egreso.identidad}" title="Reingresar Colaborador"><i class="fas fa-user-plus"></i></button>`;
 
-        // --- 1. Generar Fila de Tabla (sin botón de cámara) ---
-        const fila = `
-            <tr data-identidad="${egreso.identidad}">
-                <td>${formatearFecha(egreso.fechaEgreso)}</td>
-                <td>${egreso.nombre}</td>
-                <td>${egreso.identidad}</td>
-                <td>${egreso.razon}</td>
-                <td>
-                    ${historialButtonHtml}
-                    ${contactoButtonHtml}
-                    ${reingresoButtonHtml}
-                </td>
-            </tr>`;
-        tablaEgresados.append(fila);
-
-        // --- 2. Generar Tarjeta de Miniatura (con clic en imagen para foto) ---
         const fotoHtml = egreso.fotoUrl
             ? `<img src="${egreso.fotoUrl}" alt="${egreso.nombre}" style="cursor: pointer;" onerror="this.parentElement.innerHTML = '<i class=\\'fas fa-user-circle\\' style=\\'cursor: pointer;\\'></i>';">`
             : `<i class="fas fa-user-circle" style="cursor: pointer;"></i>`;
         
-        const cardHtml = `
+        gridEgresadosContainer.append(`
             <div class="col-lg-2 col-md-3 col-sm-4 col-6 empleado-card-grid-item" data-identidad="${egreso.identidad}">
                 <div class="empleado-card-mini">
                     <div class="img-container" style="cursor: pointer;" 
@@ -5440,10 +5127,13 @@ function mostrarColaboradoresEgresados() {
                         ${reingresoButtonHtml}
                     </div>
                 </div>
-            </div>`;
-        gridEgresadosContainer.append(cardHtml);
+            </div>`);
     });
+
+    $(document).trigger('egresadosActualizados');
 }
+
+
 
 // --- NUEVAS FUNCIONES AUXILIARES PARA EGRESADOS ---
 function mostrarFotoPorIdentidadEgresado(identidad) {
@@ -5689,20 +5379,23 @@ function mostrarContactosEgresado(identidad) {
 }
         
 function filtrarEgresadosTabla() {
-    const texto = $('#buscador-egresados-tabla').val().toLowerCase();
+    const texto = $('#buscador-egresados-tabla').val().toLowerCase().trim();
     
-    // 1. Filtrar Tabla
-    $('#tabla-colaboradores-egresados tbody tr').each(function() {
-        const nombre = $(this).find('td:eq(1)').text().toLowerCase();
-        const identidad = $(this).find('td:eq(2)').text().toLowerCase();
-        $(this).toggle(nombre.includes(texto) || identidad.includes(texto));
-    });
+    if (texto === '') {
+        $('#grid-egresados .empleado-card-grid-item').show();
+        return;
+    }
 
-    // 2. Filtrar Grid
     $('#grid-egresados .empleado-card-grid-item').each(function() {
-        const nombre = $(this).find('h6').text().toLowerCase();
-        const identidad = $(this).find('p').first().text().toLowerCase();
-        $(this).toggle(nombre.includes(texto) || identidad.includes(texto));
+        const $item = $(this);
+        const nombre = $item.find('h6').text().toLowerCase();
+        const identidad = $item.find('p').first().text().toLowerCase();
+        const coincide = nombre.includes(texto) || identidad.includes(texto);
+        if (coincide) {
+            $item.show();
+        } else {
+            $item.hide();
+        }
     });
 }
 
@@ -5934,7 +5627,7 @@ function mostrarDetalleColaboradorCompleto(identidad, esEgresado = false) {
                     </div>
                 </div>
                 
-                <!-- Información - AHORA ALINEADA A LA IZQUIERDA -->
+                <!-- Información - SIN ETIQUETAS DE ACTIVO/EGRESADO -->
                 <div style="flex: 1; min-width: 150px; text-align: left;">
                     <h3 style="margin: 0; font-weight: 700; font-size: ${nombreSize}; letter-spacing: -0.5px; background: linear-gradient(135deg, #fff, #a8d8ea); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; text-align: left;">
                         ${colaborador.nombre}
@@ -5949,14 +5642,15 @@ function mostrarDetalleColaboradorCompleto(identidad, esEgresado = false) {
                         ${edad ? `<span class="badge" style="background: rgba(241, 196, 15, 0.2); padding: 3px 10px; font-size: 0.7rem;">
                             <i class="fas fa-birthday-cake me-1"></i>${edad} años
                         </span>` : ''}
-                        <span class="badge" style="background: ${estadoBg}; color: ${estadoColor}; border: 1px solid ${estadoColor}; padding: 3px 10px; font-size: 0.7rem;">
-                            <i class="fas ${estadoIcono} me-1"></i>${estadoTexto}
-                        </span>
-                        ${esEgresado ? `<span class="badge" style="background: rgba(231, 76, 60, 0.15); color: #e74c3c; border: 1px solid #e74c3c; padding: 3px 10px; font-size: 0.65rem;">
-                            <i class="fas fa-calendar-times me-1"></i>${formatearFecha(colaborador.fechaEgreso)}
-                        </span>` : `<span class="badge" style="background: rgba(46, 204, 113, 0.15); color: #2ecc71; border: 1px solid #2ecc71; padding: 3px 10px; font-size: 0.65rem;">
+                        ${!esEgresado ? `<span class="badge" style="background: rgba(46, 204, 113, 0.15); color: #2ecc71; border: 1px solid #2ecc71; padding: 3px 10px; font-size: 0.65rem;">
                             <i class="fas fa-calendar-plus me-1"></i>${formatearFecha(colaborador.fechaInicio)}
-                        </span>`}
+                        </span>` : ''}
+                        ${esEgresado ? `<span class="badge" style="background: rgba(46, 204, 113, 0.15); color: #2ecc71; border: 1px solid #2ecc71; padding: 3px 10px; font-size: 0.65rem;">
+                            <i class="fas fa-calendar-plus me-1"></i>${formatearFecha(colaborador.fechaInicio)}
+                        </span>` : ''}
+                        ${esEgresado ? `<span class="badge" style="background: rgba(231, 76, 60, 0.15); color: #e74c3c; border: 1px solid #e74c3c; padding: 3px 10px; font-size: 0.65rem;">
+                            <i class="fas fa-arrow-right me-1"></i>${formatearFecha(colaborador.fechaEgreso)}
+                        </span>` : ''}
                         ${esEgresado ? `<span class="badge" style="background: rgba(243, 156, 18, 0.15); color: #f39c12; border: 1px solid #f39c12; padding: 3px 10px; font-size: 0.65rem;">
                             <i class="fas fa-info-circle me-1"></i>${colaborador.razon}
                         </span>` : ''}
@@ -6149,6 +5843,8 @@ function mostrarDetalleColaboradorCompleto(identidad, esEgresado = false) {
         }
     });
 }
+
+
         
         function reingresarColaborador(colaborador) {
             Swal.fire({
@@ -8033,19 +7729,22 @@ function mostrarFoto(colaborador) {
         }
     }
 
+    // Formatear fecha de inicio
+    const fechaInicio = colaborador.fechaInicio ? formatearFecha(colaborador.fechaInicio) : '';
+
     const modalHtml = `
     <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0; overflow: hidden; background: #1a1a2e; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.5);">
         
-        <!-- CABECERA CON INFORMACIÓN (SIN FOTO) -->
+        <!-- CABECERA CON INFORMACIÓN -->
         <div style="background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460); border-radius: 16px 16px 0 0; padding: ${isMobile ? '12px 16px' : '16px 22px'}; color: white; position: relative; overflow: hidden;">
             <div style="position: absolute; top: -50%; right: -20%; width: 150px; height: 150px; background: radial-gradient(circle, rgba(52, 152, 219, 0.1) 0%, transparent 70%); border-radius: 50%;"></div>
             <div style="position: absolute; bottom: -40%; left: -10%; width: 130px; height: 130px; background: radial-gradient(circle, rgba(46, 204, 113, 0.08) 0%, transparent 70%); border-radius: 50%;"></div>
             
             <div style="display: flex; align-items: center; gap: ${isMobile ? '10px' : '15px'}; flex-wrap: wrap; position: relative; z-index: 1; justify-content: flex-start;">
-                <!-- Icono de cámara -->
+                <!-- Icono de estado (Activo/Egresado) -->
                 <div style="flex-shrink: 0;">
-                    <div style="width: ${isMobile ? '38px' : '44px'}; height: ${isMobile ? '38px' : '44px'}; background: rgba(52, 152, 219, 0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid rgba(52, 152, 219, 0.3);">
-                        <i class="fas fa-camera" style="font-size: ${isMobile ? '16px' : '20px'}; color: #3498db;"></i>
+                    <div style="width: ${isMobile ? '38px' : '44px'}; height: ${isMobile ? '38px' : '44px'}; background: ${estadoBg}; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid ${estadoColor};">
+                        <i class="fas ${estadoIcono}" style="font-size: ${isMobile ? '16px' : '20px'}; color: ${estadoColor};"></i>
                     </div>
                 </div>
                 
@@ -8058,17 +7757,14 @@ function mostrarFoto(colaborador) {
                         <span class="badge" style="background: rgba(255,255,255,0.12); padding: 2px 8px; font-size: 0.6rem;">
                             <i class="fas fa-id-card me-1"></i>${colaborador.identidad}
                         </span>
-                        ${colaborador.sexo ? `<span class="badge" style="background: ${colaborador.sexo === 'Masculino' ? 'rgba(52, 152, 219, 0.25)' : 'rgba(231, 76, 60, 0.25)'}; padding: 2px 8px; font-size: 0.6rem;">
-                            <i class="fas ${colaborador.sexo === 'Masculino' ? 'fa-mars' : 'fa-venus'} me-1"></i>${colaborador.sexo}
+                        ${fechaInicio ? `<span class="badge" style="background: rgba(46, 204, 113, 0.15); color: #2ecc71; border: 1px solid #2ecc71; padding: 2px 8px; font-size: 0.6rem;">
+                            <i class="fas fa-calendar-plus me-1"></i>${fechaInicio}
+                        </span>` : ''}
+                        ${esEgresado && colaborador.fechaEgreso ? `<span class="badge" style="background: rgba(231, 76, 60, 0.15); color: #e74c3c; border: 1px solid #e74c3c; padding: 2px 8px; font-size: 0.55rem;">
+                            <i class="fas fa-arrow-right me-1"></i>${formatearFecha(colaborador.fechaEgreso)}
                         </span>` : ''}
                         ${edad ? `<span class="badge" style="background: rgba(241, 196, 15, 0.2); padding: 2px 8px; font-size: 0.6rem;">
                             <i class="fas fa-birthday-cake me-1"></i>${edad} años
-                        </span>` : ''}
-                        <span class="badge" style="background: ${estadoBg}; color: ${estadoColor}; border: 1px solid ${estadoColor}; padding: 2px 8px; font-size: 0.6rem;">
-                            <i class="fas ${estadoIcono} me-1"></i>${estadoTexto}
-                        </span>
-                        ${esEgresado && colaborador.fechaEgreso ? `<span class="badge" style="background: rgba(231, 76, 60, 0.15); color: #e74c3c; border: 1px solid #e74c3c; padding: 2px 8px; font-size: 0.55rem;">
-                            <i class="fas fa-calendar-times me-1"></i>${formatearFecha(colaborador.fechaEgreso)}
                         </span>` : ''}
                     </div>
                 </div>
@@ -8087,14 +7783,13 @@ function mostrarFoto(colaborador) {
         width: window.innerWidth < 576 ? '95%' : '550px',
         showCloseButton: true,
         showConfirmButton: false,
-        background: 'transparent', // Fondo transparente para eliminar el marco blanco
-        backdrop: 'rgba(0, 0, 0, 0.8)', // Fondo oscuro detrás
+        background: 'transparent',
+        backdrop: 'rgba(0, 0, 0, 0.8)',
         customClass: {
             popup: 'animated fadeInDown',
             closeButton: 'btn-close-white'
         },
         didOpen: () => {
-            // Función de pantalla completa - SIMPLE, SIN ESTILOS GLOBALES
             window.abrirFotoCompletaSimple = function(url, nombre) {
                 Swal.fire({
                     title: nombre,
@@ -8122,8 +7817,6 @@ function mostrarFoto(colaborador) {
         }
     });
 }
-
-
 
 
 /**
@@ -9645,22 +9338,16 @@ $(document).on('change', 'select, :checkbox', function() {
  * @param {string} vista - 'tabla' o 'grid'.
  */
 function toggleVistaEgresados(vista) {
-    if (vista === 'tabla') {
-        $('#tabla-colaboradores-egresados').closest('.table-responsive').show();
-        $('#grid-egresados').css('display', 'none'); // Usar .css()
-        // Usar un selector específico para los botones de esta pestaña
-        $('#egresados .btn-vista[data-vista="tabla"]').addClass('active');
-        $('#egresados .btn-vista[data-vista="grid"]').removeClass('active');
-    } else { // Asumimos 'grid'
-        $('#tabla-colaboradores-egresados').closest('.table-responsive').hide();
-        $('#grid-egresados').css('display', 'flex'); // Usar .css() para que Bootstrap 'row' funcione
-        $('#egresados .btn-vista[data-vista="tabla"]').removeClass('active');
-        $('#egresados .btn-vista[data-vista="grid"]').addClass('active');
-    }
-    // Guardar la preferencia en localStorage con una clave única
-    localStorage.setItem('vistaEgresadosPreferida', vista);
+    // Forzar siempre la vista de grid (miniatura)
+    $('#tabla-colaboradores-egresados').closest('.table-responsive').hide();
+    $('#grid-egresados').css('display', 'flex');
+    
+    // Marcar el botón de grid como activo
+    $('#egresados .btn-vista[data-vista="grid"]').addClass('active');
+    $('#egresados .btn-vista[data-vista="tabla"]').removeClass('active');
+    
+    localStorage.setItem('vistaEgresadosPreferida', 'grid');
 }
-
 
 /**
  * Calcula los días sin incidentes basándose en la nueva lógica.
@@ -10781,17 +10468,16 @@ function registrarAsistenciaMes() {
                 data: {
                     accion: 'registrar_asistencia_mensual'
                 },
-                dataType: 'text', // Cambiado de 'json' a 'text' para evitar parseo automático
+                dataType: 'text',
                 success: function(response) {
                     $('#overlay').hide();
                     
                     try {
-                        // Intentar parsear como JSON manualmente
                         var resultado;
                         if (typeof response === 'object') {
-                            resultado = response; // Ya es un objeto
+                            resultado = response;
                         } else {
-                            resultado = JSON.parse(response); // Parsear string
+                            resultado = JSON.parse(response);
                         }
                         
                         if (resultado.success) {
@@ -10805,6 +10491,8 @@ function registrarAsistenciaMes() {
                                 refrescarDatosGlobales(function() {
                                     mostrarHistorialAsistencia();
                                     crearGraficoAsistenciaMensual();
+                                    // FORZAR la verificación inmediata después de refrescar datos
+                                    setTimeout(verificarAsistenciaHoy, 100);
                                 });
                             });
                         } else {
@@ -11522,6 +11210,43 @@ function mostrarDetalleEgresoCompleto(colaborador) {
     });
 }
 
+
+/**
+ * Verifica si existe registro de asistencia para la fecha actual
+ * y muestra/oculta el botón flotante según corresponda
+ */
+function verificarAsistenciaHoy() {
+    const hoy = new Date();
+    const yyyy = hoy.getFullYear();
+    const mm = String(hoy.getMonth() + 1).padStart(2, '0');
+    const dd = String(hoy.getDate()).padStart(2, '0');
+    const hoyStr = `${yyyy}-${mm}-${dd}`;
+    
+    // Verificar si existe registro de asistencia para hoy
+    const existeRegistro = asistencia.some(reg => reg.fecha === hoyStr);
+    
+    const $btnFlotante = $('#btn-asistencia-flotante');
+    
+    // Mostrar u ocultar el botón INMEDIATAMENTE
+    if (existeRegistro) {
+        $btnFlotante.css('display', 'none');
+    } else {
+        $btnFlotante.css('display', 'block');
+    }
+}
+
+
+/**
+ * Actualiza la verificación de asistencia periódicamente
+ * (cada 30 segundos para estar al día)
+ */
+function iniciarVerificadorAsistencia() {
+    // Verificar inmediatamente al cargar
+    verificarAsistenciaHoy();
+    
+    // Verificar cada 30 segundos
+    setInterval(verificarAsistenciaHoy, 30000);
+}
 
     </script>
 </body>

@@ -11717,6 +11717,7 @@ async function cargarPermisos() {
             throw new Error(data.error || 'Error al cargar los permisos');
         }
         
+        // Asignar los permisos incluyendo el campo 'firma'
         solicitudesPermisos = data.solicitudes || [];
         console.log('Permisos cargados:', solicitudesPermisos.length);
         
@@ -11947,6 +11948,21 @@ function mostrarPermisosFiltrados(permisos) {
             display: block;
             text-align: center;
         }
+        .permiso-firma-img {
+            max-width: 180px;
+            max-height: 70px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+            padding: 4px;
+        }
+        .permiso-firma-img:hover {
+            transform: scale(1.05);
+            border-color: #28a745;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+        }
     `;
     
     // Agregar estilos si no existen
@@ -12024,6 +12040,24 @@ function mostrarPermisosFiltrados(permisos) {
             }
         }
         
+        // FIRMA DEL RESPONSABLE - AGREGADO
+        let firmaHtml = '';
+        if (permiso.firma && permiso.firma.trim()) {
+            firmaHtml = `
+                <div style="margin-top: 12px; padding: 10px 14px; background: #f0f8ff; border-radius: 8px; border: 1px solid #d4edda;">
+                    <strong style="font-size: 0.85rem; color: #2c3e50;">
+                        <i class="fas fa-signature me-1" style="color: #28a745;"></i>Firma del Responsable:
+                    </strong>
+                    <div style="margin-top: 6px;">
+                        <img src="${permiso.firma}" 
+                             class="permiso-firma-img"
+                             onclick="verFotoEvidencia('${permiso.firma}')"
+                             onerror="this.style.display='none'; this.parentElement.innerHTML += '<span style=\\'color: #999; font-size: 0.85rem;\\'>No disponible</span>'">
+                    </div>
+                </div>
+            `;
+        }
+        
         // Botones de acción - AHORA PARA TODOS LOS ESTADOS
         let accionesHtml = `
             <div class="permiso-acciones">
@@ -12042,7 +12076,7 @@ function mostrarPermisosFiltrados(permisos) {
         
         // Foto del colaborador con onclick
         let fotoHtml = '';
-        const identidadEscapada = permiso.identidad.replace(/'/g, "\\'");
+        const identidadEscapada = permiso.identidad ? permiso.identidad.replace(/'/g, "\\'") : '';
         
         if (fotoUrl) {
             fotoHtml = `<img src="${fotoUrl}" class="permiso-avatar" alt="${permiso.colaborador}" onclick="abrirHistorialColaborador('${identidadEscapada}')" onerror="this.style.display='none'; this.parentElement.innerHTML = '<div class=\\'permiso-avatar-placeholder\\' style=\\'background: ${estadoColor}; cursor: pointer;\\' onclick=\\'abrirHistorialColaborador(\\'${identidadEscapada}\\')\\'>${iniciales}</div>'">`;
@@ -12070,21 +12104,38 @@ function mostrarPermisosFiltrados(permisos) {
                 <div class="card-body-modern">
                     <div style="display: flex; gap: 18px; align-items: flex-start;">
                         ${fotoHtml}
-                        <div style="flex: 1; min-width: 0;">
-                            <h5 style="font-weight: 700; color: #2c3e50; margin: 0 0 4px 0; font-size: 1.05rem;">
-                                ${permiso.colaborador}
-                            </h5>
-                            <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px;">
-                                <span class="permiso-detalle-item"><i class="fas fa-phone"></i>Teléfono: ${permiso.telefono}</span>
-                                ${detallePermiso}
-                                <span class="permiso-detalle-item"><i class="fas fa-calendar-check"></i>Fecha del permiso: ${fechaPermiso}</span>
-                            </div>
-                            <div class="permiso-motivo-box">
-                                <strong style="font-size: 0.85rem; color: #2c3e50;">Motivo:</strong>
-                                <p class="mb-0" style="font-size: 0.9rem; color: #495057; margin-top: 4px;">${permiso.motivo}</p>
-                            </div>
-                            ${fotosHtml}
-                        </div>
+<div style="flex: 1; min-width: 0;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 15px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 150px;">
+            <h5 style="font-weight: 700; color: #2c3e50; margin: 0 0 4px 0; font-size: 1.05rem;">
+                ${permiso.colaborador}
+            </h5>
+            <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px;">
+                <span class="permiso-detalle-item"><i class="fas fa-phone"></i>Teléfono: ${permiso.telefono}</span>
+                ${detallePermiso}
+                <span class="permiso-detalle-item"><i class="fas fa-calendar-check"></i>Fecha del permiso: ${fechaPermiso}</span>
+            </div>
+        </div>
+        <!-- FIRMA DEL RESPONSABLE - AHORA A LA DERECHA -->
+        ${permiso.firma && permiso.firma.trim() ? `
+            <div style="flex-shrink: 0; text-align: center; background: #f0f8ff; padding: 6px 12px; border-radius: 8px; border: 1px solid #d4edda; min-width: 100px;">
+                <div style="font-size: 0.65rem; color: #28a745; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px;">
+                    <i class="fas fa-signature me-1"></i>Firma
+                </div>
+                <img src="${permiso.firma}" 
+                     style="max-width: 120px; max-height: 50px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; background: white; padding: 2px;"
+                     onclick="verFotoEvidencia('${permiso.firma}')"
+                     onerror="this.style.display='none'; this.parentElement.innerHTML += '<span style=\\'color: #999; font-size: 0.7rem;\\'>No disponible</span>'">
+            </div>
+        ` : ''}
+    </div>
+    <div class="permiso-motivo-box" style="margin-top: 10px;">
+        <strong style="font-size: 0.85rem; color: #2c3e50;">Motivo:</strong>
+        <p class="mb-0" style="font-size: 0.9rem; color: #495057; margin-top: 4px;">${permiso.motivo}</p>
+    </div>
+    ${fotosHtml}
+</div>
+
                     </div>
                 </div>
             </div>
@@ -12099,6 +12150,7 @@ function mostrarPermisosFiltrados(permisos) {
     
     container.html(html);
 }
+
 
 
 /**
@@ -12354,6 +12406,7 @@ function actualizarContadoresPermisos() {
     $('#count-aprobado').text(aprobados);
     $('#count-rechazado').text(rechazados);
 }
+
 
     </script>
 </body>

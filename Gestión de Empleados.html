@@ -1911,6 +1911,7 @@
                                 <li><a class="dropdown-item" id="buzon-sugerencias-tab-dd" data-bs-toggle="tab" href="#buzon-sugerencias" role="tab" aria-controls="buzon-sugerencias"><i class="fas fa-comment-dots me-2"></i>Buzón de Sugerencias</a></li>
                                 <li><a class="dropdown-item" id="gestion-permisos-tab-dd" data-bs-toggle="tab" href="#gestion-permisos" role="tab" aria-controls="gestion-permisos"><i class="fas fa-file-alt me-2"></i>Gestión de Permisos</a></li>
                                 <li><a class="dropdown-item" id="examenes-tab-dd" data-bs-toggle="tab" href="#examenes" role="tab" aria-controls="examenes"><i class="fas fa-graduation-cap me-2"></i>Progreso de Evaluaciones</a></li>
+<li><a class="dropdown-item" id="encuestas-tab-dd" data-bs-toggle="tab" href="#encuestas" role="tab" aria-controls="encuestas"><i class="fas fa-clipboard-list me-2"></i>Registro de Encuestas</a></li>
                             </ul>
                         </li>
 
@@ -1980,6 +1981,62 @@
     </div>
 </div>
 
+
+<!-- ==================== ENCUESTAS ==================== -->
+<div class="tab-pane fade" id="encuestas" role="tabpanel" aria-labelledby="encuestas-tab-dd">
+    <div class="tab-title">
+        <h2>Registro de Encuestas de Clima Laboral</h2>
+        <button class="btn btn-outline-secondary btn-sm btn-refresh-tab" title="Actualizar esta pestaña">
+            <i class="fas fa-sync-alt"></i>
+        </button>
+    </div>
+    
+    <!-- Vista de Temas/Periodos -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-calendar-alt me-2"></i>Periodos con Encuestas
+        </div>
+        <div class="card-body">
+            <div id="contenedor-temas-encuestas" class="row g-3">
+                <!-- Los periodos se cargarán aquí -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal / Detalle de Encuestas por Periodo -->
+    <div id="detalle-encuesta-container" style="display: none;">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-users me-2"></i>Colaboradores - <span id="encuesta-seleccionada-titulo"></span></span>
+                <button class="btn btn-secondary btn-sm" id="btn-volver-periodos-encuestas">
+                    <i class="fas fa-arrow-left me-1"></i>Volver a Periodos
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="contenedor-colaboradores-encuesta" class="row g-3">
+                    <!-- Los colaboradores se cargarán aquí -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Historial por Colaborador -->
+    <div id="historial-encuesta-container" style="display: none;">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-history me-2"></i>Historial de Encuestas - <span id="colaborador-encuesta-nombre"></span></span>
+                <button class="btn btn-secondary btn-sm" id="btn-volver-colaboradores-encuestas">
+                    <i class="fas fa-arrow-left me-1"></i>Volver a Colaboradores
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="contenedor-historial-encuesta">
+                    <!-- El historial se cargará aquí -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 
                         <!-- DASHBOARD -->
@@ -11903,7 +11960,7 @@ function actualizarVistaAuxiliares(temaData, gridContainer) {
                         </div>
                         <div class="footer-container">
                             <span class="auxiliar-nota ${notaClase}">
-                                <i class="fas ${notaIcono} me-1"></i>${ex.nota}%
+                                <i class="fas ${notaIcono} me-1"></i>${ex.nota}
                             </span>
                             <div class="btn-container">
                                 ${ex.enlace ? `<a href="${ex.enlace}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fas fa-file-pdf me-1"></i>Ver PDF</a>` : ''}
@@ -12145,6 +12202,814 @@ $(document).on('shown.bs.tab', '#examenes-tab-dd, [href="#examenes"]', function(
     cargarExamenes();
 });
 
+
+
+
+// ==================== ENCUESTAS ====================
+const ENCUESTAS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzsP6rcB5bJ646BTfwA8fiJgSxn3cBVy4NrDQyuZnNYvWuni2-Wq-bNJ4r3TsX2YNYv1A/exec";
+let encuestas = [];
+let encuestasAgrupadasPorPeriodo = {};
+
+function cargarEncuestas() {
+    const containerTemas = $('#contenedor-temas-encuestas');
+    containerTemas.html('<div class="col-12 text-center p-4"><div class="spinner-border text-primary" role="status"></div><p class="mt-2">Cargando encuestas...</p></div>');
+    
+    // Ocultar otras vistas
+    $('#detalle-encuesta-container').hide();
+    $('#historial-encuesta-container').hide();
+    $('#contenedor-temas-encuestas').closest('.card').show();
+    
+    try {
+        fetch(ENCUESTAS_SCRIPT_URL + "?t=" + Date.now())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Error HTTP: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('📊 Datos recibidos del script:', data);
+                
+                if (data.error) {
+                    containerTemas.html(`
+                        <div class="col-12">
+                            <div class="alert alert-danger text-center">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                Error al cargar las encuestas: ${data.error}
+                                <br><button class="btn btn-primary btn-sm mt-2" onclick="cargarEncuestas()">
+                                    <i class="fas fa-sync-alt me-2"></i>Reintentar
+                                </button>
+                            </div>
+                        </div>
+                    `);
+                    return;
+                }
+                
+                encuestas = data.encuestas || [];
+                console.log('📝 Encuestas cargadas:', encuestas.length);
+                
+                if (encuestas.length === 0) {
+                    containerTemas.html(`
+                        <div class="col-12 text-center p-5">
+                            <i class="fas fa-inbox" style="font-size: 4rem; color: #bdc3c7; display: block; margin-bottom: 15px;"></i>
+                            <h5 class="text-muted">No hay encuestas registradas</h5>
+                            <p class="text-muted small">Aún no se han realizado encuestas de clima laboral.</p>
+                        </div>
+                    `);
+                    return;
+                }
+                
+                agruparEncuestasPorPeriodo();
+                mostrarPeriodosEncuestas();
+            })
+            .catch(error => {
+                console.error('❌ Error cargando encuestas:', error);
+                containerTemas.html(`
+                    <div class="col-12">
+                        <div class="alert alert-danger text-center">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Error de conexión al cargar las encuestas: ${error.message}
+                            <br><button class="btn btn-primary btn-sm mt-2" onclick="cargarEncuestas()">
+                                <i class="fas fa-sync-alt me-2"></i>Reintentar
+                            </button>
+                        </div>
+                    </div>
+                `);
+            });
+    } catch (error) {
+        console.error('❌ Error cargando encuestas:', error);
+        containerTemas.html(`
+            <div class="col-12">
+                <div class="alert alert-danger text-center">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Error al cargar las encuestas: ${error.message}
+                    <br><button class="btn btn-primary btn-sm mt-2" onclick="cargarEncuestas()">
+                        <i class="fas fa-sync-alt me-2"></i>Reintentar
+                    </button>
+                </div>
+            </div>
+        `);
+    }
+}
+
+function agruparEncuestasPorPeriodo() {
+    encuestasAgrupadasPorPeriodo = {};
+    
+    encuestas.forEach((enc) => {
+        if (!enc.fecha) return;
+        
+        let fechaObj = null;
+        
+        if (typeof enc.fecha === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(enc.fecha)) {
+            fechaObj = new Date(enc.fecha + 'T00:00:00');
+        } else if (typeof enc.fecha === 'string') {
+            fechaObj = new Date(enc.fecha);
+        } else if (enc.fecha instanceof Date) {
+            fechaObj = enc.fecha;
+        } else {
+            return;
+        }
+        
+        if (!fechaObj || isNaN(fechaObj.getTime())) return;
+        
+        const year = fechaObj.getFullYear();
+        const month = String(fechaObj.getMonth() + 1).padStart(2, '0');
+        const key = year + '-' + month;
+        
+        if (!encuestasAgrupadasPorPeriodo[key]) {
+            encuestasAgrupadasPorPeriodo[key] = {
+                periodo: key,
+                encuestas: []
+            };
+        }
+        encuestasAgrupadasPorPeriodo[key].encuestas.push(enc);
+    });
+}
+
+function mostrarPeriodosEncuestas() {
+    const containerTemas = $('#contenedor-temas-encuestas');
+    const periodosArray = Object.values(encuestasAgrupadasPorPeriodo);
+    
+    // Ordenar por fecha (más reciente primero)
+    periodosArray.sort((a, b) => b.periodo.localeCompare(a.periodo));
+    
+    containerTemas.empty();
+    
+    containerTemas.append(`
+        <div class="col-12 mb-3">
+            <div class="search-container">
+                <i class="fas fa-search"></i>
+                <input type="text" class="form-control" id="buscador-periodos-encuestas" placeholder="Buscar por periodo (ej: 2026-08)...">
+            </div>
+        </div>
+        <div class="col-12" id="tabla-periodos-encuestas-container">
+    `);
+    
+    function renderPeriodos(filtro = '') {
+        const filtroLower = filtro.toLowerCase();
+        const periodosFiltrados = periodosArray.filter(p => 
+            p.periodo.toLowerCase().includes(filtroLower)
+        );
+        
+        let html = `
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Periodo</th>
+                            <th>Total Encuestas</th>
+                            <th>Participantes</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        if (periodosFiltrados.length === 0) {
+            html += `
+                <tr>
+                    <td colspan="4" class="text-center text-muted">
+                        ${filtro ? 'No se encontraron periodos con ese filtro.' : 'No hay periodos disponibles.'}
+                    </td>
+                </tr>
+            `;
+        } else {
+            periodosFiltrados.forEach(p => {
+                const identidadesUnicas = new Set();
+                p.encuestas.forEach(enc => {
+                    if (enc.identidad) identidadesUnicas.add(enc.identidad);
+                });
+                
+                const totalEncuestas = p.encuestas.length;
+                const participantes = identidadesUnicas.size;
+                
+                html += `
+                    <tr class="periodo-encuesta-row" data-periodo="${p.periodo}" style="cursor: pointer;">
+                        <td><strong>${p.periodo}</strong></td>
+                        <td><span class="badge bg-secondary">${totalEncuestas}</span></td>
+                        <td><span class="badge bg-primary">${participantes}</span></td>
+                        <td>
+                            <button class="btn btn-primary btn-sm btn-ver-periodo-encuesta" data-periodo="${p.periodo}">
+                                <i class="fas fa-users me-1"></i>Ver Participantes
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+        
+        html += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+        $('#tabla-periodos-encuestas-container').html(html);
+        
+        $('.periodo-encuesta-row').off('click').on('click', function() {
+            const periodo = $(this).data('periodo');
+            mostrarColaboradoresPorPeriodo(periodo);
+        });
+        
+        $('.btn-ver-periodo-encuesta').off('click').on('click', function(e) {
+            e.stopPropagation();
+            const periodo = $(this).data('periodo');
+            mostrarColaboradoresPorPeriodo(periodo);
+        });
+    }
+    
+    renderPeriodos('');
+    
+    $('#buscador-periodos-encuestas').off('input').on('input', function() {
+        renderPeriodos($(this).val());
+    });
+}
+
+// Variables para auto-refresh de encuestas
+let intervaloAutoRefreshEncuestas = null;
+let periodoActualEncuestas = '';
+
+function mostrarColaboradoresPorPeriodo(periodo) {
+    periodoActualEncuestas = periodo;
+    
+    const periodoData = encuestasAgrupadasPorPeriodo[periodo];
+    
+    if (!periodoData) {
+        Swal.fire('Error', 'No se encontraron datos para este periodo.', 'error');
+        return;
+    }
+    
+    $('#encuesta-seleccionada-titulo').text(periodo);
+    
+    const containerColaboradores = $('#contenedor-colaboradores-encuesta');
+    containerColaboradores.empty();
+    
+    containerColaboradores.append(`
+        <div class="col-12 mb-3">
+            <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between">
+                <div class="search-container" style="flex: 1; min-width: 200px; margin-bottom: 0;">
+                    <i class="fas fa-search"></i>
+                    <input type="text" class="form-control" id="buscador-colaboradores-encuesta" placeholder="Buscar por nombre o identidad...">
+                </div>
+                <div class="d-flex gap-2 align-items-center">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="switch-auto-refresh-encuestas" style="width: 40px; height: 20px; cursor: pointer;">
+                        <label class="form-check-label" for="switch-auto-refresh-encuestas" style="font-size: 0.85rem; font-weight: 500; color: var(--primary-color);">
+                            Auto-Refresh
+                        </label>
+                    </div>
+                    <span id="tiempo-refresh-encuestas" style="font-size: 0.75rem; color: #7f8c8d; min-width: 60px;"></span>
+                </div>
+            </div>
+        </div>
+        <div class="col-12" id="cards-colaboradores-encuesta-container">
+            <div class="row g-3" id="cards-colaboradores-encuesta-grid"></div>
+        </div>
+    `);
+    
+    const gridContainer = $('#cards-colaboradores-encuesta-grid');
+    let autoRefreshActivoEncuestas = false;
+    let ordenOriginalColaboradores = [];
+    
+    // Obtener orden original (sin ordenar)
+    function obtenerOrdenOriginal(periodoData) {
+        const colaboradoresArray = [];
+        periodoData.encuestas.forEach(enc => {
+            if (!colaboradoresArray.some(c => c.identidad === enc.identidad)) {
+                colaboradoresArray.push(enc);
+            }
+        });
+        return colaboradoresArray;
+    }
+    
+    function renderColaboradoresConDatos(colaboradoresData, gridContainer, filtro = '') {
+        const filtroLower = filtro.toLowerCase();
+        gridContainer.empty();
+        
+        const filtrados = colaboradoresData.filter(enc => 
+            enc.nombre.toLowerCase().includes(filtroLower) || 
+            enc.identidad.includes(filtroLower)
+        );
+        
+        if (filtrados.length === 0) {
+            gridContainer.html(`
+                <div class="col-12 text-center p-4">
+                    <p class="text-muted">No se encontraron colaboradores con ese filtro.</p>
+                </div>
+            `);
+            return;
+        }
+        
+        filtrados.forEach(enc => {
+            let fotoUrl = '';
+            let colaborador = colaboradoresActivos.find(c => c.identidad === enc.identidad);
+            if (!colaborador) {
+                colaborador = colaboradoresEgresos.find(c => c.identidad === enc.identidad);
+            }
+            if (colaborador && colaborador.fotoUrl) {
+                fotoUrl = colaborador.fotoUrl;
+            }
+            
+            let fotoHtml = '';
+            if (fotoUrl) {
+                fotoHtml = `
+                    <div class="foto-container">
+                        <img src="${fotoUrl}" class="auxiliar-foto" onerror="this.parentElement.innerHTML = '<div class=\\'foto-placeholder\\'>${enc.nombre.charAt(0)}</div>'">
+                    </div>
+                `;
+            } else {
+                fotoHtml = `<div class="foto-placeholder">${enc.nombre.charAt(0)}</div>`;
+            }
+            
+            gridContainer.append(`
+                <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-3 d-flex align-items-stretch">
+                    <div class="examen-auxiliar-card encuesta-card" data-identidad="${enc.identidad}">
+                        ${fotoHtml}
+                        <div class="info-container">
+                            <div class="auxiliar-nombre">${enc.nombre}</div>
+                        </div>
+                        <div class="footer-container" style="justify-content: center; padding-top: 5px; min-height: 30px;">
+                            <span class="badge bg-primary" style="font-size: 0.7rem;">
+                                <i class="fas fa-calendar-check me-1"></i>Encuesta completada
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            `);
+        });
+    }
+    
+    function cargarDatosColaboradoresEncuestas() {
+        fetch(ENCUESTAS_SCRIPT_URL + "?t=" + Date.now())
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.error('Error al refrescar encuestas:', data.error);
+                    return;
+                }
+                
+                encuestas = data.encuestas || [];
+                agruparEncuestasPorPeriodo();
+                
+                const periodoDataActual = encuestasAgrupadasPorPeriodo[periodoActualEncuestas];
+                
+                if (periodoDataActual) {
+                    // Mantener el orden original en que aparecen
+                    const colaboradoresData = obtenerOrdenOriginal(periodoDataActual);
+                    const filtroActual = $('#buscador-colaboradores-encuesta').val() || '';
+                    renderColaboradoresConDatos(colaboradoresData, gridContainer, filtroActual);
+                }
+            })
+            .catch(error => {
+                console.error('Error en auto-refresh encuestas:', error);
+            });
+    }
+    
+    // Render inicial - mantener orden original
+    ordenOriginalColaboradores = obtenerOrdenOriginal(periodoData);
+    renderColaboradoresConDatos(ordenOriginalColaboradores, gridContainer, '');
+    
+    // Evento de búsqueda
+    $('#buscador-colaboradores-encuesta').off('input').on('input', function() {
+        const filtroActual = $(this).val() || '';
+        const periodoDataActual = encuestasAgrupadasPorPeriodo[periodoActualEncuestas];
+        if (periodoDataActual) {
+            const colaboradoresData = obtenerOrdenOriginal(periodoDataActual);
+            renderColaboradoresConDatos(colaboradoresData, gridContainer, filtroActual);
+        }
+    });
+    
+    // Evento click en colaborador
+    $(document).off('click', '.encuesta-card').on('click', '.encuesta-card', function(e) {
+        const identidad = $(this).data('identidad');
+        mostrarHistorialEncuestasColaborador(identidad);
+    });
+    
+    // Lógica de auto-refresh
+    let contadorSegundosEncuestas = 0;
+    const INTERVALO_REFRESH_ENCUESTAS = 5;
+    
+    function actualizarContadorEncuestas() {
+        const segundosRestantes = INTERVALO_REFRESH_ENCUESTAS - contadorSegundosEncuestas;
+        $('#tiempo-refresh-encuestas').text(`⌛ ${segundosRestantes}s`);
+        contadorSegundosEncuestas++;
+        if (contadorSegundosEncuestas >= INTERVALO_REFRESH_ENCUESTAS) {
+            contadorSegundosEncuestas = 0;
+            if ($('#switch-auto-refresh-encuestas').is(':checked')) {
+                cargarDatosColaboradoresEncuestas();
+            }
+        }
+    }
+    
+    function iniciarAutoRefreshEncuestas() {
+        if (intervaloAutoRefreshEncuestas !== null) {
+            clearInterval(intervaloAutoRefreshEncuestas);
+            intervaloAutoRefreshEncuestas = null;
+        }
+        autoRefreshActivoEncuestas = true;
+        contadorSegundosEncuestas = 0;
+        $('#tiempo-refresh-encuestas').text(`⌛ ${INTERVALO_REFRESH_ENCUESTAS}s`);
+        intervaloAutoRefreshEncuestas = setInterval(actualizarContadorEncuestas, 1000);
+        $('#switch-auto-refresh-encuestas').prop('checked', true);
+        cargarDatosColaboradoresEncuestas();
+    }
+    
+    function detenerAutoRefreshEncuestas() {
+        if (intervaloAutoRefreshEncuestas !== null) {
+            clearInterval(intervaloAutoRefreshEncuestas);
+            intervaloAutoRefreshEncuestas = null;
+        }
+        autoRefreshActivoEncuestas = false;
+        $('#tiempo-refresh-encuestas').text('');
+        $('#switch-auto-refresh-encuestas').prop('checked', false);
+        contadorSegundosEncuestas = 0;
+        
+        const periodoDataActual = encuestasAgrupadasPorPeriodo[periodoActualEncuestas];
+        if (periodoDataActual) {
+            const colaboradoresData = obtenerOrdenOriginal(periodoDataActual);
+            const filtroActual = $('#buscador-colaboradores-encuesta').val() || '';
+            renderColaboradoresConDatos(colaboradoresData, gridContainer, filtroActual);
+        }
+    }
+    
+    $('#switch-auto-refresh-encuestas').off('change').on('change', function() {
+        if ($(this).is(':checked')) {
+            iniciarAutoRefreshEncuestas();
+        } else {
+            detenerAutoRefreshEncuestas();
+        }
+    });
+    
+    // Detener auto-refresh al salir
+    $(document).off('click', '#btn-volver-periodos-encuestas').on('click', '#btn-volver-periodos-encuestas', function() {
+        detenerAutoRefreshEncuestas();
+        $('#detalle-encuesta-container').hide();
+        $('#historial-encuesta-container').hide();
+        $('#contenedor-temas-encuestas').closest('.card').show();
+    });
+    
+    // Mostrar detalle, ocultar periodos
+    $('#contenedor-temas-encuestas').closest('.card').hide();
+    $('#detalle-encuesta-container').show();
+}
+
+function mostrarHistorialEncuestasColaborador(identidad) {
+    const encuestasColaborador = encuestas.filter(enc => enc.identidad === identidad);
+    
+    if (encuestasColaborador.length === 0) {
+        Swal.fire('Sin Datos', 'No se encontraron encuestas para este colaborador.', 'info');
+        return;
+    }
+    
+    const colaboradorInfo = encuestasColaborador[0];
+    $('#colaborador-encuesta-nombre').text(colaboradorInfo.nombre);
+    
+    const containerHistorial = $('#contenedor-historial-encuesta');
+    containerHistorial.empty();
+    
+    // Ordenar por fecha (más reciente primero)
+    encuestasColaborador.sort((a, b) => {
+        const fechaA = new Date(a.fecha);
+        const fechaB = new Date(b.fecha);
+        return fechaB - fechaA;
+    });
+    
+    // Estadísticas
+    const totalEncuestas = encuestasColaborador.length;
+    const ultimaFecha = new Date(encuestasColaborador[0].fecha);
+    const ultimaFechaStr = ultimaFecha.toLocaleDateString('es-ES', { year: 'numeric', month: 'long' });
+    
+    containerHistorial.append(`
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <div class="stat-card" style="background: #d4edda;">
+                    <h3>${totalEncuestas}</h3>
+                    <p>Total de Encuestas</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card" style="background: #d1ecf1;">
+                    <h3>${ultimaFechaStr}</h3>
+                    <p>Última encuesta</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card" style="background: #fff3cd;">
+                    <h3>${encuestasColaborador[0].area || 'N/A'}</h3>
+                    <p>Área de trabajo</p>
+                </div>
+            </div>
+        </div>
+    `);
+    
+    encuestasColaborador.forEach((enc, index) => {
+        const fecha = new Date(enc.fecha);
+        const fechaStr = fecha.toLocaleDateString('es-ES', { 
+            day: '2-digit', 
+            month: '2-digit', 
+            year: 'numeric' 
+        });
+        
+        containerHistorial.append(`
+            <div class="examen-historial-item" style="cursor: pointer;" onclick="verDetalleEncuesta('${enc.identidad}', '${enc.fecha}')">
+                <div class="historial-info">
+                    <div class="historial-tema">
+                        <i class="fas fa-clipboard-list me-2" style="color: #3498db;"></i>
+                        Encuesta de Clima Laboral
+                    </div>
+                    <div class="historial-fecha">
+                        <i class="fas fa-calendar-alt me-1"></i>${fechaStr}
+                    </div>
+                    <div style="font-size: 0.8rem; color: #7f8c8d; margin-top: 3px;">
+                        <span class="badge bg-info me-1">${enc.area || 'N/A'}</span>
+                        <span class="badge bg-secondary">${enc.tiempo || 'N/A'}</span>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <span class="badge bg-primary" style="font-size: 0.85rem; padding: 5px 15px;">
+                        <i class="fas fa-check-circle me-1"></i>Completada
+                    </span>
+                    <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); verDetalleEncuesta('${enc.identidad}', '${enc.fecha}')">
+                        <i class="fas fa-eye me-1"></i>Ver Detalles
+                    </button>
+                </div>
+            </div>
+        `);
+    });
+    
+    // Mostrar historial, ocultar detalle de periodo
+    $('#detalle-encuesta-container').hide();
+    $('#historial-encuesta-container').show();
+}
+
+function verDetalleEncuesta(identidad, fecha) {
+    const encuesta = encuestas.find(enc => enc.identidad === identidad && enc.fecha === fecha);
+    
+    if (!encuesta) {
+        Swal.fire('Error', 'No se encontró la encuesta.', 'error');
+        return;
+    }
+    
+    // Buscar la foto del colaborador
+    let fotoUrl = '';
+    let colaborador = colaboradoresActivos.find(c => c.identidad === encuesta.identidad);
+    if (!colaborador) {
+        colaborador = colaboradoresEgresos.find(c => c.identidad === encuesta.identidad);
+    }
+    if (colaborador && colaborador.fotoUrl) {
+        fotoUrl = colaborador.fotoUrl;
+    }
+    
+    const fechaObj = new Date(encuesta.fecha);
+    const fechaStr = fechaObj.toLocaleDateString('es-ES', { 
+        day: '2-digit', 
+        month: '2-digit', 
+        year: 'numeric',
+        hour: '2-digit', 
+        minute: '2-digit' 
+    });
+    
+    // Función para obtener la calificación en estrellas
+    function getStars(valor) {
+        if (!valor) return 'No respondió';
+        const num = parseInt(valor);
+        if (isNaN(num)) return 'No respondió';
+        return '★'.repeat(num) + '☆'.repeat(5 - num);
+    }
+    
+    const isMobile = window.innerWidth < 576;
+    const fotoSize = isMobile ? '50px' : '65px';
+    
+    let html = `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0; max-height: 70vh; overflow-y: auto;">
+            <div style="background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460); border-radius: 16px; padding: ${isMobile ? '15px' : '20px'}; margin-bottom: 20px; color: white;">
+                <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                    <div style="position: relative; flex-shrink: 0;">
+                        ${fotoUrl ? `
+                            <img src="${fotoUrl}" 
+                                 style="width: ${fotoSize}; height: ${fotoSize}; border-radius: 50%; object-fit: cover; border: 3px solid rgba(255,255,255,0.3);"
+                                 onerror="this.style.display='none'; this.parentElement.innerHTML = '<div style=\\'width: ${fotoSize}; height: ${fotoSize}; border-radius: 50%; background: rgba(52, 152, 219, 0.3); display: flex; align-items: center; justify-content: center; font-size: 1.5rem;\\'>${encuesta.nombre.charAt(0)}</div>'">
+                        ` : `
+                            <div style="width: ${fotoSize}; height: ${fotoSize}; border-radius: 50%; background: rgba(52, 152, 219, 0.3); display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+                                ${encuesta.nombre.charAt(0)}
+                            </div>
+                        `}
+                        <div style="position: absolute; bottom: -2px; right: -2px; background: #2ecc71; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border: 2px solid #1a1a2e;">
+                            <i class="fas fa-check" style="font-size: 8px; color: white;"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; font-weight: 700; font-size: ${isMobile ? '1.1rem' : '1.3rem'};">
+                            ${encuesta.nombre}
+                        </h3>
+                        <div style="margin-top: 5px; display: flex; flex-wrap: wrap; gap: 5px;">
+                            <span class="badge" style="background: rgba(255,255,255,0.15);">
+                                <i class="fas fa-id-card me-1"></i>${encuesta.identidad}
+                            </span>
+                            <span class="badge" style="background: rgba(52, 152, 219, 0.3);">
+                                <i class="fas fa-calendar-alt me-1"></i>${fechaStr}
+                            </span>
+                            <span class="badge" style="background: rgba(46, 204, 113, 0.3);">
+                                <i class="fas fa-building me-1"></i>${encuesta.area || 'N/A'}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: 15px; margin-bottom: 15px;">
+                <div style="background: #f8f9fa; border-radius: 10px; padding: 12px;">
+                    <h6 style="font-weight: 700; color: #2c3e50; margin-bottom: 8px;"><i class="fas fa-clock me-2 text-primary"></i>Tiempo en la organización</h6>
+                    <p style="margin: 0; font-size: 0.95rem;">${encuesta.tiempo || 'No especificado'}</p>
+                </div>
+                <div style="background: #f8f9fa; border-radius: 10px; padding: 12px;">
+                    <h6 style="font-weight: 700; color: #2c3e50; margin-bottom: 8px;"><i class="fas fa-building me-2 text-primary"></i>Área de trabajo</h6>
+                    <p style="margin: 0; font-size: 0.95rem;">${encuesta.area || 'No especificada'}</p>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <h5 style="font-weight: 700; color: #2c3e50; margin-bottom: 12px; border-bottom: 2px solid #e9ecef; padding-bottom: 8px;">
+                    <i class="fas fa-handshake me-2 text-primary"></i>Clima Laboral
+                </h5>
+                <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: 10px;">
+                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
+                        <div style="font-size: 0.85rem; color: #7f8c8d;">Me siento a gusto trabajando</div>
+                        <div style="font-size: 1.1rem;">${getStars(encuesta.clima_1)}</div>
+                    </div>
+                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
+                        <div style="font-size: 0.85rem; color: #7f8c8d;">Existe respeto entre compañeros</div>
+                        <div style="font-size: 1.1rem;">${getStars(encuesta.clima_2)}</div>
+                    </div>
+                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
+                        <div style="font-size: 0.85rem; color: #7f8c8d;">Colaboración entre compañeros</div>
+                        <div style="font-size: 1.1rem;">${getStars(encuesta.clima_3)}</div>
+                    </div>
+                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
+                        <div style="font-size: 0.85rem; color: #7f8c8d;">Ambiente sin tensión constante</div>
+                        <div style="font-size: 1.1rem;">${getStars(encuesta.clima_4)}</div>
+                    </div>
+                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
+                        <div style="font-size: 0.85rem; color: #7f8c8d;">Puedo expresar opiniones sin temor</div>
+                        <div style="font-size: 1.1rem;">${getStars(encuesta.clima_5)}</div>
+                    </div>
+                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
+                        <div style="font-size: 0.85rem; color: #7f8c8d;">Problemas atendidos adecuadamente</div>
+                        <div style="font-size: 1.1rem;">${getStars(encuesta.clima_6)}</div>
+                    </div>
+                </div>
+                <div style="background: #fff9e6; border-radius: 8px; padding: 12px; margin-top: 10px; border-left: 4px solid #f39c12;">
+                    <div style="font-size: 0.85rem; color: #7f8c8d;"><i class="fas fa-comment me-1"></i>¿Qué mejorar?</div>
+                    <div style="font-size: 0.95rem;">${encuesta.mejorar || 'No especificado'}</div>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <h5 style="font-weight: 700; color: #2c3e50; margin-bottom: 12px; border-bottom: 2px solid #e9ecef; padding-bottom: 8px;">
+                    <i class="fas fa-user-tie me-2 text-primary"></i>Trato de Encargados y Supervisores
+                </h5>
+                <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: 10px;">
+                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
+                        <div style="font-size: 0.85rem; color: #7f8c8d;">Me trata con respeto</div>
+                        <div style="font-size: 1.1rem;">${getStars(encuesta.super_1)}</div>
+                    </div>
+                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
+                        <div style="font-size: 0.85rem; color: #7f8c8d;">Escucha mis opiniones</div>
+                        <div style="font-size: 1.1rem;">${getStars(encuesta.super_2)}</div>
+                    </div>
+                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
+                        <div style="font-size: 0.85rem; color: #7f8c8d;">Corrección respetuosa de errores</div>
+                        <div style="font-size: 1.1rem;">${getStars(encuesta.super_3)}</div>
+                    </div>
+                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
+                        <div style="font-size: 0.85rem; color: #7f8c8d;">Llamadas de atención profesionales</div>
+                        <div style="font-size: 1.1rem;">${getStars(encuesta.super_4)}</div>
+                    </div>
+                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
+                        <div style="font-size: 0.85rem; color: #7f8c8d;">Reconoce buen trabajo</div>
+                        <div style="font-size: 1.1rem;">${getStars(encuesta.super_5)}</div>
+                    </div>
+                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
+                        <div style="font-size: 0.85rem; color: #7f8c8d;">Es justo con el personal</div>
+                        <div style="font-size: 1.1rem;">${getStars(encuesta.super_6)}</div>
+                    </div>
+                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
+                        <div style="font-size: 0.85rem; color: #7f8c8d;">Respeta mi dignidad</div>
+                        <div style="font-size: 1.1rem;">${getStars(encuesta.super_7)}</div>
+                    </div>
+                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
+                        <div style="font-size: 0.85rem; color: #7f8c8d;">Puedo hablar sin miedo</div>
+                        <div style="font-size: 1.1rem;">${getStars(encuesta.super_8)}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <h5 style="font-weight: 700; color: #2c3e50; margin-bottom: 12px; border-bottom: 2px solid #e9ecef; padding-bottom: 8px;">
+                    <i class="fas fa-users-cog me-2 text-primary"></i>Trato de Coordinación
+                </h5>
+                <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: 10px;">
+                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
+                        <div style="font-size: 0.85rem; color: #7f8c8d;">Comunicación adecuada</div>
+                        <div style="font-size: 1.1rem;">${getStars(encuesta.coord_1)}</div>
+                    </div>
+                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
+                        <div style="font-size: 0.85rem; color: #7f8c8d;">Escucha necesidades</div>
+                        <div style="font-size: 1.1rem;">${getStars(encuesta.coord_2)}</div>
+                    </div>
+                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
+                        <div style="font-size: 0.85rem; color: #7f8c8d;">Conoce dificultades</div>
+                        <div style="font-size: 1.1rem;">${getStars(encuesta.coord_3)}</div>
+                    </div>
+                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
+                        <div style="font-size: 0.85rem; color: #7f8c8d;">Interés en mejorar condiciones</div>
+                        <div style="font-size: 1.1rem;">${getStars(encuesta.coord_4)}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <h5 style="font-weight: 700; color: #2c3e50; margin-bottom: 12px; border-bottom: 2px solid #e9ecef; padding-bottom: 8px;">
+                    <i class="fas fa-handshake me-2 text-primary"></i>Respeto y Dignidad Laboral
+                </h5>
+                <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: 10px;">
+                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
+                        <div style="font-size: 0.85rem; color: #7f8c8d;">Respetado por compañeros</div>
+                        <div style="font-size: 1.1rem;">${getStars(encuesta.respeto_1)}</div>
+                    </div>
+                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
+                        <div style="font-size: 0.85rem; color: #7f8c8d;">Respetado por supervisores</div>
+                        <div style="font-size: 1.1rem;">${getStars(encuesta.respeto_2)}</div>
+                    </div>
+                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
+                        <div style="font-size: 0.85rem; color: #7f8c8d;">Sin burlas u ofensas</div>
+                        <div style="font-size: 1.1rem;">${getStars(encuesta.respeto_3)}</div>
+                    </div>
+                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
+                        <div style="font-size: 0.85rem; color: #7f8c8d;">Llamadas privadas y respetuosas</div>
+                        <div style="font-size: 1.1rem;">${getStars(encuesta.respeto_4)}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <h5 style="font-weight: 700; color: #2c3e50; margin-bottom: 12px; border-bottom: 2px solid #e9ecef; padding-bottom: 8px;">
+                    <i class="fas fa-comment-dots me-2 text-primary"></i>Preguntas Abiertas
+                </h5>
+                <div style="background: #f8f9fa; border-radius: 8px; padding: 15px; margin-bottom: 10px; border-left: 4px solid #e74c3c;">
+                    <div style="font-size: 0.85rem; color: #7f8c8d;"><i class="fas fa-exclamation-triangle me-1" style="color: #e74c3c;"></i>¿Maltrato, gritos, humillaciones?</div>
+                    <div style="font-size: 0.95rem;">${encuesta.maltrato || 'No especificado'}</div>
+                </div>
+                <div style="background: #f8f9fa; border-radius: 8px; padding: 15px; border-left: 4px solid #2ecc71;">
+                    <div style="font-size: 0.85rem; color: #7f8c8d;"><i class="fas fa-heart me-1" style="color: #2ecc71;"></i>¿Qué te gusta y qué cambiarías?</div>
+                    <div style="font-size: 0.95rem;">${encuesta.gusta_cambiar || 'No especificado'}</div>
+                </div>
+            </div>
+            
+            ${encuesta.firma ? `
+                <div style="background: #f0f8ff; border-radius: 10px; padding: 12px; border: 1px solid #d4edda; text-align: center;">
+                    <h6 style="font-weight: 700; color: #2c3e50; margin-bottom: 8px;"><i class="fas fa-signature me-2 text-success"></i>Firma del Responsable</h6>
+                    <img src="${encuesta.firma}" style="max-width: 200px; max-height: 80px; border: 1px solid #ccc; border-radius: 8px; padding: 5px; background: white;" 
+                         onerror="this.style.display='none'">
+                </div>
+            ` : ''}
+        </div>
+    `;
+    
+    Swal.fire({
+        title: 'Detalle de Encuesta',
+        html: html,
+        width: window.innerWidth < 576 ? '95%' : '800px',
+        showCloseButton: true,
+        showConfirmButton: false,
+        customClass: {
+            popup: 'animated fadeInDown'
+        }
+    });
+}
+
+// Volver a periodos
+$(document).on('click', '#btn-volver-periodos-encuestas', function() {
+    $('#detalle-encuesta-container').hide();
+    $('#historial-encuesta-container').hide();
+    $('#contenedor-temas-encuestas').closest('.card').show();
+});
+
+// Volver a colaboradores
+$(document).on('click', '#btn-volver-colaboradores-encuestas', function() {
+    $('#historial-encuesta-container').hide();
+    $('#detalle-encuesta-container').show();
+});
+
+// Refrescar pestaña de encuestas
+$(document).on('click', '#encuestas .btn-refresh-tab', function() {
+    cargarEncuestas();
+});
+
+// Cargar datos cuando se active la pestaña de Encuestas
+$(document).on('shown.bs.tab', '#encuestas-tab-dd, [href="#encuestas"]', function() {
+    cargarEncuestas();
+});
 
     </script>
 </body>

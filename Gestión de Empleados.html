@@ -9,6 +9,12 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Librerías para PDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
 <style>
     :root {
         --primary-color: #2c3e50;
@@ -12389,8 +12395,11 @@ function mostrarPeriodosEncuestas() {
                         <td><span class="badge bg-secondary">${totalEncuestas}</span></td>
                         <td><span class="badge bg-primary">${participantes}</span></td>
                         <td>
-                            <button class="btn btn-primary btn-sm btn-ver-periodo-encuesta" data-periodo="${p.periodo}">
+                            <button class="btn btn-primary btn-sm btn-ver-periodo-encuesta" data-periodo="${p.periodo}" style="margin-right: 5px;">
                                 <i class="fas fa-users me-1"></i>Ver Participantes
+                            </button>
+                            <button class="btn btn-success btn-sm btn-resultados-encuesta" data-periodo="${p.periodo}">
+                                <i class="fas fa-chart-bar me-1"></i>Resultados
                             </button>
                         </td>
                     </tr>
@@ -12406,6 +12415,7 @@ function mostrarPeriodosEncuestas() {
         
         $('#tabla-periodos-encuestas-container').html(html);
         
+        // Evento para Ver Participantes
         $('.periodo-encuesta-row').off('click').on('click', function() {
             const periodo = $(this).data('periodo');
             mostrarColaboradoresPorPeriodo(periodo);
@@ -12416,6 +12426,13 @@ function mostrarPeriodosEncuestas() {
             const periodo = $(this).data('periodo');
             mostrarColaboradoresPorPeriodo(periodo);
         });
+        
+        // Evento para Resultados
+        $('.btn-resultados-encuesta').off('click').on('click', function(e) {
+            e.stopPropagation();
+            const periodo = $(this).data('periodo');
+            descargarResultadosEncuesta(periodo);
+        });
     }
     
     renderPeriodos('');
@@ -12424,6 +12441,369 @@ function mostrarPeriodosEncuestas() {
         renderPeriodos($(this).val());
     });
 }
+
+
+function descargarResultadosEncuesta(periodo) {
+    const periodoData = encuestasAgrupadasPorPeriodo[periodo];
+    
+    if (!periodoData || periodoData.encuestas.length === 0) {
+        Swal.fire('Sin Datos', 'No hay encuestas en este periodo.', 'info');
+        return;
+    }
+    
+    const encuestasPeriodo = periodoData.encuestas;
+    const total = encuestasPeriodo.length;
+    
+    // Definir todos los ítems a analizar
+    const items = [
+        { id: 'clima_1', label: 'Me siento a gusto trabajando' },
+        { id: 'clima_2', label: 'Existe respeto entre compañeros' },
+        { id: 'clima_3', label: 'Colaboración entre compañeros' },
+        { id: 'clima_4', label: 'Ambiente sin tensión constante' },
+        { id: 'clima_5', label: 'Puedo expresar opiniones sin temor' },
+        { id: 'clima_6', label: 'Problemas atendidos adecuadamente' },
+        { id: 'super_1', label: 'Supervisor: Me trata con respeto' },
+        { id: 'super_2', label: 'Supervisor: Escucha mis opiniones' },
+        { id: 'super_3', label: 'Supervisor: Corrección respetuosa' },
+        { id: 'super_4', label: 'Supervisor: Llamadas profesionales' },
+        { id: 'super_5', label: 'Supervisor: Reconoce buen trabajo' },
+        { id: 'super_6', label: 'Supervisor: Es justo con el personal' },
+        { id: 'super_7', label: 'Supervisor: Respeta mi dignidad' },
+        { id: 'super_8', label: 'Supervisor: Puedo hablar sin miedo' },
+        { id: 'coord_1', label: 'Coordinación: Comunicación adecuada' },
+        { id: 'coord_2', label: 'Coordinación: Escucha necesidades' },
+        { id: 'coord_3', label: 'Coordinación: Conoce dificultades' },
+        { id: 'coord_4', label: 'Coordinación: Interés en mejorar' },
+        { id: 'respeto_1', label: 'Respetado por compañeros' },
+        { id: 'respeto_2', label: 'Respetado por supervisores' },
+        { id: 'respeto_3', label: 'Sin burlas u ofensas' },
+        { id: 'respeto_4', label: 'Llamadas privadas y respetuosas' }
+    ];
+    
+    // Calcular promedios
+    const resultados = items.map(item => {
+        let suma = 0;
+        let count = 0;
+        encuestasPeriodo.forEach(enc => {
+            const valor = parseInt(enc[item.id]);
+            if (valor >= 1 && valor <= 5) {
+                suma += valor;
+                count++;
+            }
+        });
+        const promedio = count > 0 ? (suma / count) : 0;
+        const porcentaje = count > 0 ? ((suma / (count * 5)) * 100) : 0;
+        return {
+            ...item,
+            promedio: promedio,
+            porcentaje: porcentaje,
+            count: count,
+            totalEncuestas: total
+        };
+    });
+    
+    // Identificar alertas
+    const alertas = resultados.filter(r => r.promedio > 0 && r.promedio < 3);
+    
+    // Obtener respuestas abiertas con foto
+    function obtenerRespuestasConFoto(campo) {
+        return encuestasPeriodo
+            .filter(enc => enc[campo] && enc[campo].trim() && enc[campo] !== 'No especificado')
+            .map(enc => {
+                let fotoUrl = '';
+                let colaborador = colaboradoresActivos.find(c => c.identidad === enc.identidad);
+                if (!colaborador) {
+                    colaborador = colaboradoresEgresos.find(c => c.identidad === enc.identidad);
+                }
+                if (colaborador && colaborador.fotoUrl) {
+                    fotoUrl = colaborador.fotoUrl;
+                }
+                return { 
+                    nombre: enc.nombre, 
+                    identidad: enc.identidad, 
+                    respuesta: enc[campo], 
+                    fotoUrl: fotoUrl,
+                    fecha: enc.fecha
+                };
+            });
+    }
+    
+    const respuestasMejorar = obtenerRespuestasConFoto('mejorar');
+    const respuestasMaltrato = obtenerRespuestasConFoto('maltrato');
+    const respuestasGustaCambiar = obtenerRespuestasConFoto('gusta_cambiar');
+    
+    const isMobile = window.innerWidth < 576;
+    const htmlId = 'resultados-html-' + periodo;
+    const tabId = 'tab-resultados-' + Date.now();
+    
+    // Función para generar el contenido de una pestaña con filtro
+    function generarContenidoPestania(titulo, icono, color, respuestas, mensajeVacio, esPrimera = false) {
+        const tabPanelId = 'panel-' + titulo.replace(/\s/g, '-') + '-' + Date.now();
+        const listaId = 'lista-' + titulo.replace(/\s/g, '-') + '-' + Date.now();
+        
+        let html = `
+            <div class="tab-pane fade ${esPrimera ? 'show active' : ''}" id="${tabPanelId}" role="tabpanel">
+                <div style="margin-bottom: 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 200px;">
+                        <div class="search-container" style="position: relative; margin-bottom: 0;">
+                            <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #aaa;"></i>
+                            <input type="text" class="form-control filtro-pestania" 
+                                   data-lista="${listaId}"
+                                   placeholder="🔍 Buscar por nombre..." 
+                                   style="padding-left: 35px; border-radius: 8px; border: 2px solid #e9ecef; font-size: 0.95rem;">
+                        </div>
+                    </div>
+                    <span style="font-size: 0.85rem; color: #7f8c8d; white-space: nowrap;">
+                        <i class="fas fa-user me-1"></i>${respuestas.length} respuestas
+                    </span>
+                </div>
+                <div id="${listaId}" style="max-height: 350px; overflow-y: auto; padding-right: 5px;">
+        `;
+        
+        if (respuestas.length === 0) {
+            html += `
+                <div style="background: #f8f9fa; border-radius: 8px; padding: 25px; text-align: center; color: #7f8c8d; font-size: 14px;">
+                    <i class="fas fa-inbox" style="font-size: 32px; display: block; margin-bottom: 10px; color: #bdc3c7;"></i>
+                    ${mensajeVacio || 'No hay respuestas registradas'}
+                </div>
+            `;
+        } else {
+            respuestas.forEach((r, index) => {
+                const fotoSize = '45px';
+                const fotoHtml = r.fotoUrl ? 
+                    `<img src="${r.fotoUrl}" style="width: ${fotoSize}; height: ${fotoSize}; border-radius: 50%; object-fit: cover; border: 3px solid #dee2e6; flex-shrink: 0;" onerror="this.style.display='none'; this.parentElement.innerHTML = '<div style=\\'width: ${fotoSize}; height: ${fotoSize}; border-radius: 50%; background: #3498db; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; flex-shrink: 0;\\'>${r.nombre.charAt(0)}</div>'">` :
+                    `<div style="width: ${fotoSize}; height: ${fotoSize}; border-radius: 50%; background: #3498db; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; flex-shrink: 0;">${r.nombre.charAt(0)}</div>`;
+                
+                const bgColor = index % 2 === 0 ? '#f8f9fa' : 'white';
+                html += `
+                    <div class="respuesta-item-pestania" data-nombre="${r.nombre.toLowerCase()}" 
+                         style="display: flex; align-items: center; gap: 14px; padding: 12px 16px; margin-bottom: 4px; border-radius: 8px; background: ${bgColor}; border-left: 4px solid ${color}; text-align: left; transition: all 0.2s;">
+                        ${fotoHtml}
+                        <div style="flex: 1; min-width: 0; text-align: left;">
+                            <strong style="font-size: 14px; display: block; text-align: left; color: #2c3e50;">${r.nombre}</strong>
+                            <span style="font-size: 13px; color: #34495e; text-align: left; display: block; line-height: 1.5;">${r.respuesta}</span>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        
+        html += `
+                </div>
+            </div>
+        `;
+        
+        return { html, listaId, tabPanelId };
+    }
+    
+    // Generar las 3 pestañas
+    const tab1 = generarContenidoPestania('Sugerencias de Mejora', 'fa-lightbulb', '#f39c12', respuestasMejorar, 'No hay sugerencias de mejora registradas', true);
+    const tab2 = generarContenidoPestania('Reportes de Maltrato', 'fa-exclamation-triangle', '#e74c3c', respuestasMaltrato, 'No hay reportes de maltrato registrados', false);
+    const tab3 = generarContenidoPestania('Gustos y Cambios', 'fa-heart', '#2ecc71', respuestasGustaCambiar, 'No hay respuestas registradas', false);
+    
+    // Construir el HTML completo (SOLO EL MODAL, CON UN SOLO BOTÓN)
+    let html = `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0; max-height: 80vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: flex-end; align-items: center; margin-bottom: 12px; gap: 8px; flex-wrap: wrap; position: sticky; top: 0; background: white; z-index: 10; padding: 8px 0;">
+                <button class="btn btn-success" onclick="descargarHTMLResultados('${periodo}')" style="border-radius: 8px; padding: 8px 18px; font-weight: 600; font-size: 13px;">
+                    <i class="fas fa-file-code me-2"></i>Descargar HTML
+                </button>
+
+            </div>
+            
+            <div id="${htmlId}" style="padding: 20px; background: white; border-radius: 12px;">
+                <!-- TÍTULO -->
+                <div style="text-align: center; margin-bottom: 25px;">
+                    <h3 style="color: #2c3e50; margin: 0; font-size: 22px; font-weight: 700;">📊 Resultados de Encuesta de Clima Laboral</h3>
+                    <p style="color: #7f8c8d; margin: 8px 0 4px; font-size: 15px;">Periodo: <strong style="color: #2c3e50;">${periodo}</strong></p>
+                    <p style="color: #7f8c8d; margin: 0; font-size: 15px;">Total de encuestas: <strong style="color: #2c3e50;">${total}</strong></p>
+                </div>
+                
+                <!-- ALERTAS -->
+                <div style="margin-bottom: 25px; padding: 0 5px;">
+                    <h5 style="font-weight: 700; color: #2c3e50; border-bottom: 2px solid #e9ecef; padding-bottom: 10px; font-size: 16px; margin-bottom: 15px;">
+                        <i class="fas fa-bell me-2 text-warning"></i>Alertas y Puntos de Atención
+                    </h5>
+    `;
+    
+    if (alertas.length === 0) {
+        html += `
+            <div style="background: #d4edda; border-radius: 10px; padding: 18px 20px; border-left: 5px solid #2ecc71;">
+                <p style="margin: 0; color: #155724; font-size: 15px; font-weight: 500;">
+                    <i class="fas fa-check-circle me-2" style="color: #2ecc71;"></i>
+                    ¡Buenas noticias! Todos los indicadores están en niveles aceptables (promedio ≥ 3).
+                </p>
+            </div>
+        `;
+    } else {
+        const criticas = alertas.filter(r => r.promedio < 2);
+        if (criticas.length > 0) {
+            html += `
+                <div style="background: #f8d7da; border-radius: 10px; padding: 18px 20px; margin-bottom: 12px; border-left: 5px solid #e74c3c;">
+                    <p style="margin: 0 0 8px 0; font-weight: 700; color: #721c24; font-size: 15px;">
+                        <i class="fas fa-exclamation-circle me-2"></i>ÁREAS CRÍTICAS (Promedio &lt; 2):
+                    </p>
+                    <ul style="margin: 0; padding-left: 25px; color: #721c24; font-size: 14px;">
+                        ${criticas.map(r => `<li style="margin-bottom: 3px;"><strong>${r.label}</strong>: ${r.promedio.toFixed(2)}/5 (${r.porcentaje.toFixed(0)}%)</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+        
+        const moderadas = alertas.filter(r => r.promedio >= 2 && r.promedio < 3);
+        if (moderadas.length > 0) {
+            html += `
+                <div style="background: #fff3cd; border-radius: 10px; padding: 18px 20px; border-left: 5px solid #f39c12;">
+                    <p style="margin: 0 0 8px 0; font-weight: 700; color: #856404; font-size: 15px;">
+                        <i class="fas fa-exclamation-triangle me-2"></i>ÁREAS A MEJORAR (Promedio 2-2.99):
+                    </p>
+                    <ul style="margin: 0; padding-left: 25px; color: #856404; font-size: 14px;">
+                        ${moderadas.map(r => `<li style="margin-bottom: 3px;"><strong>${r.label}</strong>: ${r.promedio.toFixed(2)}/5 (${r.porcentaje.toFixed(0)}%)</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+    }
+    
+    // TABLA DE RESULTADOS
+    html += `
+            </div>
+            
+            <div style="margin-bottom: 25px; padding: 0 5px;">
+                <h5 style="font-weight: 700; color: #2c3e50; border-bottom: 2px solid #e9ecef; padding-bottom: 10px; font-size: 16px; margin-bottom: 15px;">
+                    <i class="fas fa-table me-2 text-primary"></i>Resultados por Ítem
+                </h5>
+                <div style="width: 100%; overflow: auto; max-height: 400px; border: 1px solid #e9ecef; border-radius: 10px;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 13px; background: white; min-width: 600px;">
+                        <thead style="position: sticky; top: 0; z-index: 5;">
+                            <tr style="background: #2c3e50; color: white;">
+                                <th style="padding: 10px 14px; text-align: left; border: 1px solid #34495e; font-weight: 700; font-size: 12px;">Ítem</th>
+                                <th style="padding: 10px 14px; text-align: center; border: 1px solid #34495e; font-weight: 700; font-size: 12px;">Respuestas</th>
+                                <th style="padding: 10px 14px; text-align: center; border: 1px solid #34495e; font-weight: 700; font-size: 12px;">Promedio</th>
+                                <th style="padding: 10px 14px; text-align: center; border: 1px solid #34495e; font-weight: 700; font-size: 12px;">%</th>
+                                <th style="padding: 10px 14px; text-align: center; border: 1px solid #34495e; font-weight: 700; font-size: 12px;">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+    `;
+    
+    resultados.forEach((r, index) => {
+        let estado = '🟢 OK';
+        let bgColor = 'white';
+        let badgeColor = 'success';
+        if (r.promedio > 0 && r.promedio < 2) {
+            estado = '🔴 Crítico';
+            bgColor = '#f8d7da';
+            badgeColor = 'danger';
+        } else if (r.promedio > 0 && r.promedio < 3) {
+            estado = '🟡 Mejorar';
+            bgColor = '#fff3cd';
+            badgeColor = 'warning';
+        }
+        
+        html += `
+            <tr style="background: ${bgColor}; ${index % 2 === 0 && bgColor === 'white' ? 'background: #fafafa;' : ''}">
+                <td style="padding: 8px 14px; border: 1px solid #ddd; text-align: left; font-size: 12px; font-weight: 500;">${r.label}</td>
+                <td style="padding: 8px 14px; border: 1px solid #ddd; text-align: center; font-size: 12px;">
+                    <span class="badge bg-secondary" style="font-size: 11px; padding: 3px 12px;">${r.count}/${r.totalEncuestas}</span>
+                </td>
+                <td style="padding: 8px 14px; border: 1px solid #ddd; text-align: center; font-weight: ${r.promedio > 0 && r.promedio < 3 ? '700' : 'normal'}; font-size: 13px;">
+                    ${r.promedio > 0 ? r.promedio.toFixed(2) : 'N/A'}
+                </td>
+                <td style="padding: 8px 14px; border: 1px solid #ddd; text-align: center; font-size: 12px;">
+                    ${r.promedio > 0 ? r.porcentaje.toFixed(0) + '%' : 'N/A'}
+                </td>
+                <td style="padding: 8px 14px; border: 1px solid #ddd; text-align: center; font-size: 12px;">
+                    <span class="badge bg-${badgeColor}" style="font-size: 11px; padding: 4px 14px;">${estado}</span>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- PESTAÑAS DE PREGUNTAS ABIERTAS -->
+            <div style="padding: 0 5px;">
+                <h5 style="font-weight: 700; color: #2c3e50; border-bottom: 2px solid #e9ecef; padding-bottom: 10px; font-size: 16px; margin-bottom: 15px;">
+                    <i class="fas fa-comment-dots me-2 text-primary"></i>Preguntas Abiertas
+                </h5>
+                
+                <ul class="nav nav-tabs" id="${tabId}" role="tablist" style="border-bottom: 2px solid #dee2e6; gap: 4px; flex-wrap: wrap;">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="tab-${tab1.tabPanelId}" data-bs-toggle="tab" data-bs-target="#${tab1.tabPanelId}" type="button" role="tab"
+                                style="border: none; border-radius: 8px 8px 0 0; padding: 10px 20px; font-weight: 600; font-size: 13px; color: #2c3e50; background: #e9ecef; transition: all 0.3s;">
+                            <i class="fas fa-lightbulb me-2" style="color: #f39c12;"></i>Sugerencias de Mejora
+                            <span class="badge bg-secondary ms-1" style="font-size: 10px;">${respuestasMejorar.length}</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="tab-${tab2.tabPanelId}" data-bs-toggle="tab" data-bs-target="#${tab2.tabPanelId}" type="button" role="tab"
+                                style="border: none; border-radius: 8px 8px 0 0; padding: 10px 20px; font-weight: 600; font-size: 13px; color: #2c3e50; background: #e9ecef; transition: all 0.3s;">
+                            <i class="fas fa-exclamation-triangle me-2" style="color: #e74c3c;"></i>Reportes de Maltrato
+                            <span class="badge bg-secondary ms-1" style="font-size: 10px;">${respuestasMaltrato.length}</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="tab-${tab3.tabPanelId}" data-bs-toggle="tab" data-bs-target="#${tab3.tabPanelId}" type="button" role="tab"
+                                style="border: none; border-radius: 8px 8px 0 0; padding: 10px 20px; font-weight: 600; font-size: 13px; color: #2c3e50; background: #e9ecef; transition: all 0.3s;">
+                            <i class="fas fa-heart me-2" style="color: #2ecc71;"></i>Gustos y Cambios
+                            <span class="badge bg-secondary ms-1" style="font-size: 10px;">${respuestasGustaCambiar.length}</span>
+                        </button>
+                    </li>
+                </ul>
+                
+                <div class="tab-content" style="padding: 15px 5px 5px 5px; background: white; border-radius: 0 0 10px 10px;">
+                    ${tab1.html}
+                    ${tab2.html}
+                    ${tab3.html}
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 25px; padding-top: 15px; border-top: 2px solid #eee; font-size: 11px; color: #999;">
+                Documento generado desde el Sistema de Gestión de Empleados - ${new Date().toLocaleDateString()}
+            </div>
+        </div>
+    `;
+    
+    // Mostrar el modal con los resultados
+    Swal.fire({
+        title: `📊 Resultados - ${periodo}`,
+        html: html,
+        width: window.innerWidth < 576 ? '95%' : '950px',
+        showCloseButton: true,
+        showConfirmButton: false,
+        customClass: {
+            popup: 'animated fadeInDown'
+        },
+        didOpen: function() {
+            // Inicializar los filtros de búsqueda
+            setTimeout(function() {
+                $('.filtro-pestania').on('input', function() {
+                    const texto = $(this).val().toLowerCase().trim();
+                    const listaId = $(this).data('lista');
+                    const $items = $('#' + listaId).find('.respuesta-item-pestania');
+                    
+                    if (texto === '') {
+                        $items.show();
+                    } else {
+                        $items.each(function() {
+                            const nombre = $(this).data('nombre') || '';
+                            const coincide = nombre.includes(texto);
+                            $(this).toggle(coincide);
+                        });
+                    }
+                });
+            }, 300);
+        }
+    });
+}
+
+
+
 
 // Variables para auto-refresh de encuestas
 let intervaloAutoRefreshEncuestas = null;
@@ -12777,202 +13157,198 @@ function verDetalleEncuesta(identidad, fecha) {
         return '★'.repeat(num) + '☆'.repeat(5 - num);
     }
     
+    function getStarsText(valor) {
+        if (!valor) return 'No respondió';
+        const num = parseInt(valor);
+        if (isNaN(num)) return 'No respondió';
+        return num + '/5';
+    }
+    
     const isMobile = window.innerWidth < 576;
     const fotoSize = isMobile ? '50px' : '65px';
     
+    // Generar un ID único para el contenido del HTML
+    const htmlId = 'encuesta-html-content-' + Date.now();
+    
+    let fotoParaHTML = fotoUrl;
+    if (fotoUrl && fotoUrl.startsWith('data:image')) {
+        fotoParaHTML = fotoUrl;
+    } else if (fotoUrl) {
+        fotoParaHTML = fotoUrl;
+    }
+    
+    // Función para generar una fila de estrellas (reutilizable)
+    function generarFilaEstrellas(label, valor) {
+        return `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: #f8f9fa; border-radius: 6px; margin-bottom: 4px; page-break-inside: avoid;">
+                <span style="font-size: 0.85rem; color: #2c3e50; flex: 1;">${label}</span>
+                <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+                    <span style="font-size: 1rem;">${getStars(valor)}</span>
+                    <span style="font-size: 0.7rem; color: #999; min-width: 30px; text-align: right;">${getStarsText(valor)}</span>
+                </div>
+            </div>
+        `;
+    }
+    
     let html = `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0; max-height: 70vh; overflow-y: auto;">
-            <div style="background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460); border-radius: 16px; padding: ${isMobile ? '15px' : '20px'}; margin-bottom: 20px; color: white;">
-                <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
-                    <div style="position: relative; flex-shrink: 0;">
-                        ${fotoUrl ? `
-                            <img src="${fotoUrl}" 
-                                 style="width: ${fotoSize}; height: ${fotoSize}; border-radius: 50%; object-fit: cover; border: 3px solid rgba(255,255,255,0.3);"
-                                 onerror="this.style.display='none'; this.parentElement.innerHTML = '<div style=\\'width: ${fotoSize}; height: ${fotoSize}; border-radius: 50%; background: rgba(52, 152, 219, 0.3); display: flex; align-items: center; justify-content: center; font-size: 1.5rem;\\'>${encuesta.nombre.charAt(0)}</div>'">
-                        ` : `
-                            <div style="width: ${fotoSize}; height: ${fotoSize}; border-radius: 50%; background: rgba(52, 152, 219, 0.3); display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
-                                ${encuesta.nombre.charAt(0)}
+            <div style="display: flex; justify-content: flex-end; margin-bottom: 10px; gap: 8px; position: sticky; top: 0; background: white; z-index: 10; padding: 5px 0;">
+                <button class="btn btn-success btn-sm" onclick="descargarHTMLEncuesta('${htmlId}', '${encuesta.nombre.replace(/'/g, "\\'")}', '${fechaStr.replace(/\//g, '-')}')" style="border-radius: 8px; padding: 6px 16px;">
+                    <i class="fas fa-file-code me-1"></i>Descargar HTML
+                </button>
+            </div>
+            
+            <div id="${htmlId}" style="padding: 20px; background: white; border-radius: 12px;">
+                <!-- ENCABEZADO -->
+                <div style="background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460); border-radius: 16px; padding: ${isMobile ? '15px' : '20px'}; margin-bottom: 20px; color: white;">
+                    <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                        <div style="position: relative; flex-shrink: 0;">
+                            ${fotoParaHTML ? `
+                                <img src="${fotoParaHTML}" 
+                                     style="width: ${fotoSize}; height: ${fotoSize}; border-radius: 50%; object-fit: cover; border: 3px solid rgba(255,255,255,0.3);"
+                                     onerror="this.style.display='none'; this.parentElement.innerHTML = '<div style=\\'width: ${fotoSize}; height: ${fotoSize}; border-radius: 50%; background: rgba(52, 152, 219, 0.3); display: flex; align-items: center; justify-content: center; font-size: 1.5rem;\\'>${encuesta.nombre.charAt(0)}</div>'">
+                            ` : `
+                                <div style="width: ${fotoSize}; height: ${fotoSize}; border-radius: 50%; background: rgba(52, 152, 219, 0.3); display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+                                    ${encuesta.nombre.charAt(0)}
+                                </div>
+                            `}
+                            <div style="position: absolute; bottom: -2px; right: -2px; background: #2ecc71; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border: 2px solid #1a1a2e;">
+                                <i class="fas fa-check" style="font-size: 8px; color: white;"></i>
                             </div>
-                        `}
-                        <div style="position: absolute; bottom: -2px; right: -2px; background: #2ecc71; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border: 2px solid #1a1a2e;">
-                            <i class="fas fa-check" style="font-size: 8px; color: white;"></i>
+                        </div>
+                        <div>
+                            <h3 style="margin: 0; font-weight: 700; font-size: ${isMobile ? '1.1rem' : '1.3rem'};">
+                                ${encuesta.nombre}
+                            </h3>
+                            <div style="margin-top: 5px; display: flex; flex-wrap: wrap; gap: 5px;">
+                                <span class="badge" style="background: rgba(255,255,255,0.15); padding: 3px 10px; border-radius: 20px; font-size: 0.7rem;">
+                                    <i class="fas fa-id-card me-1"></i>${encuesta.identidad}
+                                </span>
+                                <span class="badge" style="background: rgba(52, 152, 219, 0.3); padding: 3px 10px; border-radius: 20px; font-size: 0.7rem;">
+                                    <i class="fas fa-calendar-alt me-1"></i>${fechaStr}
+                                </span>
+                                <span class="badge" style="background: rgba(46, 204, 113, 0.3); padding: 3px 10px; border-radius: 20px; font-size: 0.7rem;">
+                                    <i class="fas fa-building me-1"></i>${encuesta.area || 'N/A'}
+                                </span>
+                                <span class="badge" style="background: rgba(243, 156, 18, 0.3); padding: 3px 10px; border-radius: 20px; font-size: 0.7rem;">
+                                    <i class="fas fa-clock me-1"></i>${encuesta.tiempo || 'N/A'}
+                                </span>
+                            </div>
                         </div>
                     </div>
-                    <div>
-                        <h3 style="margin: 0; font-weight: 700; font-size: ${isMobile ? '1.1rem' : '1.3rem'};">
-                            ${encuesta.nombre}
-                        </h3>
-                        <div style="margin-top: 5px; display: flex; flex-wrap: wrap; gap: 5px;">
-                            <span class="badge" style="background: rgba(255,255,255,0.15);">
-                                <i class="fas fa-id-card me-1"></i>${encuesta.identidad}
-                            </span>
-                            <span class="badge" style="background: rgba(52, 152, 219, 0.3);">
-                                <i class="fas fa-calendar-alt me-1"></i>${fechaStr}
-                            </span>
-                            <span class="badge" style="background: rgba(46, 204, 113, 0.3);">
-                                <i class="fas fa-building me-1"></i>${encuesta.area || 'N/A'}
-                            </span>
+                </div>
+                
+                <!-- DATOS GENERALES -->
+                <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: 15px; margin-bottom: 20px;">
+                    <div style="background: #f8f9fa; border-radius: 10px; padding: 12px;">
+                        <h6 style="font-weight: 700; color: #2c3e50; margin-bottom: 8px; font-size: 0.85rem;"><i class="fas fa-clock me-2 text-primary"></i>Tiempo en la organización</h6>
+                        <p style="margin: 0; font-size: 0.95rem;">${encuesta.tiempo || 'No especificado'}</p>
+                    </div>
+                    <div style="background: #f8f9fa; border-radius: 10px; padding: 12px;">
+                        <h6 style="font-weight: 700; color: #2c3e50; margin-bottom: 8px; font-size: 0.85rem;"><i class="fas fa-building me-2 text-primary"></i>Área de trabajo</h6>
+                        <p style="margin: 0; font-size: 0.95rem;">${encuesta.area || 'No especificada'}</p>
+                    </div>
+                </div>
+                
+                <!-- CLIMA LABORAL -->
+                <div style="margin-bottom: 20px; page-break-inside: avoid;">
+                    <h5 style="font-weight: 700; color: #2c3e50; margin-bottom: 12px; border-bottom: 2px solid #e9ecef; padding-bottom: 8px; font-size: 1rem;">
+                        <i class="fas fa-handshake me-2 text-primary"></i>Clima Laboral
+                    </h5>
+                    <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: 6px;">
+                        ${generarFilaEstrellas('Me siento a gusto trabajando', encuesta.clima_1)}
+                        ${generarFilaEstrellas('Existe respeto entre compañeros', encuesta.clima_2)}
+                        ${generarFilaEstrellas('Colaboración entre compañeros', encuesta.clima_3)}
+                        ${generarFilaEstrellas('Ambiente sin tensión constante', encuesta.clima_4)}
+                        ${generarFilaEstrellas('Puedo expresar opiniones sin temor', encuesta.clima_5)}
+                        ${generarFilaEstrellas('Problemas atendidos adecuadamente', encuesta.clima_6)}
+                    </div>
+                </div>
+                
+                <!-- TRATO DE SUPERVISORES -->
+                <div style="margin-bottom: 20px; page-break-inside: avoid;">
+                    <h5 style="font-weight: 700; color: #2c3e50; margin-bottom: 12px; border-bottom: 2px solid #e9ecef; padding-bottom: 8px; font-size: 1rem;">
+                        <i class="fas fa-user-tie me-2 text-primary"></i>Trato de Encargados y Supervisores
+                    </h5>
+                    <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: 6px;">
+                        ${generarFilaEstrellas('Me trata con respeto', encuesta.super_1)}
+                        ${generarFilaEstrellas('Escucha mis opiniones', encuesta.super_2)}
+                        ${generarFilaEstrellas('Corrección respetuosa de errores', encuesta.super_3)}
+                        ${generarFilaEstrellas('Llamadas de atención profesionales', encuesta.super_4)}
+                        ${generarFilaEstrellas('Reconoce buen trabajo', encuesta.super_5)}
+                        ${generarFilaEstrellas('Es justo con el personal', encuesta.super_6)}
+                        ${generarFilaEstrellas('Respeta mi dignidad', encuesta.super_7)}
+                        ${generarFilaEstrellas('Puedo hablar sin miedo', encuesta.super_8)}
+                    </div>
+                </div>
+                
+                <!-- TRATO DE COORDINACIÓN -->
+                <div style="margin-bottom: 20px; page-break-inside: avoid;">
+                    <h5 style="font-weight: 700; color: #2c3e50; margin-bottom: 12px; border-bottom: 2px solid #e9ecef; padding-bottom: 8px; font-size: 1rem;">
+                        <i class="fas fa-users-cog me-2 text-primary"></i>Trato de Coordinación
+                    </h5>
+                    <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: 6px;">
+                        ${generarFilaEstrellas('Comunicación adecuada', encuesta.coord_1)}
+                        ${generarFilaEstrellas('Escucha necesidades', encuesta.coord_2)}
+                        ${generarFilaEstrellas('Conoce dificultades', encuesta.coord_3)}
+                        ${generarFilaEstrellas('Interés en mejorar condiciones', encuesta.coord_4)}
+                    </div>
+                </div>
+                
+                <!-- RESPETO Y DIGNIDAD -->
+                <div style="margin-bottom: 20px; page-break-inside: avoid;">
+                    <h5 style="font-weight: 700; color: #2c3e50; margin-bottom: 12px; border-bottom: 2px solid #e9ecef; padding-bottom: 8px; font-size: 1rem;">
+                        <i class="fas fa-handshake me-2 text-primary"></i>Respeto y Dignidad Laboral
+                    </h5>
+                    <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: 6px;">
+                        ${generarFilaEstrellas('Respetado por compañeros', encuesta.respeto_1)}
+                        ${generarFilaEstrellas('Respetado por supervisores', encuesta.respeto_2)}
+                        ${generarFilaEstrellas('Sin burlas u ofensas', encuesta.respeto_3)}
+                        ${generarFilaEstrellas('Llamadas privadas y respetuosas', encuesta.respeto_4)}
+                    </div>
+                </div>
+                
+                <!-- PREGUNTAS ABIERTAS - 3 SECCIONES -->
+                <div style="margin-bottom: 20px; page-break-inside: avoid;">
+                    <h5 style="font-weight: 700; color: #2c3e50; margin-bottom: 12px; border-bottom: 2px solid #e9ecef; padding-bottom: 8px; font-size: 1rem;">
+                        <i class="fas fa-comment-dots me-2 text-primary"></i>Preguntas Abiertas
+                    </h5>
+                    
+                    <div style="background: #fff9e6; border-radius: 8px; padding: 12px 15px; margin-bottom: 8px; border-left: 4px solid #f39c12;">
+                        <div style="font-size: 0.8rem; color: #7f8c8d; font-weight: 600;">
+                            <i class="fas fa-lightbulb me-1" style="color: #f39c12;"></i>1. ¿Qué mejorarías en la empresa?
                         </div>
+                        <div style="font-size: 0.9rem; margin-top: 3px;">${encuesta.mejorar || 'No especificado'}</div>
                     </div>
+                    
+                    <div style="background: #f8d7da; border-radius: 8px; padding: 12px 15px; margin-bottom: 8px; border-left: 4px solid #e74c3c;">
+                        <div style="font-size: 0.8rem; color: #7f8c8d; font-weight: 600;">
+                            <i class="fas fa-exclamation-triangle me-1" style="color: #e74c3c;"></i>2. ¿Has sido víctima de maltrato, gritos o humillaciones?
+                        </div>
+                        <div style="font-size: 0.9rem; margin-top: 3px;">${encuesta.maltrato || 'No especificado'}</div>
+                    </div>
+                    
+                    <div style="background: #d4edda; border-radius: 8px; padding: 12px 15px; border-left: 4px solid #2ecc71;">
+                        <div style="font-size: 0.8rem; color: #7f8c8d; font-weight: 600;">
+                            <i class="fas fa-heart me-1" style="color: #2ecc71;"></i>3. ¿Qué te gusta de tu trabajo y qué cambiarías?
+                        </div>
+                        <div style="font-size: 0.9rem; margin-top: 3px;">${encuesta.gusta_cambiar || 'No especificado'}</div>
+                    </div>
+                </div>
+                
+                <!-- FIRMA -->
+                ${encuesta.firma ? `
+                    <div class="firma-container" style="background: #f0f8ff; border-radius: 10px; padding: 12px; border: 1px solid #d4edda; text-align: center; page-break-inside: avoid; margin-top: 10px;">
+                        <h6 style="font-weight: 700; color: #2c3e50; margin-bottom: 8px; font-size: 0.85rem;"><i class="fas fa-signature me-2 text-success"></i>Firma del Responsable</h6>
+                        <img src="${encuesta.firma}" style="max-width: 180px; max-height: 70px; border: 1px solid #ccc; border-radius: 8px; padding: 5px; background: white; display: block; margin: 0 auto;" 
+                             onerror="this.style.display='none'; this.parentElement.innerHTML += '<p style=\\'color: #999; text-align: center; font-size: 0.85rem;\\'>No se pudo cargar la firma</p>'">
+                    </div>
+                ` : ''}
+                
+                <div style="text-align: center; margin-top: 20px; padding-top: 10px; border-top: 1px solid #eee; font-size: 0.65rem; color: #999;">
+                    Documento generado desde el Sistema de Gestión de Empleados - ${new Date().toLocaleDateString()}
                 </div>
             </div>
-            
-            <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: 15px; margin-bottom: 15px;">
-                <div style="background: #f8f9fa; border-radius: 10px; padding: 12px;">
-                    <h6 style="font-weight: 700; color: #2c3e50; margin-bottom: 8px;"><i class="fas fa-clock me-2 text-primary"></i>Tiempo en la organización</h6>
-                    <p style="margin: 0; font-size: 0.95rem;">${encuesta.tiempo || 'No especificado'}</p>
-                </div>
-                <div style="background: #f8f9fa; border-radius: 10px; padding: 12px;">
-                    <h6 style="font-weight: 700; color: #2c3e50; margin-bottom: 8px;"><i class="fas fa-building me-2 text-primary"></i>Área de trabajo</h6>
-                    <p style="margin: 0; font-size: 0.95rem;">${encuesta.area || 'No especificada'}</p>
-                </div>
-            </div>
-            
-            <div style="margin-bottom: 20px;">
-                <h5 style="font-weight: 700; color: #2c3e50; margin-bottom: 12px; border-bottom: 2px solid #e9ecef; padding-bottom: 8px;">
-                    <i class="fas fa-handshake me-2 text-primary"></i>Clima Laboral
-                </h5>
-                <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: 10px;">
-                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
-                        <div style="font-size: 0.85rem; color: #7f8c8d;">Me siento a gusto trabajando</div>
-                        <div style="font-size: 1.1rem;">${getStars(encuesta.clima_1)}</div>
-                    </div>
-                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
-                        <div style="font-size: 0.85rem; color: #7f8c8d;">Existe respeto entre compañeros</div>
-                        <div style="font-size: 1.1rem;">${getStars(encuesta.clima_2)}</div>
-                    </div>
-                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
-                        <div style="font-size: 0.85rem; color: #7f8c8d;">Colaboración entre compañeros</div>
-                        <div style="font-size: 1.1rem;">${getStars(encuesta.clima_3)}</div>
-                    </div>
-                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
-                        <div style="font-size: 0.85rem; color: #7f8c8d;">Ambiente sin tensión constante</div>
-                        <div style="font-size: 1.1rem;">${getStars(encuesta.clima_4)}</div>
-                    </div>
-                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
-                        <div style="font-size: 0.85rem; color: #7f8c8d;">Puedo expresar opiniones sin temor</div>
-                        <div style="font-size: 1.1rem;">${getStars(encuesta.clima_5)}</div>
-                    </div>
-                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
-                        <div style="font-size: 0.85rem; color: #7f8c8d;">Problemas atendidos adecuadamente</div>
-                        <div style="font-size: 1.1rem;">${getStars(encuesta.clima_6)}</div>
-                    </div>
-                </div>
-                <div style="background: #fff9e6; border-radius: 8px; padding: 12px; margin-top: 10px; border-left: 4px solid #f39c12;">
-                    <div style="font-size: 0.85rem; color: #7f8c8d;"><i class="fas fa-comment me-1"></i>¿Qué mejorar?</div>
-                    <div style="font-size: 0.95rem;">${encuesta.mejorar || 'No especificado'}</div>
-                </div>
-            </div>
-            
-            <div style="margin-bottom: 20px;">
-                <h5 style="font-weight: 700; color: #2c3e50; margin-bottom: 12px; border-bottom: 2px solid #e9ecef; padding-bottom: 8px;">
-                    <i class="fas fa-user-tie me-2 text-primary"></i>Trato de Encargados y Supervisores
-                </h5>
-                <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: 10px;">
-                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
-                        <div style="font-size: 0.85rem; color: #7f8c8d;">Me trata con respeto</div>
-                        <div style="font-size: 1.1rem;">${getStars(encuesta.super_1)}</div>
-                    </div>
-                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
-                        <div style="font-size: 0.85rem; color: #7f8c8d;">Escucha mis opiniones</div>
-                        <div style="font-size: 1.1rem;">${getStars(encuesta.super_2)}</div>
-                    </div>
-                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
-                        <div style="font-size: 0.85rem; color: #7f8c8d;">Corrección respetuosa de errores</div>
-                        <div style="font-size: 1.1rem;">${getStars(encuesta.super_3)}</div>
-                    </div>
-                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
-                        <div style="font-size: 0.85rem; color: #7f8c8d;">Llamadas de atención profesionales</div>
-                        <div style="font-size: 1.1rem;">${getStars(encuesta.super_4)}</div>
-                    </div>
-                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
-                        <div style="font-size: 0.85rem; color: #7f8c8d;">Reconoce buen trabajo</div>
-                        <div style="font-size: 1.1rem;">${getStars(encuesta.super_5)}</div>
-                    </div>
-                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
-                        <div style="font-size: 0.85rem; color: #7f8c8d;">Es justo con el personal</div>
-                        <div style="font-size: 1.1rem;">${getStars(encuesta.super_6)}</div>
-                    </div>
-                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
-                        <div style="font-size: 0.85rem; color: #7f8c8d;">Respeta mi dignidad</div>
-                        <div style="font-size: 1.1rem;">${getStars(encuesta.super_7)}</div>
-                    </div>
-                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
-                        <div style="font-size: 0.85rem; color: #7f8c8d;">Puedo hablar sin miedo</div>
-                        <div style="font-size: 1.1rem;">${getStars(encuesta.super_8)}</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div style="margin-bottom: 20px;">
-                <h5 style="font-weight: 700; color: #2c3e50; margin-bottom: 12px; border-bottom: 2px solid #e9ecef; padding-bottom: 8px;">
-                    <i class="fas fa-users-cog me-2 text-primary"></i>Trato de Coordinación
-                </h5>
-                <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: 10px;">
-                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
-                        <div style="font-size: 0.85rem; color: #7f8c8d;">Comunicación adecuada</div>
-                        <div style="font-size: 1.1rem;">${getStars(encuesta.coord_1)}</div>
-                    </div>
-                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
-                        <div style="font-size: 0.85rem; color: #7f8c8d;">Escucha necesidades</div>
-                        <div style="font-size: 1.1rem;">${getStars(encuesta.coord_2)}</div>
-                    </div>
-                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
-                        <div style="font-size: 0.85rem; color: #7f8c8d;">Conoce dificultades</div>
-                        <div style="font-size: 1.1rem;">${getStars(encuesta.coord_3)}</div>
-                    </div>
-                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
-                        <div style="font-size: 0.85rem; color: #7f8c8d;">Interés en mejorar condiciones</div>
-                        <div style="font-size: 1.1rem;">${getStars(encuesta.coord_4)}</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div style="margin-bottom: 20px;">
-                <h5 style="font-weight: 700; color: #2c3e50; margin-bottom: 12px; border-bottom: 2px solid #e9ecef; padding-bottom: 8px;">
-                    <i class="fas fa-handshake me-2 text-primary"></i>Respeto y Dignidad Laboral
-                </h5>
-                <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: 10px;">
-                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
-                        <div style="font-size: 0.85rem; color: #7f8c8d;">Respetado por compañeros</div>
-                        <div style="font-size: 1.1rem;">${getStars(encuesta.respeto_1)}</div>
-                    </div>
-                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
-                        <div style="font-size: 0.85rem; color: #7f8c8d;">Respetado por supervisores</div>
-                        <div style="font-size: 1.1rem;">${getStars(encuesta.respeto_2)}</div>
-                    </div>
-                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
-                        <div style="font-size: 0.85rem; color: #7f8c8d;">Sin burlas u ofensas</div>
-                        <div style="font-size: 1.1rem;">${getStars(encuesta.respeto_3)}</div>
-                    </div>
-                    <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
-                        <div style="font-size: 0.85rem; color: #7f8c8d;">Llamadas privadas y respetuosas</div>
-                        <div style="font-size: 1.1rem;">${getStars(encuesta.respeto_4)}</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div style="margin-bottom: 20px;">
-                <h5 style="font-weight: 700; color: #2c3e50; margin-bottom: 12px; border-bottom: 2px solid #e9ecef; padding-bottom: 8px;">
-                    <i class="fas fa-comment-dots me-2 text-primary"></i>Preguntas Abiertas
-                </h5>
-                <div style="background: #f8f9fa; border-radius: 8px; padding: 15px; margin-bottom: 10px; border-left: 4px solid #e74c3c;">
-                    <div style="font-size: 0.85rem; color: #7f8c8d;"><i class="fas fa-exclamation-triangle me-1" style="color: #e74c3c;"></i>¿Maltrato, gritos, humillaciones?</div>
-                    <div style="font-size: 0.95rem;">${encuesta.maltrato || 'No especificado'}</div>
-                </div>
-                <div style="background: #f8f9fa; border-radius: 8px; padding: 15px; border-left: 4px solid #2ecc71;">
-                    <div style="font-size: 0.85rem; color: #7f8c8d;"><i class="fas fa-heart me-1" style="color: #2ecc71;"></i>¿Qué te gusta y qué cambiarías?</div>
-                    <div style="font-size: 0.95rem;">${encuesta.gusta_cambiar || 'No especificado'}</div>
-                </div>
-            </div>
-            
-            ${encuesta.firma ? `
-                <div style="background: #f0f8ff; border-radius: 10px; padding: 12px; border: 1px solid #d4edda; text-align: center;">
-                    <h6 style="font-weight: 700; color: #2c3e50; margin-bottom: 8px;"><i class="fas fa-signature me-2 text-success"></i>Firma del Responsable</h6>
-                    <img src="${encuesta.firma}" style="max-width: 200px; max-height: 80px; border: 1px solid #ccc; border-radius: 8px; padding: 5px; background: white;" 
-                         onerror="this.style.display='none'">
-                </div>
-            ` : ''}
         </div>
     `;
     
@@ -12987,6 +13363,1522 @@ function verDetalleEncuesta(identidad, fecha) {
         }
     });
 }
+
+
+
+function descargarHTMLEncuesta(elementId, nombre, fecha) {
+    const element = document.getElementById(elementId);
+    if (!element) {
+        Swal.fire('Error', 'No se pudo generar el archivo.', 'error');
+        return;
+    }
+    
+    $('#overlay').css('display', 'flex');
+    $('#loadingMessage p').text('Generando archivo HTML de la encuesta...');
+    
+    // Clonar el contenido
+    const clon = element.cloneNode(true);
+    
+    // Eliminar el botón de descarga del clon
+    const btnHTML = clon.querySelector('button[onclick*="descargarHTMLEncuesta"]');
+    if (btnHTML) {
+        btnHTML.style.display = 'none';
+    }
+    
+    // Mejorar las fotos
+    const fotos = clon.querySelectorAll('img');
+    fotos.forEach(img => {
+        if (img.src && img.src.startsWith('data:')) {
+            // Ya está en base64, bien
+        }
+    });
+    
+    // Construir el HTML completo
+    const htmlCompleto = `<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Encuesta - ${nombre}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: white;
+            padding: 40px 20px;
+            color: #2c3e50;
+        }
+        .container-encuesta {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+        .badge { padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; }
+        .fila-estrella {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            margin-bottom: 4px;
+        }
+        .fila-estrella .label { font-size: 0.85rem; color: #2c3e50; flex: 1; }
+        .fila-estrella .estrellas { font-size: 1rem; }
+        .fila-estrella .texto { font-size: 0.7rem; color: #999; min-width: 30px; text-align: right; }
+        .seccion { margin-bottom: 25px; }
+        .seccion h5 {
+            font-weight: 700;
+            color: #2c3e50;
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+            font-size: 1rem;
+        }
+        .firma-container {
+            background: #f0f8ff;
+            border-radius: 10px;
+            padding: 12px;
+            border: 1px solid #d4edda;
+            text-align: center;
+            margin-top: 10px;
+        }
+        .firma-container img {
+            max-width: 180px;
+            max-height: 70px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 5px;
+            background: white;
+            display: block;
+            margin: 0 auto;
+        }
+        .footer-pdf {
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+            font-size: 0.65rem;
+            color: #999;
+        }
+        .header-encuesta {
+            background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+            border-radius: 16px;
+            padding: 20px 25px;
+            margin-bottom: 20px;
+            color: white;
+        }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .grid-estrellas { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+        @media (max-width: 768px) {
+            .grid-2 { grid-template-columns: 1fr; }
+            .grid-estrellas { grid-template-columns: 1fr; }
+            .container-encuesta { padding: 15px; }
+            body { padding: 10px; }
+        }
+        .foto-perfil {
+            width: 65px;
+            height: 65px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid rgba(255,255,255,0.3);
+        }
+        .foto-placeholder {
+            width: 65px;
+            height: 65px;
+            border-radius: 50%;
+            background: rgba(52, 152, 219, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: white;
+        }
+        .pregunta-abierta {
+            padding: 12px 15px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+        }
+        @media print {
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container-encuesta">
+        ${clon.innerHTML}
+    </div>
+</body>
+</html>`;
+    
+    // Crear blob y descargar
+    const blob = new Blob([htmlCompleto], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Encuesta_${nombre.replace(/\s/g, '_')}_${fecha.replace(/\//g, '-')}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    $('#overlay').hide();
+    $('#loadingMessage p').text('');
+    Swal.fire({
+        icon: 'success',
+        title: '¡Descarga completada!',
+        text: 'El archivo se ha descargado correctamente.',
+        timer: 3000,
+        showConfirmButton: true
+    });
+}
+
+function descargarHTMLResultados(periodo) {
+    const periodoData = encuestasAgrupadasPorPeriodo[periodo];
+    
+    if (!periodoData || periodoData.encuestas.length === 0) {
+        Swal.fire('Sin Datos', 'No hay encuestas en este periodo.', 'info');
+        return;
+    }
+    
+    $('#overlay').css('display', 'flex');
+    $('#loadingMessage p').text('Generando archivo HTML con todos los resultados...');
+    
+    const encuestasPeriodo = periodoData.encuestas;
+    const total = encuestasPeriodo.length;
+    
+    // ============================================================
+    // 1. CALCULAR ESTADÍSTICAS
+    // ============================================================
+    const items = [
+        { id: 'clima_1', label: 'Me siento a gusto trabajando' },
+        { id: 'clima_2', label: 'Existe respeto entre compañeros' },
+        { id: 'clima_3', label: 'Colaboración entre compañeros' },
+        { id: 'clima_4', label: 'Ambiente sin tensión constante' },
+        { id: 'clima_5', label: 'Puedo expresar opiniones sin temor' },
+        { id: 'clima_6', label: 'Problemas atendidos adecuadamente' },
+        { id: 'super_1', label: 'Supervisor: Me trata con respeto' },
+        { id: 'super_2', label: 'Supervisor: Escucha mis opiniones' },
+        { id: 'super_3', label: 'Supervisor: Corrección respetuosa' },
+        { id: 'super_4', label: 'Supervisor: Llamadas profesionales' },
+        { id: 'super_5', label: 'Supervisor: Reconoce buen trabajo' },
+        { id: 'super_6', label: 'Supervisor: Es justo con el personal' },
+        { id: 'super_7', label: 'Supervisor: Respeta mi dignidad' },
+        { id: 'super_8', label: 'Supervisor: Puedo hablar sin miedo' },
+        { id: 'coord_1', label: 'Coordinación: Comunicación adecuada' },
+        { id: 'coord_2', label: 'Coordinación: Escucha necesidades' },
+        { id: 'coord_3', label: 'Coordinación: Conoce dificultades' },
+        { id: 'coord_4', label: 'Coordinación: Interés en mejorar' },
+        { id: 'respeto_1', label: 'Respetado por compañeros' },
+        { id: 'respeto_2', label: 'Respetado por supervisores' },
+        { id: 'respeto_3', label: 'Sin burlas u ofensas' },
+        { id: 'respeto_4', label: 'Llamadas privadas y respetuosas' }
+    ];
+    
+    const resultados = items.map(item => {
+        let suma = 0;
+        let count = 0;
+        encuestasPeriodo.forEach(enc => {
+            const valor = parseInt(enc[item.id]);
+            if (valor >= 1 && valor <= 5) {
+                suma += valor;
+                count++;
+            }
+        });
+        const promedio = count > 0 ? (suma / count) : 0;
+        const porcentaje = count > 0 ? ((suma / (count * 5)) * 100) : 0;
+        return {
+            ...item,
+            promedio: promedio,
+            porcentaje: porcentaje,
+            count: count,
+            totalEncuestas: total
+        };
+    });
+    
+    const alertas = resultados.filter(r => r.promedio > 0 && r.promedio < 3);
+    
+    // ============================================================
+    // 2. OBTENER RESPUESTAS ABIERTAS CON FOTO
+    // ============================================================
+    function obtenerRespuestasConFoto(campo) {
+        return encuestasPeriodo
+            .filter(enc => enc[campo] && enc[campo].trim() && enc[campo] !== 'No especificado')
+            .map(enc => {
+                let fotoUrl = '';
+                let colaborador = colaboradoresActivos.find(c => c.identidad === enc.identidad);
+                if (!colaborador) {
+                    colaborador = colaboradoresEgresos.find(c => c.identidad === enc.identidad);
+                }
+                if (colaborador && colaborador.fotoUrl) {
+                    fotoUrl = colaborador.fotoUrl;
+                }
+                return { 
+                    nombre: enc.nombre, 
+                    identidad: enc.identidad, 
+                    respuesta: enc[campo], 
+                    fotoUrl: fotoUrl,
+                    fecha: enc.fecha
+                };
+            });
+    }
+    
+    const respuestasMejorar = obtenerRespuestasConFoto('mejorar');
+    const respuestasMaltrato = obtenerRespuestasConFoto('maltrato');
+    const respuestasGustaCambiar = obtenerRespuestasConFoto('gusta_cambiar');
+    
+    // ============================================================
+    // 3. GENERAR HTML DE ENCUESTAS INDIVIDUALES (CON DISEÑO COMPLETO)
+    // ============================================================
+    function getStars(valor) {
+        if (!valor) return 'No respondió';
+        const num = parseInt(valor);
+        if (isNaN(num)) return 'No respondió';
+        return '★'.repeat(num) + '☆'.repeat(5 - num);
+    }
+    
+    function getStarsText(valor) {
+        if (!valor) return 'No respondió';
+        const num = parseInt(valor);
+        if (isNaN(num)) return 'No respondió';
+        return num + '/5';
+    }
+    
+    function generarFilaEstrellas(label, valor) {
+        return `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: #f8f9fa; border-radius: 6px; margin-bottom: 4px; page-break-inside: avoid;">
+                <span style="font-size: 0.85rem; color: #2c3e50; flex: 1;">${label}</span>
+                <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+                    <span style="font-size: 1rem;">${getStars(valor)}</span>
+                    <span style="font-size: 0.7rem; color: #999; min-width: 30px; text-align: right;">${getStarsText(valor)}</span>
+                </div>
+            </div>
+        `;
+    }
+    
+    let encuestasIndividualesHTML = '';
+    encuestasPeriodo.forEach((enc, index) => {
+        let fotoUrl = '';
+        let colaborador = colaboradoresActivos.find(c => c.identidad === enc.identidad);
+        if (!colaborador) {
+            colaborador = colaboradoresEgresos.find(c => c.identidad === enc.identidad);
+        }
+        if (colaborador && colaborador.fotoUrl) {
+            fotoUrl = colaborador.fotoUrl;
+        }
+        
+        const fechaObj = new Date(enc.fecha);
+        const fechaStr = fechaObj.toLocaleDateString('es-ES', { 
+            day: '2-digit', 
+            month: '2-digit', 
+            year: 'numeric',
+            hour: '2-digit', 
+            minute: '2-digit' 
+        });
+        
+        const fotoSize = '65px';
+        const fotoParaHTML = fotoUrl || '';
+        
+        encuestasIndividualesHTML += `
+            <div class="encuesta-individual-completa" data-nombre="${enc.nombre.toLowerCase()}" style="margin-bottom: 30px; border: 1px solid #e9ecef; border-radius: 12px; padding: 20px; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.05); page-break-inside: avoid;">
+                <!-- ENCABEZADO -->
+                <div style="background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460); border-radius: 16px; padding: 20px 25px; margin-bottom: 20px; color: white;">
+                    <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                        <div style="position: relative; flex-shrink: 0;">
+                            ${fotoParaHTML ? `
+                                <img src="${fotoParaHTML}" 
+                                     style="width: ${fotoSize}; height: ${fotoSize}; border-radius: 50%; object-fit: cover; border: 3px solid rgba(255,255,255,0.3);"
+                                     onerror="this.style.display='none'; this.parentElement.innerHTML = '<div style=\\'width: ${fotoSize}; height: ${fotoSize}; border-radius: 50%; background: rgba(52, 152, 219, 0.3); display: flex; align-items: center; justify-content: center; font-size: 1.5rem;\\'>${enc.nombre.charAt(0)}</div>'">
+                            ` : `
+                                <div style="width: ${fotoSize}; height: ${fotoSize}; border-radius: 50%; background: rgba(52, 152, 219, 0.3); display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+                                    ${enc.nombre.charAt(0)}
+                                </div>
+                            `}
+                            <div style="position: absolute; bottom: -2px; right: -2px; background: #2ecc71; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border: 2px solid #1a1a2e;">
+                                <i class="fas fa-check" style="font-size: 8px; color: white;"></i>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 style="margin: 0; font-weight: 700; font-size: 1.2rem;">
+                                ${enc.nombre}
+                            </h3>
+                            <div style="margin-top: 5px; display: flex; flex-wrap: wrap; gap: 5px;">
+                                <span class="badge" style="background: rgba(255,255,255,0.15); padding: 3px 10px; border-radius: 20px; font-size: 0.7rem;">
+                                    <i class="fas fa-id-card me-1"></i>${enc.identidad}
+                                </span>
+                                <span class="badge" style="background: rgba(52, 152, 219, 0.3); padding: 3px 10px; border-radius: 20px; font-size: 0.7rem;">
+                                    <i class="fas fa-calendar-alt me-1"></i>${fechaStr}
+                                </span>
+                                <span class="badge" style="background: rgba(46, 204, 113, 0.3); padding: 3px 10px; border-radius: 20px; font-size: 0.7rem;">
+                                    <i class="fas fa-building me-1"></i>${enc.area || 'N/A'}
+                                </span>
+                                <span class="badge" style="background: rgba(243, 156, 18, 0.3); padding: 3px 10px; border-radius: 20px; font-size: 0.7rem;">
+                                    <i class="fas fa-clock me-1"></i>${enc.tiempo || 'N/A'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- DATOS GENERALES -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                    <div style="background: #f8f9fa; border-radius: 10px; padding: 12px;">
+                        <h6 style="font-weight: 700; color: #2c3e50; margin-bottom: 8px; font-size: 0.85rem;"><i class="fas fa-clock me-2 text-primary"></i>Tiempo en la organización</h6>
+                        <p style="margin: 0; font-size: 0.95rem;">${enc.tiempo || 'No especificado'}</p>
+                    </div>
+                    <div style="background: #f8f9fa; border-radius: 10px; padding: 12px;">
+                        <h6 style="font-weight: 700; color: #2c3e50; margin-bottom: 8px; font-size: 0.85rem;"><i class="fas fa-building me-2 text-primary"></i>Área de trabajo</h6>
+                        <p style="margin: 0; font-size: 0.95rem;">${enc.area || 'No especificada'}</p>
+                    </div>
+                </div>
+                
+                <!-- CLIMA LABORAL -->
+                <div style="margin-bottom: 20px; page-break-inside: avoid;">
+                    <h5 style="font-weight: 700; color: #2c3e50; margin-bottom: 12px; border-bottom: 2px solid #e9ecef; padding-bottom: 8px; font-size: 1rem;">
+                        <i class="fas fa-handshake me-2 text-primary"></i>Clima Laboral
+                    </h5>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                        ${generarFilaEstrellas('Me siento a gusto trabajando', enc.clima_1)}
+                        ${generarFilaEstrellas('Existe respeto entre compañeros', enc.clima_2)}
+                        ${generarFilaEstrellas('Colaboración entre compañeros', enc.clima_3)}
+                        ${generarFilaEstrellas('Ambiente sin tensión constante', enc.clima_4)}
+                        ${generarFilaEstrellas('Puedo expresar opiniones sin temor', enc.clima_5)}
+                        ${generarFilaEstrellas('Problemas atendidos adecuadamente', enc.clima_6)}
+                    </div>
+                </div>
+                
+                <!-- TRATO DE SUPERVISORES -->
+                <div style="margin-bottom: 20px; page-break-inside: avoid;">
+                    <h5 style="font-weight: 700; color: #2c3e50; margin-bottom: 12px; border-bottom: 2px solid #e9ecef; padding-bottom: 8px; font-size: 1rem;">
+                        <i class="fas fa-user-tie me-2 text-primary"></i>Trato de Encargados y Supervisores
+                    </h5>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                        ${generarFilaEstrellas('Me trata con respeto', enc.super_1)}
+                        ${generarFilaEstrellas('Escucha mis opiniones', enc.super_2)}
+                        ${generarFilaEstrellas('Corrección respetuosa de errores', enc.super_3)}
+                        ${generarFilaEstrellas('Llamadas de atención profesionales', enc.super_4)}
+                        ${generarFilaEstrellas('Reconoce buen trabajo', enc.super_5)}
+                        ${generarFilaEstrellas('Es justo con el personal', enc.super_6)}
+                        ${generarFilaEstrellas('Respeta mi dignidad', enc.super_7)}
+                        ${generarFilaEstrellas('Puedo hablar sin miedo', enc.super_8)}
+                    </div>
+                </div>
+                
+                <!-- TRATO DE COORDINACIÓN -->
+                <div style="margin-bottom: 20px; page-break-inside: avoid;">
+                    <h5 style="font-weight: 700; color: #2c3e50; margin-bottom: 12px; border-bottom: 2px solid #e9ecef; padding-bottom: 8px; font-size: 1rem;">
+                        <i class="fas fa-users-cog me-2 text-primary"></i>Trato de Coordinación
+                    </h5>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                        ${generarFilaEstrellas('Comunicación adecuada', enc.coord_1)}
+                        ${generarFilaEstrellas('Escucha necesidades', enc.coord_2)}
+                        ${generarFilaEstrellas('Conoce dificultades', enc.coord_3)}
+                        ${generarFilaEstrellas('Interés en mejorar condiciones', enc.coord_4)}
+                    </div>
+                </div>
+                
+                <!-- RESPETO Y DIGNIDAD -->
+                <div style="margin-bottom: 20px; page-break-inside: avoid;">
+                    <h5 style="font-weight: 700; color: #2c3e50; margin-bottom: 12px; border-bottom: 2px solid #e9ecef; padding-bottom: 8px; font-size: 1rem;">
+                        <i class="fas fa-handshake me-2 text-primary"></i>Respeto y Dignidad Laboral
+                    </h5>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                        ${generarFilaEstrellas('Respetado por compañeros', enc.respeto_1)}
+                        ${generarFilaEstrellas('Respetado por supervisores', enc.respeto_2)}
+                        ${generarFilaEstrellas('Sin burlas u ofensas', enc.respeto_3)}
+                        ${generarFilaEstrellas('Llamadas privadas y respetuosas', enc.respeto_4)}
+                    </div>
+                </div>
+                
+                <!-- PREGUNTAS ABIERTAS - 3 SECCIONES -->
+                <div style="margin-bottom: 20px; page-break-inside: avoid;">
+                    <h5 style="font-weight: 700; color: #2c3e50; margin-bottom: 12px; border-bottom: 2px solid #e9ecef; padding-bottom: 8px; font-size: 1rem;">
+                        <i class="fas fa-comment-dots me-2 text-primary"></i>Preguntas Abiertas
+                    </h5>
+                    
+                    <div style="background: #fff9e6; border-radius: 8px; padding: 12px 15px; margin-bottom: 8px; border-left: 4px solid #f39c12;">
+                        <div style="font-size: 0.8rem; color: #7f8c8d; font-weight: 600;">
+                            <i class="fas fa-lightbulb me-1" style="color: #f39c12;"></i>1. ¿Qué mejorarías en la empresa?
+                        </div>
+                        <div style="font-size: 0.9rem; margin-top: 3px;">${enc.mejorar || 'No especificado'}</div>
+                    </div>
+                    
+                    <div style="background: #f8d7da; border-radius: 8px; padding: 12px 15px; margin-bottom: 8px; border-left: 4px solid #e74c3c;">
+                        <div style="font-size: 0.8rem; color: #7f8c8d; font-weight: 600;">
+                            <i class="fas fa-exclamation-triangle me-1" style="color: #e74c3c;"></i>2. ¿Has sido víctima de maltrato, gritos o humillaciones?
+                        </div>
+                        <div style="font-size: 0.9rem; margin-top: 3px;">${enc.maltrato || 'No especificado'}</div>
+                    </div>
+                    
+                    <div style="background: #d4edda; border-radius: 8px; padding: 12px 15px; border-left: 4px solid #2ecc71;">
+                        <div style="font-size: 0.8rem; color: #7f8c8d; font-weight: 600;">
+                            <i class="fas fa-heart me-1" style="color: #2ecc71;"></i>3. ¿Qué te gusta de tu trabajo y qué cambiarías?
+                        </div>
+                        <div style="font-size: 0.9rem; margin-top: 3px;">${enc.gusta_cambiar || 'No especificado'}</div>
+                    </div>
+                </div>
+                
+                <!-- FIRMA -->
+                ${enc.firma ? `
+                    <div class="firma-container" style="background: #f0f8ff; border-radius: 10px; padding: 12px; border: 1px solid #d4edda; text-align: center; page-break-inside: avoid; margin-top: 10px;">
+                        <h6 style="font-weight: 700; color: #2c3e50; margin-bottom: 8px; font-size: 0.85rem;"><i class="fas fa-signature me-2 text-success"></i>Firma del Responsable</h6>
+                        <img src="${enc.firma}" style="max-width: 180px; max-height: 70px; border: 1px solid #ccc; border-radius: 8px; padding: 5px; background: white; display: block; margin: 0 auto;" 
+                             onerror="this.style.display='none'; this.parentElement.innerHTML += '<p style=\\'color: #999; text-align: center; font-size: 0.85rem;\\'>No se pudo cargar la firma</p>'">
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    });
+    
+    // ============================================================
+    // 4. CONSTRUIR EL HTML COMPLETO CON 2 PESTAÑAS
+    // ============================================================
+    let htmlCompleto = `<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resultados Encuesta - ${periodo}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"><\/script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+            padding: 30px 20px;
+            color: #2c3e50;
+        }
+        .container-resultados {
+            max-width: 1100px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            padding: 25px;
+        }
+        .header-principal {
+            text-align: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #e9ecef;
+        }
+        .header-principal h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+        .header-principal p {
+            color: #7f8c8d;
+            font-size: 14px;
+            margin: 5px 0 0 0;
+        }
+        .badge { padding: 3px 10px; border-radius: 20px; font-size: 0.7rem; }
+        
+        /* Pestañas principales */
+        .nav-tabs .nav-link {
+            border: none;
+            border-radius: 8px 8px 0 0;
+            padding: 10px 24px;
+            font-weight: 600;
+            font-size: 14px;
+            color: #2c3e50;
+            background: #e9ecef;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        .nav-tabs .nav-link.active {
+            background: white;
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+        }
+        .nav-tabs .nav-link:hover {
+            background: #dee2e6;
+        }
+        .tab-pane {
+            display: none;
+            padding: 20px 5px 5px 5px;
+        }
+        .tab-pane.show.active {
+            display: block;
+        }
+        
+        /* Buscador */
+        .search-container {
+            position: relative;
+            margin-bottom: 12px;
+        }
+        .search-container i {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #aaa;
+        }
+        .search-container input {
+            padding-left: 35px;
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+            font-size: 0.95rem;
+            width: 100%;
+            padding: 8px 12px 8px 35px;
+        }
+        .search-container input:focus {
+            border-color: #3498db;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(52,152,219,0.15);
+        }
+        
+        /* Tabla */
+        .tabla-wrapper {
+            max-height: 400px;
+            overflow: auto;
+            border: 1px solid #e9ecef;
+            border-radius: 10px;
+        }
+        .tabla-wrapper table thead {
+            position: sticky;
+            top: 0;
+            z-index: 5;
+        }
+        .tabla-wrapper table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            background: white;
+            min-width: 600px;
+        }
+        .tabla-wrapper table th {
+            background: #2c3e50;
+            color: white;
+            font-weight: 700;
+            padding: 10px 14px;
+            border: 1px solid #34495e;
+            text-align: left;
+            font-size: 12px;
+        }
+        .tabla-wrapper table td {
+            padding: 8px 14px;
+            border: 1px solid #ddd;
+            text-align: left;
+            font-size: 12px;
+        }
+        
+        /* Alertas */
+        .alert-box {
+            padding: 18px 20px;
+            border-radius: 10px;
+            margin-bottom: 12px;
+        }
+        .alert-box.success { background: #d4edda; border-left: 5px solid #2ecc71; color: #155724; }
+        .alert-box.danger { background: #f8d7da; border-left: 5px solid #e74c3c; color: #721c24; }
+        .alert-box.warning { background: #fff3cd; border-left: 5px solid #f39c12; color: #856404; }
+        
+        /* Respuestas abiertas en pestañas */
+        .respuesta-item-pestania {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 10px 16px;
+            margin-bottom: 4px;
+            border-radius: 8px;
+            text-align: left;
+            transition: all 0.2s;
+        }
+        .respuesta-item-pestania:hover {
+            background: #e9ecef !important;
+        }
+        .respuesta-item-pestania .info {
+            flex: 1;
+            min-width: 0;
+            text-align: left;
+        }
+        .respuesta-item-pestania .info .nombre {
+            font-size: 14px;
+            display: block;
+            text-align: left;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        .respuesta-item-pestania .info .respuesta {
+            font-size: 13px;
+            color: #34495e;
+            display: block;
+            text-align: left;
+            line-height: 1.5;
+        }
+        
+        /* Encuestas individuales - MISMO DISEÑO QUE LA DESCARGA INDIVIDUAL */
+        .encuesta-individual-completa {
+            margin-bottom: 30px;
+            border: 1px solid #e9ecef;
+            border-radius: 12px;
+            padding: 20px;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            page-break-inside: avoid;
+        }
+        .encuesta-individual-completa .fila-estrella {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            margin-bottom: 4px;
+        }
+        .encuesta-individual-completa .fila-estrella .label {
+            font-size: 0.85rem;
+            color: #2c3e50;
+            flex: 1;
+        }
+        .encuesta-individual-completa .fila-estrella .estrellas {
+            font-size: 1rem;
+        }
+        .encuesta-individual-completa .fila-estrella .texto {
+            font-size: 0.7rem;
+            color: #999;
+            min-width: 30px;
+            text-align: right;
+        }
+        .encuesta-individual-completa .firma-container {
+            background: #f0f8ff;
+            border-radius: 10px;
+            padding: 12px;
+            border: 1px solid #d4edda;
+            text-align: center;
+            margin-top: 10px;
+        }
+        .encuesta-individual-completa .firma-container img {
+            max-width: 180px;
+            max-height: 70px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 5px;
+            background: white;
+            display: block;
+            margin: 0 auto;
+        }
+        
+        .filtro-individuales {
+            margin-bottom: 15px;
+        }
+        
+        .footer-pdf {
+            text-align: center;
+            margin-top: 25px;
+            padding-top: 15px;
+            border-top: 2px solid #eee;
+            font-size: 11px;
+            color: #999;
+        }
+        
+        @media (max-width: 768px) {
+            .container-resultados { padding: 15px; }
+            body { padding: 10px; }
+            .nav-tabs .nav-link { padding: 8px 14px; font-size: 12px; }
+            .respuesta-item-pestania { padding: 8px 12px; }
+            .encuesta-individual-completa { padding: 12px; }
+            [style*="grid-template-columns: 1fr 1fr"] {
+                grid-template-columns: 1fr !important;
+            }
+        }
+        @media print {
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container-resultados">
+        <div class="header-principal">
+            <h1>📊 Resultados de Encuesta de Clima Laboral</h1>
+            <p>Periodo: <strong>${periodo}</strong> | Total de encuestas: <strong>${total}</strong></p>
+        </div>
+        
+        <!-- PESTAÑAS PRINCIPALES -->
+        <ul class="nav nav-tabs" id="mainTabs" role="tablist" style="border-bottom: 2px solid #dee2e6; gap: 4px; flex-wrap: wrap;">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="tab-resumen" data-bs-toggle="tab" data-bs-target="#panel-resumen" type="button" role="tab">
+                    <i class="fas fa-chart-bar me-2"></i>Resumen Estadístico
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-individuales" data-bs-toggle="tab" data-bs-target="#panel-individuales" type="button" role="tab">
+                    <i class="fas fa-users me-2"></i>Encuestas Individuales
+                    <span class="badge bg-secondary ms-1">${total}</span>
+                </button>
+            </li>
+        </ul>
+        
+        <div class="tab-content">
+            <!-- ==================== PESTAÑA 1: RESUMEN ==================== -->
+            <div class="tab-pane show active" id="panel-resumen" role="tabpanel">
+                
+                <!-- ALERTAS -->
+                <div style="margin-bottom: 25px;">
+                    <h5 style="font-weight: 700; color: #2c3e50; border-bottom: 2px solid #e9ecef; padding-bottom: 10px; font-size: 16px; margin-bottom: 15px;">
+                        <i class="fas fa-bell me-2 text-warning"></i>Alertas y Puntos de Atención
+                    </h5>
+    `;
+    
+    if (alertas.length === 0) {
+        htmlCompleto += `
+            <div class="alert-box success">
+                <i class="fas fa-check-circle me-2" style="color: #2ecc71;"></i>
+                ¡Buenas noticias! Todos los indicadores están en niveles aceptables (promedio ≥ 3).
+            </div>
+        `;
+    } else {
+        const criticas = alertas.filter(r => r.promedio < 2);
+        if (criticas.length > 0) {
+            htmlCompleto += `
+                <div class="alert-box danger">
+                    <p style="margin: 0 0 8px 0; font-weight: 700; font-size: 15px;">
+                        <i class="fas fa-exclamation-circle me-2"></i>ÁREAS CRÍTICAS (Promedio &lt; 2):
+                    </p>
+                    <ul style="margin: 0; padding-left: 25px; font-size: 14px;">
+                        ${criticas.map(r => `<li style="margin-bottom: 3px;"><strong>${r.label}</strong>: ${r.promedio.toFixed(2)}/5 (${r.porcentaje.toFixed(0)}%)</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+        const moderadas = alertas.filter(r => r.promedio >= 2 && r.promedio < 3);
+        if (moderadas.length > 0) {
+            htmlCompleto += `
+                <div class="alert-box warning">
+                    <p style="margin: 0 0 8px 0; font-weight: 700; font-size: 15px;">
+                        <i class="fas fa-exclamation-triangle me-2"></i>ÁREAS A MEJORAR (Promedio 2-2.99):
+                    </p>
+                    <ul style="margin: 0; padding-left: 25px; font-size: 14px;">
+                        ${moderadas.map(r => `<li style="margin-bottom: 3px;"><strong>${r.label}</strong>: ${r.promedio.toFixed(2)}/5 (${r.porcentaje.toFixed(0)}%)</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+    }
+    
+    // TABLA DE RESULTADOS
+    htmlCompleto += `
+            </div>
+            
+            <div style="margin-bottom: 25px;">
+                <h5 style="font-weight: 700; color: #2c3e50; border-bottom: 2px solid #e9ecef; padding-bottom: 10px; font-size: 16px; margin-bottom: 15px;">
+                    <i class="fas fa-table me-2 text-primary"></i>Resultados por Ítem
+                </h5>
+                <div class="tabla-wrapper">
+                    <table>
+                        <thead>
+                            <tr style="background: #2c3e50; color: white;">
+                                <th style="padding: 10px 14px; text-align: left; border: 1px solid #34495e; font-weight: 700; font-size: 12px;">Ítem</th>
+                                <th style="padding: 10px 14px; text-align: center; border: 1px solid #34495e; font-weight: 700; font-size: 12px;">Respuestas</th>
+                                <th style="padding: 10px 14px; text-align: center; border: 1px solid #34495e; font-weight: 700; font-size: 12px;">Promedio</th>
+                                <th style="padding: 10px 14px; text-align: center; border: 1px solid #34495e; font-weight: 700; font-size: 12px;">%</th>
+                                <th style="padding: 10px 14px; text-align: center; border: 1px solid #34495e; font-weight: 700; font-size: 12px;">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+    `;
+    
+    resultados.forEach((r, index) => {
+        let estado = '🟢 OK';
+        let bgColor = 'white';
+        let badgeColor = 'success';
+        if (r.promedio > 0 && r.promedio < 2) {
+            estado = '🔴 Crítico';
+            bgColor = '#f8d7da';
+            badgeColor = 'danger';
+        } else if (r.promedio > 0 && r.promedio < 3) {
+            estado = '🟡 Mejorar';
+            bgColor = '#fff3cd';
+            badgeColor = 'warning';
+        }
+        
+        htmlCompleto += `
+            <tr style="background: ${bgColor}; ${index % 2 === 0 && bgColor === 'white' ? 'background: #fafafa;' : ''}">
+                <td style="padding: 8px 14px; border: 1px solid #ddd; text-align: left; font-size: 12px; font-weight: 500;">${r.label}</td>
+                <td style="padding: 8px 14px; border: 1px solid #ddd; text-align: center; font-size: 12px;">
+                    <span class="badge bg-secondary" style="font-size: 11px; padding: 3px 12px;">${r.count}/${r.totalEncuestas}</span>
+                </td>
+                <td style="padding: 8px 14px; border: 1px solid #ddd; text-align: center; font-weight: ${r.promedio > 0 && r.promedio < 3 ? '700' : 'normal'}; font-size: 13px;">
+                    ${r.promedio > 0 ? r.promedio.toFixed(2) : 'N/A'}
+                </td>
+                <td style="padding: 8px 14px; border: 1px solid #ddd; text-align: center; font-size: 12px;">
+                    ${r.promedio > 0 ? r.porcentaje.toFixed(0) + '%' : 'N/A'}
+                </td>
+                <td style="padding: 8px 14px; border: 1px solid #ddd; text-align: center; font-size: 12px;">
+                    <span class="badge bg-${badgeColor}" style="font-size: 11px; padding: 4px 14px;">${estado}</span>
+                </td>
+            </tr>
+        `;
+    });
+    
+    htmlCompleto += `
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- PESTAÑAS DE PREGUNTAS ABIERTAS -->
+            <div>
+                <h5 style="font-weight: 700; color: #2c3e50; border-bottom: 2px solid #e9ecef; padding-bottom: 10px; font-size: 16px; margin-bottom: 15px;">
+                    <i class="fas fa-comment-dots me-2 text-primary"></i>Preguntas Abiertas
+                </h5>
+                
+                <ul class="nav nav-tabs" id="openTabs" role="tablist" style="border-bottom: 2px solid #dee2e6; gap: 4px; flex-wrap: wrap;">
+                    <li class="nav-item">
+                        <button class="nav-link active" id="tab-mejorar" data-bs-toggle="tab" data-bs-target="#panel-mejorar" type="button" role="tab"
+                                style="border: none; border-radius: 8px 8px 0 0; padding: 8px 18px; font-weight: 600; font-size: 13px; color: #2c3e50; background: #e9ecef; transition: all 0.3s; cursor: pointer;">
+                            <i class="fas fa-lightbulb me-2" style="color: #f39c12;"></i>Sugerencias
+                            <span class="badge bg-secondary ms-1">${respuestasMejorar.length}</span>
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" id="tab-maltrato" data-bs-toggle="tab" data-bs-target="#panel-maltrato" type="button" role="tab"
+                                style="border: none; border-radius: 8px 8px 0 0; padding: 8px 18px; font-weight: 600; font-size: 13px; color: #2c3e50; background: #e9ecef; transition: all 0.3s; cursor: pointer;">
+                            <i class="fas fa-exclamation-triangle me-2" style="color: #e74c3c;"></i>Maltrato
+                            <span class="badge bg-secondary ms-1">${respuestasMaltrato.length}</span>
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" id="tab-gustos" data-bs-toggle="tab" data-bs-target="#panel-gustos" type="button" role="tab"
+                                style="border: none; border-radius: 8px 8px 0 0; padding: 8px 18px; font-weight: 600; font-size: 13px; color: #2c3e50; background: #e9ecef; transition: all 0.3s; cursor: pointer;">
+                            <i class="fas fa-heart me-2" style="color: #2ecc71;"></i>Gustos y Cambios
+                            <span class="badge bg-secondary ms-1">${respuestasGustaCambiar.length}</span>
+                        </button>
+                    </li>
+                </ul>
+                
+                <div class="tab-content" style="padding: 15px 5px 5px 5px; background: white; border-radius: 0 0 10px 10px;">
+    `;
+    
+    // Función para generar el contenido de una pestaña de preguntas abiertas
+    function generarPanelPreguntas(titulo, color, respuestas, mensajeVacio, activo = false) {
+        let panelHTML = '';
+        const panelId = titulo.toLowerCase().replace(/\s/g, '-');
+        panelHTML += `
+            <div class="tab-pane ${activo ? 'show active' : ''}" id="panel-${panelId}" role="tabpanel">
+                <div style="margin-bottom: 12px;">
+                    <div class="search-container">
+                        <i class="fas fa-search"></i>
+                        <input type="text" class="form-control filtro-preguntas" data-panel="panel-${panelId}" placeholder="🔍 Buscar por nombre..." style="padding-left: 35px; border-radius: 8px; border: 2px solid #e9ecef; font-size: 0.95rem;">
+                    </div>
+                </div>
+                <div class="lista-preguntas" style="max-height: 350px; overflow-y: auto; padding-right: 5px;">
+        `;
+        
+        if (respuestas.length === 0) {
+            panelHTML += `
+                <div style="background: #f8f9fa; border-radius: 8px; padding: 25px; text-align: center; color: #7f8c8d; font-size: 14px;">
+                    <i class="fas fa-inbox" style="font-size: 32px; display: block; margin-bottom: 10px; color: #bdc3c7;"></i>
+                    ${mensajeVacio || 'No hay respuestas registradas'}
+                </div>
+            `;
+        } else {
+            respuestas.forEach((r, index) => {
+                const fotoSize = '40px';
+                const fotoHtml = r.fotoUrl ? 
+                    `<img src="${r.fotoUrl}" style="width: ${fotoSize}; height: ${fotoSize}; border-radius: 50%; object-fit: cover; border: 3px solid #dee2e6; flex-shrink: 0;" onerror="this.style.display='none'; this.parentElement.innerHTML = '<div style=\\'width: ${fotoSize}; height: ${fotoSize}; border-radius: 50%; background: #3498db; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; flex-shrink: 0;\\'>${r.nombre.charAt(0)}</div>'">` :
+                    `<div style="width: ${fotoSize}; height: ${fotoSize}; border-radius: 50%; background: #3498db; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; flex-shrink: 0;">${r.nombre.charAt(0)}</div>`;
+                
+                const bgColor = index % 2 === 0 ? '#f8f9fa' : 'white';
+                panelHTML += `
+                    <div class="respuesta-item-pestania" data-nombre="${r.nombre.toLowerCase()}" 
+                         style="display: flex; align-items: center; gap: 14px; padding: 10px 16px; margin-bottom: 4px; border-radius: 8px; background: ${bgColor}; border-left: 4px solid ${color}; text-align: left; transition: all 0.2s;">
+                        ${fotoHtml}
+                        <div class="info">
+                            <span class="nombre">${r.nombre}</span>
+                            <span class="respuesta">${r.respuesta}</span>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        
+        panelHTML += `
+                </div>
+            </div>
+        `;
+        return panelHTML;
+    }
+    
+    htmlCompleto += generarPanelPreguntas('mejorar', '#f39c12', respuestasMejorar, 'No hay sugerencias de mejora registradas', true);
+    htmlCompleto += generarPanelPreguntas('maltrato', '#e74c3c', respuestasMaltrato, 'No hay reportes de maltrato registrados', false);
+    htmlCompleto += generarPanelPreguntas('gustos', '#2ecc71', respuestasGustaCambiar, 'No hay respuestas registradas', false);
+    
+    htmlCompleto += `
+                </div>
+            </div>
+        </div>
+        
+        <!-- ==================== PESTAÑA 2: ENCUESTAS INDIVIDUALES ==================== -->
+        <div class="tab-pane" id="panel-individuales" role="tabpanel">
+            <div style="margin-bottom: 15px;">
+                <div class="search-container filtro-individuales">
+                    <i class="fas fa-search"></i>
+                    <input type="text" class="form-control" id="filtro-individuales" placeholder="🔍 Buscar por nombre de colaborador..." style="padding-left: 35px; border-radius: 8px; border: 2px solid #e9ecef; font-size: 0.95rem;">
+                </div>
+            </div>
+            <div id="lista-individuales">
+                ${encuestasIndividualesHTML}
+            </div>
+        </div>
+        
+        <div class="footer-pdf">
+            Documento generado desde el Sistema de Gestión de Empleados - ${new Date().toLocaleDateString()}
+        </div>
+    </div>
+    
+    <script>
+        // Filtro para preguntas abiertas
+        document.addEventListener('DOMContentLoaded', function() {
+            const filtrosPreguntas = document.querySelectorAll('.filtro-preguntas');
+            filtrosPreguntas.forEach(function(filtro) {
+                filtro.addEventListener('input', function() {
+                    const texto = this.value.toLowerCase().trim();
+                    const panelId = this.getAttribute('data-panel');
+                    const panel = document.getElementById(panelId);
+                    if (panel) {
+                        const items = panel.querySelectorAll('.respuesta-item-pestania');
+                        items.forEach(function(item) {
+                            const nombre = item.getAttribute('data-nombre') || '';
+                            if (texto === '' || nombre.includes(texto)) {
+                                item.style.display = 'flex';
+                            } else {
+                                item.style.display = 'none';
+                            }
+                        });
+                    }
+                });
+            });
+            
+            // Filtro para encuestas individuales
+            const filtroIndividuales = document.getElementById('filtro-individuales');
+            if (filtroIndividuales) {
+                filtroIndividuales.addEventListener('input', function() {
+                    const texto = this.value.toLowerCase().trim();
+                    const items = document.querySelectorAll('.encuesta-individual-completa');
+                    items.forEach(function(item) {
+                        const nombre = item.getAttribute('data-nombre') || '';
+                        if (texto === '' || nombre.includes(texto)) {
+                            item.style.display = 'block';
+                        } else {
+                            item.style.display = 'none';
+                        }
+                    });
+                });
+            }
+        });
+    <\/script>
+</body>
+</html>`;
+    
+    // Crear blob y descargar
+    const blob = new Blob([htmlCompleto], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Resultados_Encuesta_${periodo}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    $('#overlay').hide();
+    $('#loadingMessage p').text('');
+    Swal.fire({
+        icon: 'success',
+        title: '¡Descarga completada!',
+        text: 'El archivo se ha descargado correctamente.',
+        timer: 3000,
+        showConfirmButton: true
+    });
+}
+
+
+function descargarTodasEncuestasHTML(periodo) {
+    const periodoData = encuestasAgrupadasPorPeriodo[periodo];
+    
+    if (!periodoData || periodoData.encuestas.length === 0) {
+        Swal.fire('Sin Datos', 'No hay encuestas en este periodo.', 'info');
+        return;
+    }
+    
+    $('#overlay').css('display', 'flex');
+    $('#loadingMessage p').text('Generando archivo con todas las encuestas...');
+    
+    const encuestasPeriodo = periodoData.encuestas;
+    const total = encuestasPeriodo.length;
+    
+    // Función para generar estrellas
+    function getStars(valor) {
+        if (!valor) return 'No respondió';
+        const num = parseInt(valor);
+        if (isNaN(num)) return 'No respondió';
+        return '★'.repeat(num) + '☆'.repeat(5 - num);
+    }
+    
+    function getStarsText(valor) {
+        if (!valor) return 'No respondió';
+        const num = parseInt(valor);
+        if (isNaN(num)) return 'No respondió';
+        return num + '/5';
+    }
+    
+    // Función para generar una fila de estrellas
+    function generarFilaEstrellas(label, valor) {
+        return `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 8px; background: #f8f9fa; border-radius: 4px; margin-bottom: 3px;">
+                <span style="font-size: 0.8rem; color: #2c3e50; flex: 1;">${label}</span>
+                <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+                    <span style="font-size: 0.9rem;">${getStars(valor)}</span>
+                    <span style="font-size: 0.65rem; color: #999; min-width: 25px; text-align: right;">${getStarsText(valor)}</span>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Construir el HTML con todas las encuestas
+    let encuestasHTML = '';
+    
+    encuestasPeriodo.forEach((enc, index) => {
+        // Buscar foto del colaborador
+        let fotoUrl = '';
+        let colaborador = colaboradoresActivos.find(c => c.identidad === enc.identidad);
+        if (!colaborador) {
+            colaborador = colaboradoresEgresos.find(c => c.identidad === enc.identidad);
+        }
+        if (colaborador && colaborador.fotoUrl) {
+            fotoUrl = colaborador.fotoUrl;
+        }
+        
+        const fechaObj = new Date(enc.fecha);
+        const fechaStr = fechaObj.toLocaleDateString('es-ES', { 
+            day: '2-digit', 
+            month: '2-digit', 
+            year: 'numeric',
+            hour: '2-digit', 
+            minute: '2-digit' 
+        });
+        
+        encuestasHTML += `
+            <div class="encuesta-individual" style="margin-bottom: 30px; border: 1px solid #e9ecef; border-radius: 12px; padding: 20px; background: white; page-break-inside: avoid; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 15px; border-bottom: 2px solid #e9ecef; padding-bottom: 12px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        ${fotoUrl ? 
+                            `<img src="${fotoUrl}" style="width: 45px; height: 45px; border-radius: 50%; object-fit: cover; border: 2px solid #3498db;">` :
+                            `<div style="width: 45px; height: 45px; border-radius: 50%; background: #3498db; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px;">${enc.nombre.charAt(0)}</div>`
+                        }
+                        <div>
+                            <h4 style="margin: 0; font-size: 16px; color: #2c3e50;">${enc.nombre}</h4>
+                            <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 3px;">
+                                <span class="badge" style="background: #6c757d; font-size: 10px;">${enc.identidad}</span>
+                                <span class="badge" style="background: #3498db; font-size: 10px;">${fechaStr}</span>
+                                <span class="badge" style="background: #28a745; font-size: 10px;">${enc.area || 'N/A'}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <span style="font-size: 12px; color: #999;">Encuesta #${index + 1} de ${total}</span>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div>
+                        <h6 style="font-size: 12px; font-weight: 700; color: #2c3e50; margin-bottom: 6px; border-bottom: 1px solid #e9ecef; padding-bottom: 4px;">
+                            <i class="fas fa-handshake me-1"></i>Clima Laboral
+                        </h6>
+                        ${generarFilaEstrellas('A gusto trabajando', enc.clima_1)}
+                        ${generarFilaEstrellas('Respeto entre compañeros', enc.clima_2)}
+                        ${generarFilaEstrellas('Colaboración', enc.clima_3)}
+                        ${generarFilaEstrellas('Sin tensión constante', enc.clima_4)}
+                        ${generarFilaEstrellas('Puedo expresar opiniones', enc.clima_5)}
+                        ${generarFilaEstrellas('Problemas atendidos', enc.clima_6)}
+                    </div>
+                    <div>
+                        <h6 style="font-size: 12px; font-weight: 700; color: #2c3e50; margin-bottom: 6px; border-bottom: 1px solid #e9ecef; padding-bottom: 4px;">
+                            <i class="fas fa-user-tie me-1"></i>Trato de Supervisores
+                        </h6>
+                        ${generarFilaEstrellas('Me trata con respeto', enc.super_1)}
+                        ${generarFilaEstrellas('Escucha opiniones', enc.super_2)}
+                        ${generarFilaEstrellas('Corrección respetuosa', enc.super_3)}
+                        ${generarFilaEstrellas('Llamadas profesionales', enc.super_4)}
+                        ${generarFilaEstrellas('Reconoce buen trabajo', enc.super_5)}
+                        ${generarFilaEstrellas('Es justo', enc.super_6)}
+                        ${generarFilaEstrellas('Respeta dignidad', enc.super_7)}
+                        ${generarFilaEstrellas('Puedo hablar sin miedo', enc.super_8)}
+                    </div>
+                    <div>
+                        <h6 style="font-size: 12px; font-weight: 700; color: #2c3e50; margin-bottom: 6px; border-bottom: 1px solid #e9ecef; padding-bottom: 4px;">
+                            <i class="fas fa-users-cog me-1"></i>Trato de Coordinación
+                        </h6>
+                        ${generarFilaEstrellas('Comunicación adecuada', enc.coord_1)}
+                        ${generarFilaEstrellas('Escucha necesidades', enc.coord_2)}
+                        ${generarFilaEstrellas('Conoce dificultades', enc.coord_3)}
+                        ${generarFilaEstrellas('Interés en mejorar', enc.coord_4)}
+                    </div>
+                    <div>
+                        <h6 style="font-size: 12px; font-weight: 700; color: #2c3e50; margin-bottom: 6px; border-bottom: 1px solid #e9ecef; padding-bottom: 4px;">
+                            <i class="fas fa-handshake me-1"></i>Respeto y Dignidad
+                        </h6>
+                        ${generarFilaEstrellas('Respetado por compañeros', enc.respeto_1)}
+                        ${generarFilaEstrellas('Respetado por supervisores', enc.respeto_2)}
+                        ${generarFilaEstrellas('Sin burlas u ofensas', enc.respeto_3)}
+                        ${generarFilaEstrellas('Llamadas privadas', enc.respeto_4)}
+                    </div>
+                </div>
+                
+                <!-- Preguntas abiertas -->
+                <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e9ecef;">
+                    <h6 style="font-size: 12px; font-weight: 700; color: #2c3e50; margin-bottom: 6px;">
+                        <i class="fas fa-comment-dots me-1"></i>Preguntas Abiertas
+                    </h6>
+                    <div style="display: grid; grid-template-columns: 1fr; gap: 6px;">
+                        <div style="background: #fff9e6; border-radius: 6px; padding: 8px 12px; border-left: 3px solid #f39c12;">
+                            <span style="font-size: 10px; color: #7f8c8d; font-weight: 600;">1. ¿Qué mejorarías?</span>
+                            <p style="margin: 2px 0 0 0; font-size: 12px; color: #2c3e50;">${enc.mejorar || 'No especificado'}</p>
+                        </div>
+                        <div style="background: #f8d7da; border-radius: 6px; padding: 8px 12px; border-left: 3px solid #e74c3c;">
+                            <span style="font-size: 10px; color: #7f8c8d; font-weight: 600;">2. ¿Maltrato, gritos, humillaciones?</span>
+                            <p style="margin: 2px 0 0 0; font-size: 12px; color: #2c3e50;">${enc.maltrato || 'No especificado'}</p>
+                        </div>
+                        <div style="background: #d4edda; border-radius: 6px; padding: 8px 12px; border-left: 3px solid #2ecc71;">
+                            <span style="font-size: 10px; color: #7f8c8d; font-weight: 600;">3. ¿Qué te gusta y qué cambiarías?</span>
+                            <p style="margin: 2px 0 0 0; font-size: 12px; color: #2c3e50;">${enc.gusta_cambiar || 'No especificado'}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                ${enc.firma ? `
+                    <div style="margin-top: 10px; text-align: center; background: #f0f8ff; border-radius: 8px; padding: 8px; border: 1px solid #d4edda;">
+                        <span style="font-size: 11px; font-weight: 600; color: #2c3e50;">
+                            <i class="fas fa-signature me-1"></i>Firma del Responsable
+                        </span>
+                        <img src="${enc.firma}" style="max-width: 150px; max-height: 50px; border: 1px solid #ccc; border-radius: 6px; padding: 4px; background: white; display: block; margin: 4px auto 0;" 
+                             onerror="this.style.display='none'">
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    });
+    
+    const htmlCompleto = `<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todas las Encuestas - ${periodo}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+            padding: 30px 20px;
+            color: #2c3e50;
+        }
+        .container-encuestas {
+            max-width: 1100px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+        .header-principal {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #e9ecef;
+        }
+        .header-principal h1 {
+            font-size: 26px;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+        .header-principal p {
+            color: #7f8c8d;
+            font-size: 15px;
+            margin: 5px 0 0 0;
+        }
+        .encuesta-individual {
+            margin-bottom: 30px;
+            border: 1px solid #e9ecef;
+            border-radius: 12px;
+            padding: 20px;
+            background: white;
+            page-break-inside: avoid;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .badge { padding: 3px 10px; border-radius: 20px; font-size: 0.7rem; }
+        .fila-estrella {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 8px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            margin-bottom: 3px;
+        }
+        .fila-estrella .label { font-size: 0.8rem; color: #2c3e50; flex: 1; }
+        .fila-estrella .estrellas { font-size: 0.9rem; }
+        .fila-estrella .texto { font-size: 0.65rem; color: #999; min-width: 25px; text-align: right; }
+        @media print {
+            .no-print { display: none !important; }
+            .encuesta-individual { page-break-inside: avoid; }
+        }
+        @media (max-width: 768px) {
+            .container-encuestas { padding: 15px; }
+            body { padding: 10px; }
+            .encuesta-individual { padding: 12px; }
+            [style*="grid-template-columns: 1fr 1fr"] {
+                grid-template-columns: 1fr !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container-encuestas">
+        <div class="header-principal">
+            <h1>📋 Todas las Encuestas del Periodo</h1>
+            <p>Periodo: <strong>${periodo}</strong> | Total: <strong>${total}</strong> encuestas</p>
+            <p style="font-size: 12px; color: #999; margin-top: 5px;">
+                <i class="fas fa-info-circle me-1"></i>
+                Documento generado desde el Sistema de Gestión de Empleados - ${new Date().toLocaleDateString()}
+            </p>
+        </div>
+        ${encuestasHTML}
+    </div>
+</body>
+</html>`;
+    
+    // Crear blob y descargar
+    const blob = new Blob([htmlCompleto], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Todas_Encuestas_${periodo}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    $('#overlay').hide();
+    $('#loadingMessage p').text('');
+    Swal.fire({
+        icon: 'success',
+        title: '¡Descarga completada!',
+        text: `Se han descargado ${total} encuestas en un solo archivo HTML.`,
+        timer: 3000,
+        showConfirmButton: true
+    });
+}
+
+function verEncuestasIndividuales(periodo) {
+    const periodoData = encuestasAgrupadasPorPeriodo[periodo];
+    
+    if (!periodoData || periodoData.encuestas.length === 0) {
+        Swal.fire('Sin Datos', 'No hay encuestas en este periodo.', 'info');
+        return;
+    }
+    
+    const encuestasPeriodo = periodoData.encuestas;
+    const total = encuestasPeriodo.length;
+    
+    // Función para generar estrellas
+    function getStars(valor) {
+        if (!valor) return 'No respondió';
+        const num = parseInt(valor);
+        if (isNaN(num)) return 'No respondió';
+        return '★'.repeat(num) + '☆'.repeat(5 - num);
+    }
+    
+    function getStarsText(valor) {
+        if (!valor) return 'No respondió';
+        const num = parseInt(valor);
+        if (isNaN(num)) return 'No respondió';
+        return num + '/5';
+    }
+    
+    // Función para generar una fila de estrellas
+    function generarFilaEstrellas(label, valor) {
+        return `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 8px; background: #f8f9fa; border-radius: 4px; margin-bottom: 3px;">
+                <span style="font-size: 0.8rem; color: #2c3e50; flex: 1;">${label}</span>
+                <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+                    <span style="font-size: 0.9rem;">${getStars(valor)}</span>
+                    <span style="font-size: 0.65rem; color: #999; min-width: 25px; text-align: right;">${getStarsText(valor)}</span>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Construir HTML para el modal
+    let encuestasHTML = '';
+    
+    encuestasPeriodo.forEach((enc, index) => {
+        // Buscar foto del colaborador
+        let fotoUrl = '';
+        let colaborador = colaboradoresActivos.find(c => c.identidad === enc.identidad);
+        if (!colaborador) {
+            colaborador = colaboradoresEgresos.find(c => c.identidad === enc.identidad);
+        }
+        if (colaborador && colaborador.fotoUrl) {
+            fotoUrl = colaborador.fotoUrl;
+        }
+        
+        const fechaObj = new Date(enc.fecha);
+        const fechaStr = fechaObj.toLocaleDateString('es-ES', { 
+            day: '2-digit', 
+            month: '2-digit', 
+            year: 'numeric',
+            hour: '2-digit', 
+            minute: '2-digit' 
+        });
+        
+        encuestasHTML += `
+            <div class="encuesta-individual-modal" style="margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 12px; padding: 18px; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 12px; border-bottom: 2px solid #e9ecef; padding-bottom: 10px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        ${fotoUrl ? 
+                            `<img src="${fotoUrl}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #3498db;">` :
+                            `<div style="width: 40px; height: 40px; border-radius: 50%; background: #3498db; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px;">${enc.nombre.charAt(0)}</div>`
+                        }
+                        <div>
+                            <h5 style="margin: 0; font-size: 15px; color: #2c3e50; font-weight: 700;">${enc.nombre}</h5>
+                            <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px;">
+                                <span class="badge" style="background: #6c757d; font-size: 9px;">${enc.identidad}</span>
+                                <span class="badge" style="background: #3498db; font-size: 9px;">${fechaStr}</span>
+                                <span class="badge" style="background: #28a745; font-size: 9px;">${enc.area || 'N/A'}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <span style="font-size: 11px; color: #999;">#${index + 1} de ${total}</span>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div>
+                        <h6 style="font-size: 11px; font-weight: 700; color: #2c3e50; margin-bottom: 4px; border-bottom: 1px solid #e9ecef; padding-bottom: 3px;">
+                            <i class="fas fa-handshake me-1"></i>Clima Laboral
+                        </h6>
+                        ${generarFilaEstrellas('A gusto trabajando', enc.clima_1)}
+                        ${generarFilaEstrellas('Respeto entre compañeros', enc.clima_2)}
+                        ${generarFilaEstrellas('Colaboración', enc.clima_3)}
+                        ${generarFilaEstrellas('Sin tensión constante', enc.clima_4)}
+                        ${generarFilaEstrellas('Puedo expresar opiniones', enc.clima_5)}
+                        ${generarFilaEstrellas('Problemas atendidos', enc.clima_6)}
+                    </div>
+                    <div>
+                        <h6 style="font-size: 11px; font-weight: 700; color: #2c3e50; margin-bottom: 4px; border-bottom: 1px solid #e9ecef; padding-bottom: 3px;">
+                            <i class="fas fa-user-tie me-1"></i>Trato de Supervisores
+                        </h6>
+                        ${generarFilaEstrellas('Me trata con respeto', enc.super_1)}
+                        ${generarFilaEstrellas('Escucha opiniones', enc.super_2)}
+                        ${generarFilaEstrellas('Corrección respetuosa', enc.super_3)}
+                        ${generarFilaEstrellas('Llamadas profesionales', enc.super_4)}
+                        ${generarFilaEstrellas('Reconoce buen trabajo', enc.super_5)}
+                        ${generarFilaEstrellas('Es justo', enc.super_6)}
+                        ${generarFilaEstrellas('Respeta dignidad', enc.super_7)}
+                        ${generarFilaEstrellas('Puedo hablar sin miedo', enc.super_8)}
+                    </div>
+                    <div>
+                        <h6 style="font-size: 11px; font-weight: 700; color: #2c3e50; margin-bottom: 4px; border-bottom: 1px solid #e9ecef; padding-bottom: 3px;">
+                            <i class="fas fa-users-cog me-1"></i>Trato de Coordinación
+                        </h6>
+                        ${generarFilaEstrellas('Comunicación adecuada', enc.coord_1)}
+                        ${generarFilaEstrellas('Escucha necesidades', enc.coord_2)}
+                        ${generarFilaEstrellas('Conoce dificultades', enc.coord_3)}
+                        ${generarFilaEstrellas('Interés en mejorar', enc.coord_4)}
+                    </div>
+                    <div>
+                        <h6 style="font-size: 11px; font-weight: 700; color: #2c3e50; margin-bottom: 4px; border-bottom: 1px solid #e9ecef; padding-bottom: 3px;">
+                            <i class="fas fa-handshake me-1"></i>Respeto y Dignidad
+                        </h6>
+                        ${generarFilaEstrellas('Respetado por compañeros', enc.respeto_1)}
+                        ${generarFilaEstrellas('Respetado por supervisores', enc.respeto_2)}
+                        ${generarFilaEstrellas('Sin burlas u ofensas', enc.respeto_3)}
+                        ${generarFilaEstrellas('Llamadas privadas', enc.respeto_4)}
+                    </div>
+                </div>
+                
+                <!-- Preguntas abiertas -->
+                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e9ecef;">
+                    <h6 style="font-size: 11px; font-weight: 700; color: #2c3e50; margin-bottom: 4px;">
+                        <i class="fas fa-comment-dots me-1"></i>Preguntas Abiertas
+                    </h6>
+                    <div style="display: grid; grid-template-columns: 1fr; gap: 4px;">
+                        <div style="background: #fff9e6; border-radius: 4px; padding: 6px 10px; border-left: 3px solid #f39c12;">
+                            <span style="font-size: 9px; color: #7f8c8d; font-weight: 600;">1. ¿Qué mejorarías?</span>
+                            <p style="margin: 1px 0 0 0; font-size: 11px; color: #2c3e50;">${enc.mejorar || 'No especificado'}</p>
+                        </div>
+                        <div style="background: #f8d7da; border-radius: 4px; padding: 6px 10px; border-left: 3px solid #e74c3c;">
+                            <span style="font-size: 9px; color: #7f8c8d; font-weight: 600;">2. ¿Maltrato, gritos, humillaciones?</span>
+                            <p style="margin: 1px 0 0 0; font-size: 11px; color: #2c3e50;">${enc.maltrato || 'No especificado'}</p>
+                        </div>
+                        <div style="background: #d4edda; border-radius: 4px; padding: 6px 10px; border-left: 3px solid #2ecc71;">
+                            <span style="font-size: 9px; color: #7f8c8d; font-weight: 600;">3. ¿Qué te gusta y qué cambiarías?</span>
+                            <p style="margin: 1px 0 0 0; font-size: 11px; color: #2c3e50;">${enc.gusta_cambiar || 'No especificado'}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                ${enc.firma ? `
+                    <div style="margin-top: 8px; text-align: center; background: #f0f8ff; border-radius: 6px; padding: 6px; border: 1px solid #d4edda;">
+                        <span style="font-size: 10px; font-weight: 600; color: #2c3e50;">
+                            <i class="fas fa-signature me-1"></i>Firma
+                        </span>
+                        <img src="${enc.firma}" style="max-width: 120px; max-height: 40px; border: 1px solid #ccc; border-radius: 4px; padding: 3px; background: white; display: block; margin: 2px auto 0;" 
+                             onerror="this.style.display='none'">
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    });
+    
+    const modalHtml = `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0; max-height: 75vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 8px; position: sticky; top: 0; background: white; z-index: 10; padding: 8px 0;">
+                <div>
+                    <h4 style="margin: 0; font-size: 18px; font-weight: 700; color: #2c3e50;">
+                        📋 Encuestas Individuales
+                    </h4>
+                    <p style="margin: 0; font-size: 13px; color: #7f8c8d;">Periodo: <strong>${periodo}</strong> | Total: <strong>${total}</strong> encuestas</p>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-primary btn-sm" onclick="descargarTodasEncuestasHTML('${periodo}')" style="border-radius: 8px; padding: 6px 16px; font-weight: 600;">
+                        <i class="fas fa-file-archive me-1"></i>Descargar Todas
+                    </button>
+                    <button class="btn btn-secondary btn-sm" onclick="Swal.close()" style="border-radius: 8px; padding: 6px 16px; font-weight: 600;">
+                        <i class="fas fa-times me-1"></i>Cerrar
+                    </button>
+                </div>
+            </div>
+            <div style="max-height: 60vh; overflow-y: auto; padding-right: 5px;">
+                ${encuestasHTML}
+            </div>
+            <div style="text-align: center; margin-top: 15px; padding-top: 10px; border-top: 1px solid #eee; font-size: 10px; color: #999;">
+                Documento generado desde el Sistema de Gestión de Empleados - ${new Date().toLocaleDateString()}
+            </div>
+        </div>
+    `;
+    
+    Swal.fire({
+        title: null,
+        html: modalHtml,
+        width: window.innerWidth < 576 ? '95%' : '950px',
+        showCloseButton: true,
+        showConfirmButton: false,
+        customClass: {
+            popup: 'animated fadeInDown'
+        }
+    });
+}
+
+
 
 // Volver a periodos
 $(document).on('click', '#btn-volver-periodos-encuestas', function() {

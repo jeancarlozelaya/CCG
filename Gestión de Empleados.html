@@ -3583,25 +3583,34 @@
                                 </button>
                             </div>
                             
-                            <div class="row mb-4">
-                                <div class="col-md-8 offset-md-2 text-center">
-                                    <div class="card">
-                                        <div class="card-body">
-                                            <h5 class="card-title mb-3">
-                                                <i class="fas fa-calendar-check me-2 text-primary"></i>
-                                                Registrar Asistencia del Mes
-                                            </h5>
-                                            <p class="card-text text-muted">
-                                                Al hacer clic en el botón, se calculará automáticamente la asistencia para cada día del mes actual 
-                                                (desde el día 1 hasta hoy) y se guardará en la base de datos. Los días ya registrados no se duplicarán.
-                                            </p>
-                                            <button class="btn btn-primary btn-lg" id="btn-registrar-asistencia-mes">
-                                                <i class="fas fa-save me-2"></i>Registrar Activos del Mes
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+<div class="row mb-4">
+    <div class="col-md-10 offset-md-1">
+        <div class="card">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h5 class="card-title mb-3">
+                            <i class="fas fa-calendar-check me-2 text-primary"></i>
+                            Registrar Asistencia del Mes
+                        </h5>
+                        <p class="card-text text-muted mb-0">
+                            Al hacer clic en el botón, se calculará automáticamente la asistencia para cada día del mes actual 
+                            (desde el día 1 hasta hoy) y se guardará en la base de datos. Los días ya registrados no se duplicarán.
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-md-end text-center mt-3 mt-md-0">
+                        <button class="btn btn-primary btn-lg w-100 mb-2" id="btn-registrar-asistencia-mes">
+                            <i class="fas fa-save me-2"></i>Registrar Activos del Mes
+                        </button>
+                        <button class="btn btn-success btn-lg w-100" id="btn-descargar-pdf-asistencia">
+                            <i class="fas fa-file-pdf me-2"></i>Descargar PDF
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
                             <div class="card mb-4">
                                 <div class="card-header d-flex justify-content-between align-items-center">
@@ -3876,6 +3885,16 @@ function initializeApp() {
 }
 
 
+function refrescarAsistenciaConFiltro() {
+    const mes = parseInt($('#filtro-mes-asistencia').val(), 10);
+    const ano = parseInt($('#filtro-ano-asistencia').val(), 10);
+    
+    mostrarHistorialAsistencia(asistencia, mes, ano);
+    crearGraficoAsistenciaMensual(ano, mes);
+}
+
+
+
 function cargarTodosLosDatos() {
     refrescarDatosGlobales(function() {
         const hoy = new Date();
@@ -3938,10 +3957,28 @@ function cargarTodosLosDatos() {
         
         mostrarCumpleanerosDelMes();
 
+        // ========== ASISTENCIA MODIFICADA ==========
+        // Mostrar historial de asistencia con el mes y año actual como filtro
         if (asistencia && asistencia.length > 0) {
-            mostrarHistorialAsistencia();
+            // Cargar filtros de año y mes
             popularFiltrosAsistencia();
-            crearGraficoAsistenciaMensual();
+            
+            // Obtener mes y año actual
+            const mesActual = hoy.getMonth();
+            const anoActual = hoy.getFullYear();
+            
+            // Mostrar tabla con filtro del mes actual
+            mostrarHistorialAsistencia(asistencia, mesActual, anoActual);
+            
+            // Mostrar gráfico con filtro del mes actual
+            crearGraficoAsistenciaMensual(anoActual, mesActual);
+        } else {
+            // Si no hay datos, mostrar tabla vacía
+            const tabla = $('#tabla-asistencia').empty();
+            tabla.append(`<tr><td colspan="8" class="text-center">No hay registros de asistencia. Presione "Registrar Activos del Mes" para generar.</td></tr>`);
+            $('#porcentaje-asistencia-mes').text('0%');
+            $('#porcentaje-ausentismo-mes').text('0%');
+            $('#porcentaje-rotacion-mes').text('0%');
         }
 
         actualizarDashboard();
@@ -3951,12 +3988,13 @@ function cargarTodosLosDatos() {
             iniciarVerificadorAsistencia();
         }
 
-        // 🔥 NUEVO: Después de cargar todos los datos, cargar permisos iniciales
+        // Cargar permisos iniciales
         setTimeout(function() {
             cargarPermisosIniciales();
         }, 500);
     });
 }
+
 
 // ============================================
 // SOBRESCRITURA DE cargarPermisos Y EVENTOS
@@ -4378,12 +4416,18 @@ $(document).on('permisosActualizados', function() {
             });
 
             $('#btn-registrar-asistencia-mes').on('click', registrarAsistenciaMes);
+$('#btn-descargar-pdf-asistencia').on('click', descargarPDFAsistencia);
             $('#buscador-asistencia').on('input', filtrarAsistencia);
-            $('#btn-filtrar-asistencia-grafico').on('click', function() {
-                const ano = parseInt($('#filtro-ano-asistencia').val(), 10);
-                const mes = parseInt($('#filtro-mes-asistencia').val(), 10);
-                crearGraficoAsistenciaMensual(ano, mes);
-            });
+$('#btn-filtrar-asistencia-grafico').off('click').on('click', function() {
+    const ano = parseInt($('#filtro-ano-asistencia').val(), 10);
+    const mes = parseInt($('#filtro-mes-asistencia').val(), 10);
+    
+    // Actualizar tabla con el filtro
+    mostrarHistorialAsistencia(asistencia, mes, ano);
+    
+    // Actualizar gráfico con el filtro
+    crearGraficoAsistenciaMensual(ano, mes);
+});
 
             $(document).on('click', '.btn-delete-asistencia', function(e) {
                 e.stopPropagation();
@@ -10540,328 +10584,444 @@ $(document).on('permisosActualizados', function() {
             validarCampoTelefono(input);
         }
 
-        function registrarAsistenciaMes() {
-            Swal.fire({
-                title: '¿Registrar asistencia del mes?',
-                html: `
-                    <p>Se calculará la asistencia para cada día del mes actual (desde el día 1 hasta hoy).</p>
-                    <p class="text-warning"><i class="fas fa-info-circle me-1"></i> Los días ya registrados no se duplicarán.</p>
-                `,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonText: 'Sí, registrar',
-                cancelButtonText: 'Cancelar'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    $('#overlay').css('display', 'flex');
+function registrarAsistenciaMes() {
+    Swal.fire({
+        title: '¿Registrar asistencia del mes?',
+        html: `
+            <p>Se calculará la asistencia para cada día del mes actual (desde el día 1 hasta hoy).</p>
+            <p class="text-warning"><i class="fas fa-info-circle me-1"></i> Los días ya registrados no se duplicarán.</p>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, registrar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            $('#overlay').css('display', 'flex');
+            
+            $.ajax({
+                url: SCRIPT_URL_ENVIAR,
+                method: 'POST',
+                data: {
+                    accion: 'registrar_asistencia_mensual'
+                },
+                dataType: 'text',
+                success: function(response) {
+                    $('#overlay').hide();
                     
-                    $.ajax({
-                        url: SCRIPT_URL_ENVIAR,
-                        method: 'POST',
-                        data: {
-                            accion: 'registrar_asistencia_mensual'
-                        },
-                        dataType: 'text',
-                        success: function(response) {
-                            $('#overlay').hide();
-                            
-                            try {
-                                var resultado;
-                                if (typeof response === 'object') {
-                                    resultado = response;
-                                } else {
-                                    resultado = JSON.parse(response);
-                                }
-                                
-                                if (resultado.success) {
-                                    Swal.fire({
-                                        icon: 'success',
-                                        title: '¡Registro completado!',
-                                        html: `Se registraron <strong>${resultado.nuevosDias}</strong> nuevos días de asistencia.`,
-                                        timer: 3000,
-                                        showConfirmButton: true
-                                    }).then(() => {
-                                        refrescarDatosGlobales(function() {
-                                            mostrarHistorialAsistencia();
-                                            crearGraficoAsistenciaMensual();
-                                            setTimeout(verificarAsistenciaHoy, 100);
-                                        });
-                                    });
-                                } else {
-                                    throw new Error(resultado.error || 'Error desconocido');
-                                }
-                            } catch (e) {
-                                console.error('Error parseando respuesta:', response);
-                                console.error('Error:', e);
-                                Swal.fire('Error', 'Error al procesar la respuesta: ' + e.message, 'error');
-                            }
-                        },
-                        error: function(xhr, status, error) {
-                            $('#overlay').hide();
-                            console.error('Error AJAX:', status, error);
-                            console.error('Respuesta:', xhr.responseText);
-                            Swal.fire('Error', 'Error de conexión al registrar asistencia.', 'error');
+                    try {
+                        var resultado;
+                        if (typeof response === 'object') {
+                            resultado = response;
+                        } else {
+                            resultado = JSON.parse(response);
                         }
-                    });
+                        
+                        if (resultado.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: '¡Registro completado!',
+                                html: `Se registraron <strong>${resultado.nuevosDias}</strong> nuevos días de asistencia.`,
+                                timer: 3000,
+                                showConfirmButton: true
+                            }).then(() => {
+                                refrescarDatosGlobales(function() {
+                                    const hoy = new Date();
+                                    mostrarHistorialAsistencia(asistencia, hoy.getMonth(), hoy.getFullYear());
+                                    crearGraficoAsistenciaMensual(hoy.getFullYear(), hoy.getMonth());
+                                    setTimeout(verificarAsistenciaHoy, 100);
+                                });
+                            });
+                        } else {
+                            throw new Error(resultado.error || 'Error desconocido');
+                        }
+                    } catch (e) {
+                        console.error('Error parseando respuesta:', response);
+                        console.error('Error:', e);
+                        Swal.fire('Error', 'Error al procesar la respuesta: ' + e.message, 'error');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    $('#overlay').hide();
+                    console.error('Error AJAX:', status, error);
+                    console.error('Respuesta:', xhr.responseText);
+                    Swal.fire('Error', 'Error de conexión al registrar asistencia.', 'error');
                 }
             });
         }
+    });
+}
 
-        function mostrarHistorialAsistencia(datos) {
-            const datosAMostrar = datos || asistencia;
-            const tabla = $('#tabla-asistencia').empty();
-            
-            const META_ASISTENCIA = 87;
-            
-            if (!datosAMostrar || datosAMostrar.length === 0) {
-                tabla.append('<tr><td colspan="8" class="text-center">No hay registros de asistencia.</td></tr>');
-                return;
-            }
-            
-            const asistenciaOrdenada = [...datosAMostrar].sort((a, b) => b.fecha.localeCompare(a.fecha));
-            
-            asistenciaOrdenada.forEach(reg => {
-                const porcentajeAsistencia = Math.min(100, (reg.presentes / META_ASISTENCIA) * 100).toFixed(1);
-                
-                let badgeColor = 'success';
-                if (porcentajeAsistencia < 100) badgeColor = 'warning';
-                if (porcentajeAsistencia < 90) badgeColor = 'danger';
-                
-                const personasFaltantes = Math.max(0, META_ASISTENCIA - reg.presentes);
-                const metaInfo = personasFaltantes > 0 ? ` (faltan ${personasFaltantes})` : '';
-                
-                tabla.append(`
-                    <tr>
-                        <td>${formatearFecha(reg.fecha)}</td>
-                        <td>${reg.activos}</td>
-                        <td>${reg.ausentes}</td>
-                        <td>${reg.egresos || 0}</td>
-                        <td>${reg.ingresos || 0}</td>
-                        <td>${reg.presentes}</td>
-                        <td>
-                            <span class="badge bg-${badgeColor}" title="Meta: ${META_ASISTENCIA} personas">
-                                ${porcentajeAsistencia}%${metaInfo}
-                            </span>
-                        </td>
-                        <td>
-                            <button class="btn btn-danger btn-sm btn-action btn-delete-asistencia" 
-                                    data-fecha="${reg.fecha}" 
-                                    title="Eliminar registro de asistencia de este día">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `);
-            });
-            
-            calcularPromediosAsistencia();
+
+function mostrarHistorialAsistencia(datos, mesFiltro, anoFiltro) {
+    const hoy = new Date();
+    const mesActual = mesFiltro !== undefined ? mesFiltro : hoy.getMonth();
+    const anoActual = anoFiltro !== undefined ? anoFiltro : hoy.getFullYear();
+    
+    let datosAMostrar = datos || asistencia;
+    
+    // Aplicar filtro de mes y año
+    datosAMostrar = datosAMostrar.filter(reg => {
+        const fecha = new Date(reg.fecha + 'T00:00:00');
+        return fecha.getMonth() === mesActual && fecha.getFullYear() === anoActual;
+    });
+    
+    const tabla = $('#tabla-asistencia').empty();
+    const META_ASISTENCIA = 87;
+    
+    if (!datosAMostrar || datosAMostrar.length === 0) {
+        tabla.append(`<tr><td colspan="8" class="text-center">No hay registros de asistencia para ${new Date(anoActual, mesActual).toLocaleString('es-ES', { month: 'long' })} ${anoActual}.</td></tr>`);
+        // IMPORTANTE: Aunque no haya datos, actualizar cartillas a 0%
+        calcularPromediosAsistencia(mesActual, anoActual);
+        return;
+    }
+    
+    const asistenciaOrdenada = [...datosAMostrar].sort((a, b) => b.fecha.localeCompare(a.fecha));
+    
+    asistenciaOrdenada.forEach(reg => {
+        const porcentajeAsistencia = Math.min(100, (reg.presentes / META_ASISTENCIA) * 100).toFixed(1);
+        
+        let badgeColor = 'success';
+        if (porcentajeAsistencia < 100) badgeColor = 'warning';
+        if (porcentajeAsistencia < 90) badgeColor = 'danger';
+        
+        const personasFaltantes = Math.max(0, META_ASISTENCIA - reg.presentes);
+        const metaInfo = personasFaltantes > 0 ? ` (faltan ${personasFaltantes})` : '';
+        
+        tabla.append(`
+            <tr>
+                <td>${formatearFecha(reg.fecha)}</td>
+                <td>${reg.activos}</td>
+                <td>${reg.ausentes}</td>
+                <td>${reg.egresos || 0}</td>
+                <td>${reg.ingresos || 0}</td>
+                <td>${reg.presentes}</td>
+                <td>
+                    <span class="badge bg-${badgeColor}" title="Meta: ${META_ASISTENCIA} personas">
+                        ${porcentajeAsistencia}%${metaInfo}
+                    </span>
+                </td>
+                <td>
+                    <button class="btn btn-danger btn-sm btn-action btn-delete-asistencia" 
+                            data-fecha="${reg.fecha}" 
+                            title="Eliminar registro de asistencia de este día">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `);
+    });
+    
+    // Calcular promedios con el mes/año actual
+    calcularPromediosAsistencia(mesActual, anoActual);
+}
+
+
+function calcularPromediosAsistencia(mes, ano) {
+    const hoy = new Date();
+    const mesActual = mes !== undefined ? mes : hoy.getMonth();
+    const anoActual = ano !== undefined ? ano : hoy.getFullYear();
+    
+    const META_ASISTENCIA = 87;
+    
+    // ===== FILTRAR ASISTENCIA DEL MES SELECCIONADO =====
+    const datosMes = asistencia.filter(reg => {
+        const fecha = new Date(reg.fecha + 'T00:00:00');
+        return fecha.getMonth() === mesActual && fecha.getFullYear() === anoActual;
+    });
+    
+    // ===== CALCULAR % ASISTENCIA =====
+    if (datosMes.length > 0) {
+        const sumaPresentes = datosMes.reduce((sum, reg) => sum + reg.presentes, 0);
+        const promedioPresentes = sumaPresentes / datosMes.length;
+        const porcentajeAsistencia = Math.min(100, (promedioPresentes / META_ASISTENCIA) * 100).toFixed(1);
+        $('#porcentaje-asistencia-mes').text(porcentajeAsistencia + '%');
+        $('#asistencia-mes-dashboard').text(porcentajeAsistencia + '%');
+    } else {
+        $('#porcentaje-asistencia-mes').text('0%');
+        $('#asistencia-mes-dashboard').text('0%');
+    }
+
+    // ===== CALCULAR % AUSENTISMO DEL MES SELECCIONADO =====
+    // Obtener fecha de inicio y fin del mes seleccionado
+    const inicioMes = new Date(anoActual, mesActual, 1);
+    const finMes = new Date(anoActual, mesActual + 1, 0);
+    
+    // Filtrar ausencias que ocurren dentro del mes seleccionado
+    const ausenciasMes = ausencias.filter(a => {
+        const fechaAusencia = new Date(a.fecha + 'T00:00:00');
+        // Una ausencia puede abarcar varios días, verificar si al menos un día cae en el mes
+        const fechaFinAusencia = a.fechaFin ? new Date(a.fechaFin + 'T00:00:00') : new Date(a.fecha + 'T00:00:00');
+        // La ausencia se superpone con el mes si el inicio es <= fin del mes y el fin es >= inicio del mes
+        return fechaAusencia <= finMes && fechaFinAusencia >= inicioMes;
+    });
+    
+    // Calcular días de ausencia que realmente caen dentro del mes
+    let totalDiasAusenciaMes = 0;
+    ausenciasMes.forEach(a => {
+        const fechaInicioAus = new Date(a.fecha + 'T00:00:00');
+        const fechaFinAus = a.fechaFin ? new Date(a.fechaFin + 'T00:00:00') : new Date(a.fecha + 'T00:00:00');
+        
+        // Determinar el rango de intersección con el mes
+        const inicioInterseccion = fechaInicioAus < inicioMes ? inicioMes : fechaInicioAus;
+        const finInterseccion = fechaFinAus > finMes ? finMes : fechaFinAus;
+        
+        if (inicioInterseccion <= finInterseccion) {
+            const diffTime = finInterseccion - inicioInterseccion;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            totalDiasAusenciaMes += diffDays;
         }
-
-        function calcularPromediosAsistencia() {
-            const hoy = new Date();
-            const mesActual = hoy.getMonth();
-            const anoActual = hoy.getFullYear();
-            
-            const META_ASISTENCIA = 87;
-            
-            const datosMes = asistencia.filter(reg => {
-                const fecha = new Date(reg.fecha + 'T00:00:00');
-                return fecha.getMonth() === mesActual && fecha.getFullYear() === anoActual;
-            });
-            
-            if (datosMes.length > 0) {
-                const sumaPresentes = datosMes.reduce((sum, reg) => sum + reg.presentes, 0);
-                const promedioPresentes = sumaPresentes / datosMes.length;
-                const porcentajeAsistencia = Math.min(100, (promedioPresentes / META_ASISTENCIA) * 100).toFixed(1);
-                
-                $('#porcentaje-asistencia-mes').text(porcentajeAsistencia + '%');
-            } else {
-                $('#porcentaje-asistencia-mes').text('0%');
+    });
+    
+    // Calcular días laborables posibles en el mes para todos los activos
+    const totalActivos = colaboradoresActivos.length;
+    let diasLaborablesPosibles = 0;
+    
+    if (totalActivos > 0) {
+        // Contar días laborables (Lunes a Viernes) en el mes
+        let diasLaborables = 0;
+        for (let d = new Date(inicioMes); d <= finMes; d.setDate(d.getDate() + 1)) {
+            const diaSemana = d.getDay();
+            if (diaSemana >= 1 && diaSemana <= 5) { // Lunes=1, Viernes=5
+                diasLaborables++;
             }
-
-            const ausentismoMes = $('#ausentismo-mes').text();
-            $('#porcentaje-ausentismo-mes').text(ausentismoMes);
-
-            const rotacionMes = $('#rotacion-mes').text();
-            $('#porcentaje-rotacion-mes').text(rotacionMes);
         }
+        diasLaborablesPosibles = totalActivos * diasLaborables;
+    }
+    
+    const porcentajeAusentismo = diasLaborablesPosibles > 0 ? ((totalDiasAusenciaMes / diasLaborablesPosibles) * 100).toFixed(2) : '0.00';
+    $('#porcentaje-ausentismo-mes').text(porcentajeAusentismo + '%');
+    $('#ausentismo-mes-dashboard').text(porcentajeAusentismo + '%');
 
-        function filtrarAsistencia() {
-            const texto = $('#buscador-asistencia').val().toLowerCase();
-            $('#tabla-asistencia tr').each(function() {
-                const fecha = $(this).find('td:eq(0)').text().toLowerCase();
-                $(this).toggle(fecha.includes(texto));
-            });
+    // ===== CALCULAR % ROTACIÓN DEL MES SELECCIONADO =====
+    // Activos al inicio del mes
+    const activosInicio = colaboradoresActivos.filter(c => {
+        const fechaInicio = new Date(c.fechaInicio + 'T00:00:00');
+        return fechaInicio < inicioMes;
+    }).length;
+    
+    // Activos al final del mes
+    const activosFin = colaboradoresActivos.filter(c => {
+        const fechaInicio = new Date(c.fechaInicio + 'T00:00:00');
+        return fechaInicio <= finMes;
+    }).length;
+    
+    // Egresos dentro del mes
+    const egresosMes = colaboradoresEgresos.filter(e => {
+        const fechaEgreso = new Date(e.fechaEgreso + 'T00:00:00');
+        return fechaEgreso >= inicioMes && fechaEgreso <= finMes;
+    }).length;
+    
+    const promedioPersonal = (activosInicio + activosFin) / 2;
+    const porcentajeRotacion = promedioPersonal > 0 ? ((egresosMes / promedioPersonal) * 100).toFixed(2) : '0.00';
+    $('#porcentaje-rotacion-mes').text(porcentajeRotacion + '%');
+    $('#rotacion-mes-dashboard').text(porcentajeRotacion + '%');
+
+    // ===== ACTUALIZAR DASHBOARD =====
+    // Actualizar también el dashboard con los nuevos valores
+    $('#ausentismo-mes-dashboard').text(porcentajeAusentismo + '%');
+    $('#asistencia-mes-dashboard').text($('#porcentaje-asistencia-mes').text());
+    $('#rotacion-mes-dashboard').text(porcentajeRotacion + '%');
+}
+
+
+
+function filtrarAsistencia() {
+    const texto = $('#buscador-asistencia').val().toLowerCase();
+    const mesActual = parseInt($('#filtro-mes-asistencia').val(), 10);
+    const anoActual = parseInt($('#filtro-ano-asistencia').val(), 10);
+    
+    $('#tabla-asistencia tr').each(function() {
+        const fechaText = $(this).find('td:eq(0)').text().toLowerCase();
+        const coincideFecha = fechaText.includes(texto);
+        
+        // También verificar que la fila pertenezca al mes/año actual
+        const fechaStr = $(this).find('td:eq(0)').text();
+        // La fecha está en formato DD/MM/YYYY
+        const partes = fechaStr.split('/');
+        if (partes.length === 3) {
+            const dia = parseInt(partes[0]);
+            const mes = parseInt(partes[1]) - 1; // mes en JS es 0-11
+            const ano = parseInt(partes[2]);
+            const perteneceAlMes = mes === mesActual && ano === anoActual;
+            $(this).toggle(coincideFecha && perteneceAlMes);
+        } else {
+            $(this).toggle(coincideFecha);
         }
+    });
+}
 
-        function crearGraficoAsistenciaMensual(ano, mes) {
-            if (!ano) {
-                const hoy = new Date();
-                ano = hoy.getFullYear();
-                mes = hoy.getMonth();
-            }
-            
-            if (graficoAsistencia) {
-                graficoAsistencia.destroy();
-            }
-            
-            const ctx = document.getElementById('graficoAsistenciaMensual').getContext('2d');
-            
-            const META_ASISTENCIA = 87;
-            
-            const datosMes = asistencia.filter(reg => {
-                const fecha = new Date(reg.fecha + 'T00:00:00');
-                return fecha.getFullYear() === ano && fecha.getMonth() === mes;
-            }).sort((a, b) => a.fecha.localeCompare(b.fecha));
-            
-            if (datosMes.length === 0) {
-                ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-                ctx.font = '16px Arial';
-                ctx.fillStyle = '#999';
-                ctx.textAlign = 'center';
-                ctx.fillText('No hay datos para este mes', ctx.canvas.width/2, ctx.canvas.height/2);
-                return;
-            }
-            
-            const labels = datosMes.map(reg => {
-                const fecha = new Date(reg.fecha + 'T00:00:00');
-                return fecha.getDate();
-            });
-            
-            const datosPresentes = datosMes.map(reg => reg.presentes);
-            const datosAusentes = datosMes.map(reg => reg.ausentes);
-            const datosEgresos = datosMes.map(reg => reg.egresos || 0);
-            const datosIngresos = datosMes.map(reg => reg.ingresos || 0);
-            
-            const lineaMeta = Array(labels.length).fill(META_ASISTENCIA);
-            
-            const nombreMes = new Date(ano, mes).toLocaleString('es-ES', { month: 'long' });
-            
-            graficoAsistencia = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        {
-                            label: 'Presentes',
-                            data: datosPresentes,
-                            borderColor: '#2ecc71',
-                            backgroundColor: 'rgba(46, 204, 113, 0.1)',
-                            fill: true,
-                            tension: 0.4
-                        },
-                        {
-                            label: 'Ausentes',
-                            data: datosAusentes,
-                            borderColor: '#e74c3c',
-                            backgroundColor: 'rgba(231, 76, 60, 0.1)',
-                            fill: true,
-                            tension: 0.4
-                        },
-                        {
-                            label: 'Egresos',
-                            data: datosEgresos,
-                            borderColor: '#f39c12',
-                            backgroundColor: 'rgba(243, 156, 18, 0.1)',
-                            fill: true,
-                            tension: 0.4
-                        },
-                        {
-                            label: 'Ingresos',
-                            data: datosIngresos,
-                            borderColor: '#3498db',
-                            backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                            fill: true,
-                            tension: 0.4
-                        },
-                        {
-                            label: `Meta (${META_ASISTENCIA})`,
-                            data: lineaMeta,
-                            borderColor: '#9b59b6',
-                            borderWidth: 3,
-                            borderDash: [5, 5],
-                            fill: false,
-                            tension: 0,
-                            pointRadius: 0,
-                            pointHoverRadius: 0
-                        }
-                    ]
+function crearGraficoAsistenciaMensual(ano, mes) {
+    const hoy = new Date();
+    const anoFiltro = ano !== undefined ? ano : hoy.getFullYear();
+    const mesFiltro = mes !== undefined ? mes : hoy.getMonth();
+    
+    if (graficoAsistencia) {
+        graficoAsistencia.destroy();
+    }
+    
+    const ctx = document.getElementById('graficoAsistenciaMensual').getContext('2d');
+    
+    const META_ASISTENCIA = 87;
+    
+    const datosMes = asistencia.filter(reg => {
+        const fecha = new Date(reg.fecha + 'T00:00:00');
+        return fecha.getFullYear() === anoFiltro && fecha.getMonth() === mesFiltro;
+    }).sort((a, b) => a.fecha.localeCompare(b.fecha));
+    
+    if (datosMes.length === 0) {
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        ctx.font = '16px Arial';
+        ctx.fillStyle = '#999';
+        ctx.textAlign = 'center';
+        ctx.fillText(`No hay datos para ${new Date(anoFiltro, mesFiltro).toLocaleString('es-ES', { month: 'long' })} ${anoFiltro}`, ctx.canvas.width/2, ctx.canvas.height/2);
+        return;
+    }
+    
+    const labels = datosMes.map(reg => {
+        const fecha = new Date(reg.fecha + 'T00:00:00');
+        return fecha.getDate();
+    });
+    
+    const datosPresentes = datosMes.map(reg => reg.presentes);
+    const datosAusentes = datosMes.map(reg => reg.ausentes);
+    const datosEgresos = datosMes.map(reg => reg.egresos || 0);
+    const datosIngresos = datosMes.map(reg => reg.ingresos || 0);
+    
+    const lineaMeta = Array(labels.length).fill(META_ASISTENCIA);
+    
+    const nombreMes = new Date(anoFiltro, mesFiltro).toLocaleString('es-ES', { month: 'long' });
+    
+    graficoAsistencia = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Presentes',
+                    data: datosPresentes,
+                    borderColor: '#2ecc71',
+                    backgroundColor: 'rgba(46, 204, 113, 0.1)',
+                    fill: true,
+                    tension: 0.4
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: { stepSize: 10 },
-                            title: {
-                                display: true,
-                                text: 'Número de Personas'
+                {
+                    label: 'Ausentes',
+                    data: datosAusentes,
+                    borderColor: '#e74c3c',
+                    backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                },
+                {
+                    label: 'Egresos',
+                    data: datosEgresos,
+                    borderColor: '#f39c12',
+                    backgroundColor: 'rgba(243, 156, 18, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                },
+                {
+                    label: 'Ingresos',
+                    data: datosIngresos,
+                    borderColor: '#3498db',
+                    backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                },
+                {
+                    label: `Meta (${META_ASISTENCIA})`,
+                    data: lineaMeta,
+                    borderColor: '#9b59b6',
+                    borderWidth: 3,
+                    borderDash: [5, 5],
+                    fill: false,
+                    tension: 0,
+                    pointRadius: 0,
+                    pointHoverRadius: 0
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { stepSize: 10 },
+                    title: {
+                        display: true,
+                        text: 'Número de Personas'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Día del Mes'
+                    }
+                }
+            },
+            plugins: {
+                title: {
+                    display: true,
+                    text: `Evolución de Asistencia - ${nombreMes} ${anoFiltro} (Meta: ${META_ASISTENCIA})`
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
                             }
-                        },
-                        x: {
-                            title: {
-                                display: true,
-                                text: 'Día del Mes'
+                            if (context.parsed.y !== null) {
+                                label += context.parsed.y;
                             }
-                        }
-                    },
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: `Evolución de Asistencia - ${nombreMes} ${ano} (Meta: ${META_ASISTENCIA})`
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    let label = context.dataset.label || '';
-                                    if (label) {
-                                        label += ': ';
-                                    }
-                                    if (context.parsed.y !== null) {
-                                        label += context.parsed.y;
-                                    }
-                                    if (context.dataset.label === `Meta (${META_ASISTENCIA})`) {
-                                        label += ' personas (objetivo)';
-                                    }
-                                    return label;
-                                }
+                            if (context.dataset.label === `Meta (${META_ASISTENCIA})`) {
+                                label += ' personas (objetivo)';
                             }
+                            return label;
                         }
                     }
                 }
-            });
-        }
-
-        function popularFiltrosAsistencia() {
-            const filtroMes = $('#filtro-mes-asistencia');
-            const filtroAno = $('#filtro-ano-asistencia');
-            
-            filtroMes.empty();
-            filtroAno.empty();
-            
-            const meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-            meses.forEach((mes, i) => {
-                filtroMes.append(`<option value="${i}">${mes}</option>`);
-            });
-            
-            const anos = [...new Set(asistencia.map(reg => {
-                const fecha = new Date(reg.fecha + 'T00:00:00');
-                return fecha.getFullYear();
-            }))];
-            
-            if (!anos.includes(new Date().getFullYear())) {
-                anos.push(new Date().getFullYear());
             }
-            
-            anos.sort((a, b) => b - a).forEach(ano => {
-                filtroAno.append(`<option value="${ano}">${ano}</option>`);
-            });
-            
-            const hoy = new Date();
-            filtroMes.val(hoy.getMonth());
-            filtroAno.val(hoy.getFullYear());
         }
+    });
+}
+
+
+function popularFiltrosAsistencia() {
+    const filtroMes = $('#filtro-mes-asistencia');
+    const filtroAno = $('#filtro-ano-asistencia');
+    
+    filtroMes.empty();
+    filtroAno.empty();
+    
+    const meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+    meses.forEach((mes, i) => {
+        filtroMes.append(`<option value="${i}">${mes}</option>`);
+    });
+    
+    // Obtener años únicos de los datos de asistencia
+    const anos = [...new Set(asistencia.map(reg => {
+        const fecha = new Date(reg.fecha + 'T00:00:00');
+        return fecha.getFullYear();
+    }))];
+    
+    // Si no hay datos, usar el año actual
+    if (anos.length === 0) {
+        anos.push(new Date().getFullYear());
+    }
+    
+    anos.sort((a, b) => b - a).forEach(ano => {
+        filtroAno.append(`<option value="${ano}">${ano}</option>`);
+    });
+    
+    const hoy = new Date();
+    filtroMes.val(hoy.getMonth());
+    filtroAno.val(hoy.getFullYear());
+}
+
+
 
         function mostrarTodosLosIngresos() {
             if (colaboradoresIngresos.length === 0) {
@@ -15528,6 +15688,252 @@ function detenerVerificadorPermisos() {
         verificadorPermisosInterval = null;
     }
 }
+
+
+/**
+ * Descarga un PDF con los datos de asistencia del mes y año seleccionado
+ * Versión mejorada: vertical, múltiples páginas, alta calidad, corte en día 25
+ */
+function descargarPDFAsistencia() {
+    const mes = parseInt($('#filtro-mes-asistencia').val(), 10);
+    const ano = parseInt($('#filtro-ano-asistencia').val(), 10);
+    
+    // Obtener los datos filtrados
+    const datosMes = asistencia.filter(reg => {
+        const fecha = new Date(reg.fecha + 'T00:00:00');
+        return fecha.getMonth() === mes && fecha.getFullYear() === ano;
+    }).sort((a, b) => a.fecha.localeCompare(b.fecha));
+    
+    if (datosMes.length === 0) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Sin datos',
+            text: `No hay registros de asistencia para ${new Date(ano, mes).toLocaleString('es-ES', { month: 'long' })} ${ano}.`
+        });
+        return;
+    }
+    
+    // Mostrar loading
+    $('#overlay').css('display', 'flex');
+    
+    const nombreMes = new Date(ano, mes).toLocaleString('es-ES', { month: 'long' });
+    const META_ASISTENCIA = 87;
+    
+    // Calcular estadísticas del mes
+    const totalDias = datosMes.length;
+    const sumaPresentes = datosMes.reduce((sum, reg) => sum + reg.presentes, 0);
+    const promedioPresentes = (sumaPresentes / totalDias).toFixed(1);
+    const porcentajeAsistencia = Math.min(100, (parseFloat(promedioPresentes) / META_ASISTENCIA) * 100).toFixed(1);
+    const sumaAusentes = datosMes.reduce((sum, reg) => sum + reg.ausentes, 0);
+    const promedioAusentes = (sumaAusentes / totalDias).toFixed(1);
+    const totalEgresos = datosMes.reduce((sum, reg) => sum + (reg.egresos || 0), 0);
+    const totalIngresos = datosMes.reduce((sum, reg) => sum + (reg.ingresos || 0), 0);
+    
+    // Función para generar el HTML de una página
+    function generarPaginaHTML(datosPagina, esPrimeraPagina = true) {
+        // Generar filas de la tabla
+        let filasTabla = '';
+        datosPagina.forEach((reg, index) => {
+            const porcentaje = Math.min(100, (reg.presentes / META_ASISTENCIA) * 100).toFixed(1);
+            const cumpleMeta = reg.presentes >= META_ASISTENCIA;
+            
+            // Color del porcentaje: verde si cumple, rojo si no
+            const badgeColor = cumpleMeta ? '#2ecc71' : '#e74c3c';
+            
+            // Color del número de presentes: verde si cumple, rojo si no
+            const presentesColor = cumpleMeta ? '#2c3e50' : '#e74c3c';
+            
+            const fechaFormateada = formatearFecha(reg.fecha);
+            const esFinDeSemana = new Date(reg.fecha + 'T00:00:00').getDay() === 0 || new Date(reg.fecha + 'T00:00:00').getDay() === 6;
+            const bgColor = esFinDeSemana ? '#f0f0f0' : (index % 2 === 0 ? '#ffffff' : '#fafafa');
+            
+            filasTabla += `
+                <tr style="background: ${bgColor};">
+                    <td style="padding: 5px 6px; border: 1px solid #ddd; text-align: center; font-size: 9px;">${fechaFormateada}</td>
+                    <td style="padding: 5px 6px; border: 1px solid #ddd; text-align: center; font-size: 9px;">${reg.activos}</td>
+                    <td style="padding: 5px 6px; border: 1px solid #ddd; text-align: center; font-size: 9px;">${reg.ausentes}</td>
+                    <td style="padding: 5px 6px; border: 1px solid #ddd; text-align: center; font-size: 9px;">${reg.egresos || 0}</td>
+                    <td style="padding: 5px 6px; border: 1px solid #ddd; text-align: center; font-size: 9px;">${reg.ingresos || 0}</td>
+                    <td style="padding: 5px 6px; border: 1px solid #ddd; text-align: center; font-size: 9px; font-weight: bold; color: ${presentesColor};">${reg.presentes}</td>
+                    <td style="padding: 5px 6px; border: 1px solid #ddd; text-align: center; font-size: 9px;">
+                        <span style="background: ${badgeColor}; color: white; padding: 2px 8px; border-radius: 8px; font-size: 8px; font-weight: 600; display: inline-block; min-width: 40px;">${porcentaje}%</span>
+                    </td>
+                </tr>`;
+        });
+        
+        // Encabezado de la tabla
+        const headerTabla = `
+            <thead>
+                <tr>
+                    <th style="background: #2c3e50; color: white; padding: 5px 6px; text-align: center; border: 1px solid #34495e; font-size: 8px; font-weight: 700;">FECHA</th>
+                    <th style="background: #2c3e50; color: white; padding: 5px 6px; text-align: center; border: 1px solid #34495e; font-size: 8px; font-weight: 700;">ACTIVOS</th>
+                    <th style="background: #2c3e50; color: white; padding: 5px 6px; text-align: center; border: 1px solid #34495e; font-size: 8px; font-weight: 700;">AUSENTES</th>
+                    <th style="background: #2c3e50; color: white; padding: 5px 6px; text-align: center; border: 1px solid #34495e; font-size: 8px; font-weight: 700;">EGRESOS</th>
+                    <th style="background: #2c3e50; color: white; padding: 5px 6px; text-align: center; border: 1px solid #34495e; font-size: 8px; font-weight: 700;">INGRESOS</th>
+                    <th style="background: #2c3e50; color: white; padding: 5px 6px; text-align: center; border: 1px solid #34495e; font-size: 8px; font-weight: 700;">PRESENTES</th>
+                    <th style="background: #2c3e50; color: white; padding: 5px 6px; text-align: center; border: 1px solid #34495e; font-size: 8px; font-weight: 700;">% ASISTENCIA</th>
+                </tr>
+            </thead>`;
+        
+        // Encabezado de la página
+        const headerPagina = `
+        <div style="text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 8px; margin-bottom: 10px;">
+            <h1 style="font-size: 16px; color: #2c3e50; margin-bottom: 2px; letter-spacing: 0.5px;">📊 REPORTE DE ASISTENCIA</h1>
+            <p style="color: #7f8c8d; font-size: 11px; margin: 0; font-weight: 500;">${nombreMes.toUpperCase()} ${ano} - ${esPrimeraPagina ? 'Página 1' : 'Página 2'}</p>
+        </div>`;
+        
+        // Solo mostrar estadísticas en la primera página
+        let statsHTML = '';
+        if (esPrimeraPagina) {
+            statsHTML = `
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px;">
+                <div style="background: #d4edda; border-radius: 5px; padding: 6px 8px; text-align: center; border: 1px solid #c3e6cb;">
+                    <div style="font-size: 18px; font-weight: 700; color: #155724;">${porcentajeAsistencia}%</div>
+                    <div style="font-size: 7px; color: #155724; font-weight: 600;">ASISTENCIA PROMEDIO</div>
+                    <div style="font-size: 6px; color: #155724;">Meta: ${META_ASISTENCIA}</div>
+                </div>
+                <div style="background: #f8d7da; border-radius: 5px; padding: 6px 8px; text-align: center; border: 1px solid #f5c6cb;">
+                    <div style="font-size: 18px; font-weight: 700; color: #721c24;">${promedioAusentes}</div>
+                    <div style="font-size: 7px; color: #721c24; font-weight: 600;">AUSENTES PROMEDIO</div>
+                </div>
+                <div style="background: #fff3cd; border-radius: 5px; padding: 6px 8px; text-align: center; border: 1px solid #ffeeba;">
+                    <div style="font-size: 18px; font-weight: 700; color: #856404;">${totalEgresos}</div>
+                    <div style="font-size: 7px; color: #856404; font-weight: 600;">TOTAL EGRESOS</div>
+                </div>
+                <div style="background: #d1ecf1; border-radius: 5px; padding: 6px 8px; text-align: center; border: 1px solid #bee5eb;">
+                    <div style="font-size: 18px; font-weight: 700; color: #0c5460;">${totalIngresos}</div>
+                    <div style="font-size: 7px; color: #0c5460; font-weight: 600;">TOTAL INGRESOS</div>
+                </div>
+            </div>
+            <div style="background: #eaf2f8; border-radius: 5px; padding: 5px 12px; margin-bottom: 10px; border-left: 4px solid #3498db; display: flex; flex-wrap: wrap; gap: 10px; font-size: 8px;">
+                <span><strong>Meta:</strong> ${META_ASISTENCIA} personas</span>
+                <span><strong>Promedio Presentes:</strong> ${promedioPresentes}</span>
+                <span><strong>Días registrados:</strong> ${totalDias}</span>
+                <span><strong>Rango:</strong> ${formatearFecha(datosMes[0].fecha)} - ${formatearFecha(datosMes[datosMes.length-1].fecha)}</span>
+            </div>`;
+        }
+        
+        // Pie de página
+        const footerPagina = `
+        <div style="text-align: center; margin-top: 10px; padding-top: 6px; border-top: 1px solid #eee; font-size: 6px; color: #999;">
+            Documento generado desde el Sistema de Gestión de Empleados - ${new Date().toLocaleString()}
+            ${esPrimeraPagina ? ' | Página 1 de 2' : ' | Página 2 de 2'}
+        </div>`;
+        
+        return `
+        <div class="pagina-pdf" style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 15px 20px; color: #2c3e50; max-width: 750px; margin: 0 auto; background: white; font-size: 10px; page-break-after: always;">
+            ${headerPagina}
+            ${statsHTML}
+            <table style="width: 100%; border-collapse: collapse; font-size: 9px; margin-top: 5px;">
+                ${headerTabla}
+                <tbody>
+                    ${filasTabla}
+                </tbody>
+            </table>
+            ${footerPagina}
+        </div>`;
+    }
+    
+    // Dividir los datos: Días 1-25 en página 1, el resto en página 2
+    const fechaLimite = new Date(ano, mes, 25);
+    const datosPagina1 = datosMes.filter(reg => {
+        const fecha = new Date(reg.fecha + 'T00:00:00');
+        return fecha.getDate() <= 25;
+    });
+    const datosPagina2 = datosMes.filter(reg => {
+        const fecha = new Date(reg.fecha + 'T00:00:00');
+        return fecha.getDate() > 25;
+    });
+    
+    // Generar HTML completo
+    let htmlCompleto = '';
+    htmlCompleto += generarPaginaHTML(datosPagina1, true);
+    if (datosPagina2.length > 0) {
+        htmlCompleto += generarPaginaHTML(datosPagina2, false);
+    }
+    
+    // Crear contenedor para renderizar
+    const container = document.createElement('div');
+    container.style.position = 'fixed';
+    container.style.left = '0';
+    container.style.top = '0';
+    container.style.width = '750px';
+    container.style.backgroundColor = 'white';
+    container.style.zIndex = '-1';
+    container.style.opacity = '0';
+    container.style.pointerEvents = 'none';
+    container.innerHTML = htmlCompleto;
+    document.body.appendChild(container);
+    
+    // Pequeño delay para que el DOM se renderice
+    setTimeout(function() {
+        // Obtener todas las páginas
+        const paginas = container.querySelectorAll('.pagina-pdf');
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        
+        let paginaActual = 0;
+        
+        function procesarPagina() {
+            if (paginaActual >= paginas.length) {
+                // Finalizar y descargar
+                const nombreArchivo = `Reporte de Asistencia (${nombreMes.replace(/ /g, '_')} ${ano}).pdf`;
+                pdf.save(nombreArchivo);
+                
+                document.body.removeChild(container);
+                $('#overlay').hide();
+                $('#loadingMessage p').text('');
+                
+                Swal.fire({
+                    icon: 'success',
+                    title: 'PDF Generado',
+                    text: `El reporte de ${nombreMes} ${ano} se ha descargado correctamente.`,
+                    timer: 2500,
+                    showConfirmButton: true
+                });
+                return;
+            }
+            
+            const elemento = paginas[paginaActual];
+            
+            html2canvas(elemento, {
+                scale: 3,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff',
+                width: 750,
+                height: elemento.scrollHeight
+            }).then(function(canvas) {
+                const imgData = canvas.toDataURL('image/jpeg', 0.95);
+                const imgWidth = pdfWidth;
+                const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+                
+                // Si no es la primera página, agregar una nueva
+                if (paginaActual > 0) {
+                    pdf.addPage();
+                }
+                
+                pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
+                
+                paginaActual++;
+                procesarPagina();
+                
+            }).catch(function(error) {
+                console.error('Error al procesar página:', error);
+                // Intentar con la siguiente página
+                paginaActual++;
+                procesarPagina();
+            });
+        }
+        
+        // Iniciar procesamiento
+        procesarPagina();
+        
+    }, 800);
+}
+
 
     </script>
 </body>

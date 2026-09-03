@@ -1112,6 +1112,60 @@
             width: 100%;
         }
     }
+
+/* Estilos para el selector de tipo de ubicación */
+#tipo-ubicacion-group button {
+    flex: 1;
+    min-width: 100px;
+}
+
+/* Ajustar el grid para los locales comerciales (son más) */
+#local-group {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+}
+
+#local-group button {
+    padding: 10px 8px;
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    background-color: white;
+    color: var(--dark-color);
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    font-size: 0.85em;
+    min-height: 45px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+#local-group button.active {
+    background-color: var(--secondary-color);
+    color: white;
+    border-color: var(--secondary-color);
+}
+
+#local-group button:hover:not(.active) {
+    background-color: var(--light-color);
+}
+
+@media (max-width: 768px) {
+    #local-group {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    }
+    
+    #local-group button {
+        font-size: 0.75em;
+        padding: 8px 6px;
+        min-height: 40px;
+    }
+}
+
 </style>
 </head>
 <body>
@@ -1152,16 +1206,47 @@
                         <input type="text" id="fecha-residuos" name="fecha" placeholder="DD/MM/AAAA" readonly>
                     </div>
 
-                    <div class="question-container">
-                        <label><strong>Edificio:</strong></label>
-                        <div class="button-group" id="edificio-group">
-                            <button type="button" data-value="CBA">CBA</button>
-                            <button type="button" data-value="CBB">CBB</button>
-                            <button type="button" data-value="CBC">CBC</button>
-                            <button type="button" data-value="Torre #1">Torre #1</button>
-                            <button type="button" data-value="Torre #2">Torre #2</button>
-                        </div>
-                    </div>
+<div class="question-container">
+    <label><strong>Seleccionar Tipo:</strong></label>
+    <div class="button-group" id="tipo-ubicacion-group">
+        <button type="button" class="active" data-value="edificio">Edificios</button>
+        <button type="button" data-value="local">Locales Comerciales</button>
+    </div>
+</div>
+
+<div class="question-container" id="edificios-container">
+    <label><strong>Edificio:</strong></label>
+    <div class="button-group" id="edificio-group">
+        <button type="button" data-value="CBA">CBA</button>
+        <button type="button" data-value="CBB">CBB</button>
+        <button type="button" data-value="CBC">CBC</button>
+        <button type="button" data-value="Torre #1">Torre #1</button>
+        <button type="button" data-value="Torre #2">Torre #2</button>
+    </div>
+</div>
+
+<div class="question-container" id="locales-container" style="display: none;">
+    <label><strong>Local Comercial:</strong></label>
+    <div class="button-group" id="local-group">
+        <button type="button" data-value="A-05: Pronto #1">A-05: Pronto #1</button>
+        <button type="button" data-value="A-06: Espresso Americano #1">A-06: Espresso Americano #1</button>
+        <button type="button" data-value="A-07: City Net">A-07: City Net</button>
+        <button type="button" data-value="T2-02: Punto Farma">T2-02: Punto Farma</button>
+        <button type="button" data-value="T2-03: Sumitec">T2-03: Sumitec</button>
+        <button type="button" data-value="B-01: Galeano">B-01: Galeano</button>
+        <button type="button" data-value="B-02: Cofinter">B-02: Cofinter</button>
+        <button type="button" data-value="B-03: Cuscatlan">B-03: Cuscatlan</button>
+        <button type="button" data-value="B-04: Claro">B-04: Claro</button>
+        <button type="button" data-value="B-05: Ficohsa">B-05: Ficohsa</button>
+        <button type="button" data-value="B-06: Davivienda">B-06: Davivienda</button>
+        <button type="button" data-value="B-07: Lafise">B-07: Lafise</button>
+        <button type="button" data-value="C-01: Occidente">C-01: Occidente</button>
+        <button type="button" data-value="T1-01: Espresso Americano #2">T1-01: Espresso Americano #2</button>
+        <button type="button" data-value="T1-02: Sagrada Familia">T1-02: Sagrada Familia</button>
+        <button type="button" data-value="T1-03: Pacasa">T1-03: Pacasa</button>
+        <button type="button" data-value="T1-04: Pronto #2">T1-04: Pronto #2</button>
+    </div>
+</div>
 
                     <div class="question-container">
                         <label><strong>Tipo de Residuo:</strong></label>
@@ -1385,6 +1470,9 @@
         const SCRIPT_URL_RECOLECCION = "https://script.google.com/macros/s/AKfycbyp9WIfg_ubrWzPYPvI72M5IbwiMKKNunIjPGw4GD5Eke4NpFLy8PaZMxpV1GUdoyjV/exec";
         const SCRIPT_URL_DEVOLUCION = "https://script.google.com/macros/s/AKfycbzReAz45QSORhtm3hVWUgi__Cd6w3Zt5ZsI_jhFNCbPPAqnqBSqrQLGDcwLnOh6rInY/exec";
 
+
+        let tipoUbicacionSeleccionado = "edificio";
+        let localSeleccionado = "";
         let datosResiduos = [];
         let datosRecoleccion = [];
         let datosDevolucion = [];
@@ -1530,23 +1618,154 @@
             }
         }
 
-        function cargarUltimaSeleccion() {
-            let ultimoEdificio = localStorage.getItem('ultimoEdificio');
-            if (ultimoEdificio) {
-                const botonEdificio = $(`#edificio-group button[data-value="${ultimoEdificio}"]`);
-                if (botonEdificio.length) {
-                    botonEdificio.addClass('active');
-                    edificioSeleccionado = ultimoEdificio;
-                }
+function cargarUltimaSeleccion() {
+    // Primero, ocultar ambos contenedores
+    document.getElementById('edificios-container').style.display = 'none';
+    document.getElementById('locales-container').style.display = 'none';
+    
+    // Limpiar selecciones activas de ambos grupos
+    $('#edificio-group button').removeClass('active');
+    $('#local-group button').removeClass('active');
+    $('#tipo-ubicacion-group button').removeClass('active');
+    
+    // Cargar tipo de ubicación
+    let ultimoTipoUbicacion = localStorage.getItem('ultimoTipoUbicacion');
+    
+    // Si no hay tipo guardado, usar 'edificio' por defecto
+    if (!ultimoTipoUbicacion) {
+        ultimoTipoUbicacion = 'edificio';
+    }
+    
+    // Activar el botón correspondiente
+    $(`#tipo-ubicacion-group button[data-value="${ultimoTipoUbicacion}"]`).addClass('active');
+    tipoUbicacionSeleccionado = ultimoTipoUbicacion;
+    
+    // Mostrar el contenedor correcto
+    if (ultimoTipoUbicacion === 'edificio') {
+        document.getElementById('edificios-container').style.display = 'block';
+        document.getElementById('locales-container').style.display = 'none';
+        
+        // Cargar edificio guardado
+        let ultimoEdificio = localStorage.getItem('ultimoEdificio');
+        if (ultimoEdificio) {
+            const botonEdificio = $(`#edificio-group button[data-value="${ultimoEdificio}"]`);
+            if (botonEdificio.length) {
+                botonEdificio.addClass('active');
+                edificioSeleccionado = ultimoEdificio;
             }
-            verificarFormularioResiduos();
         }
+        localSeleccionado = "";
+        
+    } else {
+        document.getElementById('edificios-container').style.display = 'none';
+        document.getElementById('locales-container').style.display = 'block';
+        
+        // Cargar local comercial guardado
+        let ultimoLocal = localStorage.getItem('ultimoLocal');
+        if (ultimoLocal) {
+            const botonLocal = $(`#local-group button[data-value="${ultimoLocal}"]`);
+            if (botonLocal.length) {
+                botonLocal.addClass('active');
+                localSeleccionado = ultimoLocal;
+            }
+        }
+        edificioSeleccionado = "";
+    }
+    
+    verificarFormularioResiduos();
+}
 
-        function guardarUltimaSeleccion() {
-            if (edificioSeleccionado) {
-                localStorage.setItem('ultimoEdificio', edificioSeleccionado);
-            }
+function mostrarContenedorCorrecto(tipo) {
+    if (tipo === 'edificio') {
+        document.getElementById('edificios-container').style.display = 'block';
+        document.getElementById('locales-container').style.display = 'none';
+        // Solo resetear locales, mantener edificio si existe
+        $('#local-group button').removeClass('active');
+        localSeleccionado = "";
+        
+        // Si hay un edificio seleccionado, asegurar que esté activo
+        if (edificioSeleccionado) {
+            $(`#edificio-group button[data-value="${edificioSeleccionado}"]`).addClass('active');
         }
+    } else {
+        document.getElementById('edificios-container').style.display = 'none';
+        document.getElementById('locales-container').style.display = 'block';
+        // Solo resetear edificios, mantener local si existe
+        $('#edificio-group button').removeClass('active');
+        edificioSeleccionado = "";
+        
+        // Si hay un local seleccionado, asegurar que esté activo
+        if (localSeleccionado) {
+            $(`#local-group button[data-value="${localSeleccionado}"]`).addClass('active');
+        }
+    }
+}
+
+
+function guardarUltimaSeleccion() {
+    // Guardar el tipo de ubicación
+    if (tipoUbicacionSeleccionado) {
+        localStorage.setItem('ultimoTipoUbicacion', tipoUbicacionSeleccionado);
+    }
+    
+    // Guardar la selección correspondiente sin limpiar la otra
+    if (tipoUbicacionSeleccionado === 'edificio') {
+        if (edificioSeleccionado) {
+            localStorage.setItem('ultimoEdificio', edificioSeleccionado);
+        } else {
+            // Si no hay edificio seleccionado, mantener el último guardado
+            // No lo borramos
+        }
+    } else {
+        if (localSeleccionado) {
+            localStorage.setItem('ultimoLocal', localSeleccionado);
+        } else {
+            // Si no hay local seleccionado, mantener el último guardado
+            // No lo borramos
+        }
+    }
+}
+
+
+function resetearSeleccionesUbicacion() {
+    // Obtener el tipo de ubicación actual
+    const tipoActual = tipoUbicacionSeleccionado;
+    
+    // Si no hay tipo seleccionado, usar 'edificio' por defecto
+    if (!tipoActual) {
+        tipoUbicacionSeleccionado = 'edificio';
+    }
+    
+    // Limpiar selecciones activas de los botones de ubicación
+    $('#edificio-group button').removeClass('active');
+    $('#local-group button').removeClass('active');
+    
+    // Resetear las variables de selección
+    edificioSeleccionado = "";
+    localSeleccionado = "";
+    
+    // Mostrar el contenedor correcto
+    if (tipoUbicacionSeleccionado === 'edificio') {
+        document.getElementById('edificios-container').style.display = 'block';
+        document.getElementById('locales-container').style.display = 'none';
+        // No limpiar el tipo de ubicación, mantenerlo
+        $('#tipo-ubicacion-group button').removeClass('active');
+        $(`#tipo-ubicacion-group button[data-value="edificio"]`).addClass('active');
+    } else {
+        document.getElementById('edificios-container').style.display = 'none';
+        document.getElementById('locales-container').style.display = 'block';
+        $('#tipo-ubicacion-group button').removeClass('active');
+        $(`#tipo-ubicacion-group button[data-value="local"]`).addClass('active');
+    }
+    
+    // NO limpiar localStorage, mantener las últimas selecciones guardadas
+    // Pero actualizar el tipo de ubicación guardado
+    localStorage.setItem('ultimoTipoUbicacion', tipoUbicacionSeleccionado);
+    
+    verificarFormularioResiduos();
+}
+
+
 
         function resetearSeleccionesResiduos() {
             $('#tipo-residuo-residuos button').removeClass('active');
@@ -1583,113 +1802,141 @@
             destinoOtroTexto = "";
         }
 
-        function configurarEventos() {
-            // Eventos para Residuos
-            $('#edificio-group button').on('click', function() {
-                $('#edificio-group button').removeClass('active');
-                $(this).addClass('active');
-                edificioSeleccionado = $(this).data('value');
-                guardarUltimaSeleccion();
-                verificarFormularioResiduos();
-            });
+function configurarEventos() {
+    // Eventos para el selector de tipo de ubicación
+    $('#tipo-ubicacion-group button').on('click', function() {
+        $('#tipo-ubicacion-group button').removeClass('active');
+        $(this).addClass('active');
+        tipoUbicacionSeleccionado = $(this).data('value');
+        mostrarContenedorCorrecto(tipoUbicacionSeleccionado);
+        guardarUltimaSeleccion();
+        verificarFormularioResiduos();
+    });
 
-            $('#tipo-residuo-residuos button').on('click', function() {
-                $('#tipo-residuo-residuos button').removeClass('active');
-                $(this).addClass('active');
-                tipoResiduoSeleccionado = $(this).data('value');
-                verificarFormularioResiduos();
-            });
+    // Eventos para Edificios
+    $('#edificio-group button').on('click', function() {
+        $('#edificio-group button').removeClass('active');
+        $(this).addClass('active');
+        edificioSeleccionado = $(this).data('value');
+        guardarUltimaSeleccion();
+        verificarFormularioResiduos();
+    });
 
-            $('#clasificacion-residuos button').on('click', function() {
-                $('#clasificacion-residuos button').removeClass('active');
-                $(this).addClass('active');
-                clasificacionSeleccionada = $(this).data('value');
-                verificarFormularioResiduos();
-            });
+    // Eventos para Locales Comerciales
+    $('#local-group button').on('click', function() {
+        $('#local-group button').removeClass('active');
+        $(this).addClass('active');
+        localSeleccionado = $(this).data('value');
+        guardarUltimaSeleccion();
+        verificarFormularioResiduos();
+    });
 
-            $('#estado-fisico-residuos button').on('click', function() {
-                $('#estado-fisico-residuos button').removeClass('active');
-                $(this).addClass('active');
-                estadoFisicoSeleccionado = $(this).data('value');
-                verificarFormularioResiduos();
-            });
+    // Eventos para Residuos
+    $('#tipo-residuo-residuos button').on('click', function() {
+        $('#tipo-residuo-residuos button').removeClass('active');
+        $(this).addClass('active');
+        tipoResiduoSeleccionado = $(this).data('value');
+        verificarFormularioResiduos();
+    });
 
-            $("#cantidad-residuos").on("change input", verificarFormularioResiduos);
+    $('#clasificacion-residuos button').on('click', function() {
+        $('#clasificacion-residuos button').removeClass('active');
+        $(this).addClass('active');
+        clasificacionSeleccionada = $(this).data('value');
+        verificarFormularioResiduos();
+    });
 
-            // Eventos para Recolección
-            $('#tipo-residuo-recoleccion button').on('click', function() {
-                $(this).toggleClass('selected');
-                actualizarTiposSeleccionados();
-                verificarFormularioRecoleccion();
-            });
-            
-            $("#fecha-recoleccion").on("change", verificarFormularioRecoleccion);
-            
-            $('#destino-recoleccion button').on('click', function() {
-                if (!$(this).prop('disabled')) {
-                    $('#destino-recoleccion button').removeClass('active');
-                    $(this).addClass('active');
-                    destinoSeleccionado = $(this).data('value');
-                    verificarFormularioRecoleccion();
-                }
-            });
+    $('#estado-fisico-residuos button').on('click', function() {
+        $('#estado-fisico-residuos button').removeClass('active');
+        $(this).addClass('active');
+        estadoFisicoSeleccionado = $(this).data('value');
+        verificarFormularioResiduos();
+    });
 
-            // Eventos para Devolución
-            $('#tipo-residuo-devolucion button').on('click', function() {
-                $('#tipo-residuo-devolucion button').removeClass('active');
-                $(this).addClass('active');
-                tipoResiduoDevolucion = $(this).data('value');
-                verificarFormularioDevolucion();
-            });
+    $("#cantidad-residuos").on("change input", verificarFormularioResiduos);
 
-            $('#clasificacion-devolucion button').on('click', function() {
-                $('#clasificacion-devolucion button').removeClass('active');
-                $(this).addClass('active');
-                clasificacionDevolucion = $(this).data('value');
-                verificarFormularioDevolucion();
-            });
-
-            $('#estado-fisico-devolucion button').on('click', function() {
-                $('#estado-fisico-devolucion button').removeClass('active');
-                $(this).addClass('active');
-                estadoFisicoDevolucion = $(this).data('value');
-                verificarFormularioDevolucion();
-            });
-
-            $('#destino-devolucion button').on('click', function() {
-                $('#destino-devolucion button').removeClass('active');
-                $(this).addClass('active');
-                destinoDevolucion = $(this).data('value');
-                
-                if (destinoDevolucion === 'Otro') {
-                    $('#destino-otro-container').show();
-                    $('#destino-otro-input').focus();
-                } else {
-                    $('#destino-otro-container').hide();
-                    $('#destino-otro-input').val('');
-                    destinoOtroTexto = "";
-                }
-                verificarFormularioDevolucion();
-            });
-
-            $('#destino-otro-input').on('input', function() {
-                destinoOtroTexto = $(this).val().trim();
-                verificarFormularioDevolucion();
-            });
-
-            $("#cantidad-devolucion").on("change input", verificarFormularioDevolucion);
+    // Eventos para Recolección
+    $('#tipo-residuo-recoleccion button').on('click', function() {
+        $(this).toggleClass('selected');
+        actualizarTiposSeleccionados();
+        verificarFormularioRecoleccion();
+    });
+    
+    $("#fecha-recoleccion").on("change", verificarFormularioRecoleccion);
+    
+    $('#destino-recoleccion button').on('click', function() {
+        if (!$(this).prop('disabled')) {
+            $('#destino-recoleccion button').removeClass('active');
+            $(this).addClass('active');
+            destinoSeleccionado = $(this).data('value');
+            verificarFormularioRecoleccion();
         }
+    });
+
+    // Eventos para Devolución
+    $('#tipo-residuo-devolucion button').on('click', function() {
+        $('#tipo-residuo-devolucion button').removeClass('active');
+        $(this).addClass('active');
+        tipoResiduoDevolucion = $(this).data('value');
+        verificarFormularioDevolucion();
+    });
+
+    $('#clasificacion-devolucion button').on('click', function() {
+        $('#clasificacion-devolucion button').removeClass('active');
+        $(this).addClass('active');
+        clasificacionDevolucion = $(this).data('value');
+        verificarFormularioDevolucion();
+    });
+
+    $('#estado-fisico-devolucion button').on('click', function() {
+        $('#estado-fisico-devolucion button').removeClass('active');
+        $(this).addClass('active');
+        estadoFisicoDevolucion = $(this).data('value');
+        verificarFormularioDevolucion();
+    });
+
+    $('#destino-devolucion button').on('click', function() {
+        $('#destino-devolucion button').removeClass('active');
+        $(this).addClass('active');
+        destinoDevolucion = $(this).data('value');
+        
+        if (destinoDevolucion === 'Otro') {
+            $('#destino-otro-container').show();
+            $('#destino-otro-input').focus();
+        } else {
+            $('#destino-otro-container').hide();
+            $('#destino-otro-input').val('');
+            destinoOtroTexto = "";
+        }
+        verificarFormularioDevolucion();
+    });
+
+    $('#destino-otro-input').on('input', function() {
+        destinoOtroTexto = $(this).val().trim();
+        verificarFormularioDevolucion();
+    });
+
+    $("#cantidad-devolucion").on("change input", verificarFormularioDevolucion);
+}
+
 
         // ========== VALIDACIONES DE FORMULARIOS ==========
-        function verificarFormularioResiduos() {
-            let cantidad = $("#cantidad-residuos").val();
+function verificarFormularioResiduos() {
+    let cantidad = $("#cantidad-residuos").val();
+    let ubicacionValida = false;
+    
+    if (tipoUbicacionSeleccionado === 'edificio') {
+        ubicacionValida = edificioSeleccionado !== "";
+    } else {
+        ubicacionValida = localSeleccionado !== "";
+    }
 
-            if (edificioSeleccionado !== "" && cantidad.trim() !== "" && parseFloat(cantidad) > 0) {
-                $("#registrar-residuos").prop("disabled", false);
-            } else {
-                $("#registrar-residuos").prop("disabled", true);
-            }
-        }
+    if (ubicacionValida && cantidad.trim() !== "" && parseFloat(cantidad) > 0) {
+        $("#registrar-residuos").prop("disabled", false);
+    } else {
+        $("#registrar-residuos").prop("disabled", true);
+    }
+}
 
         function verificarFormularioRecoleccion() {
             let fecha = $("#fecha-recoleccion").val();
@@ -1723,57 +1970,72 @@
         }
 
         // ========== REGISTRO DE RESIDUOS ==========
-        function registrarEntradaResiduos() {
-            let fecha = $('#fecha-residuos').val();
-            let cantidad = parseFloat($('#cantidad-residuos').val());
+function registrarEntradaResiduos() {
+    let fecha = $('#fecha-residuos').val();
+    let cantidad = parseFloat($('#cantidad-residuos').val());
+    
+    // Determinar qué ubicación usar
+    let ubicacion = "";
+    if (tipoUbicacionSeleccionado === 'edificio') {
+        ubicacion = edificioSeleccionado;
+    } else {
+        ubicacion = localSeleccionado;
+    }
 
-            let registro = {
-                id: generarIDUnico(),
-                fecha: fecha,
-                edificio: edificioSeleccionado,
-                tipoResiduo: tipoResiduoSeleccionado,
-                cantidad: cantidad,
-                clasificacion: clasificacionSeleccionada,
-                estadoFisico: estadoFisicoSeleccionado,
-                timestamp: new Date().getTime(),
-                syncAttempts: 0
-            };
+    let registro = {
+        id: generarIDUnico(),
+        fecha: fecha,
+        edificio: ubicacion,
+        tipoResiduo: tipoResiduoSeleccionado,
+        cantidad: cantidad,
+        clasificacion: clasificacionSeleccionada,
+        estadoFisico: estadoFisicoSeleccionado,
+        timestamp: new Date().getTime(),
+        syncAttempts: 0
+    };
 
-            if (registroEnEdicion !== null) {
-                const index = datosResiduos.findIndex(r => r.id === registroEnEdicion.id);
-                if (index !== -1) {
-                    datosResiduos[index] = registro;
-                    registroEnEdicion = null;
-                    localStorage.removeItem('registroEditando');
-                }
-            } else {
-                datosResiduos.push(registro);
-            }
-
-            guardarDatosResiduos();
-            actualizarContadores();
-
-            Swal.fire({
-                title: registroEnEdicion !== null ? 'Registro Actualizado' : 'Registro Exitoso',
-                html: `
-                    <div style="text-align: center;">
-                        <p style="font-size: 1.1em; margin-bottom: 15px;">El registro se ha ${registroEnEdicion !== null ? 'actualizado' : 'guardado'} correctamente.</p>
-                        <p style="font-size: 0.9em; color: #7f8c8d;">Registros pendientes de sincronizar: ${datosResiduos.length}</p>
-                        <div style="color: #28a745; font-size: 2em;">
-                            <i class="fas fa-check-circle"></i>
-                        </div>
-                    </div>
-                `,
-                icon: 'success',
-                confirmButtonText: 'Aceptar',
-                confirmButtonColor: '#28a745'
-            }).then(() => {
-                resetearSeleccionesResiduos();
-                $('#cantidad-residuos').val('');
-                $('#cantidad-residuos').focus();
-                verificarFormularioResiduos();
-            });
+    if (registroEnEdicion !== null) {
+        const index = datosResiduos.findIndex(r => r.id === registroEnEdicion.id);
+        if (index !== -1) {
+            datosResiduos[index] = registro;
+            registroEnEdicion = null;
+            localStorage.removeItem('registroEditando');
         }
+    } else {
+        datosResiduos.push(registro);
+    }
+
+    guardarDatosResiduos();
+    actualizarContadores();
+
+    Swal.fire({
+        title: registroEnEdicion !== null ? 'Registro Actualizado' : 'Registro Exitoso',
+        html: `
+            <div style="text-align: center;">
+                <p style="font-size: 1.1em; margin-bottom: 15px;">El registro se ha ${registroEnEdicion !== null ? 'actualizado' : 'guardado'} correctamente.</p>
+                <p style="font-size: 0.9em; color: #7f8c8d;">Ubicación: ${ubicacion}</p>
+                <p style="font-size: 0.9em; color: #7f8c8d;">Registros pendientes de sincronizar: ${datosResiduos.length}</p>
+                <div style="color: #28a745; font-size: 2em;">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+            </div>
+        `,
+        icon: 'success',
+        confirmButtonText: 'Aceptar',
+        confirmButtonColor: '#28a745'
+    }).then(() => {
+        // Resetear solo los campos de residuo, NO la ubicación
+        resetearSeleccionesResiduos();
+        // Limpiar solo el campo de cantidad
+        $('#cantidad-residuos').val('');
+        $('#cantidad-residuos').focus();
+        
+        // Mantener la ubicación seleccionada, no la reseteamos
+        // Solo aseguramos que el botón de ubicación correspondiente esté activo
+        verificarFormularioResiduos();
+    });
+}
+
 
         // ========== REGISTRO DE RECOLECCIÓN ==========
         function actualizarTiposSeleccionados() {
@@ -2035,193 +2297,194 @@
         }
 
         // ========== FUNCIONES DE MODAL ==========
-        function mostrarModalRegistros() {
-            const modal = document.getElementById('modal-registros');
-            const modalBody = document.getElementById('modal-body');
-            const contador = document.getElementById('contador-registros');
-            const modalTitulo = document.getElementById('modal-titulo');
-            
-            let datosActuales = [];
-            let tipoRegistro = '';
-            
-            if (pestañaActiva === 'residuos') {
-                datosActuales = datosResiduos;
-                tipoRegistro = 'Residuos';
-                modalTitulo.textContent = 'Registros de Residuos Pendientes';
-            } else if (pestañaActiva === 'recoleccion') {
-                datosActuales = datosRecoleccion;
-                tipoRegistro = 'Recolección';
-                modalTitulo.textContent = 'Registros de Recolección Pendientes';
-            } else {
-                datosActuales = datosDevolucion;
-                tipoRegistro = 'Devolución';
-                modalTitulo.textContent = 'Registros de Devolución Pendientes';
-            }
-            
-            contador.textContent = `${datosActuales.length} registro${datosActuales.length !== 1 ? 's' : ''} pendiente${datosActuales.length !== 1 ? 's' : ''}`;
-            
-            actualizarEstadoBotonSincronizar();
-            
-            if (datosActuales.length === 0) {
-                modalBody.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-inbox"></i>
-                        <h3>No hay registros pendientes</h3>
-                        <p>Los registros que crees aparecerán aquí para revisión antes de sincronizar.</p>
-                    </div>
-                `;
-            } else {
-                let tablaHTML = '';
-                
-                if (pestañaActiva === 'residuos') {
-                    tablaHTML = `
-                        <div class="table-container">
-                            <table class="registros-table">
-                                <thead>
-                                    <tr>
-                                        <th>Fecha</th>
-                                        <th>Edificio</th>
-                                        <th>Tipo Residuo</th>
-                                        <th>Cantidad (Lbs)</th>
-                                        <th>Clasificación</th>
-                                        <th>Estado Físico</th>
-                                        <th>Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                    `;
-                    
-                    datosActuales.forEach((registro, index) => {
-                        const estaEnConfirmacion = registro.enConfirmacion;
-                        tablaHTML += `
+function mostrarModalRegistros() {
+    const modal = document.getElementById('modal-registros');
+    const modalBody = document.getElementById('modal-body');
+    const contador = document.getElementById('contador-registros');
+    const modalTitulo = document.getElementById('modal-titulo');
+    
+    let datosActuales = [];
+    let tipoRegistro = '';
+    
+    if (pestañaActiva === 'residuos') {
+        datosActuales = datosResiduos;
+        tipoRegistro = 'Residuos';
+        modalTitulo.textContent = 'Registros de Residuos Pendientes';
+    } else if (pestañaActiva === 'recoleccion') {
+        datosActuales = datosRecoleccion;
+        tipoRegistro = 'Recolección';
+        modalTitulo.textContent = 'Registros de Recolección Pendientes';
+    } else {
+        datosActuales = datosDevolucion;
+        tipoRegistro = 'Devolución';
+        modalTitulo.textContent = 'Registros de Devolución Pendientes';
+    }
+    
+    contador.textContent = `${datosActuales.length} registro${datosActuales.length !== 1 ? 's' : ''} pendiente${datosActuales.length !== 1 ? 's' : ''}`;
+    
+    actualizarEstadoBotonSincronizar();
+    
+    if (datosActuales.length === 0) {
+        modalBody.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-inbox"></i>
+                <h3>No hay registros pendientes</h3>
+                <p>Los registros que crees aparecerán aquí para revisión antes de sincronizar.</p>
+            </div>
+        `;
+    } else {
+        let tablaHTML = '';
+        
+        if (pestañaActiva === 'residuos') {
+            tablaHTML = `
+                <div class="table-container">
+                    <table class="registros-table">
+                        <thead>
                             <tr>
-                                <td>${registro.fecha}</td>
-                                <td>${registro.edificio}</td>
-                                <td>${registro.tipoResiduo}</td>
-                                <td>${registro.cantidad}</td>
-                                <td>${registro.clasificacion}</td>
-                                <td>${registro.estadoFisico}</td>
-                                <td class="acciones-cell">
-                                    ${estaEnConfirmacion ? `
-                                        <button class="btn-confirmar" onclick="confirmarEliminacionResiduos(${index})" title="Confirmar eliminación">
-                                            <i class="fas fa-check"></i>
-                                        </button>
-                                        <button class="btn-cancelar" onclick="cancelarEliminacionResiduos(${index})" title="Cancelar eliminación">
-                                            <i class="fas fa-times"></i>
-                                        </button>
-                                    ` : `
-                                        <button class="btn-editar" onclick="editarRegistroResiduos(${index})" title="Editar registro">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                        <button class="btn-eliminar" onclick="solicitarEliminacionResiduos(${index})" title="Eliminar registro">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    `}
-                                </td>
+                                <th>Fecha</th>
+                                <th>Ubicación</th>
+                                <th>Tipo Residuo</th>
+                                <th>Cantidad (Lbs)</th>
+                                <th>Clasificación</th>
+                                <th>Estado Físico</th>
+                                <th>Acciones</th>
                             </tr>
-                        `;
-                    });
-                } else if (pestañaActiva === 'recoleccion') {
-                    tablaHTML = `
-                        <div class="table-container">
-                            <table class="registros-table">
-                                <thead>
-                                    <tr>
-                                        <th>Fecha Salida</th>
-                                        <th>Tipos de Residuo</th>
-                                        <th>Destino</th>
-                                        <th>Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                    `;
-                    
-                    datosActuales.forEach((registro, index) => {
-                        const estaEnConfirmacion = registro.enConfirmacion;
-                        tablaHTML += `
-                            <tr>
-                                <td>${registro.fechaSalida}</td>
-                                <td>${registro.tiposResiduo.join(', ')}</td>
-                                <td>${registro.destino}</td>
-                                <td class="acciones-cell">
-                                    ${estaEnConfirmacion ? `
-                                        <button class="btn-confirmar" onclick="confirmarEliminacionRecoleccion(${index})" title="Confirmar eliminación">
-                                            <i class="fas fa-check"></i>
-                                        </button>
-                                        <button class="btn-cancelar" onclick="cancelarEliminacionRecoleccion(${index})" title="Cancelar eliminación">
-                                            <i class="fas fa-times"></i>
-                                        </button>
-                                    ` : `
-                                        <button class="btn-eliminar" onclick="solicitarEliminacionRecoleccion(${index})" title="Eliminar registro">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    `}
-                                </td>
-                            </tr>
-                        `;
-                    });
-                } else {
-                    // Devolución
-                    tablaHTML = `
-                        <div class="table-container">
-                            <table class="registros-table">
-                                <thead>
-                                    <tr>
-                                        <th>Fecha</th>
-                                        <th>Tipo Residuo</th>
-                                        <th>Cantidad (Lbs)</th>
-                                        <th>Clasificación</th>
-                                        <th>Estado Físico</th>
-                                        <th>Destino</th>
-                                        <th>Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                    `;
-                    
-                    datosActuales.forEach((registro, index) => {
-                        const estaEnConfirmacion = registro.enConfirmacion;
-                        tablaHTML += `
-                            <tr>
-                                <td>${registro.fecha}</td>
-                                <td>${registro.tipoResiduo}</td>
-                                <td>${registro.cantidad}</td>
-                                <td>${registro.clasificacion}</td>
-                                <td>${registro.estadoFisico}</td>
-                                <td>${registro.destino}</td>
-                                <td class="acciones-cell">
-                                    ${estaEnConfirmacion ? `
-                                        <button class="btn-confirmar" onclick="confirmarEliminacionDevolucion(${index})" title="Confirmar eliminación">
-                                            <i class="fas fa-check"></i>
-                                        </button>
-                                        <button class="btn-cancelar" onclick="cancelarEliminacionDevolucion(${index})" title="Cancelar eliminación">
-                                            <i class="fas fa-times"></i>
-                                        </button>
-                                    ` : `
-                                        <button class="btn-eliminar" onclick="solicitarEliminacionDevolucion(${index})" title="Eliminar registro">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    `}
-                                </td>
-                            </tr>
-                        `;
-                    });
-                }
-                
+                        </thead>
+                        <tbody>
+            `;
+            
+            datosActuales.forEach((registro, index) => {
+                const estaEnConfirmacion = registro.enConfirmacion;
                 tablaHTML += `
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="scroll-indicator">
-                            <i class="fas fa-arrows-alt-h"></i> Desliza horizontalmente para ver más información
-                        </div>
+                    <tr>
+                        <td>${registro.fecha}</td>
+                        <td>${registro.edificio}</td>
+                        <td>${registro.tipoResiduo}</td>
+                        <td>${registro.cantidad}</td>
+                        <td>${registro.clasificacion}</td>
+                        <td>${registro.estadoFisico}</td>
+                        <td class="acciones-cell">
+                            ${estaEnConfirmacion ? `
+                                <button class="btn-confirmar" onclick="confirmarEliminacionResiduos(${index})" title="Confirmar eliminación">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                <button class="btn-cancelar" onclick="cancelarEliminacionResiduos(${index})" title="Cancelar eliminación">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            ` : `
+                                <button class="btn-editar" onclick="editarRegistroResiduos(${index})" title="Editar registro">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn-eliminar" onclick="solicitarEliminacionResiduos(${index})" title="Eliminar registro">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            `}
+                        </td>
+                    </tr>
                 `;
-                
-                modalBody.innerHTML = tablaHTML;
-            }
+            });
+        } else if (pestañaActiva === 'recoleccion') {
+            tablaHTML = `
+                <div class="table-container">
+                    <table class="registros-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha Salida</th>
+                                <th>Tipos de Residuo</th>
+                                <th>Destino</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
             
-            modal.style.display = 'flex';
+            datosActuales.forEach((registro, index) => {
+                const estaEnConfirmacion = registro.enConfirmacion;
+                tablaHTML += `
+                    <tr>
+                        <td>${registro.fechaSalida}</td>
+                        <td>${registro.tiposResiduo.join(', ')}</td>
+                        <td>${registro.destino}</td>
+                        <td class="acciones-cell">
+                            ${estaEnConfirmacion ? `
+                                <button class="btn-confirmar" onclick="confirmarEliminacionRecoleccion(${index})" title="Confirmar eliminación">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                <button class="btn-cancelar" onclick="cancelarEliminacionRecoleccion(${index})" title="Cancelar eliminación">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            ` : `
+                                <button class="btn-eliminar" onclick="solicitarEliminacionRecoleccion(${index})" title="Eliminar registro">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            `}
+                        </td>
+                    </tr>
+                `;
+            });
+        } else {
+            // Devolución
+            tablaHTML = `
+                <div class="table-container">
+                    <table class="registros-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Tipo Residuo</th>
+                                <th>Cantidad (Lbs)</th>
+                                <th>Clasificación</th>
+                                <th>Estado Físico</th>
+                                <th>Destino</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            datosActuales.forEach((registro, index) => {
+                const estaEnConfirmacion = registro.enConfirmacion;
+                tablaHTML += `
+                    <tr>
+                        <td>${registro.fecha}</td>
+                        <td>${registro.tipoResiduo}</td>
+                        <td>${registro.cantidad}</td>
+                        <td>${registro.clasificacion}</td>
+                        <td>${registro.estadoFisico}</td>
+                        <td>${registro.destino}</td>
+                        <td class="acciones-cell">
+                            ${estaEnConfirmacion ? `
+                                <button class="btn-confirmar" onclick="confirmarEliminacionDevolucion(${index})" title="Confirmar eliminación">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                <button class="btn-cancelar" onclick="cancelarEliminacionDevolucion(${index})" title="Cancelar eliminación">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            ` : `
+                                <button class="btn-eliminar" onclick="solicitarEliminacionDevolucion(${index})" title="Eliminar registro">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            `}
+                        </td>
+                    </tr>
+                `;
+            });
         }
+        
+        tablaHTML += `
+                        </tbody>
+                    </table>
+                </div>
+                <div class="scroll-indicator">
+                    <i class="fas fa-arrows-alt-h"></i> Desliza horizontalmente para ver más información
+                </div>
+        `;
+        
+        modalBody.innerHTML = tablaHTML;
+    }
+    
+    modal.style.display = 'flex';
+}
+
 
         // ========== FUNCIONES DE EDICIÓN Y ELIMINACIÓN ==========
         function editarRegistroResiduos(index) {
@@ -2245,15 +2508,28 @@
             });
         }
 
-        function cargarRegistroEnFormulario(registro) {
-            document.getElementById('fecha-residuos').value = registro.fecha;
-            $(`#edificio-group button[data-value="${registro.edificio}"]`).click();
-            $(`#tipo-residuo-residuos button[data-value="${registro.tipoResiduo}"]`).click();
-            $(`#clasificacion-residuos button[data-value="${registro.clasificacion}"]`).click();
-            $(`#estado-fisico-residuos button[data-value="${registro.estadoFisico}"]`).click();
-            document.getElementById('cantidad-residuos').value = registro.cantidad;
-            $('#cantidad-residuos').focus();
-        }
+function cargarRegistroEnFormulario(registro) {
+    document.getElementById('fecha-residuos').value = registro.fecha;
+    
+    // Determinar si es edificio o local comercial
+    const esLocal = registro.edificio.includes(':');
+    
+    if (esLocal) {
+        // Es un local comercial
+        $('#tipo-ubicacion-group button[data-value="local"]').click();
+        $(`#local-group button[data-value="${registro.edificio}"]`).click();
+    } else {
+        // Es un edificio
+        $('#tipo-ubicacion-group button[data-value="edificio"]').click();
+        $(`#edificio-group button[data-value="${registro.edificio}"]`).click();
+    }
+    
+    $(`#tipo-residuo-residuos button[data-value="${registro.tipoResiduo}"]`).click();
+    $(`#clasificacion-residuos button[data-value="${registro.clasificacion}"]`).click();
+    $(`#estado-fisico-residuos button[data-value="${registro.estadoFisico}"]`).click();
+    document.getElementById('cantidad-residuos').value = registro.cantidad;
+    $('#cantidad-residuos').focus();
+}
 
         // Eliminación Residuos
         function solicitarEliminacionResiduos(index) {

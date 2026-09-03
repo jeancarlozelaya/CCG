@@ -875,142 +875,163 @@
         // ============================================================
         // FILTRAR DATOS
         // ============================================================
-        function filtrarDatos() {
-            mesSeleccionado = $("#mes").val();
-            anioSeleccionado = $("#anio").val();
+function filtrarDatos() {
+    mesSeleccionado = $("#mes").val();
+    anioSeleccionado = $("#anio").val();
 
-            $('#overlay').css('display', 'flex');
-            $('#search-input').val('');
-            $('#search-devolucion').val('');
-            $('#search-recoleccion').val('');
-            $('#search-container').hide();
-            $('#search-devolucion-container').hide();
-            $('#search-recoleccion-container').hide();
-            $('#resultados-container').hide();
-            $('#recoleccion-container').hide();
+    $('#overlay').css('display', 'flex');
+    $('#search-input').val('');
+    $('#search-devolucion').val('');
+    $('#search-recoleccion').val('');
+    $('#search-container').hide();
+    $('#search-devolucion-container').hide();
+    $('#search-recoleccion-container').hide();
+    $('#resultados-container').hide();
+    $('#recoleccion-container').hide();
 
-            $.ajax({
-                url: scriptURL,
-                type: "POST",
-                data: {
-                    action: "obtenerReporte",
-                    mes: mesSeleccionado,
-                    anio: anioSeleccionado,
-                    edificio: edificioSeleccionado
-                },
-                success: function(response) {
-                    $('#overlay').hide();
-                    
-                    let responseData;
+    $.ajax({
+        url: scriptURL,
+        type: "POST",
+        data: {
+            action: "obtenerReporte",
+            mes: mesSeleccionado,
+            anio: anioSeleccionado,
+            edificio: edificioSeleccionado
+        },
+        success: function(response) {
+            $('#overlay').hide();
+            
+            let responseData;
+            try {
+                responseData = typeof response === 'string' ? JSON.parse(response) : response;
+            } catch (e) {
+                responseData = {success: false, message: 'Respuesta no válida del servidor'};
+            }
+            
+            if (responseData.success) {
+                datosFiltrados = responseData.datos || [];
+                datosRecoleccion = responseData.recoleccion || [];
+                datosDevoluciones = responseData.devoluciones || [];
+
+                // ORDEN DE UBICACIONES ACTUALIZADO
+                const ubicacionOrden = {
+                    // Edificios
+                    "CBA": 1,
+                    "CBB": 2,
+                    "CBC": 3,
+                    "Torre #1": 4,
+                    "Torre #2": 5,
+                    // Locales Comerciales
+                    "A-05: Pronto #1": 6,
+                    "A-06: Espresso Americano #1": 7,
+                    "A-07: City Net": 8,
+                    "T2-02: Punto Farma": 9,
+                    "T2-03: Sumitec": 10,
+                    "B-01: Galeano": 11,
+                    "B-02: Cofinter": 12,
+                    "B-03: Cuscatlan": 13,
+                    "B-04: Claro": 14,
+                    "B-05: Ficohsa": 15,
+                    "B-06: Davivienda": 16,
+                    "B-07: Lafise": 17,
+                    "C-01: Occidente": 18,
+                    "T1-01: Espresso Americano #2": 19,
+                    "T1-02: Sagrada Familia": 20,
+                    "T1-03: Pacasa": 21,
+                    "T1-04: Pronto #2": 22
+                };
+
+                datosFiltrados.sort((a, b) => {
                     try {
-                        responseData = typeof response === 'string' ? JSON.parse(response) : response;
+                        const ordenA = ubicacionOrden[a.edificio] || 99;
+                        const ordenB = ubicacionOrden[b.edificio] || 99;
+                        
+                        if (ordenA !== ordenB) {
+                            return ordenA - ordenB;
+                        }
+
+                        const dateA = new Date(a.fecha.split('/').reverse().join('-'));
+                        const dateB = new Date(b.fecha.split('/').reverse().join('-'));
+                        
+                        if (isNaN(dateA.getTime())) return 1;
+                        if (isNaN(dateB.getTime())) return -1;
+                        return dateA.getTime() - dateB.getTime();
+
                     } catch (e) {
-                        responseData = {success: false, message: 'Respuesta no válida del servidor'};
-                    }
-                    
-                    if (responseData.success) {
-                        datosFiltrados = responseData.datos || [];
-                        datosRecoleccion = responseData.recoleccion || [];
-                        datosDevoluciones = responseData.devoluciones || [];
-
-                        const edificioOrden = {
-                            "CBA": 1,
-                            "CBB": 2,
-                            "CBC": 3,
-                            "Torre #1": 4,
-                            "Torre #2": 5
-                        };
-
-                        datosFiltrados.sort((a, b) => {
-                            try {
-                                const ordenA = edificioOrden[a.edificio] || 99;
-                                const ordenB = edificioOrden[b.edificio] || 99;
-                                
-                                if (ordenA !== ordenB) {
-                                    return ordenA - ordenB;
-                                }
-
-                                const dateA = new Date(a.fecha.split('/').reverse().join('-'));
-                                const dateB = new Date(b.fecha.split('/').reverse().join('-'));
-                                
-                                if (isNaN(dateA.getTime())) return 1;
-                                if (isNaN(dateB.getTime())) return -1;
-                                return dateA.getTime() - dateB.getTime();
-
-                            } catch (e) {
-                                try {
-                                    const dateA = new Date(a.fecha);
-                                    const dateB = new Date(b.fecha);
-                                    if (isNaN(dateA.getTime())) return 1;
-                                    if (isNaN(dateB.getTime())) return -1;
-                                    return dateA.getTime() - dateB.getTime();
-                                } catch (e2) {
-                                    return 0;
-                                }
-                            }
-                        });
-
-                        datosDevoluciones.sort((a, b) => {
-                            try {
-                                const dateA = new Date(a.fecha.split('/').reverse().join('-'));
-                                const dateB = new Date(b.fecha.split('/').reverse().join('-'));
-                                if (isNaN(dateA.getTime())) return 1;
-                                if (isNaN(dateB.getTime())) return -1;
-                                return dateA.getTime() - dateB.getTime();
-                            } catch (e) {
-                                return 0;
-                            }
-                        });
-
-                        mostrarResultados();
-                        mostrarDevoluciones();
-                        mostrarRecoleccion();
-                        mostrarTotales();
-                        
-                        if (datosFiltrados.length > 0) {
-                            $('#search-container').show();
+                        try {
+                            const dateA = new Date(a.fecha);
+                            const dateB = new Date(b.fecha);
+                            if (isNaN(dateA.getTime())) return 1;
+                            if (isNaN(dateB.getTime())) return -1;
+                            return dateA.getTime() - dateB.getTime();
+                        } catch (e2) {
+                            return 0;
                         }
-                        
-                        if (datosDevoluciones.length > 0) {
-                            $('#search-devolucion-container').show();
-                        }
-                        
-                        if (datosRecoleccion && datosRecoleccion.length > 0) {
-                            $('#search-recoleccion-container').show();
-                        }
-
-                        $('#resultados-container').show();
-
-                    } else {
-                        Swal.fire({
-                            title: 'Error',
-                            text: responseData.message || 'Error al obtener los datos',
-                            icon: 'error',
-                            confirmButtonText: 'Entendido',
-                            confirmButtonColor: '#e74c3c'
-                        });
                     }
-                },
-                error: function(xhr, status, error) {
-                    $('#overlay').hide();
-                    
-                    let errorMessage = 'No se pudo conectar al servidor. ';
-                    if (xhr.status === 0) {
-                        errorMessage += 'Verifica tu conexión a internet.';
-                    } else {
-                        errorMessage += `Error ${xhr.status}: ${error}`;
+                });
+
+                datosDevoluciones.sort((a, b) => {
+                    try {
+                        const dateA = new Date(a.fecha.split('/').reverse().join('-'));
+                        const dateB = new Date(b.fecha.split('/').reverse().join('-'));
+                        if (isNaN(dateA.getTime())) return 1;
+                        if (isNaN(dateB.getTime())) return -1;
+                        return dateA.getTime() - dateB.getTime();
+                    } catch (e) {
+                        return 0;
                     }
-                    
-                    Swal.fire({
-                        title: 'Error de Conexión',
-                        text: errorMessage,
-                        icon: 'error',
-                        confirmButtonText: 'Entendido',
-                        confirmButtonColor: '#e74c3c'
-                    });
+                });
+
+                mostrarResultados();
+                mostrarDevoluciones();
+                mostrarRecoleccion();
+                mostrarTotales();
+                
+                if (datosFiltrados.length > 0) {
+                    $('#search-container').show();
                 }
+                
+                if (datosDevoluciones.length > 0) {
+                    $('#search-devolucion-container').show();
+                }
+                
+                if (datosRecoleccion && datosRecoleccion.length > 0) {
+                    $('#search-recoleccion-container').show();
+                }
+
+                $('#resultados-container').show();
+
+            } else {
+                Swal.fire({
+                    title: 'Error',
+                    text: responseData.message || 'Error al obtener los datos',
+                    icon: 'error',
+                    confirmButtonText: 'Entendido',
+                    confirmButtonColor: '#e74c3c'
+                });
+            }
+        },
+        error: function(xhr, status, error) {
+            $('#overlay').hide();
+            
+            let errorMessage = 'No se pudo conectar al servidor. ';
+            if (xhr.status === 0) {
+                errorMessage += 'Verifica tu conexión a internet.';
+            } else {
+                errorMessage += `Error ${xhr.status}: ${error}`;
+            }
+            
+            Swal.fire({
+                title: 'Error de Conexión',
+                text: errorMessage,
+                icon: 'error',
+                confirmButtonText: 'Entendido',
+                confirmButtonColor: '#e74c3c'
             });
         }
+    });
+}
+
 
         // ============================================================
         // FUNCIONES DE FORMATEO
@@ -1635,8 +1656,17 @@
                     }
                 });
 
-                const edificiosOrdenPDF = ["CBA", "CBB", "CBC", "Torre #1", "Torre #2"];
-                const edificiosAProcesar = edificiosOrdenPDF.filter(e => datosAgrupados.hasOwnProperty(e));
+// ORDEN COMPLETO: Edificios + Locales Comerciales
+const edificiosOrdenPDF = [
+    "CBA", "CBB", "CBC", "Torre #1", "Torre #2",
+    "A-05: Pronto #1", "A-06: Espresso Americano #1", "A-07: City Net",
+    "T2-02: Punto Farma", "T2-03: Sumitec",
+    "B-01: Galeano", "B-02: Cofinter", "B-03: Cuscatlan", "B-04: Claro",
+    "B-05: Ficohsa", "B-06: Davivienda", "B-07: Lafise",
+    "C-01: Occidente",
+    "T1-01: Espresso Americano #2", "T1-02: Sagrada Familia", "T1-03: Pacasa", "T1-04: Pronto #2"
+];
+const edificiosAProcesar = edificiosOrdenPDF.filter(e => datosAgrupados.hasOwnProperty(e));
 
                 if (edificiosAProcesar.length > 0) {
                     // Primera página de edificios (sin encabezado)
@@ -1668,10 +1698,14 @@
                         doc.setFont('helvetica', 'bold');
                         doc.setTextColor(255, 255, 255);
                         
-                        doc.text(`Edificio: ${edificio}`, pageWidth / 2, startY + (rectHeight / 2), {
-                            align: 'center',
-                            baseline: 'middle'
-                        });
+// Determinar si es edificio o local comercial
+const esLocal = edificio.includes(':');
+const tituloUbicacion = esLocal ? `Local Comercial: ${edificio}` : `Edificio: ${edificio}`;
+
+doc.text(tituloUbicacion, pageWidth / 2, startY + (rectHeight / 2), {
+    align: 'center',
+    baseline: 'middle'
+});
                         startY += rectHeight + 8;
 
                         // TABLA DE TOTALES (por edificio)

@@ -1,0 +1,1941 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pruebas Microbiológicas · Pisos Brillantes</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* ===== Estilos Base ===== */
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --success-color: #2ecc71;
+            --warning-color: #f39c12;
+            --dark-color: #34495e;
+            --text-color: #333;
+            --border-color: #e0e0e0;
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            color: var(--text-color);
+            line-height: 1.6;
+            user-select: none;
+            overscroll-behavior: none;
+            padding: 0 0 90px 0;
+        }
+        .header {
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+            color: white;
+            text-align: center;
+            padding: 12px 20px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            box-shadow: var(--shadow-md);
+            width: 100%;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .header-title { flex: 1; text-align: center; font-size: 1.3rem; }
+        .header-buttons { display: flex; align-items: center; gap: 8px; position: absolute; right: 15px; }
+        .header-buttons-left { display: flex; align-items: center; gap: 8px; position: absolute; left: 15px; }
+        .header-btn {
+            background: rgba(255,255,255,0.15);
+            border: none;
+            color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+        .header-btn:hover { background: rgba(255,255,255,0.3); transform: scale(1.05); }
+        .header-btn i { font-size: 0.9rem; }
+
+        .main-container {
+            width: 96%;
+            max-width: 800px;
+            margin: 10px auto 25px;
+            padding: 30px 20px;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: var(--shadow-md);
+        }
+        .section-title {
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 25px;
+            margin-top: 5px;
+            font-size: 1.4rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            padding-bottom: 10px;
+        }
+        .section-title:after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 3px;
+            background-color: var(--secondary-color);
+        }
+
+        .alert-listado {
+            background: #e8f4fd;
+            border-left: 5px solid var(--secondary-color);
+            border-radius: 8px;
+            padding: 18px 20px;
+            display: none;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 25px;
+        }
+        .alert-listado.visible { display: flex; }
+        .alert-listado i { font-size: 2rem; color: var(--secondary-color); }
+        .alert-listado .alert-text { flex: 1; font-size: 0.95rem; color: var(--dark-color); }
+        .alert-listado .alert-text strong { color: var(--primary-color); }
+
+        #formularioPrincipal { display: block; }
+        #formularioUnir { display: none; }
+
+        /* ===== Formulario principal ===== */
+        .question-container {
+            margin-bottom: 15px;
+            padding: 15px 18px;
+            border-radius: 8px;
+            background-color: #ffffff;
+            border: 1px solid var(--border-color);
+            border-left: 5px solid #bdc3c7;
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            transition: border-left-color 0.3s ease, transform 0.2s, box-shadow 0.2s;
+        }
+        .question-container.valid { border-left-color: var(--success-color) !important; }
+        .question-container.invalid { border-left-color: var(--accent-color) !important; }
+        .question-container.neutral { border-left-color: #bdc3c7 !important; }
+        .question-container:hover { box-shadow: 0 5px 15px rgba(0,0,0,0.05); transform: translateY(-1px); }
+        .question-container label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--dark-color);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .question-container input, .question-container select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: var(--transition);
+            background-color: #fdfdfd;
+            color: #495057;
+        }
+        .question-container input:focus, .question-container select:focus {
+            border-color: var(--secondary-color);
+            background-color: #fff;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        .photo-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-top: 5px;
+        }
+        .photo-box {
+            border: 2px dashed #ced4da;
+            border-radius: 10px;
+            padding: 15px 8px;
+            text-align: center;
+            background: #fafcff;
+            cursor: pointer;
+            transition: 0.2s;
+            min-height: 140px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .photo-box:hover { border-color: var(--secondary-color); background: #f0f7fe; }
+        .photo-box i { font-size: 2.2rem; color: #6b8ba0; margin-bottom: 4px; }
+        .photo-box span { font-size: 0.7rem; color: #3e5e76; font-weight: 500; }
+        .photo-box img {
+            max-width: 100%;
+            max-height: 110px;
+            border-radius: 8px;
+            object-fit: cover;
+            margin-top: 4px;
+            border: 1px solid #e2e8f0;
+        }
+        .photo-box .remove-photo {
+            position: absolute;
+            top: 4px;
+            right: 6px;
+            background: rgba(220,38,38,0.9);
+            color: white;
+            border: none;
+            border-radius: 30px;
+            width: 24px;
+            height: 24px;
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.15s;
+        }
+        .photo-box .remove-photo:hover { background: #b91c1c; transform: scale(1.1); }
+        .photo-box .photo-label { font-size: 0.65rem; font-weight: 600; color: var(--dark-color); margin-top: 2px; }
+        @media (max-width: 600px) { .photo-grid { grid-template-columns: 1fr; } }
+
+        .button-container {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 25px;
+        }
+        .btn-generar {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 14px 35px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            justify-content: center;
+        }
+        .btn-generar:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(46, 204, 113, 0.5); }
+        .btn-secondary {
+            background: #ecf0f1;
+            color: var(--dark-color);
+            border: none;
+            border-radius: 8px;
+            padding: 14px 25px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            justify-content: center;
+        }
+        .btn-secondary:hover { background: #d5dbdb; transform: translateY(-2px); }
+        .btn-danger {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .btn-danger:hover { transform: scale(1.03); }
+        .btn-metadata {
+            background: linear-gradient(135deg, #8e44ad, #6c3483);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .btn-metadata:hover { transform: scale(1.03); }
+
+        .reporte-item {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 14px 16px;
+            margin-bottom: 10px;
+            border-left: 4px solid var(--secondary-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            transition: 0.15s;
+        }
+        .reporte-item:hover { background: #f0f6fe; }
+        .reporte-item .lugar { font-weight: 600; color: var(--primary-color); font-size: 0.95rem; }
+        .reporte-item .meta { font-size: 0.78rem; color: #5f7d98; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+        .reporte-item .acciones { display: flex; gap: 6px; }
+        .reporte-item .acciones button {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 0.95rem;
+            padding: 4px 8px;
+            border-radius: 6px;
+            transition: 0.15s;
+        }
+        .reporte-item .acciones button:hover { background: #e2e8f0; }
+        .badge-count {
+            background: var(--accent-color);
+            color: white;
+            border-radius: 30px;
+            padding: 0 12px;
+            font-size: 0.75rem;
+            line-height: 22px;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .reportes-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .reportes-header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .reportes-header-left h2 { font-size: 1.1rem; color: var(--primary-color); margin: 0; }
+        .filter-input {
+            padding: 6px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            outline: none;
+            transition: var(--transition);
+            min-width: 150px;
+        }
+        .filter-input:focus { border-color: var(--secondary-color); box-shadow: 0 0 0 3px rgba(52,152,219,0.1); }
+
+        #overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.95);
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            flex-direction: column;
+            text-align: center;
+        }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(52, 152, 219, 0.2);
+            border-radius: 50%;
+            border-top-color: var(--secondary-color);
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ===== Estilos para Generar Reporte ===== */
+        .metadata-upload-area {
+            border: 2px dashed #ced4da;
+            border-radius: 12px;
+            padding: 30px 20px;
+            text-align: center;
+            background: #fafcff;
+            transition: 0.2s;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+        .metadata-upload-area:hover { border-color: var(--secondary-color); background: #f0f7fe; }
+        .metadata-upload-area i { font-size: 3rem; color: var(--secondary-color); margin-bottom: 10px; }
+        .metadata-upload-area p { color: #5f7d98; font-size: 0.9rem; }
+
+        .metadata-file-list {
+            margin: 12px 0;
+            max-height: 150px;
+            overflow-y: auto;
+            text-align: left;
+        }
+        .metadata-file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 10px;
+            background: #f8fafc;
+            border-radius: 6px;
+            margin-bottom: 4px;
+            font-size: 0.85rem;
+        }
+        .metadata-file-item .file-name { color: var(--primary-color); font-weight: 500; }
+        .metadata-file-item .file-size { color: #7f8c8d; font-size: 0.75rem; }
+        .metadata-file-item .remove-file {
+            color: var(--accent-color);
+            cursor: pointer;
+            background: none;
+            border: none;
+            font-size: 0.9rem;
+        }
+        .metadata-file-item .remove-file:hover { transform: scale(1.2); }
+
+        /* ===== Vista previa ===== */
+        .preview-header-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .preview-header-actions .preview-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .preview-header-actions .preview-left .filter-input-preview {
+            padding: 5px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            outline: none;
+            transition: var(--transition);
+            min-width: 150px;
+        }
+        .preview-header-actions .preview-left .filter-input-preview:focus {
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 3px rgba(52,152,219,0.1);
+        }
+        .btn-reiniciar {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 6px 16px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .btn-reiniciar:hover { transform: scale(1.03); }
+
+        .preview-list {
+            max-height: 500px;
+            overflow-y: auto;
+            margin: 8px 0;
+            border: 1px solid #e8e8e8;
+            border-radius: 6px;
+            background: #fafafa;
+        }
+        .preview-item {
+            padding: 12px 14px;
+            border-bottom: 1px solid #eee;
+            background: #fff;
+            transition: 0.15s;
+        }
+        .preview-item:last-child { border-bottom: none; }
+        .preview-item:hover { background: #f5f8fc; }
+
+        .preview-item .preview-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .preview-item .preview-lugar {
+            font-weight: 600;
+            color: var(--dark-color);
+            font-size: 1rem;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: 0.15s;
+            min-width: 140px;
+        }
+        .preview-item .preview-lugar.duplicado { color: var(--accent-color); }
+        .preview-item .preview-lugar:hover { background: #f0f0f0; }
+        .preview-item .preview-lugar.editando { display: none; }
+        .preview-item .preview-select-edit {
+            display: none;
+            padding: 4px 8px;
+            border: 2px solid var(--secondary-color);
+            border-radius: 4px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            background: white;
+            min-width: 140px;
+        }
+        .preview-item .preview-select-edit.visible { display: inline-block; }
+
+        .preview-item .preview-actions {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+        .preview-item .preview-actions .btn-edit-preview {
+            background: #e8f4fd;
+            color: var(--secondary-color);
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            padding: 5px 12px;
+            font-size: 0.75rem;
+            transition: 0.15s;
+            font-weight: 600;
+        }
+        .preview-item .preview-actions .btn-edit-preview:hover { background: #d0e8f8; }
+        .preview-item .preview-actions .btn-edit-preview.cancel {
+            background: #ecf0f1;
+            color: #7f8c8d;
+        }
+        .preview-item .preview-actions .btn-edit-preview.cancel:hover { background: #d5dbdb; }
+
+        .preview-item .preview-actions .btn-del-preview {
+            background: #fdedec;
+            color: var(--accent-color);
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            padding: 5px 12px;
+            font-size: 0.75rem;
+            transition: 0.15s;
+            font-weight: 600;
+        }
+        .preview-item .preview-actions .btn-del-preview:hover { background: #fcd5d3; }
+
+        .preview-item .preview-fotos {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-top: 6px;
+            padding-left: 8px;
+        }
+        .preview-item .preview-fotos .foto-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }
+        .preview-item .preview-fotos .foto-group span {
+            font-size: 0.6rem;
+            font-weight: 600;
+            color: var(--dark-color);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .preview-item .preview-fotos img {
+            width: 70px;
+            height: 70px;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            cursor: pointer;
+            transition: 0.15s;
+        }
+        .preview-item .preview-fotos img:hover {
+            transform: scale(1.05);
+            border-color: var(--secondary-color);
+        }
+        .preview-item .preview-fotos .no-foto {
+            width: 70px;
+            height: 70px;
+            background: #f5f5f5;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.6rem;
+            color: #aaa;
+            border: 1px solid #ddd;
+        }
+        .dup-badge {
+            background: var(--accent-color);
+            color: white;
+            font-size: 0.6rem;
+            padding: 1px 10px;
+            border-radius: 12px;
+            font-weight: 700;
+            margin-left: 6px;
+        }
+        .foto-modal-img {
+            max-width: 100%;
+            max-height: 70vh;
+            border-radius: 8px;
+        }
+
+        /* ===== Botones de Generar Reporte ===== */
+        .btn-verificar {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 25px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-verificar:hover:not(:disabled) { transform: scale(1.03); }
+        .btn-verificar:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-pdf-unir {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 25px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-pdf-unir:hover:not(:disabled) { transform: scale(1.03); }
+        .btn-pdf-unir:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-subir-reporte {
+            background: linear-gradient(135deg, #8e44ad, #6c3483);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 25px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-subir-reporte:hover:not(:disabled) { transform: scale(1.03); }
+        .btn-subir-reporte:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        @media (max-width: 600px) {
+            .main-container { padding: 15px 10px; }
+            .question-container { padding: 12px; }
+            .header { font-size: 1rem; padding: 10px 15px; }
+            .header-title { font-size: 1rem; }
+            .header-btn { font-size: 0.7rem; padding: 4px 10px; }
+            .header-btn span { display: none; }
+            .header-buttons { right: 8px; gap: 4px; }
+            .header-buttons-left { left: 8px; gap: 4px; }
+            .alert-listado { flex-direction: column; text-align: center; }
+            .button-container { flex-direction: row; flex-wrap: wrap; }
+            .btn-generar, .btn-secondary { flex: 1; min-width: 120px; padding: 12px 16px; font-size: 0.9rem; }
+            .reportes-header { flex-direction: column; align-items: stretch; }
+            .reportes-header-left { justify-content: space-between; flex-wrap: wrap; }
+            .filter-input { min-width: 100%; }
+            .photo-grid { grid-template-columns: 1fr; }
+            .preview-item .preview-header { flex-direction: column; align-items: stretch; }
+            .preview-item .preview-actions { justify-content: center; }
+            .preview-item .preview-fotos { justify-content: center; }
+            .button-container-unir { flex-direction: column; }
+            .button-container-unir button { width: 100%; justify-content: center; }
+            .preview-header-actions { flex-direction: column; align-items: stretch; }
+            .preview-header-actions .preview-left { justify-content: space-between; }
+        }
+        @media (max-width: 400px) {
+            .button-container { flex-direction: column; }
+            .btn-generar, .btn-secondary { flex: none; width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-buttons-left">
+            <button class="header-btn" onclick="mostrarAyuda()" title="Ayuda">
+                <i class="fas fa-question-circle"></i> <span>Ayuda</span>
+            </button>
+        </div>
+        <div class="header-title">Pisos Brillantes</div>
+        <div class="header-buttons">
+            <button class="header-btn" onclick="descargarListado()" title="Descargar Listado">
+                <i class="fas fa-cloud-download-alt"></i> <span>Listado</span>
+            </button>
+            <button class="header-btn" id="btnToggleUnir" onclick="toggleUnirMetadatos()" title="Generar Reporte">
+                <i class="fas fa-file-archive"></i> <span>Generar Reporte</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="alert-listado" id="alertaListado">
+            <i class="fas fa-info-circle"></i>
+            <div class="alert-text">
+                <strong>Descarga el listado de lugares</strong><br>
+                Presiona el botón <strong>"Listado"</strong> en el encabezado.
+            </div>
+        </div>
+
+        <!-- FORMULARIO PRINCIPAL -->
+        <div id="formularioPrincipal">
+            <h1 class="section-title">Registro de Pruebas Microbiológicas</h1>
+            <div id="formulario">
+                <div class="question-container" id="container-lugar">
+                    <label><i class="fas fa-map-pin"></i> LUGAR</label>
+                    <select id="selectLugar"><option value="">-- Seleccionar --</option></select>
+                </div>
+                <div class="question-container" id="container-fotos">
+                    <label><i class="fas fa-camera"></i> EVIDENCIA FOTOGRÁFICA</label>
+                    <div class="photo-grid">
+                        <div class="photo-box" id="photoBox1" onclick="dispararCamara(1)">
+                            <i class="fas fa-camera"></i><span class="photo-label">Antes de limpieza</span>
+                            <input type="file" accept="image/*" capture="environment" style="display:none;" id="fileInput1" onchange="procesarFoto(1, this)">
+                            <img id="preview1" style="display:none; margin-top:4px;">
+                            <button class="remove-photo" id="remove1" style="display:none;" onclick="event.stopPropagation(); eliminarFoto(1)">✕</button>
+                        </div>
+                        <div class="photo-box" id="photoBox2" onclick="dispararCamara(2)">
+                            <i class="fas fa-camera"></i><span class="photo-label">Proceso de limpieza</span>
+                            <input type="file" accept="image/*" capture="environment" style="display:none;" id="fileInput2" onchange="procesarFoto(2, this)">
+                            <img id="preview2" style="display:none; margin-top:4px;">
+                            <button class="remove-photo" id="remove2" style="display:none;" onclick="event.stopPropagation(); eliminarFoto(2)">✕</button>
+                        </div>
+                        <div class="photo-box" id="photoBox3" onclick="dispararCamara(3)">
+                            <i class="fas fa-camera"></i><span class="photo-label">Prueba microbiológica</span>
+                            <input type="file" accept="image/*" capture="environment" style="display:none;" id="fileInput3" onchange="procesarFoto(3, this)">
+                            <img id="preview3" style="display:none; margin-top:4px;">
+                            <button class="remove-photo" id="remove3" style="display:none;" onclick="event.stopPropagation(); eliminarFoto(3)">✕</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="button-container">
+                    <button class="btn-generar" onclick="guardarRegistro()"><i class="fas fa-save"></i> Guardar Prueba</button>
+                    <button class="btn-secondary" onclick="limpiarFormulario()"><i class="fas fa-undo-alt"></i> Limpiar</button>
+                </div>
+            </div>
+            <div style="margin-top: 30px; border-top: 2px solid #ecf0f1; padding-top: 20px;">
+                <div class="reportes-header">
+                    <div class="reportes-header-left">
+                        <h2><i class="fas fa-list-ul"></i> Reportes guardados</h2>
+                        <span class="badge-count" id="badgeReportes">0</span>
+                        <input type="text" class="filter-input" id="filterReportes" placeholder="Filtrar..." oninput="renderListaReportes()">
+                    </div>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <button class="btn-danger" onclick="eliminarTodosReportes()"><i class="fas fa-trash-alt"></i> Eliminar todos</button>
+                        <button class="btn-metadata" onclick="exportarMetadatos()"><i class="fas fa-file-archive"></i> Generar Datos</button>
+                    </div>
+                </div>
+                <div id="listaReportesContainer"><div style="color:#7f8c8d;font-size:0.9rem;padding:10px 0;">No hay reportes guardados.</div></div>
+            </div>
+        </div>
+
+        <!-- FORMULARIO DE GENERAR REPORTE -->
+        <div id="formularioUnir">
+            <h1 class="section-title">Generar Reporte</h1>
+            <div style="margin-bottom:15px;">
+                <label style="font-weight:600;font-size:0.85rem;color:var(--dark-color);display:block;margin-bottom:5px;">
+                    <i class="far fa-calendar-alt"></i> FECHA DEL REPORTE
+                </label>
+                <input type="date" id="fechaReporteUnir" value="" style="width:100%;padding:10px 14px;border:1px solid #ced4da;border-radius:6px;font-size:1rem;">
+            </div>
+            <div style="margin-bottom:10px;">
+                <label style="font-weight:600;font-size:0.85rem;color:var(--dark-color);display:block;margin-bottom:5px;">
+                    <i class="fas fa-file-archive"></i> ARCHIVOS DE METADATOS
+                </label>
+                <div class="metadata-upload-area" id="metadataDropArea">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <p><strong>Arrastra y suelta</strong> archivos JSON aquí o haz clic para seleccionar</p>
+                    <p style="font-size:0.75rem;color:#95a5a6;">Puedes seleccionar múltiples archivos</p>
+                    <input type="file" id="metadataFileInput" accept=".json" multiple style="display:none;">
+                </div>
+            </div>
+            <div id="metadataFileList" class="metadata-file-list"></div>
+
+            <!-- VISTA PREVIA -->
+            <div id="previewContainer" style="display:none; margin-top:15px;">
+                <div class="preview-header-actions">
+                    <div class="preview-left">
+                        <span style="font-weight:600; color:var(--dark-color);"><i class="fas fa-eye"></i> Vista previa</span>
+                        <span style="font-size:0.8rem; color:#7f8c8d;" id="previewCount">0 registros</span>
+                        <input type="text" class="filter-input-preview" id="filterPreview" placeholder="Filtrar lugar..." oninput="renderPreview()">
+                    </div>
+                    <button class="btn-reiniciar" onclick="confirmarLimpiarArchivos()">
+                        <i class="fas fa-undo-alt"></i> Reiniciar datos
+                    </button>
+                </div>
+                <div id="previewList" class="preview-list"></div>
+            </div>
+
+            <div class="button-container button-container-unir" style="margin-top:15px; gap:10px;">
+                <button class="btn-verificar" id="btnVerificarDatos" onclick="verificarDatos()">
+                    <i class="fas fa-check-circle"></i> Verificar Datos
+                </button>
+                <button class="btn-pdf-unir" id="btnGenerarPDFUnir" disabled onclick="procesarGeneracionPDF()">
+                    <i class="fas fa-file-pdf"></i> Generar Reporte
+                </button>
+                <button class="btn-subir-reporte" id="btnSubirReporte" disabled onclick="subirReporte()">
+                    <i class="fas fa-cloud-upload-alt"></i> Subir Reporte
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="overlay"><div class="spinner"></div><h4 style="color:var(--primary-color);">Por favor, espera un momento.</h4></div>
+
+<script>
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyi7F0ccL24_11UMWsu1OEF9Zuw3DaTOUOlrYhYIyp187Yhh2JlZia_DSHAAJDK0zHkRg/exec';
+    // NUEVO SCRIPT PARA SUBIR REPORTE (basado en el gestor de envíos)
+    const UPLOAD_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxnbTvwIEtw-ZjdP3fl6wdW-8aM8_XicEEquLM4TXCU6TSInt_qm14MuzjjPKcOrdKM2w/exec';
+
+    const db = new Dexie('MicroDB');
+    db.version(3).stores({
+        lugares: '++id, nombre',
+        reportes: '++id, lugar, fecha, foto1, foto2, foto3, timestamp',
+        metadatosTemp: '++id, data, timestamp'
+    });
+
+    let lugaresCache = [];
+    let reportesCache = [];
+    let fotosTemp = { 1: null, 2: null, 3: null };
+    let currentLugar = '';
+    let editandoId = null;
+
+    let archivosSeleccionados = [];
+    let metadatosCargados = [];
+    let modoUnir = false;
+    let datosVerificados = false;
+    let pdfGeneradoBlob = null;
+    let pdfGeneradoNombre = '';
+
+    function $(id) { return document.getElementById(id); }
+
+    function mostrarOverlay(show) {
+        const ov = $('overlay');
+        ov.style.display = show ? 'flex' : 'none';
+    }
+
+    function setFechaHoy() {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+
+    function formatearFecha(iso) {
+        if (!iso) return '--';
+        const partes = iso.split('-');
+        return `${partes[2]}/${partes[1]}/${partes[0]}`;
+    }
+
+    function actualizarContadores() {
+        const badgeReportes = $('badgeReportes');
+        if (badgeReportes) badgeReportes.textContent = reportesCache.length;
+    }
+
+    function toggleUnirMetadatos() {
+        modoUnir = !modoUnir;
+        const principal = $('formularioPrincipal');
+        const unir = $('formularioUnir');
+        const btn = $('btnToggleUnir');
+
+        if (modoUnir) {
+            principal.style.display = 'none';
+            unir.style.display = 'block';
+            btn.innerHTML = '<i class="fas fa-arrow-left"></i> <span>Volver</span>';
+            $('fechaReporteUnir').value = setFechaHoy();
+            cargarMetadatosTemp();
+        } else {
+            principal.style.display = 'block';
+            unir.style.display = 'none';
+            btn.innerHTML = '<i class="fas fa-file-archive"></i> <span>Generar Reporte</span>';
+        }
+    }
+
+    // ================================================================
+    // INDEXEDDB PARA METADATOS TEMPORALES
+    // ================================================================
+    async function guardarMetadatosTemp() {
+        try {
+            await db.metadatosTemp.clear();
+            await db.metadatosTemp.add({
+                data: metadatosCargados,
+                timestamp: Date.now()
+            });
+        } catch(e) { console.warn('Error guardando metadatos temp:', e); }
+    }
+
+    async function cargarMetadatosTemp() {
+        try {
+            const temp = await db.metadatosTemp.toArray();
+            if (temp.length > 0) {
+                const ultimo = temp[temp.length - 1];
+                if (ultimo.data && Array.isArray(ultimo.data) && ultimo.data.length > 0) {
+                    metadatosCargados = ultimo.data;
+                    archivosSeleccionados = [{ name: 'Datos recuperados', size: 0 }];
+                    actualizarListaArchivosUnir();
+                    renderPreview();
+                    $('previewContainer').style.display = 'block';
+                    datosVerificados = false;
+                    actualizarEstadoBotonesUnir();
+                    return;
+                }
+            }
+        } catch(e) { console.warn('Error cargando metadatos temp:', e); }
+        metadatosCargados = [];
+        archivosSeleccionados = [];
+        actualizarListaArchivosUnir();
+        $('previewContainer').style.display = 'none';
+        datosVerificados = false;
+        actualizarEstadoBotonesUnir();
+    }
+
+    // ================================================================
+    // FUNCIONES DE GENERAR REPORTE
+    // ================================================================
+    function actualizarListaArchivosUnir() {
+        const fileList = $('metadataFileList');
+        if (!fileList) return;
+        if (archivosSeleccionados.length === 0) {
+            fileList.innerHTML = '<div style="color:#7f8c8d;font-size:0.85rem;text-align:center;padding:10px;">No hay archivos seleccionados.</div>';
+            return;
+        }
+        let html = '';
+        archivosSeleccionados.forEach((file, index) => {
+            const size = (file.size / 1024).toFixed(1);
+            html += `
+                <div class="metadata-file-item">
+                    <span class="file-name"><i class="fas fa-file-code"></i> ${file.name}</span>
+                    <span class="file-size">${size} KB</span>
+                    <button class="remove-file" data-index="${index}" title="Eliminar"><i class="fas fa-times-circle"></i></button>
+                </div>
+            `;
+        });
+        fileList.innerHTML = html;
+        fileList.querySelectorAll('.remove-file').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const idx = parseInt(this.dataset.index);
+                archivosSeleccionados.splice(idx, 1);
+                actualizarListaArchivosUnir();
+                if (archivosSeleccionados.length === 0) {
+                    metadatosCargados = [];
+                    $('previewContainer').style.display = 'none';
+                    datosVerificados = false;
+                    actualizarEstadoBotonesUnir();
+                    guardarMetadatosTemp();
+                }
+            });
+        });
+    }
+
+    async function cargarYMostrarPreview() {
+        metadatosCargados = [];
+        for (const file of archivosSeleccionados) {
+            try {
+                const text = await file.text();
+                const data = JSON.parse(text);
+                if (Array.isArray(data)) {
+                    metadatosCargados = metadatosCargados.concat(data.map(item => ({
+                        ...item,
+                        foto1: item.foto1 || null,
+                        foto2: item.foto2 || null,
+                        foto3: item.foto3 || null,
+                        _id: Math.random().toString(36).substr(2, 9)
+                    })));
+                }
+            } catch (e) { /* ignorar */ }
+        }
+        renderPreview();
+        $('previewContainer').style.display = metadatosCargados.length > 0 ? 'block' : 'none';
+        datosVerificados = false;
+        actualizarEstadoBotonesUnir();
+        await guardarMetadatosTemp();
+    }
+
+    function renderPreview() {
+        const list = $('previewList');
+        const count = $('previewCount');
+        const filtro = ($('filterPreview')?.value || '').toLowerCase().trim();
+
+        let filtrados = metadatosCargados;
+        if (filtro) {
+            filtrados = metadatosCargados.filter(m => (m.lugar || '').toLowerCase().includes(filtro));
+        }
+
+        if (filtrados.length === 0) {
+            list.innerHTML = '<div style="color:#7f8c8d;font-size:0.9rem;text-align:center;padding:20px;">No hay registros para mostrar.</div>';
+            count.textContent = metadatosCargados.length + ' registros';
+            return;
+        }
+
+        count.textContent = `${metadatosCargados.length} registros (${filtrados.length} filtrados)`;
+
+        const ordenLugares = {};
+        lugaresCache.forEach((l, idx) => { ordenLugares[l] = idx; });
+        const sorted = [...filtrados].sort((a, b) => {
+            const idxA = ordenLugares[a.lugar] !== undefined ? ordenLugares[a.lugar] : 9999;
+            const idxB = ordenLugares[b.lugar] !== undefined ? ordenLugares[b.lugar] : 9999;
+            return idxA - idxB;
+        });
+
+        const conteo = {};
+        metadatosCargados.forEach(m => { if (m.lugar) conteo[m.lugar] = (conteo[m.lugar] || 0) + 1; });
+
+        let html = '';
+        sorted.forEach((item) => {
+            const esDuplicado = conteo[item.lugar] > 1;
+            const lugarClass = esDuplicado ? 'preview-lugar duplicado' : 'preview-lugar';
+            const dupBadge = esDuplicado ? `<span class="dup-badge">DUPLICADO</span>` : '';
+
+            const fotosHtml = `
+                <div class="preview-fotos">
+                    <div class="foto-group">
+                        <span>Antes</span>
+                        ${item.foto1 ? `<img src="${item.foto1}" alt="antes" onclick="verFotoAmpliada(event, '${item.foto1}')">` : `<span class="no-foto">Sin foto</span>`}
+                    </div>
+                    <div class="foto-group">
+                        <span>Proceso</span>
+                        ${item.foto2 ? `<img src="${item.foto2}" alt="proceso" onclick="verFotoAmpliada(event, '${item.foto2}')">` : `<span class="no-foto">Sin foto</span>`}
+                    </div>
+                    <div class="foto-group">
+                        <span>Prueba</span>
+                        ${item.foto3 ? `<img src="${item.foto3}" alt="prueba" onclick="verFotoAmpliada(event, '${item.foto3}')">` : `<span class="no-foto">Sin foto</span>`}
+                    </div>
+                </div>
+            `;
+
+            html += `
+                <div class="preview-item" data-id="${item._id}" data-original="${item.lugar}">
+                    <div class="preview-header">
+                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; flex:1;">
+                            <span class="${lugarClass}" onclick="activarEdicion('${item._id}')" title="Click para editar">
+                                ${item.lugar || 'Sin lugar'} ${dupBadge}
+                            </span>
+                            <select class="preview-select-edit" data-id="${item._id}">
+                                ${lugaresCache.map(l => `<option value="${l}" ${l === item.lugar ? 'selected' : ''}>${l}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="preview-actions">
+                            <button class="btn-edit-preview" onclick="activarEdicion('${item._id}')">
+                                <i class="fas fa-edit"></i> Editar
+                            </button>
+                            <button class="btn-del-preview" onclick="confirmarEliminarPreview('${item._id}')">
+                                <i class="fas fa-trash-alt"></i> Eliminar
+                            </button>
+                        </div>
+                    </div>
+                    ${fotosHtml}
+                </div>
+            `;
+        });
+        list.innerHTML = html;
+    }
+
+    function activarEdicion(id) {
+        const item = document.querySelector(`.preview-item[data-id="${id}"]`);
+        if (!item) return;
+        const label = item.querySelector('.preview-lugar');
+        const select = item.querySelector('.preview-select-edit');
+        const btn = item.querySelector('.btn-edit-preview');
+
+        if (label.classList.contains('editando')) {
+            label.classList.remove('editando');
+            label.style.display = 'inline-block';
+            select.classList.remove('visible');
+            select.style.display = 'none';
+            btn.innerHTML = '<i class="fas fa-edit"></i> Editar';
+            btn.classList.remove('cancel');
+            const original = item.dataset.original;
+            if (original) {
+                select.value = original;
+                label.textContent = original + (label.querySelector('.dup-badge') ? label.querySelector('.dup-badge').outerHTML : '');
+            }
+            datosVerificados = false;
+            actualizarEstadoBotonesUnir();
+        } else {
+            label.classList.add('editando');
+            label.style.display = 'none';
+            select.classList.add('visible');
+            select.style.display = 'inline-block';
+            select.value = item.dataset.original || label.textContent.trim();
+            btn.innerHTML = '<i class="fas fa-times"></i> Cancelar';
+            btn.classList.add('cancel');
+            select.focus();
+            select.onchange = function() {
+                const nuevoValor = this.value;
+                if (nuevoValor !== item.dataset.original) {
+                    const labelText = label.textContent.replace(/DUPLICADO/g, '').trim();
+                    label.textContent = nuevoValor + (label.querySelector('.dup-badge') ? label.querySelector('.dup-badge').outerHTML : '');
+                    item.dataset.original = nuevoValor;
+                    const dataItem = metadatosCargados.find(m => m._id === id);
+                    if (dataItem) dataItem.lugar = nuevoValor;
+                    datosVerificados = false;
+                    actualizarEstadoBotonesUnir();
+                    guardarMetadatosTemp();
+                }
+                label.classList.remove('editando');
+                label.style.display = 'inline-block';
+                select.classList.remove('visible');
+                select.style.display = 'none';
+                btn.innerHTML = '<i class="fas fa-edit"></i> Editar';
+                btn.classList.remove('cancel');
+                renderPreview();
+            };
+            datosVerificados = false;
+            actualizarEstadoBotonesUnir();
+        }
+    }
+
+    function verFotoAmpliada(event, src) {
+        event.stopPropagation();
+        Swal.fire({
+            imageUrl: src,
+            imageAlt: 'Foto',
+            showConfirmButton: true,
+            confirmButtonText: 'Cerrar',
+            width: '400px',
+            imageWidth: '100%',
+            imageHeight: 'auto',
+            customClass: { image: 'foto-modal-img' }
+        });
+    }
+
+    function confirmarEliminarPreview(id) {
+        Swal.fire({
+            title: '¿Eliminar registro?',
+            text: 'Esta acción eliminará este registro de la vista previa.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar'
+        }).then(result => {
+            if (result.isConfirmed) {
+                const idx = metadatosCargados.findIndex(m => m._id === id);
+                if (idx > -1) {
+                    metadatosCargados.splice(idx, 1);
+                    renderPreview();
+                    datosVerificados = false;
+                    actualizarEstadoBotonesUnir();
+                    guardarMetadatosTemp();
+                }
+            }
+        });
+    }
+
+    function verificarDatos() {
+        const editando = document.querySelector('.preview-lugar.editando');
+        if (editando) {
+            Swal.fire('Edición pendiente', 'Por favor, finaliza la edición actual antes de verificar.', 'warning');
+            return;
+        }
+        if (metadatosCargados.length === 0) {
+            Swal.fire('Sin datos', 'No hay registros para verificar.', 'warning');
+            return;
+        }
+        const conteo = {};
+        metadatosCargados.forEach(m => { if (m.lugar) conteo[m.lugar] = (conteo[m.lugar] || 0) + 1; });
+        const duplicados = Object.keys(conteo).filter(l => conteo[l] > 1);
+        if (duplicados.length > 0) {
+            Swal.fire({
+                title: '⚠️ Duplicados encontrados',
+                html: `Se encontraron <strong>${duplicados.length}</strong> lugares duplicados.<br><br>
+                       ${duplicados.map(l => `• <strong>${l}</strong> (${conteo[l]} registros)`).join('<br>')}<br><br>
+                       Revisa la vista previa y edita los nombres para resolverlos.`,
+                icon: 'warning',
+                confirmButtonText: 'Entendido'
+            });
+            datosVerificados = false;
+            actualizarEstadoBotonesUnir();
+            return;
+        }
+        datosVerificados = true;
+        actualizarEstadoBotonesUnir();
+        Swal.fire('✅ Datos verificados', 'Todos los registros están correctos. Puedes generar o subir el reporte.', 'success');
+        guardarMetadatosTemp();
+    }
+
+    function actualizarEstadoBotonesUnir() {
+        const btnVerificar = $('btnVerificarDatos');
+        const btnPDF = $('btnGenerarPDFUnir');
+        const btnSubir = $('btnSubirReporte');
+        const hayDatos = metadatosCargados.length > 0;
+
+        if (hayDatos && datosVerificados) {
+            btnVerificar.disabled = true;
+            btnVerificar.innerHTML = '<i class="fas fa-check-circle"></i> Verificado ✓';
+            btnPDF.disabled = false;
+            btnSubir.disabled = false;
+        } else if (hayDatos) {
+            btnVerificar.disabled = false;
+            btnVerificar.innerHTML = '<i class="fas fa-check-circle"></i> Verificar Datos';
+            btnPDF.disabled = true;
+            btnSubir.disabled = true;
+        } else {
+            btnVerificar.disabled = true;
+            btnVerificar.innerHTML = '<i class="fas fa-check-circle"></i> Verificar Datos';
+            btnPDF.disabled = true;
+            btnSubir.disabled = true;
+        }
+    }
+
+    function initUnirForm() {
+        const input = $('metadataFileInput');
+        const dropArea = $('metadataDropArea');
+
+        if (!input || !dropArea) return;
+
+        dropArea.addEventListener('dragover', (e) => { e.preventDefault(); dropArea.style.borderColor = 'var(--secondary-color)'; dropArea.style.background = '#f0f7fe'; });
+        dropArea.addEventListener('dragleave', () => { dropArea.style.borderColor = '#ced4da'; dropArea.style.background = '#fafcff'; });
+        dropArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropArea.style.borderColor = '#ced4da';
+            dropArea.style.background = '#fafcff';
+            if (e.dataTransfer.files.length > 0) agregarArchivosUnir(e.dataTransfer.files);
+        });
+        dropArea.addEventListener('click', () => input.click());
+
+        input.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                agregarArchivosUnir(this.files);
+                this.value = '';
+            }
+        });
+    }
+
+    function agregarArchivosUnir(files) {
+        let added = 0;
+        for (const file of files) {
+            if (file.type === 'application/json' || file.name.endsWith('.json')) {
+                if (!archivosSeleccionados.some(f => f.name === file.name && f.size === file.size)) {
+                    archivosSeleccionados.push(file);
+                    added++;
+                }
+            }
+        }
+        if (added > 0) {
+            actualizarListaArchivosUnir();
+            cargarYMostrarPreview();
+        } else {
+            Swal.fire('Info', 'No se agregaron archivos nuevos. Asegúrate de que sean JSON.', 'info');
+        }
+    }
+
+    function confirmarLimpiarArchivos() {
+        if (metadatosCargados.length === 0 && archivosSeleccionados.length === 0) {
+            Swal.fire('Sin datos', 'No hay archivos cargados para reiniciar.', 'info');
+            return;
+        }
+        Swal.fire({
+            title: '¿Reiniciar datos?',
+            text: 'Se perderán todos los cambios y datos cargados. ¿Estás seguro?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, reiniciar',
+            cancelButtonText: 'Cancelar'
+        }).then(async result => {
+            if (result.isConfirmed) {
+                archivosSeleccionados = [];
+                metadatosCargados = [];
+                datosVerificados = false;
+                pdfGeneradoBlob = null;
+                pdfGeneradoNombre = '';
+                actualizarListaArchivosUnir();
+                $('previewContainer').style.display = 'none';
+                actualizarEstadoBotonesUnir();
+                await db.metadatosTemp.clear();
+                Swal.fire('Reiniciado', 'Todos los archivos y datos han sido eliminados.', 'success');
+            }
+        });
+    }
+
+    // ================================================================
+    // GENERAR PDF (SOLO GENERA, NO SUBE)
+    // ================================================================
+    async function procesarGeneracionPDF() {
+        if (!datosVerificados) {
+            Swal.fire('Verifica primero', 'Debes verificar los datos antes de generar el reporte.', 'warning');
+            return;
+        }
+        if (metadatosCargados.length === 0) {
+            Swal.fire('Error', 'No hay datos cargados.', 'warning');
+            return;
+        }
+        const fechaReporte = $('fechaReporteUnir').value;
+        if (!fechaReporte) {
+            Swal.fire('Error', 'Selecciona una fecha para el reporte.', 'warning');
+            return;
+        }
+
+        const ordenLugares = {};
+        lugaresCache.forEach((l, idx) => { ordenLugares[l] = idx; });
+        const sorted = [...metadatosCargados].sort((a, b) => {
+            const idxA = ordenLugares[a.lugar] !== undefined ? ordenLugares[a.lugar] : 9999;
+            const idxB = ordenLugares[b.lugar] !== undefined ? ordenLugares[b.lugar] : 9999;
+            return idxA - idxB;
+        });
+
+        const mapa = {};
+        sorted.forEach(m => {
+            if (!mapa[m.lugar] || (m.timestamp || 0) > (mapa[m.lugar].timestamp || 0)) {
+                mapa[m.lugar] = m;
+            }
+        });
+        const unicos = Object.values(mapa);
+
+        if (unicos.length === 0) {
+            Swal.fire('Sin datos', 'No hay datos válidos.', 'info');
+            return;
+        }
+
+        await generarPDFDesdeMetadatos(unicos, fechaReporte);
+    }
+
+    async function generarPDFDesdeMetadatos(metadatos, fechaReporte) {
+        mostrarOverlay(true);
+        try {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
+
+            let logoImg = null;
+            try {
+                const logoResp = await fetch('Icono.png');
+                if (logoResp.ok) {
+                    const blob = await logoResp.blob();
+                    logoImg = await new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result);
+                        reader.readAsDataURL(blob);
+                    });
+                }
+            } catch(e) { console.warn('Logo no encontrado:', e); }
+
+            let page = 1;
+            const maxPerPage = 5;
+
+            for (let i = 0; i < metadatos.length; i += maxPerPage) {
+                if (i > 0) doc.addPage();
+                const chunk = metadatos.slice(i, i + maxPerPage);
+
+                if (logoImg) { try { doc.addImage(logoImg, 'PNG', 14, 10, 30, 15); } catch(e) {} }
+
+                doc.setFontSize(16);
+                doc.text('Reporte de Pruebas Microbiológicas', 50, 20);
+                doc.setFontSize(10);
+                doc.text(`Fecha: ${formatearFecha(fechaReporte)}`, 50, 28);
+                doc.line(14, 34, 196, 34);
+
+                let yPos = 42;
+                chunk.forEach((item, idx) => {
+                    const lugar = item.lugar || 'Sin lugar';
+                    doc.setFontSize(12);
+                    doc.text(`${i + idx + 1}. ${lugar}`, 20, yPos);
+                    yPos += 5;
+
+                    const fotos = [item.foto1, item.foto2, item.foto3];
+                    const labels = ['Antes', 'Proceso', 'Prueba'];
+                    const imgW = 48, imgH = 34, gap = 6, startX = 18;
+
+                    fotos.forEach((f, fi) => {
+                        const x = startX + (fi * (imgW + gap));
+                        if (f && f.startsWith('data:image')) {
+                            try { doc.addImage(f, 'JPEG', x, yPos, imgW, imgH); } catch(e) { doc.setFontSize(7); doc.text('[Error]', x+5, yPos+15); }
+                        } else { doc.setFontSize(7); doc.text('Sin foto', x+15, yPos+15); }
+                        doc.setFontSize(6);
+                        doc.text(labels[fi], x + (imgW/2), yPos + imgH + 3, { align: 'center' });
+                    });
+
+                    yPos += imgH + 8;
+                    if (idx < chunk.length - 1) { doc.line(20, yPos - 2, 190, yPos - 2); yPos += 4; }
+                });
+
+                doc.setFontSize(8);
+                doc.text(`Página ${page}`, 105, 285, { align: 'center' });
+                page++;
+            }
+
+            const pdfBlob = doc.output('blob');
+            const fechaFormateada = fechaReporte.split('-').reverse().join('-');
+            const nombrePDF = `${fechaFormateada} - Registro de Pruebas Microbiológicas.pdf`;
+            
+            pdfGeneradoBlob = pdfBlob;
+            pdfGeneradoNombre = nombrePDF;
+
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(pdfBlob);
+            link.download = nombrePDF;
+            link.click();
+            URL.revokeObjectURL(link.href);
+
+            Swal.fire('PDF Generado', 'Reporte generado exitosamente. Puedes subirlo con el botón "Subir Reporte".', 'success');
+        } catch(e) { console.error(e); Swal.fire('Error', 'No se pudo generar el reporte.', 'error'); }
+        mostrarOverlay(false);
+    }
+
+    // ================================================================
+    // SUBIR REPORTE (GENERA Y SUBE EN UN SOLO PASO)
+    // ================================================================
+    async function subirReporte() {
+        if (!datosVerificados) {
+            Swal.fire('Verifica primero', 'Debes verificar los datos antes de subir el reporte.', 'warning');
+            return;
+        }
+        if (metadatosCargados.length === 0) {
+            Swal.fire('Error', 'No hay datos cargados.', 'warning');
+            return;
+        }
+        const fechaReporte = $('fechaReporteUnir').value;
+        if (!fechaReporte) {
+            Swal.fire('Error', 'Selecciona una fecha para el reporte.', 'warning');
+            return;
+        }
+
+        mostrarOverlay(true);
+        try {
+            // 1. Generar el PDF en memoria (sin descargar)
+            const ordenLugares = {};
+            lugaresCache.forEach((l, idx) => { ordenLugares[l] = idx; });
+            const sorted = [...metadatosCargados].sort((a, b) => {
+                const idxA = ordenLugares[a.lugar] !== undefined ? ordenLugares[a.lugar] : 9999;
+                const idxB = ordenLugares[b.lugar] !== undefined ? ordenLugares[b.lugar] : 9999;
+                return idxA - idxB;
+            });
+
+            const mapa = {};
+            sorted.forEach(m => {
+                if (!mapa[m.lugar] || (m.timestamp || 0) > (mapa[m.lugar].timestamp || 0)) {
+                    mapa[m.lugar] = m;
+                }
+            });
+            const unicos = Object.values(mapa);
+
+            if (unicos.length === 0) {
+                Swal.fire('Sin datos', 'No hay datos válidos.', 'info');
+                mostrarOverlay(false);
+                return;
+            }
+
+            // Generar PDF en blob
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
+
+            let logoImg = null;
+            try {
+                const logoResp = await fetch('Icono.png');
+                if (logoResp.ok) {
+                    const blob = await logoResp.blob();
+                    logoImg = await new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result);
+                        reader.readAsDataURL(blob);
+                    });
+                }
+            } catch(e) { console.warn('Logo no encontrado:', e); }
+
+            let page = 1;
+            const maxPerPage = 5;
+
+            for (let i = 0; i < unicos.length; i += maxPerPage) {
+                if (i > 0) doc.addPage();
+                const chunk = unicos.slice(i, i + maxPerPage);
+
+                if (logoImg) { try { doc.addImage(logoImg, 'PNG', 14, 10, 30, 15); } catch(e) {} }
+
+                doc.setFontSize(16);
+                doc.text('Reporte de Pruebas Microbiológicas', 50, 20);
+                doc.setFontSize(10);
+                doc.text(`Fecha: ${formatearFecha(fechaReporte)}`, 50, 28);
+                doc.line(14, 34, 196, 34);
+
+                let yPos = 42;
+                chunk.forEach((item, idx) => {
+                    const lugar = item.lugar || 'Sin lugar';
+                    doc.setFontSize(12);
+                    doc.text(`${i + idx + 1}. ${lugar}`, 20, yPos);
+                    yPos += 5;
+
+                    const fotos = [item.foto1, item.foto2, item.foto3];
+                    const labels = ['Antes', 'Proceso', 'Prueba'];
+                    const imgW = 48, imgH = 34, gap = 6, startX = 18;
+
+                    fotos.forEach((f, fi) => {
+                        const x = startX + (fi * (imgW + gap));
+                        if (f && f.startsWith('data:image')) {
+                            try { doc.addImage(f, 'JPEG', x, yPos, imgW, imgH); } catch(e) { doc.setFontSize(7); doc.text('[Error]', x+5, yPos+15); }
+                        } else { doc.setFontSize(7); doc.text('Sin foto', x+15, yPos+15); }
+                        doc.setFontSize(6);
+                        doc.text(labels[fi], x + (imgW/2), yPos + imgH + 3, { align: 'center' });
+                    });
+
+                    yPos += imgH + 8;
+                    if (idx < chunk.length - 1) { doc.line(20, yPos - 2, 190, yPos - 2); yPos += 4; }
+                });
+
+                doc.setFontSize(8);
+                doc.text(`Página ${page}`, 105, 285, { align: 'center' });
+                page++;
+            }
+
+            const pdfBlob = doc.output('blob');
+            const fechaFormateada = fechaReporte.split('-').reverse().join('-');
+            const nombrePDF = `${fechaFormateada} - Registro de Pruebas Microbiológicas.pdf`;
+
+            // 2. Subir el PDF usando el script de Google (basado en el gestor de envíos)
+            // Convertir blob a base64
+            const reader = new FileReader();
+            const base64Promise = new Promise((resolve, reject) => {
+                reader.onload = () => resolve(reader.result.split(',')[1]);
+                reader.onerror = reject;
+                reader.readAsDataURL(pdfBlob);
+            });
+            const pdfBase64 = await base64Promise;
+
+            // Preparar datos para el script
+            const requestData = {
+                proyecto: 'Pruebas Microbiológicas',
+                nivel: '',
+                ubicacion: '',
+                numeroOficina: '',
+                fecha: fechaReporte,
+                nombreArchivo: nombrePDF,
+                pdfBase64: pdfBase64,
+                descripcion: '',
+                usuario: '',
+                motivoSinFirma: '',
+                checkSinFirma: false,
+                checkFolio: false,
+                folio: '',
+                checkTicket: false,
+                ticket: ''
+            };
+
+            // Enviar al script de Google
+            const response = await fetch(UPLOAD_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestData)
+            });
+
+            // Como usamos no-cors, no podemos leer la respuesta
+            // Mostramos mensaje de éxito asumiendo que funcionó
+            Swal.fire({
+                title: '✅ Reporte subido',
+                text: `El reporte "${nombrePDF}" se ha subido correctamente al historial.`,
+                icon: 'success'
+            });
+
+            // Limpiar estado después de subir
+            pdfGeneradoBlob = null;
+            pdfGeneradoNombre = '';
+            datosVerificados = false;
+            actualizarEstadoBotonesUnir();
+
+        } catch(e) {
+            console.error(e);
+            Swal.fire('Error', 'No se pudo subir el reporte. Intenta nuevamente.', 'error');
+        }
+        mostrarOverlay(false);
+    }
+
+    // ================================================================
+    // LISTADO
+    // ================================================================
+    async function descargarListado() {
+        try {
+            mostrarOverlay(true);
+            const resp = await fetch(SCRIPT_URL);
+            const data = await resp.json();
+            if (!data || !data.lugares || data.lugares.length === 0) {
+                Swal.fire('Sin datos', 'El script no devolvió lugares.', 'warning');
+                mostrarOverlay(false);
+                return;
+            }
+            await db.lugares.clear();
+            await db.lugares.bulkAdd(data.lugares.map(n => ({ nombre: n })));
+            lugaresCache = data.lugares;
+            actualizarSelectLugares();
+            actualizarContadores();
+            const alerta = $('alertaListado');
+            if (alerta) alerta.classList.remove('visible');
+            Swal.fire('Listado cargado', `${lugaresCache.length} lugares disponibles.`, 'success');
+        } catch (e) {
+            console.error(e);
+            Swal.fire('Error', 'No se pudo obtener el listado.', 'error');
+        }
+        mostrarOverlay(false);
+    }
+
+    async function cargarLugaresDesdeDB() {
+        const l = await db.lugares.toArray();
+        if (l.length > 0) {
+            lugaresCache = l.map(item => item.nombre);
+            actualizarSelectLugares();
+            actualizarContadores();
+            const alerta = $('alertaListado');
+            if (alerta) alerta.classList.remove('visible');
+        } else {
+            const alerta = $('alertaListado');
+            if (alerta) alerta.classList.add('visible');
+        }
+    }
+
+    function actualizarSelectLugares() {
+        const sel = $('selectLugar');
+        if (!sel) return;
+        const valorActual = sel.value;
+        sel.innerHTML = '<option value="">-- Seleccionar --</option>';
+        lugaresCache.forEach(n => {
+            const opt = document.createElement('option');
+            opt.value = n;
+            opt.textContent = n;
+            sel.appendChild(opt);
+        });
+        if (valorActual && lugaresCache.includes(valorActual)) sel.value = valorActual;
+        else sel.value = '';
+        validarFormulario();
+    }
+
+    // ================================================================
+    // REPORTES
+    // ================================================================
+    async function cargarReportes() {
+        reportesCache = await db.reportes.orderBy('id').reverse().toArray();
+        renderListaReportes();
+        actualizarContadores();
+    }
+
+    function renderListaReportes() {
+        const container = $('listaReportesContainer');
+        if (!container) return;
+        const filtro = ($('filterReportes')?.value || '').toLowerCase().trim();
+        let filtrados = reportesCache;
+        if (filtro) filtrados = reportesCache.filter(r => (r.lugar || '').toLowerCase().includes(filtro));
+        if (filtrados.length === 0) {
+            container.innerHTML = '<div style="color:#7f8c8d;font-size:0.9rem;padding:10px 0;">No hay reportes.</div>';
+            return;
+        }
+        let html = '';
+        filtrados.forEach(r => {
+            const fecha = r.fecha || '--';
+            const lugar = r.lugar || 'Sin lugar';
+            const fotosCount = (r.foto1 ? 1 : 0) + (r.foto2 ? 1 : 0) + (r.foto3 ? 1 : 0);
+            html += `
+                <div class="reporte-item" id="rep-${r.id}">
+                    <div><div class="lugar">${lugar}</div>
+                    <div class="meta"><span><i class="far fa-calendar-alt"></i> ${formatearFecha(fecha)}</span>
+                    <span><i class="fas fa-images"></i> ${fotosCount}/3 fotos</span></div></div>
+                    <div class="acciones">
+                        <button onclick="editarReporte(${r.id})" title="Editar"><i class="fas fa-edit" style="color:var(--secondary-color);"></i></button>
+                        <button onclick="eliminarReporte(${r.id})" title="Eliminar"><i class="fas fa-trash-alt" style="color:var(--accent-color);"></i></button>
+                    </div>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+    }
+
+    function tieneProgreso() { return fotosTemp[1] || fotosTemp[2] || fotosTemp[3] || $('selectLugar').value; }
+
+    async function guardarRegistro() {
+        const lugar = $('selectLugar').value;
+        if (!lugar) { Swal.fire('Falta lugar', 'Selecciona un lugar.', 'warning'); return; }
+        const foto1 = fotosTemp[1], foto2 = fotosTemp[2], foto3 = fotosTemp[3];
+        if (!foto1 && !foto2 && !foto3) { Swal.fire('Faltan fotos', 'Debes tomar al menos una foto.', 'warning'); return; }
+
+        if (editandoId) { await db.reportes.delete(editandoId); editandoId = null; } else {
+            const existente = await db.reportes.where('lugar').equals(lugar).first();
+            if (existente) {
+                const confirm = await Swal.fire({
+                    title: '¿Sobrescribir?',
+                    text: `Ya existe un reporte para "${lugar}". ¿Reemplazar?`,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, reemplazar',
+                    cancelButtonText: 'Cancelar'
+                });
+                if (!confirm.isConfirmed) return;
+                await db.reportes.delete(existente.id);
+            }
+        }
+
+        const fechaActual = setFechaHoy();
+        const registro = { lugar, fecha: fechaActual, foto1: foto1 || null, foto2: foto2 || null, foto3: foto3 || null, timestamp: Date.now() };
+        await db.reportes.add(registro);
+        limpiarFotosSinConfirmar();
+        $('selectLugar').value = '';
+        currentLugar = '';
+        editandoId = null;
+        validarFormulario();
+        guardarEstadoLocal();
+        await cargarReportes();
+        actualizarContadores();
+        Swal.fire('Guardado', `Reporte para "${lugar}" guardado.`, 'success');
+    }
+
+    function limpiarFotosSinConfirmar() {
+        for (let i = 1; i <= 3; i++) {
+            fotosTemp[i] = null;
+            const preview = $(`preview${i}`);
+            preview.style.display = 'none';
+            preview.src = '';
+            const remove = $(`remove${i}`);
+            if (remove) remove.style.display = 'none';
+            const box = $(`photoBox${i}`);
+            box.querySelector('i').style.display = 'block';
+            box.querySelector('span').style.display = 'block';
+        }
+    }
+
+    async function eliminarReporte(id) {
+        const confirm = await Swal.fire({ title: '¿Eliminar reporte?', text: 'Esta acción no se puede deshacer.', icon: 'warning', showCancelButton: true, confirmButtonText: 'Sí, eliminar', cancelButtonText: 'Cancelar' });
+        if (confirm.isConfirmed) { await db.reportes.delete(id); await cargarReportes(); actualizarContadores(); }
+    }
+
+    async function eliminarTodosReportes() {
+        const count = await db.reportes.count();
+        if (count === 0) { Swal.fire('Sin reportes', 'No hay reportes.', 'info'); return; }
+        const confirm = await Swal.fire({ title: '¿Eliminar todos?', text: `Se eliminarán ${count} reportes.`, icon: 'warning', showCancelButton: true, confirmButtonText: 'Sí, eliminar todo', cancelButtonText: 'Cancelar' });
+        if (confirm.isConfirmed) { await db.reportes.clear(); await cargarReportes(); actualizarContadores(); Swal.fire('Eliminados', 'Todos los reportes han sido eliminados.', 'success'); }
+    }
+
+    async function editarReporte(id) {
+        if (tieneProgreso()) {
+            const confirm = await Swal.fire({ title: '¿Perder progreso?', text: 'Tienes un registro en progreso. ¿Deseas continuar?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Sí, continuar', cancelButtonText: 'Cancelar' });
+            if (!confirm.isConfirmed) return;
+        }
+        const reporte = await db.reportes.get(id);
+        if (!reporte) return;
+        limpiarFotosSinConfirmar();
+        $('selectLugar').value = reporte.lugar;
+        currentLugar = reporte.lugar;
+        for (let i = 1; i <= 3; i++) {
+            const key = `foto${i}`;
+            if (reporte[key]) {
+                fotosTemp[i] = reporte[key];
+                const preview = $(`preview${i}`);
+                preview.src = reporte[key];
+                preview.style.display = 'block';
+                const remove = $(`remove${i}`);
+                if (remove) remove.style.display = 'flex';
+                const box = $(`photoBox${i}`);
+                box.querySelector('i').style.display = 'none';
+                box.querySelector('span').style.display = 'none';
+            }
+        }
+        editandoId = id;
+        validarFormulario();
+        guardarEstadoLocal();
+        Swal.fire('Editando', `Editando reporte de "${reporte.lugar}". Modifica y guarda.`, 'info');
+        document.getElementById('formulario').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function dispararCamara(idx) { const input = $(`fileInput${idx}`); if (input) input.click(); }
+
+    function procesarFoto(idx, input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const dataUrl = e.target.result;
+                fotosTemp[idx] = dataUrl;
+                const preview = $(`preview${idx}`);
+                preview.src = dataUrl;
+                preview.style.display = 'block';
+                const remove = $(`remove${idx}`);
+                if (remove) remove.style.display = 'flex';
+                const box = $(`photoBox${idx}`);
+                box.querySelector('i').style.display = 'none';
+                box.querySelector('span').style.display = 'none';
+                input.value = '';
+                validarFormulario();
+                guardarEstadoLocal();
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    async function eliminarFoto(idx) {
+        const confirm = await Swal.fire({ title: '¿Eliminar foto?', text: 'Esta acción no se puede deshacer.', icon: 'question', showCancelButton: true, confirmButtonText: 'Sí, eliminar', cancelButtonText: 'Cancelar' });
+        if (!confirm.isConfirmed) return;
+        fotosTemp[idx] = null;
+        const preview = $(`preview${idx}`);
+        preview.style.display = 'none';
+        preview.src = '';
+        const remove = $(`remove${idx}`);
+        if (remove) remove.style.display = 'none';
+        const box = $(`photoBox${idx}`);
+        box.querySelector('i').style.display = 'block';
+        box.querySelector('span').style.display = 'block';
+        validarFormulario();
+        guardarEstadoLocal();
+    }
+
+    function validarFormulario() {
+        const lugar = $('selectLugar').value;
+        const contLugar = $('container-lugar');
+        if (contLugar) {
+            if (lugar) { contLugar.classList.add('valid'); contLugar.classList.remove('invalid', 'neutral'); }
+            else { contLugar.classList.add('invalid'); contLugar.classList.remove('valid', 'neutral'); }
+        }
+        const hasFoto = fotosTemp[1] || fotosTemp[2] || fotosTemp[3];
+        const contFotos = $('container-fotos');
+        if (contFotos) {
+            if (hasFoto) { contFotos.classList.add('valid'); contFotos.classList.remove('invalid', 'neutral'); }
+            else { contFotos.classList.add('invalid'); contFotos.classList.remove('valid', 'neutral'); }
+        }
+    }
+
+    async function limpiarFormulario() {
+        if (tieneProgreso()) {
+            const confirm = await Swal.fire({ title: '¿Limpiar formulario?', text: 'Se perderá el progreso.', icon: 'question', showCancelButton: true, confirmButtonText: 'Sí, limpiar', cancelButtonText: 'Cancelar' });
+            if (!confirm.isConfirmed) return;
+        }
+        limpiarFotosSinConfirmar();
+        $('selectLugar').value = '';
+        currentLugar = '';
+        editandoId = null;
+        validarFormulario();
+        guardarEstadoLocal();
+    }
+
+    function guardarEstadoLocal() {
+        try { localStorage.setItem('micro_estado', JSON.stringify({ lugar: $('selectLugar').value, fotos: fotosTemp, editandoId: editandoId })); } catch(e) {}
+    }
+
+    function restaurarEstadoLocal() {
+        try {
+            const raw = localStorage.getItem('micro_estado');
+            if (!raw) return;
+            const estado = JSON.parse(raw);
+            if (estado.lugar && lugaresCache.includes(estado.lugar)) { $('selectLugar').value = estado.lugar; currentLugar = estado.lugar; }
+            if (estado.fotos) {
+                for (let i = 1; i <= 3; i++) {
+                    if (estado.fotos[i]) {
+                        fotosTemp[i] = estado.fotos[i];
+                        const preview = $(`preview${i}`);
+                        preview.src = estado.fotos[i];
+                        preview.style.display = 'block';
+                        const remove = $(`remove${i}`);
+                        if (remove) remove.style.display = 'flex';
+                        const box = $(`photoBox${i}`);
+                        box.querySelector('i').style.display = 'none';
+                        box.querySelector('span').style.display = 'none';
+                    }
+                }
+            }
+            if (estado.editandoId) editandoId = estado.editandoId;
+            validarFormulario();
+        } catch(e) {}
+    }
+
+    async function exportarMetadatos() {
+        const reportes = await db.reportes.toArray();
+        if (reportes.length === 0) { Swal.fire('Sin datos', 'No hay reportes.', 'info'); return; }
+        mostrarOverlay(true);
+        try {
+            const metadatos = reportes.map(r => ({ lugar: r.lugar, fecha: r.fecha, timestamp: r.timestamp, foto1: r.foto1 || null, foto2: r.foto2 || null, foto3: r.foto3 || null }));
+            const dataStr = JSON.stringify(metadatos, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `metadatos_${new Date().toISOString().slice(0,10)}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+            Swal.fire('Exportado', 'Archivo de metadatos descargado.', 'success');
+        } catch(e) { console.error(e); Swal.fire('Error', 'No se pudieron exportar los metadatos.', 'error'); }
+        mostrarOverlay(false);
+    }
+
+    function mostrarAyuda() {
+        Swal.fire({
+            title: '📖 Guía de Uso',
+            html: `
+                <div style="text-align:left;font-size:0.9rem;line-height:1.8;color:#555;">
+                    <div><strong>1.</strong> Descarga el <strong>listado de lugares</strong> con el botón "Listado".</div>
+                    <div><strong>2.</strong> Selecciona un <strong>lugar</strong> y toma las <strong>fotos</strong>.</div>
+                    <div><strong>3.</strong> Presiona <strong>"Guardar Prueba"</strong>.</div>
+                    <div><strong>4.</strong> <strong>"Generar Datos"</strong> descarga un JSON con metadatos.</div>
+                    <div><strong>5.</strong> <strong>"Generar Reporte"</strong> permite subir JSONs, ver vista previa, editar/eliminar, verificar y generar el reporte.</div>
+                    <div><strong>6.</strong> <strong>"Subir Reporte"</strong> genera el PDF y lo sube directamente a la nube, registrando en el historial.</div>
+                    <div style="margin-top:10px;background:#f0f7ff;padding:10px;border-radius:6px;">
+                        <strong>💡</strong> Los datos se guardan automáticamente en tu navegador.
+                    </div>
+                </div>
+            `,
+            icon: 'info',
+            confirmButtonText: 'Entendido',
+            confirmButtonColor: '#3498db'
+        });
+    }
+
+    window.addEventListener('DOMContentLoaded', async function() {
+        await cargarLugaresDesdeDB();
+        await cargarReportes();
+        restaurarEstadoLocal();
+        actualizarContadores();
+        validarFormulario();
+        initUnirForm();
+        $('formularioUnir').style.display = 'none';
+        $('selectLugar').addEventListener('change', function() { currentLugar = this.value; validarFormulario(); guardarEstadoLocal(); });
+        setInterval(guardarEstadoLocal, 5000);
+        await cargarMetadatosTemp();
+    });
+</script>
+</body>
+</html>

@@ -217,6 +217,33 @@
             transition: 0.15s;
         }
         .photo-box .remove-photo:hover { background: #b91c1c; transform: scale(1.1); }
+
+.photo-box .retake-photo {
+    position: absolute;
+    bottom: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(52, 152, 219, 0.95);
+    color: white;
+    border: none;
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: 0.15s;
+    white-space: nowrap;
+}
+.photo-box .retake-photo:hover { background: #2471a3; transform: translateX(-50%) scale(1.05); }
+.photo-box .retake-photo i { font-size: 0.7rem; }
+
+.photo-box.has-photo { cursor: default; }
+.photo-box.has-photo:hover { border-color: #ced4da; background: #fafcff; }
+
+
         .photo-box .photo-label { font-size: 0.65rem; font-weight: 600; color: var(--dark-color); margin-top: 2px; }
         @media (max-width: 600px) { .photo-grid { grid-template-columns: 1fr; } }
 
@@ -744,24 +771,39 @@
                 <div class="question-container" id="container-fotos">
                     <label><i class="fas fa-camera"></i> EVIDENCIA FOTOGRÁFICA</label>
                     <div class="photo-grid">
-                        <div class="photo-box" id="photoBox1" onclick="dispararCamara(1)">
-                            <i class="fas fa-camera"></i><span class="photo-label">Antes de limpieza</span>
-                            <input type="file" accept="image/*" capture="environment" style="display:none;" id="fileInput1" onchange="procesarFoto(1, this)">
-                            <img id="preview1" style="display:none; margin-top:4px;">
-                            <button class="remove-photo" id="remove1" style="display:none;" onclick="event.stopPropagation(); eliminarFoto(1)">✕</button>
-                        </div>
-                        <div class="photo-box" id="photoBox2" onclick="dispararCamara(2)">
-                            <i class="fas fa-camera"></i><span class="photo-label">Proceso de limpieza</span>
-                            <input type="file" accept="image/*" capture="environment" style="display:none;" id="fileInput2" onchange="procesarFoto(2, this)">
-                            <img id="preview2" style="display:none; margin-top:4px;">
-                            <button class="remove-photo" id="remove2" style="display:none;" onclick="event.stopPropagation(); eliminarFoto(2)">✕</button>
-                        </div>
-                        <div class="photo-box" id="photoBox3" onclick="dispararCamara(3)">
-                            <i class="fas fa-camera"></i><span class="photo-label">Prueba microbiológica</span>
-                            <input type="file" accept="image/*" capture="environment" style="display:none;" id="fileInput3" onchange="procesarFoto(3, this)">
-                            <img id="preview3" style="display:none; margin-top:4px;">
-                            <button class="remove-photo" id="remove3" style="display:none;" onclick="event.stopPropagation(); eliminarFoto(3)">✕</button>
-                        </div>
+
+
+<div class="photo-box" id="photoBox1" onclick="dispararCamara(1)">
+    <i class="fas fa-camera"></i><span class="photo-label">Antes de limpieza</span>
+    <input type="file" accept="image/*" capture="environment" style="display:none;" id="fileInput1" onchange="procesarFoto(1, this)">
+    <img id="preview1" style="display:none; margin-top:4px;">
+    <button class="remove-photo" id="remove1" style="display:none;" onclick="event.stopPropagation(); eliminarFoto(1)">✕</button>
+    <button class="retake-photo" id="retake1" style="display:none;" onclick="event.stopPropagation(); retomarFoto(1)">
+        <i class="fas fa-redo"></i> Volver a tomar
+    </button>
+</div>
+
+<div class="photo-box" id="photoBox2" onclick="dispararCamara(2)">
+    <i class="fas fa-camera"></i><span class="photo-label">Proceso de limpieza</span>
+    <input type="file" accept="image/*" capture="environment" style="display:none;" id="fileInput2" onchange="procesarFoto(2, this)">
+    <img id="preview2" style="display:none; margin-top:4px;">
+    <button class="remove-photo" id="remove2" style="display:none;" onclick="event.stopPropagation(); eliminarFoto(2)">✕</button>
+    <button class="retake-photo" id="retake2" style="display:none;" onclick="event.stopPropagation(); retomarFoto(2)">
+        <i class="fas fa-redo"></i> Volver a tomar
+    </button>
+</div>
+
+<div class="photo-box" id="photoBox3" onclick="dispararCamara(3)">
+    <i class="fas fa-camera"></i><span class="photo-label">Prueba microbiológica</span>
+    <input type="file" accept="image/*" capture="environment" style="display:none;" id="fileInput3" onchange="procesarFoto(3, this)">
+    <img id="preview3" style="display:none; margin-top:4px;">
+    <button class="remove-photo" id="remove3" style="display:none;" onclick="event.stopPropagation(); eliminarFoto(3)">✕</button>
+    <button class="retake-photo" id="retake3" style="display:none;" onclick="event.stopPropagation(); retomarFoto(3)">
+        <i class="fas fa-redo"></i> Volver a tomar
+    </button>
+</div>
+
+
                     </div>
                 </div>
                 <div class="button-container">
@@ -843,12 +885,18 @@
     // NUEVO SCRIPT PARA SUBIR REPORTE (basado en el gestor de envíos)
     const UPLOAD_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxnbTvwIEtw-ZjdP3fl6wdW-8aM8_XicEEquLM4TXCU6TSInt_qm14MuzjjPKcOrdKM2w/exec';
 
-    const db = new Dexie('MicroDB');
-    db.version(3).stores({
-        lugares: '++id, nombre',
-        reportes: '++id, lugar, fecha, foto1, foto2, foto3, timestamp',
-        metadatosTemp: '++id, data, timestamp'
-    });
+const db = new Dexie('MicroDB');
+db.version(3).stores({
+    lugares: '++id, nombre',
+    reportes: '++id, lugar, fecha, foto1, foto2, foto3, timestamp',
+    metadatosTemp: '++id, data, timestamp'
+});
+db.version(4).stores({
+    lugares: '++id, nombre',
+    reportes: '++id, lugar, fecha, foto1, foto2, foto3, timestamp',
+    metadatosTemp: '++id, data, timestamp',
+    estadoTemp: '++id, timestamp'
+});
 
     let lugaresCache = [];
     let reportesCache = [];
@@ -1722,25 +1770,28 @@
         currentLugar = '';
         editandoId = null;
         validarFormulario();
-        guardarEstadoLocal();
+        await db.estadoTemp.clear();
         await cargarReportes();
         actualizarContadores();
         Swal.fire('Guardado', `Reporte para "${lugar}" guardado.`, 'success');
     }
 
-    function limpiarFotosSinConfirmar() {
-        for (let i = 1; i <= 3; i++) {
-            fotosTemp[i] = null;
-            const preview = $(`preview${i}`);
-            preview.style.display = 'none';
-            preview.src = '';
-            const remove = $(`remove${i}`);
-            if (remove) remove.style.display = 'none';
-            const box = $(`photoBox${i}`);
-            box.querySelector('i').style.display = 'block';
-            box.querySelector('span').style.display = 'block';
-        }
+function limpiarFotosSinConfirmar() {
+    for (let i = 1; i <= 3; i++) {
+        fotosTemp[i] = null;
+        const preview = $(`preview${i}`);
+        preview.style.display = 'none';
+        preview.src = '';
+        const remove = $(`remove${i}`);
+        if (remove) remove.style.display = 'none';
+        const retake = $(`retake${i}`);
+        if (retake) retake.style.display = 'none';
+        const box = $(`photoBox${i}`);
+        box.classList.remove('has-photo');
+        box.querySelector('i').style.display = 'block';
+        box.querySelector('span').style.display = 'block';
     }
+}
 
     async function eliminarReporte(id) {
         const confirm = await Swal.fire({ title: '¿Eliminar reporte?', text: 'Esta acción no se puede deshacer.', icon: 'warning', showCancelButton: true, confirmButtonText: 'Sí, eliminar', cancelButtonText: 'Cancelar' });
@@ -1773,7 +1824,10 @@
                 preview.style.display = 'block';
                 const remove = $(`remove${i}`);
                 if (remove) remove.style.display = 'flex';
+                const retake = $(`retake${i}`);
+                if (retake) retake.style.display = 'flex';
                 const box = $(`photoBox${i}`);
+                box.classList.add('has-photo');
                 box.querySelector('i').style.display = 'none';
                 box.querySelector('span').style.display = 'none';
             }
@@ -1785,45 +1839,122 @@
         document.getElementById('formulario').scrollIntoView({ behavior: 'smooth' });
     }
 
-    function dispararCamara(idx) { const input = $(`fileInput${idx}`); if (input) input.click(); }
 
-    function procesarFoto(idx, input) {
-        if (input.files && input.files[0]) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const dataUrl = e.target.result;
+
+function dispararCamara(idx) {
+    // Si ya hay foto en este campo, no abrir la cámara
+    if (fotosTemp[idx]) return;
+    const input = $(`fileInput${idx}`);
+    if (input) input.click();
+}
+
+async function retomarFoto(idx) {
+    const confirm = await Swal.fire({
+        title: '¿Volver a tomar la foto?',
+        text: 'La foto actual se perderá y se abrirá la cámara nuevamente.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, volver a tomar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#3498db'
+    });
+    if (!confirm.isConfirmed) return;
+
+    // Limpiar solo ese campo
+    fotosTemp[idx] = null;
+    const preview = $(`preview${idx}`);
+    preview.style.display = 'none';
+    preview.src = '';
+    const remove = $(`remove${idx}`);
+    if (remove) remove.style.display = 'none';
+    const retake = $(`retake${idx}`);
+    if (retake) retake.style.display = 'none';
+    const box = $(`photoBox${idx}`);
+    box.classList.remove('has-photo');
+    box.querySelector('i').style.display = 'block';
+    box.querySelector('span').style.display = 'block';
+
+    validarFormulario();
+    guardarEstadoLocal();
+
+    // Abrir cámara
+    const input = $(`fileInput${idx}`);
+    if (input) input.click();
+}
+
+function procesarFoto(idx, input) {
+    if (input.files && input.files[0]) {
+        const file = input.files[0];
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+                const MAX_W = 1280;
+                let w = img.width, h = img.height;
+                if (w > MAX_W) {
+                    h = Math.round(h * (MAX_W / w));
+                    w = MAX_W;
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, w, h);
+
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+
                 fotosTemp[idx] = dataUrl;
                 const preview = $(`preview${idx}`);
                 preview.src = dataUrl;
                 preview.style.display = 'block';
                 const remove = $(`remove${idx}`);
                 if (remove) remove.style.display = 'flex';
+                const retake = $(`retake${idx}`);
+                if (retake) retake.style.display = 'flex';
                 const box = $(`photoBox${idx}`);
+                box.classList.add('has-photo');
                 box.querySelector('i').style.display = 'none';
                 box.querySelector('span').style.display = 'none';
                 input.value = '';
                 validarFormulario();
                 guardarEstadoLocal();
             };
-            reader.readAsDataURL(input.files[0]);
-        }
+            img.onerror = function() {
+                Swal.fire('Error', 'No se pudo procesar la imagen.', 'error');
+                input.value = '';
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
     }
+}
 
-    async function eliminarFoto(idx) {
-        const confirm = await Swal.fire({ title: '¿Eliminar foto?', text: 'Esta acción no se puede deshacer.', icon: 'question', showCancelButton: true, confirmButtonText: 'Sí, eliminar', cancelButtonText: 'Cancelar' });
-        if (!confirm.isConfirmed) return;
-        fotosTemp[idx] = null;
-        const preview = $(`preview${idx}`);
-        preview.style.display = 'none';
-        preview.src = '';
-        const remove = $(`remove${idx}`);
-        if (remove) remove.style.display = 'none';
-        const box = $(`photoBox${idx}`);
-        box.querySelector('i').style.display = 'block';
-        box.querySelector('span').style.display = 'block';
-        validarFormulario();
-        guardarEstadoLocal();
-    }
+
+async function eliminarFoto(idx) {
+    const confirm = await Swal.fire({
+        title: '¿Eliminar foto?',
+        text: 'Esta acción no se puede deshacer.',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    });
+    if (!confirm.isConfirmed) return;
+    fotosTemp[idx] = null;
+    const preview = $(`preview${idx}`);
+    preview.style.display = 'none';
+    preview.src = '';
+    const remove = $(`remove${idx}`);
+    if (remove) remove.style.display = 'none';
+    const retake = $(`retake${idx}`);
+    if (retake) retake.style.display = 'none';
+    const box = $(`photoBox${idx}`);
+    box.classList.remove('has-photo');
+    box.querySelector('i').style.display = 'block';
+    box.querySelector('span').style.display = 'block';
+    validarFormulario();
+    guardarEstadoLocal();
+}
 
     function validarFormulario() {
         const lugar = $('selectLugar').value;
@@ -1850,38 +1981,59 @@
         currentLugar = '';
         editandoId = null;
         validarFormulario();
-        guardarEstadoLocal();
+        await db.estadoTemp.clear();
     }
 
-    function guardarEstadoLocal() {
-        try { localStorage.setItem('micro_estado', JSON.stringify({ lugar: $('selectLugar').value, fotos: fotosTemp, editandoId: editandoId })); } catch(e) {}
+async function guardarEstadoLocal() {
+    try {
+        const estado = {
+            lugar: $('selectLugar').value,
+            fotos: fotosTemp,
+            editandoId: editandoId,
+            timestamp: Date.now()
+        };
+        await db.estadoTemp.clear();
+        await db.estadoTemp.add(estado);
+    } catch(e) {
+        console.warn('Error guardando estado temporal:', e);
     }
+}
 
-    function restaurarEstadoLocal() {
-        try {
-            const raw = localStorage.getItem('micro_estado');
-            if (!raw) return;
-            const estado = JSON.parse(raw);
-            if (estado.lugar && lugaresCache.includes(estado.lugar)) { $('selectLugar').value = estado.lugar; currentLugar = estado.lugar; }
-            if (estado.fotos) {
-                for (let i = 1; i <= 3; i++) {
-                    if (estado.fotos[i]) {
-                        fotosTemp[i] = estado.fotos[i];
-                        const preview = $(`preview${i}`);
-                        preview.src = estado.fotos[i];
-                        preview.style.display = 'block';
-                        const remove = $(`remove${i}`);
-                        if (remove) remove.style.display = 'flex';
-                        const box = $(`photoBox${i}`);
-                        box.querySelector('i').style.display = 'none';
-                        box.querySelector('span').style.display = 'none';
-                    }
+async function restaurarEstadoLocal() {
+    try {
+        const temp = await db.estadoTemp.toArray();
+        if (temp.length === 0) return;
+        const estado = temp[temp.length - 1];
+
+        if (estado.lugar && lugaresCache.includes(estado.lugar)) {
+            $('selectLugar').value = estado.lugar;
+            currentLugar = estado.lugar;
+        }
+        if (estado.fotos) {
+            for (let i = 1; i <= 3; i++) {
+                if (estado.fotos[i]) {
+                    fotosTemp[i] = estado.fotos[i];
+                    const preview = $(`preview${i}`);
+                    preview.src = estado.fotos[i];
+                    preview.style.display = 'block';
+                    const remove = $(`remove${i}`);
+                    if (remove) remove.style.display = 'flex';
+                    const retake = $(`retake${i}`);
+                    if (retake) retake.style.display = 'flex';
+                    const box = $(`photoBox${i}`);
+                    box.classList.add('has-photo');
+                    box.querySelector('i').style.display = 'none';
+                    box.querySelector('span').style.display = 'none';
                 }
             }
-            if (estado.editandoId) editandoId = estado.editandoId;
-            validarFormulario();
-        } catch(e) {}
+        }
+        if (estado.editandoId) editandoId = estado.editandoId;
+        validarFormulario();
+    } catch(e) {
+        console.warn('Error restaurando estado temporal:', e);
     }
+}
+
 
     async function exportarMetadatos() {
         const reportes = await db.reportes.toArray();
@@ -1924,18 +2076,20 @@
         });
     }
 
-    window.addEventListener('DOMContentLoaded', async function() {
-        await cargarLugaresDesdeDB();
-        await cargarReportes();
-        restaurarEstadoLocal();
-        actualizarContadores();
-        validarFormulario();
-        initUnirForm();
-        $('formularioUnir').style.display = 'none';
-        $('selectLugar').addEventListener('change', function() { currentLugar = this.value; validarFormulario(); guardarEstadoLocal(); });
-        setInterval(guardarEstadoLocal, 5000);
-        await cargarMetadatosTemp();
-    });
+window.addEventListener('DOMContentLoaded', async function() {
+    await cargarLugaresDesdeDB();
+    await cargarReportes();
+    await restaurarEstadoLocal();
+    actualizarContadores();
+    validarFormulario();
+    initUnirForm();
+    $('formularioUnir').style.display = 'none';
+    $('selectLugar').addEventListener('change', function() { currentLugar = this.value; validarFormulario(); guardarEstadoLocal(); });
+    setInterval(guardarEstadoLocal, 5000);
+    await cargarMetadatosTemp();
+});
+
+
 </script>
 </body>
 </html>

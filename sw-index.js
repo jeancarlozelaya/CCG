@@ -1,7 +1,7 @@
 // Archivo: sw-index.js
 
 // CAMBIAMOS LA VERSIÓN PARA QUE EL NAVEGADOR ACTUALICE LA CACHÉ SÍ O SÍ
-const CACHE_NAME_INDEX = 'pibrisa-index-v8.1.8'; 
+const CACHE_NAME_INDEX = 'pibrisa-index-v8.1.9'; 
 
 const urlsToCacheIndex = [
     './',
@@ -9,13 +9,17 @@ const urlsToCacheIndex = [
     './manifest.json',
     './Pag - Reportería.html',
     './Reporte de Supervisión.html',
-    './Liberación.html',
     './Control de Llaves.html',
     './Pag - Residuos.html',
     './Registro de Residuos.html',
     './Registro de Trazabilidad & Volumen de Residuos.html',   
     'Imágenes/Icono.png',
     'Control de PEPS de Insumos.html',
+    
+    'Liberación de Responsabilidad/Pag - Liberación de Responsabilidad.html',
+    'Liberación de Responsabilidad/Liberación de Responsabilidad.html',
+    'Pruebas Microbiológicas/Pag - Pruebas Microbiológicas.html',
+    'Pruebas Microbiológicas/Registro de Pruebas Microbiológicas.html',
 
     // 1. LA IMAGEN DEL PDF (Asegúrate que la ruta sea exacta, mayúsculas y acentos importan)
     'https://raw.githubusercontent.com/jeancarlozelaya/CCG/refs/heads/main/Im%C3%A1genes/Otros/HojadeLiberaci%C3%B3n.jpg', 

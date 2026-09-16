@@ -742,9 +742,9 @@
         </div>
         <div class="header-title">Pisos Brillantes</div>
         <div class="header-buttons">
-            <button class="header-btn" onclick="descargarListado()" title="Descargar Listado">
-                <i class="fas fa-cloud-download-alt"></i> <span>Listado</span>
-            </button>
+<button class="header-btn" onclick="abrirMenuListado()" title="Listado">
+    <i class="fas fa-list"></i> <span>Listado</span>
+</button>
             <button class="header-btn" id="btnToggleUnir" onclick="toggleUnirMetadatos()" title="Generar Reporte">
                 <i class="fas fa-file-archive"></i> <span>Generar Reporte</span>
             </button>
@@ -1644,30 +1644,165 @@ db.version(4).stores({
     // ================================================================
     // LISTADO
     // ================================================================
-    async function descargarListado() {
-        try {
-            mostrarOverlay(true);
-            const resp = await fetch(SCRIPT_URL);
-            const data = await resp.json();
-            if (!data || !data.lugares || data.lugares.length === 0) {
-                Swal.fire('Sin datos', 'El script no devolvió lugares.', 'warning');
-                mostrarOverlay(false);
-                return;
-            }
-            await db.lugares.clear();
-            await db.lugares.bulkAdd(data.lugares.map(n => ({ nombre: n })));
-            lugaresCache = data.lugares;
-            actualizarSelectLugares();
-            actualizarContadores();
-            const alerta = $('alertaListado');
-            if (alerta) alerta.classList.remove('visible');
-            Swal.fire('Listado cargado', `${lugaresCache.length} lugares disponibles.`, 'success');
-        } catch (e) {
-            console.error(e);
-            Swal.fire('Error', 'No se pudo obtener el listado.', 'error');
+async function descargarListado() {
+    try {
+        mostrarOverlay(true);
+        const resp = await fetch(SCRIPT_URL);
+        const data = await resp.json();
+
+        // Caso 1: el servidor no devolvió nada válido
+        if (!data || !data.lugares || !Array.isArray(data.lugares)) {
+            mostrarOverlay(false);
+            Swal.fire({
+                title: '⚠️ Respuesta inválida',
+                text: 'El servidor no devolvió un listado válido. Intenta de nuevo más tarde.',
+                icon: 'warning',
+                confirmButtonText: 'Entendido'
+            });
+            return;
         }
-        mostrarOverlay(false);
+
+        // Caso 2: el servidor devolvió un array vacío
+        if (data.lugares.length === 0) {
+            mostrarOverlay(false);
+            const teniaAntes = lugaresCache.length > 0;
+            await Swal.fire({
+                title: '📭 Listado vacío',
+                html: teniaAntes
+                    ? `El servidor devolvió un listado vacío.<br><br>
+                       <strong>Se mantienen los ${lugaresCache.length} lugares que ya tenías cargados.</strong>`
+                    : `Aún no hay lugares disponibles en el servidor.<br><br>
+                       Contacta al administrador o verifica que el listado haya sido cargado.`,
+                icon: 'info',
+                confirmButtonText: 'Entendido'
+            });
+            return;
+        }
+
+        // Caso 3: hay lugares → guardar
+        await db.lugares.clear();
+        await db.lugares.bulkAdd(data.lugares.map(n => ({ nombre: n })));
+        lugaresCache = data.lugares;
+        actualizarSelectLugares();
+        actualizarContadores();
+        const alerta = $('alertaListado');
+        if (alerta) alerta.classList.remove('visible');
+
+        Swal.fire({
+            title: '✅ Listado actualizado',
+            text: `${lugaresCache.length} lugares cargados correctamente.`,
+            icon: 'success',
+            timer: 2000,
+            showConfirmButton: false
+        });
+    } catch (e) {
+        console.error(e);
+        Swal.fire('Error', 'No se pudo obtener el listado. Verifica tu conexión e intenta de nuevo.', 'error');
     }
+    mostrarOverlay(false);
+}
+
+async function borrarListado() {
+    if (lugaresCache.length === 0) {
+        Swal.fire({
+            title: 'Sin listado',
+            text: 'No hay ningún listado cargado actualmente.',
+            icon: 'info',
+            confirmButtonText: 'Entendido'
+        });
+        return;
+    }
+
+    // Si hay formulario en progreso, advertir
+    if (tieneProgreso()) {
+        const adv = await Swal.fire({
+            title: '⚠️ Tienes un registro en progreso',
+            text: 'Si borras el listado se perderá el lugar seleccionado y las fotos no confirmadas.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Continuar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#e74c3c'
+        });
+        if (!adv.isConfirmed) return;
+    }
+
+    const confirm = await Swal.fire({
+        title: '¿Borrar listado?',
+        html: `Se eliminarán <strong>${lugaresCache.length} lugares</strong> del listado.<br><br>
+               Los reportes guardados <strong>no se verán afectados</strong>.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, borrar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#e74c3c'
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    try {
+        await db.lugares.clear();
+        lugaresCache = [];
+
+        // Limpiar formulario también para evitar inconsistencias
+        limpiarFotosSinConfirmar();
+        $('selectLugar').value = '';
+        currentLugar = '';
+        editandoId = null;
+        await db.estadoTemp.clear();
+
+        actualizarSelectLugares();
+        actualizarContadores();
+        validarFormulario();
+
+        const alerta = $('alertaListado');
+        if (alerta) alerta.classList.add('visible');
+
+        Swal.fire({
+            title: '🗑️ Listado borrado',
+            text: 'El listado ha sido eliminado. Presiona "Listado" para actualizarlo nuevamente.',
+            icon: 'success',
+            timer: 2500,
+            showConfirmButton: false
+        });
+    } catch (e) {
+        console.error(e);
+        Swal.fire('Error', 'No se pudo borrar el listado.', 'error');
+    }
+}
+
+async function abrirMenuListado() {
+    const total = lugaresCache.length;
+
+    const result = await Swal.fire({
+        title: '📋 Gestión del Listado',
+        html: `
+            <div style="text-align:left; font-size:0.9rem; line-height:1.7; color:#555;">
+                <div style="background:#f0f7ff; padding:10px 14px; border-radius:8px; margin-bottom:14px;">
+                    <strong>Lugares cargados actualmente:</strong> ${total}
+                </div>
+                <div>¿Qué deseas hacer?</div>
+            </div>
+        `,
+        icon: 'info',
+        showCancelButton: false,
+        showDenyButton: true,
+        showCloseButton: true,
+        confirmButtonText: '<i class="fas fa-sync-alt"></i> Actualizar Listado',
+        denyButtonText: '<i class="fas fa-trash-alt"></i> Borrar Listado',
+        confirmButtonColor: '#2ecc71',
+        denyButtonColor: '#e74c3c',
+        reverseButtons: false,
+        focusConfirm: false,
+        allowOutsideClick: true
+    });
+
+    if (result.isConfirmed) {
+        await descargarListado();
+    } else if (result.isDenied) {
+        await borrarListado();
+    }
+}
 
     async function cargarLugaresDesdeDB() {
         const l = await db.lugares.toArray();

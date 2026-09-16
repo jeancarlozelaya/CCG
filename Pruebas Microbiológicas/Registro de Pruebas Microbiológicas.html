@@ -1436,252 +1436,382 @@ function agregarArchivosUnir(files) {
         await generarPDFDesdeMetadatos(unicos, fechaReporte);
     }
 
-    async function generarPDFDesdeMetadatos(metadatos, fechaReporte) {
-        mostrarOverlay(true);
-        try {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF('p', 'mm', 'a4');
 
-            let logoImg = null;
-            try {
-                const logoResp = await fetch('Icono.png');
-                if (logoResp.ok) {
-                    const blob = await logoResp.blob();
-                    logoImg = await new Promise((resolve) => {
-                        const reader = new FileReader();
-                        reader.onload = () => resolve(reader.result);
-                        reader.readAsDataURL(blob);
-                    });
+async function obtenerDimensionesImagen(dataUrl) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+        img.onerror = () => resolve({ w: 1, h: 1 });
+        img.src = dataUrl;
+    });
+}
+
+function calcularTamañoProporcional(imgW, imgH, maxW, maxH) {
+    const ratio = imgW / imgH;
+    let w = maxW;
+    let h = maxW / ratio;
+    if (h > maxH) {
+        h = maxH;
+        w = maxH * ratio;
+    }
+    return { w, h };
+}
+
+async function cargarLogo() {
+    try {
+        const resp = await fetch('Icono.png');
+        if (!resp.ok) return null;
+        const blob = await resp.blob();
+        const dataUrl = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.readAsDataURL(blob);
+        });
+        const dims = await obtenerDimensionesImagen(dataUrl);
+        return { dataUrl, dims };
+    } catch (e) {
+        console.warn('Logo no encontrado:', e);
+        return null;
+    }
+}
+
+
+
+
+async function generarPDFDesdeMetadatos(metadatos, fechaReporte) {
+    mostrarOverlay(true);
+    try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('p', 'mm', 'a4');
+
+        const logo = await cargarLogo();
+
+        let page = 1;
+        const maxPerPage = 5;
+
+        for (let i = 0; i < metadatos.length; i += maxPerPage) {
+            if (i > 0) doc.addPage();
+            const chunk = metadatos.slice(i, i + maxPerPage);
+
+            // ===== ENCABEZADO MEJORADO =====
+            const headerTop = 10;
+            const headerHeight = 24;
+            const headerLeft = 14;
+            const headerRight = 196;
+            const logoMaxW = 35;
+            const logoMaxH = 20;
+
+            doc.setFillColor(240, 247, 255);
+            doc.roundedRect(headerLeft, headerTop, headerRight - headerLeft, headerHeight, 3, 3, 'F');
+
+            doc.setDrawColor(52, 152, 219);
+            doc.setLineWidth(0.8);
+            doc.line(headerLeft, headerTop + headerHeight, headerRight, headerTop + headerHeight);
+
+            let textoX = headerLeft + 6;
+            if (logo) {
+                const { w, h } = calcularTamañoProporcional(
+                    logo.dims.w, logo.dims.h, logoMaxW, logoMaxH
+                );
+                const logoX = headerLeft + 4;
+                const logoY = headerTop + (headerHeight - h) / 2;
+                try {
+                    doc.addImage(logo.dataUrl, 'PNG', logoX, logoY, w, h);
+                    textoX = logoX + w + 6;
+                } catch (e) {
+                    console.warn('Error insertando logo:', e);
                 }
-            } catch(e) { console.warn('Logo no encontrado:', e); }
-
-            let page = 1;
-            const maxPerPage = 5;
-
-            for (let i = 0; i < metadatos.length; i += maxPerPage) {
-                if (i > 0) doc.addPage();
-                const chunk = metadatos.slice(i, i + maxPerPage);
-
-                if (logoImg) { try { doc.addImage(logoImg, 'PNG', 14, 10, 30, 15); } catch(e) {} }
-
-                doc.setFontSize(16);
-                doc.text('Reporte de Pruebas Microbiológicas', 50, 20);
-                doc.setFontSize(10);
-                doc.text(`Fecha: ${formatearFecha(fechaReporte)}`, 50, 28);
-                doc.line(14, 34, 196, 34);
-
-                let yPos = 42;
-                chunk.forEach((item, idx) => {
-                    const lugar = item.lugar || 'Sin lugar';
-                    doc.setFontSize(12);
-                    doc.text(`${i + idx + 1}. ${lugar}`, 20, yPos);
-                    yPos += 5;
-
-                    const fotos = [item.foto1, item.foto2, item.foto3];
-                    const labels = ['Antes', 'Proceso', 'Prueba'];
-                    const imgW = 48, imgH = 34, gap = 6, startX = 18;
-
-                    fotos.forEach((f, fi) => {
-                        const x = startX + (fi * (imgW + gap));
-                        if (f && f.startsWith('data:image')) {
-                            try { doc.addImage(f, 'JPEG', x, yPos, imgW, imgH); } catch(e) { doc.setFontSize(7); doc.text('[Error]', x+5, yPos+15); }
-                        } else { doc.setFontSize(7); doc.text('Sin foto', x+15, yPos+15); }
-                        doc.setFontSize(6);
-                        doc.text(labels[fi], x + (imgW/2), yPos + imgH + 3, { align: 'center' });
-                    });
-
-                    yPos += imgH + 8;
-                    if (idx < chunk.length - 1) { doc.line(20, yPos - 2, 190, yPos - 2); yPos += 4; }
-                });
-
-                doc.setFontSize(8);
-                doc.text(`Página ${page}`, 105, 285, { align: 'center' });
-                page++;
             }
 
-            const pdfBlob = doc.output('blob');
-            const fechaFormateada = fechaReporte.split('-').reverse().join('-');
-            const nombrePDF = `${fechaFormateada} - Registro de Pruebas Microbiológicas.pdf`;
-            
-            pdfGeneradoBlob = pdfBlob;
-            pdfGeneradoNombre = nombrePDF;
+            // Título y fecha alineados a la izquierda (después del logo)
+            doc.setFontSize(15);
+            doc.setTextColor(44, 62, 80);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Reporte de Pruebas Microbiológicas', textoX, headerTop + 11);
 
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(pdfBlob);
-            link.download = nombrePDF;
-            link.click();
-            URL.revokeObjectURL(link.href);
+            doc.setFontSize(10);
+            doc.setTextColor(100, 100, 100);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Fecha: ${formatearFecha(fechaReporte)}`, textoX, headerTop + 18);
 
-            Swal.fire('PDF Generado', 'Reporte generado exitosamente. Puedes subirlo con el botón "Subir Reporte".', 'success');
-        } catch(e) { console.error(e); Swal.fire('Error', 'No se pudo generar el reporte.', 'error'); }
-        mostrarOverlay(false);
+            let yPos = headerTop + headerHeight + 8;
+
+            // ===== CONTENIDO =====
+            chunk.forEach((item, idx) => {
+                const lugar = item.lugar || 'Sin lugar';
+                doc.setFontSize(12);
+                doc.setTextColor(44, 62, 80);
+                doc.setFont('helvetica', 'bold');
+                doc.text(`${i + idx + 1}. ${lugar}`, 20, yPos);
+                yPos += 5;
+
+                const fotos = [item.foto1, item.foto2, item.foto3];
+                const labels = ['Antes', 'Proceso', 'Prueba'];
+                const imgW = 48, imgH = 34, gap = 6, startX = 18;
+
+                fotos.forEach((f, fi) => {
+                    const x = startX + (fi * (imgW + gap));
+                    if (f && f.startsWith('data:image')) {
+                        try {
+                            doc.addImage(f, 'JPEG', x, yPos, imgW, imgH);
+                        } catch(e) {
+                            doc.setFontSize(7);
+                            doc.text('[Error]', x + 5, yPos + 15);
+                        }
+                    } else {
+                        doc.setFontSize(7);
+                        doc.setTextColor(180, 180, 180);
+                        doc.text('Sin foto', x + 15, yPos + 15);
+                    }
+                    doc.setFontSize(6);
+                    doc.setTextColor(100, 100, 100);
+                    doc.text(labels[fi], x + (imgW / 2), yPos + imgH + 3, { align: 'center' });
+                });
+
+                yPos += imgH + 8;
+                if (idx < chunk.length - 1) {
+                    doc.setDrawColor(230, 230, 230);
+                    doc.setLineWidth(0.3);
+                    doc.line(20, yPos - 2, 190, yPos - 2);
+                    yPos += 4;
+                }
+            });
+
+            doc.setFontSize(8);
+            doc.setTextColor(150, 150, 150);
+            doc.text(`Pág. ${page}`, 200, 285, { align: 'right' });
+            page++;
+        }
+
+        const pdfBlob = doc.output('blob');
+        const fechaFormateada = fechaReporte.split('-').reverse().join('-');
+        const nombrePDF = `${fechaFormateada} - Registro de Pruebas Microbiológicas.pdf`;
+
+        pdfGeneradoBlob = pdfBlob;
+        pdfGeneradoNombre = nombrePDF;
+
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(pdfBlob);
+        link.download = nombrePDF;
+        link.click();
+        URL.revokeObjectURL(link.href);
+
+        Swal.fire('PDF Generado', 'Reporte generado exitosamente. Puedes subirlo con el botón "Subir Reporte".', 'success');
+    } catch(e) {
+        console.error(e);
+        Swal.fire('Error', 'No se pudo generar el reporte.', 'error');
     }
+    mostrarOverlay(false);
+}
+
 
     // ================================================================
     // SUBIR REPORTE (GENERA Y SUBE EN UN SOLO PASO)
     // ================================================================
-    async function subirReporte() {
-        if (!datosVerificados) {
-            Swal.fire('Verifica primero', 'Debes verificar los datos antes de subir el reporte.', 'warning');
-            return;
-        }
-        if (metadatosCargados.length === 0) {
-            Swal.fire('Error', 'No hay datos cargados.', 'warning');
-            return;
-        }
-        const fechaReporte = $('fechaReporteUnir').value;
-        if (!fechaReporte) {
-            Swal.fire('Error', 'Selecciona una fecha para el reporte.', 'warning');
+async function subirReporte() {
+    if (!datosVerificados) {
+        Swal.fire('Verifica primero', 'Debes verificar los datos antes de subir el reporte.', 'warning');
+        return;
+    }
+    if (metadatosCargados.length === 0) {
+        Swal.fire('Error', 'No hay datos cargados.', 'warning');
+        return;
+    }
+    const fechaReporte = $('fechaReporteUnir').value;
+    if (!fechaReporte) {
+        Swal.fire('Error', 'Selecciona una fecha para el reporte.', 'warning');
+        return;
+    }
+
+    mostrarOverlay(true);
+    try {
+        // 1. Generar el PDF en memoria (sin descargar)
+        const ordenLugares = {};
+        lugaresCache.forEach((l, idx) => { ordenLugares[l] = idx; });
+        const sorted = [...metadatosCargados].sort((a, b) => {
+            const idxA = ordenLugares[a.lugar] !== undefined ? ordenLugares[a.lugar] : 9999;
+            const idxB = ordenLugares[b.lugar] !== undefined ? ordenLugares[b.lugar] : 9999;
+            return idxA - idxB;
+        });
+
+        const mapa = {};
+        sorted.forEach(m => {
+            if (!mapa[m.lugar] || (m.timestamp || 0) > (mapa[m.lugar].timestamp || 0)) {
+                mapa[m.lugar] = m;
+            }
+        });
+        const unicos = Object.values(mapa);
+
+        if (unicos.length === 0) {
+            Swal.fire('Sin datos', 'No hay datos válidos.', 'info');
+            mostrarOverlay(false);
             return;
         }
 
-        mostrarOverlay(true);
-        try {
-            // 1. Generar el PDF en memoria (sin descargar)
-            const ordenLugares = {};
-            lugaresCache.forEach((l, idx) => { ordenLugares[l] = idx; });
-            const sorted = [...metadatosCargados].sort((a, b) => {
-                const idxA = ordenLugares[a.lugar] !== undefined ? ordenLugares[a.lugar] : 9999;
-                const idxB = ordenLugares[b.lugar] !== undefined ? ordenLugares[b.lugar] : 9999;
-                return idxA - idxB;
-            });
+        // Generar PDF en blob
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('p', 'mm', 'a4');
 
-            const mapa = {};
-            sorted.forEach(m => {
-                if (!mapa[m.lugar] || (m.timestamp || 0) > (mapa[m.lugar].timestamp || 0)) {
-                    mapa[m.lugar] = m;
+        const logo = await cargarLogo();
+
+        let page = 1;
+        const maxPerPage = 5;
+
+        for (let i = 0; i < unicos.length; i += maxPerPage) {
+            if (i > 0) doc.addPage();
+            const chunk = unicos.slice(i, i + maxPerPage);
+
+            // ===== ENCABEZADO MEJORADO =====
+            const headerTop = 10;
+            const headerHeight = 24;
+            const headerLeft = 14;
+            const headerRight = 196;
+            const logoMaxW = 35;
+            const logoMaxH = 20;
+
+            doc.setFillColor(240, 247, 255);
+            doc.roundedRect(headerLeft, headerTop, headerRight - headerLeft, headerHeight, 3, 3, 'F');
+
+            doc.setDrawColor(52, 152, 219);
+            doc.setLineWidth(0.8);
+            doc.line(headerLeft, headerTop + headerHeight, headerRight, headerTop + headerHeight);
+
+            let textoX = headerLeft + 6;
+            if (logo) {
+                const { w, h } = calcularTamañoProporcional(
+                    logo.dims.w, logo.dims.h, logoMaxW, logoMaxH
+                );
+                const logoX = headerLeft + 4;
+                const logoY = headerTop + (headerHeight - h) / 2;
+                try {
+                    doc.addImage(logo.dataUrl, 'PNG', logoX, logoY, w, h);
+                    textoX = logoX + w + 6;
+                } catch (e) {
+                    console.warn('Error insertando logo:', e);
                 }
-            });
-            const unicos = Object.values(mapa);
-
-            if (unicos.length === 0) {
-                Swal.fire('Sin datos', 'No hay datos válidos.', 'info');
-                mostrarOverlay(false);
-                return;
             }
 
-            // Generar PDF en blob
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF('p', 'mm', 'a4');
+            // Título y fecha alineados a la izquierda (después del logo)
+            doc.setFontSize(15);
+            doc.setTextColor(44, 62, 80);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Reporte de Pruebas Microbiológicas', textoX, headerTop + 11);
 
-            let logoImg = null;
-            try {
-                const logoResp = await fetch('Icono.png');
-                if (logoResp.ok) {
-                    const blob = await logoResp.blob();
-                    logoImg = await new Promise((resolve) => {
-                        const reader = new FileReader();
-                        reader.onload = () => resolve(reader.result);
-                        reader.readAsDataURL(blob);
-                    });
-                }
-            } catch(e) { console.warn('Logo no encontrado:', e); }
+            doc.setFontSize(10);
+            doc.setTextColor(100, 100, 100);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Fecha: ${formatearFecha(fechaReporte)}`, textoX, headerTop + 18);
 
-            let page = 1;
-            const maxPerPage = 5;
+            let yPos = headerTop + headerHeight + 8;
 
-            for (let i = 0; i < unicos.length; i += maxPerPage) {
-                if (i > 0) doc.addPage();
-                const chunk = unicos.slice(i, i + maxPerPage);
+            chunk.forEach((item, idx) => {
+                const lugar = item.lugar || 'Sin lugar';
+                doc.setFontSize(12);
+                doc.setTextColor(44, 62, 80);
+                doc.setFont('helvetica', 'bold');
+                doc.text(`${i + idx + 1}. ${lugar}`, 20, yPos);
+                yPos += 5;
 
-                if (logoImg) { try { doc.addImage(logoImg, 'PNG', 14, 10, 30, 15); } catch(e) {} }
+                const fotos = [item.foto1, item.foto2, item.foto3];
+                const labels = ['Antes', 'Proceso', 'Prueba'];
+                const imgW = 48, imgH = 34, gap = 6, startX = 18;
 
-                doc.setFontSize(16);
-                doc.text('Reporte de Pruebas Microbiológicas', 50, 20);
-                doc.setFontSize(10);
-                doc.text(`Fecha: ${formatearFecha(fechaReporte)}`, 50, 28);
-                doc.line(14, 34, 196, 34);
-
-                let yPos = 42;
-                chunk.forEach((item, idx) => {
-                    const lugar = item.lugar || 'Sin lugar';
-                    doc.setFontSize(12);
-                    doc.text(`${i + idx + 1}. ${lugar}`, 20, yPos);
-                    yPos += 5;
-
-                    const fotos = [item.foto1, item.foto2, item.foto3];
-                    const labels = ['Antes', 'Proceso', 'Prueba'];
-                    const imgW = 48, imgH = 34, gap = 6, startX = 18;
-
-                    fotos.forEach((f, fi) => {
-                        const x = startX + (fi * (imgW + gap));
-                        if (f && f.startsWith('data:image')) {
-                            try { doc.addImage(f, 'JPEG', x, yPos, imgW, imgH); } catch(e) { doc.setFontSize(7); doc.text('[Error]', x+5, yPos+15); }
-                        } else { doc.setFontSize(7); doc.text('Sin foto', x+15, yPos+15); }
-                        doc.setFontSize(6);
-                        doc.text(labels[fi], x + (imgW/2), yPos + imgH + 3, { align: 'center' });
-                    });
-
-                    yPos += imgH + 8;
-                    if (idx < chunk.length - 1) { doc.line(20, yPos - 2, 190, yPos - 2); yPos += 4; }
+                fotos.forEach((f, fi) => {
+                    const x = startX + (fi * (imgW + gap));
+                    if (f && f.startsWith('data:image')) {
+                        try {
+                            doc.addImage(f, 'JPEG', x, yPos, imgW, imgH);
+                        } catch(e) {
+                            doc.setFontSize(7);
+                            doc.text('[Error]', x + 5, yPos + 15);
+                        }
+                    } else {
+                        doc.setFontSize(7);
+                        doc.setTextColor(180, 180, 180);
+                        doc.text('Sin foto', x + 15, yPos + 15);
+                    }
+                    doc.setFontSize(6);
+                    doc.setTextColor(100, 100, 100);
+                    doc.text(labels[fi], x + (imgW / 2), yPos + imgH + 3, { align: 'center' });
                 });
 
-                doc.setFontSize(8);
-                doc.text(`Página ${page}`, 105, 285, { align: 'center' });
-                page++;
-            }
-
-            const pdfBlob = doc.output('blob');
-            const fechaFormateada = fechaReporte.split('-').reverse().join('-');
-            const nombrePDF = `${fechaFormateada} - Registro de Pruebas Microbiológicas.pdf`;
-
-            // 2. Subir el PDF usando el script de Google (basado en el gestor de envíos)
-            // Convertir blob a base64
-            const reader = new FileReader();
-            const base64Promise = new Promise((resolve, reject) => {
-                reader.onload = () => resolve(reader.result.split(',')[1]);
-                reader.onerror = reject;
-                reader.readAsDataURL(pdfBlob);
-            });
-            const pdfBase64 = await base64Promise;
-
-            // Preparar datos para el script
-            const requestData = {
-                proyecto: 'Pruebas Microbiológicas',
-                nivel: '',
-                ubicacion: '',
-                numeroOficina: '',
-                fecha: fechaReporte,
-                nombreArchivo: nombrePDF,
-                pdfBase64: pdfBase64,
-                descripcion: '',
-                usuario: '',
-                motivoSinFirma: '',
-                checkSinFirma: false,
-                checkFolio: false,
-                folio: '',
-                checkTicket: false,
-                ticket: ''
-            };
-
-            // Enviar al script de Google
-            const response = await fetch(UPLOAD_SCRIPT_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(requestData)
+                yPos += imgH + 8;
+                if (idx < chunk.length - 1) {
+                    doc.setDrawColor(230, 230, 230);
+                    doc.setLineWidth(0.3);
+                    doc.line(20, yPos - 2, 190, yPos - 2);
+                    yPos += 4;
+                }
             });
 
-            // Como usamos no-cors, no podemos leer la respuesta
-            // Mostramos mensaje de éxito asumiendo que funcionó
-            Swal.fire({
-                title: '✅ Reporte subido',
-                text: `El reporte "${nombrePDF}" se ha subido correctamente al historial.`,
-                icon: 'success'
-            });
-
-            // Limpiar estado después de subir
-            pdfGeneradoBlob = null;
-            pdfGeneradoNombre = '';
-            datosVerificados = false;
-            actualizarEstadoBotonesUnir();
-
-        } catch(e) {
-            console.error(e);
-            Swal.fire('Error', 'No se pudo subir el reporte. Intenta nuevamente.', 'error');
+            doc.setFontSize(8);
+            doc.setTextColor(150, 150, 150);
+            doc.text(`Pág. ${page}`, 200, 285, { align: 'right' });
+            page++;
         }
-        mostrarOverlay(false);
+
+        const pdfBlob = doc.output('blob');
+        const fechaFormateada = fechaReporte.split('-').reverse().join('-');
+        const nombrePDF = `${fechaFormateada} - Registro de Pruebas Microbiológicas.pdf`;
+
+        // 2. Subir el PDF usando el script de Google (basado en el gestor de envíos)
+        // Convertir blob a base64
+        const reader = new FileReader();
+        const base64Promise = new Promise((resolve, reject) => {
+            reader.onload = () => resolve(reader.result.split(',')[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(pdfBlob);
+        });
+        const pdfBase64 = await base64Promise;
+
+        // Preparar datos para el script
+        const requestData = {
+            proyecto: 'Pruebas Microbiológicas',
+            nivel: '',
+            ubicacion: '',
+            numeroOficina: '',
+            fecha: fechaReporte,
+            nombreArchivo: nombrePDF,
+            pdfBase64: pdfBase64,
+            descripcion: '',
+            usuario: '',
+            motivoSinFirma: '',
+            checkSinFirma: false,
+            checkFolio: false,
+            folio: '',
+            checkTicket: false,
+            ticket: ''
+        };
+
+        // Enviar al script de Google
+        const response = await fetch(UPLOAD_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestData)
+        });
+
+        // Como usamos no-cors, no podemos leer la respuesta
+        // Mostramos mensaje de éxito asumiendo que funcionó
+        Swal.fire({
+            title: '✅ Reporte subido',
+            text: `El reporte "${nombrePDF}" se ha subido correctamente al historial.`,
+            icon: 'success'
+        });
+
+        // Limpiar estado después de subir
+        pdfGeneradoBlob = null;
+        pdfGeneradoNombre = '';
+        datosVerificados = false;
+        actualizarEstadoBotonesUnir();
+
+    } catch(e) {
+        console.error(e);
+        Swal.fire('Error', 'No se pudo subir el reporte. Intenta nuevamente.', 'error');
     }
+    mostrarOverlay(false);
+}
+
 
     // ================================================================
     // LISTADO

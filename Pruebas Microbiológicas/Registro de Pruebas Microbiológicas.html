@@ -373,15 +373,16 @@
             flex-wrap: wrap;
         }
         .reportes-header-left h2 { font-size: 1.1rem; color: var(--primary-color); margin: 0; }
-        .filter-input {
-            padding: 6px 12px;
-            border: 1px solid #ced4da;
-            border-radius: 6px;
-            font-size: 0.85rem;
-            outline: none;
-            transition: var(--transition);
-            min-width: 150px;
-        }
+.filter-input {
+    padding: 10px 14px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    outline: none;
+    transition: var(--transition);
+    width: 100%;
+    box-sizing: border-box;
+}
         .filter-input:focus { border-color: var(--secondary-color); box-shadow: 0 0 0 3px rgba(52,152,219,0.1); }
 
         #overlay {
@@ -731,6 +732,39 @@
             .button-container { flex-direction: column; }
             .btn-generar, .btn-secondary { flex: none; width: 100%; }
         }
+
+.btn-metadata {
+    background: linear-gradient(135deg, #8e44ad, #6c3483);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.btn-metadata:hover { transform: scale(1.03); }
+
+.btn-preview-reportes {
+    background: linear-gradient(135deg, #3498db, #2471a3);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.btn-preview-reportes:hover { transform: scale(1.03); }
+
     </style>
 </head>
 <body>
@@ -812,17 +846,22 @@
                 </div>
             </div>
             <div style="margin-top: 30px; border-top: 2px solid #ecf0f1; padding-top: 20px;">
-                <div class="reportes-header">
-                    <div class="reportes-header-left">
-                        <h2><i class="fas fa-list-ul"></i> Reportes guardados</h2>
-                        <span class="badge-count" id="badgeReportes">0</span>
-                        <input type="text" class="filter-input" id="filterReportes" placeholder="Filtrar..." oninput="renderListaReportes()">
-                    </div>
-                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                        <button class="btn-danger" onclick="eliminarTodosReportes()"><i class="fas fa-trash-alt"></i> Eliminar todos</button>
-                        <button class="btn-metadata" onclick="exportarMetadatos()"><i class="fas fa-file-archive"></i> Generar Datos</button>
-                    </div>
-                </div>
+<div class="reportes-header">
+    <div class="reportes-header-left">
+        <h2><i class="fas fa-list-ul"></i> Reportes guardados</h2>
+        <span class="badge-count" id="badgeReportes">0</span>
+    </div>
+</div>
+
+<div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-bottom:15px;">
+    <button class="btn-danger" onclick="eliminarTodosReportes()"><i class="fas fa-trash-alt"></i> Eliminar todos</button>
+    <button class="btn-preview-reportes" onclick="abrirVistaPreviaReportes()"><i class="fas fa-eye"></i> Vista Previa</button>
+    <button class="btn-metadata" onclick="exportarMetadatos()"><i class="fas fa-file-archive"></i> Generar Datos</button>
+</div>
+
+<div style="margin-bottom:15px;">
+    <input type="text" class="filter-input" id="filterReportes" placeholder="Filtrar..." oninput="renderListaReportes()">
+</div>
                 <div id="listaReportesContainer"><div style="color:#7f8c8d;font-size:0.9rem;padding:10px 0;">No hay reportes guardados.</div></div>
             </div>
         </div>
@@ -840,12 +879,12 @@
                 <label style="font-weight:600;font-size:0.85rem;color:var(--dark-color);display:block;margin-bottom:5px;">
                     <i class="fas fa-file-archive"></i> ARCHIVOS DE METADATOS
                 </label>
-                <div class="metadata-upload-area" id="metadataDropArea">
-                    <i class="fas fa-cloud-upload-alt"></i>
-                    <p><strong>Arrastra y suelta</strong> archivos JSON aquí o haz clic para seleccionar</p>
-                    <p style="font-size:0.75rem;color:#95a5a6;">Puedes seleccionar múltiples archivos</p>
-                    <input type="file" id="metadataFileInput" accept=".json" multiple style="display:none;">
-                </div>
+<div class="metadata-upload-area" id="metadataDropArea">
+    <i class="fas fa-cloud-upload-alt"></i>
+    <p><strong>Arrastra y suelta</strong> archivos TXT aquí o haz clic para seleccionar</p>
+    <p style="font-size:0.75rem;color:#95a5a6;">Puedes seleccionar múltiples archivos</p>
+    <input type="file" id="metadataFileInput" accept=".txt" multiple style="display:none;">
+</div>
             </div>
             <div id="metadataFileList" class="metadata-file-list"></div>
 
@@ -1306,23 +1345,26 @@ db.version(4).stores({
         });
     }
 
-    function agregarArchivosUnir(files) {
-        let added = 0;
-        for (const file of files) {
-            if (file.type === 'application/json' || file.name.endsWith('.json')) {
-                if (!archivosSeleccionados.some(f => f.name === file.name && f.size === file.size)) {
-                    archivosSeleccionados.push(file);
-                    added++;
-                }
+function agregarArchivosUnir(files) {
+    let added = 0;
+    for (const file of files) {
+        const esTxt = file.name.toLowerCase().endsWith('.txt') ||
+                      file.type === 'text/plain' ||
+                      file.type === 'application/json'; // compatibilidad con archivos viejos
+        if (esTxt) {
+            if (!archivosSeleccionados.some(f => f.name === file.name && f.size === file.size)) {
+                archivosSeleccionados.push(file);
+                added++;
             }
         }
-        if (added > 0) {
-            actualizarListaArchivosUnir();
-            cargarYMostrarPreview();
-        } else {
-            Swal.fire('Info', 'No se agregaron archivos nuevos. Asegúrate de que sean JSON.', 'info');
-        }
     }
+    if (added > 0) {
+        actualizarListaArchivosUnir();
+        cargarYMostrarPreview();
+    } else {
+        Swal.fire('Info', 'No se agregaron archivos nuevos. Asegúrate de que sean archivos TXT.', 'info');
+    }
+}
 
     function confirmarLimpiarArchivos() {
         if (metadatosCargados.length === 0 && archivosSeleccionados.length === 0) {
@@ -2170,24 +2212,93 @@ async function restaurarEstadoLocal() {
 }
 
 
-    async function exportarMetadatos() {
-        const reportes = await db.reportes.toArray();
-        if (reportes.length === 0) { Swal.fire('Sin datos', 'No hay reportes.', 'info'); return; }
-        mostrarOverlay(true);
-        try {
-            const metadatos = reportes.map(r => ({ lugar: r.lugar, fecha: r.fecha, timestamp: r.timestamp, foto1: r.foto1 || null, foto2: r.foto2 || null, foto3: r.foto3 || null }));
-            const dataStr = JSON.stringify(metadatos, null, 2);
-            const blob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `metadatos_${new Date().toISOString().slice(0,10)}.json`;
-            link.click();
-            URL.revokeObjectURL(url);
-            Swal.fire('Exportado', 'Archivo de metadatos descargado.', 'success');
-        } catch(e) { console.error(e); Swal.fire('Error', 'No se pudieron exportar los metadatos.', 'error'); }
-        mostrarOverlay(false);
+async function exportarMetadatos() {
+    const reportes = await db.reportes.toArray();
+    if (reportes.length === 0) {
+        Swal.fire('Sin datos', 'No hay reportes para exportar.', 'info');
+        return;
     }
+
+    mostrarOverlay(true);
+    try {
+        const metadatos = reportes.map(r => ({
+            lugar: r.lugar,
+            fecha: r.fecha,
+            timestamp: r.timestamp,
+            foto1: r.foto1 || null,
+            foto2: r.foto2 || null,
+            foto3: r.foto3 || null
+        }));
+
+        const dataStr = JSON.stringify(metadatos, null, 2);
+        const blob = new Blob([dataStr], { type: 'text/plain' });
+        const nombreArchivo = `metadatos_${new Date().toISOString().slice(0,10)}.txt`;
+        const archivo = new File([blob], nombreArchivo, { type: 'text/plain' });
+
+        mostrarOverlay(false);
+
+        // Intentar compartir con navigator.share (móvil)
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [archivo] })) {
+            try {
+                await navigator.share({
+                    files: [archivo],
+                    title: 'Metadatos de Pruebas Microbiológicas',
+                    text: `Archivo de metadatos generado el ${new Date().toLocaleDateString()}.`
+                });
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Compartido!',
+                    text: 'El archivo fue compartido correctamente.',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            } catch (err) {
+                // Si el usuario cancela el share, no mostrar error
+                if (err && err.name === 'AbortError') return;
+                console.error('Error al compartir:', err);
+                // Fallback: descargar
+                descargarBlob(blob, nombreArchivo);
+            }
+        } else {
+            // Escritorio o navegador sin soporte → mostrar opciones
+            const result = await Swal.fire({
+                title: 'Archivo generado',
+                html: `Se ha generado <strong>${nombreArchivo}</strong>.<br><br>
+                       ¿Deseas descargarlo?`,
+                icon: 'success',
+                showCancelButton: true,
+                confirmButtonText: '<i class="fas fa-download"></i> Descargar',
+                cancelButtonText: 'Cerrar',
+                confirmButtonColor: '#3498db'
+            });
+            if (result.isConfirmed) {
+                descargarBlob(blob, nombreArchivo);
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Descargado!',
+                    text: 'El archivo se ha descargado.',
+                    timer: 1800,
+                    showConfirmButton: false
+                });
+            }
+        }
+    } catch(e) {
+        console.error(e);
+        mostrarOverlay(false);
+        Swal.fire('Error', 'No se pudieron exportar los metadatos.', 'error');
+    }
+}
+
+function descargarBlob(blob, nombreArchivo) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = nombreArchivo;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
     function mostrarAyuda() {
         Swal.fire({
@@ -2197,8 +2308,8 @@ async function restaurarEstadoLocal() {
                     <div><strong>1.</strong> Descarga el <strong>listado de lugares</strong> con el botón "Listado".</div>
                     <div><strong>2.</strong> Selecciona un <strong>lugar</strong> y toma las <strong>fotos</strong>.</div>
                     <div><strong>3.</strong> Presiona <strong>"Guardar Prueba"</strong>.</div>
-                    <div><strong>4.</strong> <strong>"Generar Datos"</strong> descarga un JSON con metadatos.</div>
-                    <div><strong>5.</strong> <strong>"Generar Reporte"</strong> permite subir JSONs, ver vista previa, editar/eliminar, verificar y generar el reporte.</div>
+                    <div><strong>4.</strong> <strong>"Generar Datos"</strong> genera un archivo TXT con metadatos que puedes compartir.</div>
+                    <div><strong>5.</strong> <strong>"Generar Reporte"</strong> permite subir archivos TXT, ver vista previa, editar/eliminar, verificar y generar el reporte.</div>
                     <div><strong>6.</strong> <strong>"Subir Reporte"</strong> genera el PDF y lo sube directamente a la nube, registrando en el historial.</div>
                     <div style="margin-top:10px;background:#f0f7ff;padding:10px;border-radius:6px;">
                         <strong>💡</strong> Los datos se guardan automáticamente en tu navegador.
@@ -2210,6 +2321,93 @@ async function restaurarEstadoLocal() {
             confirmButtonColor: '#3498db'
         });
     }
+
+
+async function abrirVistaPreviaReportes() {
+    const reportes = await db.reportes.toArray();
+
+    if (reportes.length === 0) {
+        Swal.fire({
+            title: 'Sin reportes',
+            text: 'No hay reportes guardados para mostrar.',
+            icon: 'info',
+            confirmButtonText: 'Entendido'
+        });
+        return;
+    }
+
+    // Ordenar según el orden del listado de lugares
+    const ordenLugares = {};
+    lugaresCache.forEach((l, idx) => { ordenLugares[l] = idx; });
+    const sorted = [...reportes].sort((a, b) => {
+        const idxA = ordenLugares[a.lugar] !== undefined ? ordenLugares[a.lugar] : 9999;
+        const idxB = ordenLugares[b.lugar] !== undefined ? ordenLugares[b.lugar] : 9999;
+        return idxA - idxB;
+    });
+
+    // Detectar duplicados (por si acaso)
+    const conteo = {};
+    reportes.forEach(r => { if (r.lugar) conteo[r.lugar] = (conteo[r.lugar] || 0) + 1; });
+
+    // Construir HTML
+    let itemsHtml = '';
+    sorted.forEach((item, index) => {
+        const esDuplicado = conteo[item.lugar] > 1;
+        const dupBadge = esDuplicado ? `<span class="dup-badge">DUPLICADO</span>` : '';
+
+        const fotosHtml = `
+            <div class="preview-fotos">
+                <div class="foto-group">
+                    <span>Antes</span>
+                    ${item.foto1 ? `<img src="${item.foto1}" alt="antes" onclick="verFotoAmpliada(event, '${item.foto1}')">` : `<span class="no-foto">Sin foto</span>`}
+                </div>
+                <div class="foto-group">
+                    <span>Proceso</span>
+                    ${item.foto2 ? `<img src="${item.foto2}" alt="proceso" onclick="verFotoAmpliada(event, '${item.foto2}')">` : `<span class="no-foto">Sin foto</span>`}
+                </div>
+                <div class="foto-group">
+                    <span>Prueba</span>
+                    ${item.foto3 ? `<img src="${item.foto3}" alt="prueba" onclick="verFotoAmpliada(event, '${item.foto3}')">` : `<span class="no-foto">Sin foto</span>`}
+                </div>
+            </div>
+        `;
+
+        itemsHtml += `
+            <div class="preview-item" style="margin-bottom:8px;">
+                <div class="preview-header">
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; flex:1;">
+                        <span class="preview-lugar" style="cursor:default;">
+                            ${index + 1}. ${item.lugar || 'Sin lugar'} ${dupBadge}
+                        </span>
+                    </div>
+                </div>
+                ${fotosHtml}
+            </div>
+        `;
+    });
+
+    Swal.fire({
+        title: '📋 Vista Previa de Reportes',
+        html: `
+            <div style="text-align:left; font-size:0.85rem; color:#555; margin-bottom:8px;">
+                <strong>${reportes.length}</strong> reporte${reportes.length !== 1 ? 's' : ''} guardado${reportes.length !== 1 ? 's' : ''} en este dispositivo.
+            </div>
+            <div class="preview-list" style="max-height:60vh; overflow-y:auto; text-align:left; padding:6px;">
+                ${itemsHtml}
+            </div>
+        `,
+        width: '720px',
+        showCloseButton: true,
+        showConfirmButton: false,
+        showCancelButton: false,
+        allowOutsideClick: true,
+        customClass: {
+            htmlContainer: 'swal-preview-container'
+        }
+    });
+}
+
+
 
 window.addEventListener('DOMContentLoaded', async function() {
     await cargarLugaresDesdeDB();

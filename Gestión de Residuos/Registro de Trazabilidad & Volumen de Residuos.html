@@ -1,0 +1,1953 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pisos Brillantes - Registro de Trazabilidad & Volumen de Residuos</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --success-color: #2ecc71;
+            --warning-color: #f39c12;
+            --info-color: #9b59b6;
+            --light-color: #ecf0f1;
+            --dark-color: #34495e;
+            --text-color: #333;
+            --border-color: #ddd;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            color: var(--text-color);
+            line-height: 1.6;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+            color: white;
+            text-align: center;
+            padding: 18px 0;
+            font-size: 1.5rem;
+            font-weight: bold;
+            box-shadow: var(--shadow);
+            position: relative;
+        }
+
+        .form-container {
+            width: 90%;
+            max-width: 1000px;
+            margin: 25px auto;
+            padding: 25px;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 25px;
+            font-size: 1.8rem;
+            position: relative;
+            padding-bottom: 10px;
+        }
+
+        h1:after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 4px;
+            background-color: var(--secondary-color);
+            border-radius: 2px;
+        }
+
+        .question-container {
+            margin-bottom: 25px;
+            padding: 20px;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+            border-left: 4px solid var(--secondary-color);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .question-container label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--dark-color);
+        }
+
+        .question-container input,
+        .question-container select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 16px;
+            transition: var(--transition);
+            background-color: white;
+        }
+
+        .question-container input:focus,
+        .question-container select:focus {
+            border-color: var(--secondary-color);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+        }
+
+        .unidad-selector {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 10px 15px;
+            background-color: #e8f4fd;
+            border-radius: 8px;
+            border: 1px solid var(--secondary-color);
+        }
+
+        .unidad-selector label {
+            font-weight: 600;
+            color: var(--dark-color);
+            margin: 0;
+            display: inline;
+        }
+
+        .unidad-selector .toggle-group {
+            display: flex;
+            border-radius: 6px;
+            overflow: hidden;
+            border: 2px solid var(--secondary-color);
+        }
+
+        .unidad-selector .toggle-btn {
+            padding: 6px 18px;
+            border: none;
+            background-color: white;
+            color: var(--dark-color);
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 0.9em;
+        }
+
+        .unidad-selector .toggle-btn.active {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+
+        .unidad-selector .toggle-btn:hover:not(.active) {
+            background-color: #e8f4fd;
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        #filtrar, #generar-pdf {
+            background: linear-gradient(to right, var(--secondary-color), #2980b9);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 14px 30px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 200px;
+        }
+
+        #generar-pdf {
+            background: linear-gradient(to right, var(--success-color), #27ae60);
+            display: none;
+        }
+
+        #filtrar:hover:not(:disabled), #generar-pdf:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        #filtrar:disabled, #generar-pdf:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        #overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.95);
+            z-index: 9999;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid rgba(52, 152, 219, 0.2);
+            border-radius: 50%;
+            border-top-color: var(--secondary-color);
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        #loadingMessage {
+            text-align: center;
+            color: var(--dark-color);
+        }
+
+        #loadingMessage h4 {
+            margin: 0 0 10px;
+            font-size: 1.3rem;
+        }
+
+        #loadingMessage p {
+            margin: 0;
+            color: #7f8c8d;
+        }
+
+        .resultados-container {
+            display: none;
+            margin-top: 30px;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .result-tabs-header {
+            display: flex;
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+            padding: 0;
+            border-radius: 8px 8px 0 0;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .result-tab-button {
+            flex: 1;
+            padding: 12px 15px;
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .result-tab-button.active {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .result-tab-button:hover:not(.active) {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .result-tab-content {
+            display: none;
+        }
+
+        .result-tab-content.active {
+            display: block;
+        }
+
+        .search-container {
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .search-container label {
+            font-weight: 600;
+            color: var(--dark-color);
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .search-container input {
+            width: 100%;
+            padding: 12px 15px 12px 40px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 16px;
+        }
+
+        .search-container::before {
+            content: '\f002';
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            position: absolute;
+            left: 15px;
+            top: 47px;
+            color: #95a5a6;
+            font-size: 16px;
+        }
+
+        .table-wrapper {
+            width: 100%;
+            max-height: 400px;
+            overflow: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .resultados-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 800px;
+        }
+
+        .resultados-table th,
+        .resultados-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: middle;
+        }
+
+        .resultados-table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: var(--dark-color);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .resultados-table tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .resultados-table tr.no-results td {
+            text-align: center;
+            padding: 40px 20px;
+            color: #6c757d;
+            font-size: 1.1em;
+        }
+
+        .scroll-indicator {
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 0.8em;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #6c757d;
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            color: #bdc3c7;
+        }
+
+        .info-message {
+            background-color: #e3f2fd;
+            border-left: 4px solid var(--secondary-color);
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+        }
+
+        .totales-vertical-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .totales-vertical-table th,
+        .totales-vertical-table td {
+            padding: 15px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+            font-weight: 600;
+        }
+
+        .totales-vertical-table th {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .totales-vertical-table td {
+            background-color: white;
+            font-size: 1.1em;
+        }
+
+        .swal-confirm-button {
+            background: linear-gradient(135deg, #2ecc71, #27ae60) !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 8px !important;
+            padding: 12px 24px !important;
+            font-size: 16px !important;
+            font-weight: 600 !important;
+            cursor: pointer !important;
+            transition: all 0.3s ease !important;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 8px !important;
+        }
+
+        .swal-confirm-button:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15) !important;
+        }
+
+        .swal-deny-button {
+            background: linear-gradient(135deg, #25D366, #128C7E) !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 8px !important;
+            padding: 12px 24px !important;
+            font-size: 16px !important;
+            font-weight: 600 !important;
+            cursor: pointer !important;
+            transition: all 0.3s ease !important;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 8px !important;
+        }
+
+        .swal-deny-button:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15) !important;
+        }
+
+        .swal-close-button {
+            color: #7f8c8d !important;
+            font-size: 24px !important;
+        }
+
+        @media (max-width: 768px) {
+            .form-container {
+                width: 95%;
+                padding: 15px;
+                margin: 15px auto;
+            }
+            
+            h1 {
+                font-size: 1.5rem;
+            }
+            
+            .resultados-table {
+                font-size: 0.85em;
+                min-width: 700px;
+            }
+            
+            .resultados-table th,
+            .resultados-table td {
+                padding: 10px 8px;
+            }
+            
+            .button-container {
+                flex-direction: row;
+                align-items: center;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            
+            #filtrar, #generar-pdf {
+                max-width: 200px;
+            }
+            
+            .scroll-indicator {
+                display: block;
+            }
+
+            .table-wrapper {
+                max-height: 300px;
+            }
+            
+            .search-container::before {
+                top: 42px;
+            }
+
+            .unidad-selector {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .result-tab-button {
+                font-size: 0.8rem;
+                padding: 10px 8px;
+            }
+
+            .result-tab-button span {
+                font-size: 0.7rem;
+            }
+
+            .totales-vertical-table th,
+            .totales-vertical-table td {
+                padding: 10px 8px;
+                font-size: 0.9em;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .result-tab-button {
+                font-size: 0.7rem;
+                padding: 8px 5px;
+            }
+
+            .result-tab-button i {
+                font-size: 0.8rem;
+            }
+
+            .totales-vertical-table th,
+            .totales-vertical-table td {
+                padding: 8px 5px;
+                font-size: 0.8em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">Pisos Brillantes</div>
+    
+    <div class="form-container">
+        <h1>Registro de Trazabilidad & Volumen de Residuos</h1>
+
+        <div class="info-message">
+            <i class="fas fa-info-circle"></i> Selecciona el mes y año para generar un reporte detallado de los residuos registrados.
+        </div>
+
+        <form id="formulario-reporte">
+            <div class="question-container">
+                <label for="mes"><strong>Mes:</strong></label>
+                <select id="mes" name="mes">
+                    <option value="01">Enero</option>
+                    <option value="02">Febrero</option>
+                    <option value="03">Marzo</option>
+                    <option value="04">Abril</option>
+                    <option value="05">Mayo</option>
+                    <option value="06">Junio</option>
+                    <option value="07">Julio</option>
+                    <option value="08">Agosto</option>
+                    <option value="09">Septiembre</option>
+                    <option value="10">Octubre</option>
+                    <option value="11">Noviembre</option>
+                    <option value="12">Diciembre</option>
+                </select>
+            </div>
+
+            <div class="question-container">
+                <label for="anio"><strong>Año:</strong></label>
+                <input type="number" id="anio" name="anio" min="2020" max="2030" placeholder="Ingrese el año">
+            </div>
+
+            <div class="question-container">
+                <div class="unidad-selector">
+                    <label><i class="fas fa-weight-scale"></i> <strong>Unidad de medida:</strong></label>
+                    <div class="toggle-group">
+                        <button type="button" class="toggle-btn active" id="btn-libras" onclick="cambiarUnidad('lbs')">
+                            <i class="fas fa-weight-hanging"></i> Libras (lbs)
+                        </button>
+                        <button type="button" class="toggle-btn" id="btn-kilogramos" onclick="cambiarUnidad('kg')">
+                            <i class="fas fa-weight-scale"></i> Kilogramos (kg)
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="button-container">
+                <button type="button" id="filtrar" disabled onclick="filtrarDatos()">Filtrar Datos</button>
+                <button type="button" id="generar-pdf" disabled onclick="generarPDF()">Generar PDF</button>
+            </div>
+        </form>
+
+        <div class="resultados-container" id="resultados-container">
+            <h2>Resultados</h2>
+
+            <div class="result-tabs-header">
+                <button class="result-tab-button active" id="tab-ingresos" onclick="cambiarResultTab('ingresos')">
+                    <i class="fas fa-arrow-down"></i>
+                    <span>Ingresos</span>
+                </button>
+                <button class="result-tab-button" id="tab-devoluciones" onclick="cambiarResultTab('devoluciones')">
+                    <i class="fas fa-arrow-up"></i>
+                    <span>Devoluciones</span>
+                </button>
+            </div>
+
+            <div class="result-tab-content active" id="tab-content-ingresos">
+                <div class="search-container" id="search-container" style="display: none;">
+                    <label for="search-input">Buscar en resultados:</label>
+                    <input type="text" id="search-input" placeholder="Filtrar por edificio, tipo, clasificación, estado..." autocomplete="off">
+                </div>
+
+                <div class="table-wrapper">
+                    <table class="resultados-table" id="tabla-resultados">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Edificio</th>
+                                <th>Tipo Residuo</th>
+                                <th id="th-cantidad">Cantidad (Lbs)</th>
+                                <th>Clasificación</th>
+                                <th>Estado Físico</th>
+                                <th>Responsable</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cuerpo-tabla">
+                        </tbody>
+                    </table>
+                </div>
+                <div class="scroll-indicator">
+                    <i class="fas fa-arrows-alt-h"></i> Desliza horizontalmente para ver más información
+                    <br>
+                    <i class="fas fa-arrows-alt-v"></i> Desliza verticalmente para ver más registros
+                </div>
+            </div>
+
+            <div class="result-tab-content" id="tab-content-devoluciones">
+                <div class="search-container" id="search-devolucion-container" style="display: none;">
+                    <label for="search-devolucion">Buscar en devoluciones:</label>
+                    <input type="text" id="search-devolucion" placeholder="Filtrar por tipo, destino, responsable..." autocomplete="off">
+                </div>
+
+                <div class="table-wrapper">
+                    <table class="resultados-table" id="tabla-devoluciones">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Tipo Residuo</th>
+                                <th id="th-cantidad-devolucion">Cantidad (Lbs)</th>
+                                <th>Clasificación</th>
+                                <th>Estado Físico</th>
+                                <th>Destino</th>
+                                <th>Responsable</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cuerpo-tabla-devoluciones">
+                        </tbody>
+                    </table>
+                </div>
+                <div class="scroll-indicator">
+                    <i class="fas fa-arrows-alt-h"></i> Desliza horizontalmente para ver más información
+                    <br>
+                    <i class="fas fa-arrows-alt-v"></i> Desliza verticalmente para ver más registros
+                </div>
+            </div>
+
+            <h3 id="totales-titulo">Totales por Tipo de Residuo</h3>
+            <table class="totales-vertical-table" id="tabla-totales">
+                <thead>
+                    <tr>
+                        <th>Tipo de Residuo</th>
+                        <th id="th-total-ingresos">Ingresos - Cantidad Total (Lbs)</th>
+                        <th id="th-total-devoluciones">Devoluciones - Cantidad Total (Lbs)</th>
+                        <th id="th-total-diferencia">Cantidad Total (Lbs)</th>
+                    </tr>
+                </thead>
+                <tbody id="cuerpo-totales">
+                </tbody>
+            </table>
+
+            <div id="recoleccion-container" style="margin-top: 40px; display: none;">
+                <h3>Registros de Recolección</h3>
+                
+                <div class="search-container" id="search-recoleccion-container" style="display: none;">
+                    <label for="search-recoleccion">Buscar en recolección:</label>
+                    <input type="text" id="search-recoleccion" placeholder="Filtrar por tipo de residuo, destino, responsable..." autocomplete="off">
+                </div>
+
+                <div class="table-wrapper">
+                    <table class="resultados-table" id="tabla-recoleccion">
+                        <thead>
+                            <tr>
+                                <th>Fecha Salida</th>
+                                <th>Tipos de Residuo</th>
+                                <th>Destino</th>
+                                <th>Responsable</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cuerpo-tabla-recoleccion">
+                        </tbody>
+                    </table>
+                </div>
+                <div class="scroll-indicator">
+                    <i class="fas fa-arrows-alt-h"></i> Desliza horizontalmente para ver más información
+                    <br>
+                    <i class="fas fa-arrows-alt-v"></i> Desliza verticalmente para ver más registros
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div id="overlay">
+        <div class="spinner"></div>
+        <div id="loadingMessage">
+            <h4>Por favor espera un momento...</h4>
+            <p id="loading-detail"></p>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        // VARIABLES GLOBALES
+        // ============================================================
+        let datosFiltrados = [];
+        let datosRecoleccion = [];
+        let datosDevoluciones = [];
+        let datosIngresosMostrados = [];
+        let datosDevolucionesMostrados = [];
+        let mesSeleccionado = "";
+        let anioSeleccionado = "";
+        let edificioSeleccionado = "Todos";
+        let unidadActual = "lbs";
+        let tabResultadoActual = "ingresos";
+        const FACTOR_CONVERSION = 0.453592;
+        const scriptURL = "https://script.google.com/macros/s/AKfycbwlz9tt9P_8iynjpyO0GzGfqm1zMFfUVOimkCiG2n9PHhjXtTHAoAAJVRcyT7_cZQ8t/exec";
+
+        // ============================================================
+        // FUNCIONES DE UNIDAD
+        // ============================================================
+        function cambiarUnidad(unidad) {
+            unidadActual = unidad;
+            
+            document.getElementById('btn-libras').classList.remove('active');
+            document.getElementById('btn-kilogramos').classList.remove('active');
+            
+            if (unidad === 'lbs') {
+                document.getElementById('btn-libras').classList.add('active');
+            } else {
+                document.getElementById('btn-kilogramos').classList.add('active');
+            }
+            
+            const thCantidad = document.getElementById('th-cantidad');
+            const thCantidadDev = document.getElementById('th-cantidad-devolucion');
+            const thTotalIngresos = document.getElementById('th-total-ingresos');
+            const thTotalDevoluciones = document.getElementById('th-total-devoluciones');
+            const thTotalDiferencia = document.getElementById('th-total-diferencia');
+            
+            const label = unidad === 'lbs' ? 'Lbs' : 'Kg';
+            
+            if (thCantidad) thCantidad.textContent = `Cantidad (${label})`;
+            if (thCantidadDev) thCantidadDev.textContent = `Cantidad (${label})`;
+            if (thTotalIngresos) thTotalIngresos.textContent = `Ingresos - Cantidad Total (${label})`;
+            if (thTotalDevoluciones) thTotalDevoluciones.textContent = `Devoluciones - Cantidad Total (${label})`;
+            if (thTotalDiferencia) thTotalDiferencia.textContent = `Cantidad Total (${label})`;
+            
+            if (datosFiltrados.length > 0 || datosDevoluciones.length > 0) {
+                mostrarResultados();
+                mostrarDevoluciones();
+                mostrarRecoleccion();
+                mostrarTotales();
+            }
+        }
+
+        function convertirCantidad(cantidad) {
+            if (unidadActual === 'kg') {
+                return cantidad * FACTOR_CONVERSION;
+            }
+            return cantidad;
+        }
+
+        function getUnidadSimbolo() {
+            return unidadActual === 'lbs' ? 'lbs' : 'kg';
+        }
+
+        // ============================================================
+        // INICIALIZACIÓN
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date();
+            const mesActual = String(today.getMonth() + 1).padStart(2, '0');
+            const anioActual = today.getFullYear();
+            
+            document.getElementById("mes").value = mesActual;
+            document.getElementById("anio").value = anioActual;
+            
+            configurarEventos();
+            verificarFormulario();
+
+            document.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+            });
+
+            document.addEventListener('selectstart', function(e) {
+                e.preventDefault();
+            });
+        });
+
+        function configurarEventos() {
+            $("#mes, #anio").on("change", verificarFormulario);
+
+            $("#search-input").on("keyup", function() {
+                mostrarResultados();
+            });
+
+            $("#search-devolucion").on("keyup", function() {
+                mostrarDevoluciones();
+            });
+
+            $("#search-recoleccion").on("keyup", function() {
+                mostrarRecoleccion();
+            });
+        }
+
+        function verificarFormulario() {
+            const mes = $("#mes").val();
+            const anio = $("#anio").val();
+
+            if (mes.trim() !== "" && anio.trim() !== "") {
+                $("#filtrar").prop("disabled", false);
+            } else {
+                $("#filtrar").prop("disabled", true);
+            }
+        }
+
+        function cambiarResultTab(tab) {
+            tabResultadoActual = tab;
+            
+            document.getElementById('tab-ingresos').classList.remove('active');
+            document.getElementById('tab-devoluciones').classList.remove('active');
+            document.getElementById(`tab-${tab}`).classList.add('active');
+            
+            document.getElementById('tab-content-ingresos').classList.remove('active');
+            document.getElementById('tab-content-devoluciones').classList.remove('active');
+            document.getElementById(`tab-content-${tab}`).classList.add('active');
+        }
+
+        // ============================================================
+        // FILTRAR DATOS
+        // ============================================================
+function filtrarDatos() {
+    mesSeleccionado = $("#mes").val();
+    anioSeleccionado = $("#anio").val();
+
+    $('#overlay').css('display', 'flex');
+    $('#search-input').val('');
+    $('#search-devolucion').val('');
+    $('#search-recoleccion').val('');
+    $('#search-container').hide();
+    $('#search-devolucion-container').hide();
+    $('#search-recoleccion-container').hide();
+    $('#resultados-container').hide();
+    $('#recoleccion-container').hide();
+
+    $.ajax({
+        url: scriptURL,
+        type: "POST",
+        data: {
+            action: "obtenerReporte",
+            mes: mesSeleccionado,
+            anio: anioSeleccionado,
+            edificio: edificioSeleccionado
+        },
+        success: function(response) {
+            $('#overlay').hide();
+            
+            let responseData;
+            try {
+                responseData = typeof response === 'string' ? JSON.parse(response) : response;
+            } catch (e) {
+                responseData = {success: false, message: 'Respuesta no válida del servidor'};
+            }
+            
+            if (responseData.success) {
+                datosFiltrados = responseData.datos || [];
+                datosRecoleccion = responseData.recoleccion || [];
+                datosDevoluciones = responseData.devoluciones || [];
+
+                // ORDEN DE UBICACIONES ACTUALIZADO
+                const ubicacionOrden = {
+                    // Edificios
+                    "CBA": 1,
+                    "CBB": 2,
+                    "CBC": 3,
+                    "Torre #1": 4,
+                    "Torre #2": 5,
+                    // Locales Comerciales
+                    "A-05: Pronto #1": 6,
+                    "A-06: Espresso Americano #1": 7,
+                    "A-07: City Net": 8,
+                    "T2-02: Punto Farma": 9,
+                    "T2-03: Sumitec": 10,
+                    "B-01: Galeano": 11,
+                    "B-02: Cofinter": 12,
+                    "B-03: Cuscatlan": 13,
+                    "B-04: Claro": 14,
+                    "B-05: Ficohsa": 15,
+                    "B-06: Davivienda": 16,
+                    "B-07: Lafise": 17,
+                    "C-01: Occidente": 18,
+                    "T1-01: Espresso Americano #2": 19,
+                    "T1-02: Sagrada Familia": 20,
+                    "T1-03: Pacasa": 21,
+                    "T1-04: Pronto #2": 22
+                };
+
+                datosFiltrados.sort((a, b) => {
+                    try {
+                        const ordenA = ubicacionOrden[a.edificio] || 99;
+                        const ordenB = ubicacionOrden[b.edificio] || 99;
+                        
+                        if (ordenA !== ordenB) {
+                            return ordenA - ordenB;
+                        }
+
+                        const dateA = new Date(a.fecha.split('/').reverse().join('-'));
+                        const dateB = new Date(b.fecha.split('/').reverse().join('-'));
+                        
+                        if (isNaN(dateA.getTime())) return 1;
+                        if (isNaN(dateB.getTime())) return -1;
+                        return dateA.getTime() - dateB.getTime();
+
+                    } catch (e) {
+                        try {
+                            const dateA = new Date(a.fecha);
+                            const dateB = new Date(b.fecha);
+                            if (isNaN(dateA.getTime())) return 1;
+                            if (isNaN(dateB.getTime())) return -1;
+                            return dateA.getTime() - dateB.getTime();
+                        } catch (e2) {
+                            return 0;
+                        }
+                    }
+                });
+
+                datosDevoluciones.sort((a, b) => {
+                    try {
+                        const dateA = new Date(a.fecha.split('/').reverse().join('-'));
+                        const dateB = new Date(b.fecha.split('/').reverse().join('-'));
+                        if (isNaN(dateA.getTime())) return 1;
+                        if (isNaN(dateB.getTime())) return -1;
+                        return dateA.getTime() - dateB.getTime();
+                    } catch (e) {
+                        return 0;
+                    }
+                });
+
+                mostrarResultados();
+                mostrarDevoluciones();
+                mostrarRecoleccion();
+                mostrarTotales();
+                
+                if (datosFiltrados.length > 0) {
+                    $('#search-container').show();
+                }
+                
+                if (datosDevoluciones.length > 0) {
+                    $('#search-devolucion-container').show();
+                }
+                
+                if (datosRecoleccion && datosRecoleccion.length > 0) {
+                    $('#search-recoleccion-container').show();
+                }
+
+                $('#resultados-container').show();
+
+            } else {
+                Swal.fire({
+                    title: 'Error',
+                    text: responseData.message || 'Error al obtener los datos',
+                    icon: 'error',
+                    confirmButtonText: 'Entendido',
+                    confirmButtonColor: '#e74c3c'
+                });
+            }
+        },
+        error: function(xhr, status, error) {
+            $('#overlay').hide();
+            
+            let errorMessage = 'No se pudo conectar al servidor. ';
+            if (xhr.status === 0) {
+                errorMessage += 'Verifica tu conexión a internet.';
+            } else {
+                errorMessage += `Error ${xhr.status}: ${error}`;
+            }
+            
+            Swal.fire({
+                title: 'Error de Conexión',
+                text: errorMessage,
+                icon: 'error',
+                confirmButtonText: 'Entendido',
+                confirmButtonColor: '#e74c3c'
+            });
+        }
+    });
+}
+
+
+        // ============================================================
+        // FUNCIONES DE FORMATEO
+        // ============================================================
+        function formatearFecha(fecha) {
+            if (!fecha) return 'N/A';
+            
+            if (typeof fecha === 'string' && fecha.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+                return fecha;
+            }
+            
+            try {
+                const date = new Date(fecha);
+                if (isNaN(date.getTime())) {
+                    return fecha;
+                }
+                
+                const dia = String(date.getUTCDate()).padStart(2, '0');
+                const mes = String(date.getUTCMonth() + 1).padStart(2, '0');
+                const anio = date.getUTCFullYear();
+                
+                if (anio < 2000) return fecha;
+                
+                return `${dia}/${mes}/${anio}`;
+            } catch (e) {
+                return fecha;
+            }
+        }
+
+        function formatearNombre(nombre) {
+            if (!nombre || nombre === 'No especificado' || nombre === 'N/A') return nombre;
+            
+            return nombre.toLowerCase().split(' ').map(palabra => {
+                if (palabra.length > 0) {
+                    return palabra.charAt(0).toUpperCase() + palabra.slice(1);
+                }
+                return palabra;
+            }).join(' ');
+        }
+
+        function obtenerNombreMes(numeroMes) {
+            const meses = [
+                'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+            ];
+            return meses[parseInt(numeroMes) - 1];
+        }
+
+        function getUnidadSimboloPDF() {
+            return unidadActual === 'lbs' ? 'lbs' : 'kg';
+        }
+
+        function convertirCantidadPDF(cantidad) {
+            if (unidadActual === 'kg') {
+                return cantidad * FACTOR_CONVERSION;
+            }
+            return cantidad;
+        }
+
+        // ============================================================
+        // MOSTRAR INGRESOS
+        // ============================================================
+        function mostrarResultados() {
+            const cuerpoTabla = document.getElementById('cuerpo-tabla');
+            const fullSearchTerm = $('#search-input').val().toLowerCase().trim();
+            const searchTerms = fullSearchTerm.split(' ').filter(term => term.length > 0);
+
+            cuerpoTabla.innerHTML = '';
+
+            if (searchTerms.length > 0) {
+                datosIngresosMostrados = datosFiltrados.filter(registro => {
+                    const searchableString = [
+                        registro.edificio || '',
+                        registro.tipoResiduo || '',
+                        registro.clasificacion || '',
+                        registro.estadoFisico || '',
+                        registro.responsable || ''
+                    ].join(' ').toLowerCase();
+                    
+                    return searchTerms.every(term => searchableString.includes(term));
+                });
+            } else {
+                datosIngresosMostrados = datosFiltrados;
+            }
+
+            if (datosIngresosMostrados.length === 0) {
+                let mensaje = "";
+                if (datosFiltrados.length === 0) {
+                    mensaje = `
+                        <td colspan="7" class="empty-state">
+                            <i class="fas fa-inbox"></i>
+                            <h3>No se encontraron registros</h3>
+                            <p>No hay datos de ingresos para el mes y año seleccionados.</p>
+                        </td>`;
+                    $("#generar-pdf").prop("disabled", true).hide();
+                } else {
+                    mensaje = `
+                        <tr class="no-results">
+                            <td colspan="7">
+                                <i class="fas fa-search" style="margin-right: 8px;"></i>
+                                No se encontraron registros que coincidan con "<strong>${fullSearchTerm}</strong>".
+                            </td>
+                        </tr>`;
+                    $("#generar-pdf").prop("disabled", false).show();
+                }
+                cuerpoTabla.innerHTML = `<tr>${mensaje}</tr>`;
+                return;
+            }
+
+            datosIngresosMostrados.forEach(registro => {
+                const fila = document.createElement('tr');
+                const cantidadConvertida = convertirCantidad(registro.cantidad);
+                fila.innerHTML = `
+                    <td>${formatearFecha(registro.fecha)}</td>
+                    <td>${registro.edificio}</td>
+                    <td>${registro.tipoResiduo}</td>
+                    <td>${cantidadConvertida.toFixed(2)}</td>
+                    <td>${registro.clasificacion}</td>
+                    <td>${registro.estadoFisico}</td>
+                    <td>${formatearNombre(registro.responsable) || 'N/A'}</td>
+                `;
+                cuerpoTabla.appendChild(fila);
+            });
+
+            $("#generar-pdf").prop("disabled", false).show();
+        }
+
+        // ============================================================
+        // MOSTRAR DEVOLUCIONES
+        // ============================================================
+        function mostrarDevoluciones() {
+            const cuerpoTabla = document.getElementById('cuerpo-tabla-devoluciones');
+            const fullSearchTerm = $('#search-devolucion').val().toLowerCase().trim();
+            const searchTerms = fullSearchTerm.split(' ').filter(term => term.length > 0);
+
+            cuerpoTabla.innerHTML = '';
+
+            if (searchTerms.length > 0) {
+                datosDevolucionesMostrados = datosDevoluciones.filter(registro => {
+                    const searchableString = [
+                        registro.tipoResiduo || '',
+                        registro.clasificacion || '',
+                        registro.estadoFisico || '',
+                        registro.destino || '',
+                        registro.responsable || ''
+                    ].join(' ').toLowerCase();
+                    
+                    return searchTerms.every(term => searchableString.includes(term));
+                });
+            } else {
+                datosDevolucionesMostrados = datosDevoluciones;
+            }
+
+            if (datosDevolucionesMostrados.length === 0) {
+                let mensaje = "";
+                if (datosDevoluciones.length === 0) {
+                    mensaje = `
+                        <td colspan="7" class="empty-state">
+                            <i class="fas fa-inbox"></i>
+                            <h3>No se encontraron devoluciones</h3>
+                            <p>No hay datos de devoluciones para el mes y año seleccionados.</p>
+                        </td>`;
+                } else {
+                    mensaje = `
+                        <tr class="no-results">
+                            <td colspan="7">
+                                <i class="fas fa-search" style="margin-right: 8px;"></i>
+                                No se encontraron devoluciones que coincidan con "<strong>${fullSearchTerm}</strong>".
+                            </td>
+                        </tr>`;
+                }
+                cuerpoTabla.innerHTML = `<tr>${mensaje}</tr>`;
+                return;
+            }
+
+            datosDevolucionesMostrados.forEach(registro => {
+                const fila = document.createElement('tr');
+                const cantidadConvertida = convertirCantidad(registro.cantidad);
+                fila.innerHTML = `
+                    <td>${formatearFecha(registro.fecha)}</td>
+                    <td>${registro.tipoResiduo}</td>
+                    <td>${cantidadConvertida.toFixed(2)}</td>
+                    <td>${registro.clasificacion}</td>
+                    <td>${registro.estadoFisico}</td>
+                    <td>${registro.destino || 'N/A'}</td>
+                    <td>${formatearNombre(registro.responsable) || 'N/A'}</td>
+                `;
+                cuerpoTabla.appendChild(fila);
+            });
+        }
+
+        // ============================================================
+        // MOSTRAR TOTALES (SIN SUMATORIA FINAL)
+        // ============================================================
+        function mostrarTotales() {
+            const cuerpoTotales = document.getElementById('cuerpo-totales');
+            cuerpoTotales.innerHTML = '';
+
+            const tipos = ['Común', 'Plástico', 'Aluminio', 'Cartón', 'Papel', 'Vidrio', 'Chatarra', 'RPBI'];
+            
+            const totalesIngresos = {};
+            const totalesDevoluciones = {};
+            
+            tipos.forEach(t => {
+                totalesIngresos[t] = 0;
+                totalesDevoluciones[t] = 0;
+            });
+
+            datosFiltrados.forEach(registro => {
+                const tipo = registro.tipoResiduo;
+                if (totalesIngresos.hasOwnProperty(tipo)) {
+                    totalesIngresos[tipo] += parseFloat(registro.cantidad) || 0;
+                }
+            });
+
+            datosDevoluciones.forEach(registro => {
+                const tipo = registro.tipoResiduo;
+                if (totalesDevoluciones.hasOwnProperty(tipo)) {
+                    totalesDevoluciones[tipo] += parseFloat(registro.cantidad) || 0;
+                }
+            });
+
+            const simbolo = getUnidadSimbolo();
+
+            tipos.forEach(tipo => {
+                const ingresos = convertirCantidad(totalesIngresos[tipo] || 0);
+                const devoluciones = convertirCantidad(totalesDevoluciones[tipo] || 0);
+                const diferencia = ingresos - devoluciones;
+                
+                const fila = document.createElement('tr');
+                fila.innerHTML = `
+                    <td>${tipo}</td>
+                    <td>${ingresos.toFixed(2)} ${simbolo}</td>
+                    <td>${devoluciones.toFixed(2)} ${simbolo}</td>
+                    <td>${diferencia.toFixed(2)} ${simbolo}</td>
+                `;
+                cuerpoTotales.appendChild(fila);
+            });
+        }
+
+        // ============================================================
+        // MOSTRAR RECOLECCIÓN
+        // ============================================================
+        function mostrarRecoleccion() {
+            const cuerpoRecoleccion = document.getElementById('cuerpo-tabla-recoleccion');
+            const containerRecoleccion = document.getElementById('recoleccion-container');
+            const searchContainer = document.getElementById('search-recoleccion-container');
+            
+            cuerpoRecoleccion.innerHTML = '';
+            
+            if (!datosRecoleccion || datosRecoleccion.length === 0) {
+                containerRecoleccion.style.display = 'none';
+                return;
+            }
+            
+            containerRecoleccion.style.display = 'block';
+            
+            const searchTerm = $('#search-recoleccion').val().toLowerCase().trim();
+            
+            let datosFiltradosRec = datosRecoleccion;
+            if (searchTerm) {
+                datosFiltradosRec = datosRecoleccion.filter(registro => {
+                    const searchableString = [
+                        registro.tiposResiduo.join(' '),
+                        registro.destino,
+                        registro.responsable
+                    ].join(' ').toLowerCase();
+                    return searchableString.includes(searchTerm);
+                });
+            }
+            
+            if (datosFiltradosRec.length > 0) {
+                searchContainer.style.display = 'block';
+                datosFiltradosRec.forEach(registro => {
+                    const fila = document.createElement('tr');
+                    fila.innerHTML = `
+                        <td>${registro.fechaSalida}</td>
+                        <td>${registro.tiposResiduo.join(', ')}</td>
+                        <td>${registro.destino}</td>
+                        <td>${formatearNombre(registro.responsable)}</td>
+                    `;
+                    cuerpoRecoleccion.appendChild(fila);
+                });
+            } else {
+                searchContainer.style.display = 'block';
+                cuerpoRecoleccion.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="empty-state">
+                            <i class="fas fa-search"></i>
+                            <p>No se encontraron registros que coincidan con "${searchTerm}"</p>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        // ============================================================
+        // GENERAR PDF
+        // ============================================================
+        function generarPDF() {
+            if (datosFiltrados.length === 0 && datosDevoluciones.length === 0 && (!datosRecoleccion || datosRecoleccion.length === 0)) {
+                Swal.fire('Error', 'No hay datos para generar el PDF.', 'error');
+                return;
+            }
+
+            $('#overlay').css('display', 'flex');
+
+            setTimeout(() => {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({
+                    orientation: 'landscape',
+                    unit: 'mm',
+                    format: 'letter'
+                });
+
+                const pageWidth = doc.internal.pageSize.getWidth();
+                const pageHeight = doc.internal.pageSize.getHeight();
+                const margin = 10;
+                let startY = 40;
+                let totalPagesExp = "{total_pages_count_placeholder}";
+                const simboloUnidad = getUnidadSimboloPDF();
+                let esPrimeraPagina = true;
+
+                // ============================================================
+                // FUNCIÓN DE ENCABEZADO (SOLO PARA PRIMERA PÁGINA)
+                // ============================================================
+                function addHeader() {
+                    const iconUrl = "https://raw.githubusercontent.com/jeancarlozelaya/CCG/refs/heads/main/Im%C3%A1genes/Icono.png";
+                    const img = new Image();
+                    img.src = iconUrl;
+                    doc.addImage(img, 'PNG', margin, 12, 20, 20);
+
+                    doc.setFontSize(11);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setTextColor(44, 62, 80);
+                    doc.text('REGISTRO DE TRAZABILIDAD & VOLUMEN DE RESIDUOS', margin + 25, 16);
+                    doc.text(`Período: ${obtenerNombreMes(mesSeleccionado)} ${anioSeleccionado}`, margin + 25, 22);
+                    doc.text(`Unidad: ${simboloUnidad.toUpperCase()}`, margin + 25, 28);
+                    
+                    doc.setFontSize(8);
+                    doc.setFont('helvetica', 'normal');
+                    doc.setTextColor(100, 100, 100);
+                    doc.text(`Generado: ${new Date().toLocaleDateString('es-ES')}`, pageWidth - margin, 15, { align: 'right' });
+                }
+
+                // ============================================================
+                // FUNCIÓN DE PIE DE PÁGINA
+                // ============================================================
+                function addFooter(data) {
+                    doc.setFontSize(8);
+                    doc.setFont('helvetica', 'normal');
+                    doc.setTextColor(100, 100, 100);
+                    
+                    var str = "Página " + doc.internal.getNumberOfPages();
+                    if (typeof doc.putTotalPages === 'function') {
+                        str = str + " de " + totalPagesExp;
+                    }
+                    doc.text(str, pageWidth - margin, pageHeight - 10, { align: 'right' });
+                }
+
+                // ============================================================
+                // FUNCIÓN PARA NUEVA PÁGINA (SOLO PIE DE PÁGINA, SIN ENCABEZADO)
+                // ============================================================
+                function nuevaPaginaSinHeader() {
+                    doc.addPage();
+                    // No llamamos a addHeader() aquí
+                    // Solo agregamos el pie de página automáticamente con autoTable
+                }
+
+                // ============================================================
+                // FUNCIÓN PARA NUEVA PÁGINA CON ENCABEZADO (SOLO PRIMERA VEZ)
+                // ============================================================
+                function nuevaPaginaConHeader() {
+                    doc.addPage();
+                    if (esPrimeraPagina) {
+                        addHeader();
+                        esPrimeraPagina = false;
+                    }
+                }
+
+                // ============================================================
+                // PÁGINA 1: TOTALES POR TIPO DE RESIDUO
+                // ============================================================
+                // Primera página: mostramos el encabezado
+                addHeader();
+                esPrimeraPagina = false;
+                startY = 40;
+
+                const tipos = ['Común', 'Plástico', 'Aluminio', 'Cartón', 'Papel', 'Vidrio', 'Chatarra', 'RPBI'];
+                
+                const totalesIngresos = {};
+                const totalesDevoluciones = {};
+                
+                tipos.forEach(t => {
+                    totalesIngresos[t] = 0;
+                    totalesDevoluciones[t] = 0;
+                });
+
+                datosFiltrados.forEach(reg => {
+                    const tipo = reg.tipoResiduo;
+                    if (totalesIngresos.hasOwnProperty(tipo)) {
+                        totalesIngresos[tipo] += parseFloat(reg.cantidad) || 0;
+                    }
+                });
+
+                datosDevoluciones.forEach(reg => {
+                    const tipo = reg.tipoResiduo;
+                    if (totalesDevoluciones.hasOwnProperty(tipo)) {
+                        totalesDevoluciones[tipo] += parseFloat(reg.cantidad) || 0;
+                    }
+                });
+
+                doc.setFontSize(14);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(44, 62, 80);
+                doc.text(`TOTALES POR TIPO DE RESIDUO - UNIDAD: ${simboloUnidad.toUpperCase()}`, pageWidth / 2, startY, { align: 'center' });
+                startY += 6;
+
+                const headerRow = ['Tipo'];
+                const ingresosRow = ['Ingresos'];
+                const devolucionesRow = ['Devoluciones'];
+                const diferenciaRow = ['Total (Diferencia)'];
+
+                tipos.forEach(tipo => {
+                    const ingresos = convertirCantidadPDF(totalesIngresos[tipo] || 0);
+                    const devoluciones = convertirCantidadPDF(totalesDevoluciones[tipo] || 0);
+                    const diferencia = ingresos - devoluciones;
+                    
+                    headerRow.push(tipo);
+                    ingresosRow.push(`${ingresos.toFixed(2)} ${simboloUnidad}`);
+                    devolucionesRow.push(`${devoluciones.toFixed(2)} ${simboloUnidad}`);
+                    diferenciaRow.push(`${diferencia.toFixed(2)} ${simboloUnidad}`);
+                });
+
+                const totalesData = [headerRow, ingresosRow, devolucionesRow, diferenciaRow];
+
+                doc.autoTable({
+                    startY: startY,
+                    head: [totalesData[0]],
+                    body: totalesData.slice(1),
+                    theme: 'grid',
+                    headStyles: {
+                        fillColor: [44, 62, 80],
+                        textColor: 255,
+                        fontStyle: 'bold',
+                        fontSize: 8,
+                        halign: 'center'
+                    },
+                    bodyStyles: {
+                        fontSize: 7,
+                        textColor: 0,
+                        halign: 'center'
+                    },
+                    margin: { left: margin, right: margin },
+                    tableWidth: pageWidth - (2 * margin),
+                    didDrawPage: addFooter
+                });
+
+                startY = doc.lastAutoTable.finalY + 15;
+
+                // ============================================================
+                // REGISTROS DE RECOLECCIÓN (MISMA PÁGINA, SIN ENCABEZADO)
+                // ============================================================
+                if (datosRecoleccion && datosRecoleccion.length > 0) {
+                    const rectHeight = 8;
+                    doc.setFillColor(46, 204, 113);
+                    doc.rect(margin, startY, pageWidth - (2 * margin), rectHeight, 'F');
+                    
+                    doc.setFontSize(12);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setTextColor(255, 255, 255);
+                    doc.text('REGISTROS DE RECOLECCIÓN DE RESIDUOS', pageWidth / 2, startY + (rectHeight / 2), {
+                        align: 'center',
+                        baseline: 'middle'
+                    });
+                    startY += rectHeight + 10;
+
+                    const datosRecoleccionTabla = datosRecoleccion.map(reg => {
+                        const tiposFormateados = reg.tiposResiduo.map(tipo => tipo.charAt(0).toUpperCase() + tipo.slice(1).toLowerCase());
+                        const responsableFormateado = reg.responsable ? 
+                            reg.responsable.toLowerCase().split(' ').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ') : 
+                            'No Especificado';
+                        
+                        return [
+                            reg.fechaSalida,
+                            tiposFormateados.join(', '),
+                            reg.destino,
+                            responsableFormateado
+                        ];
+                    });
+
+                    const availableWidth = pageWidth - (2 * margin);
+                    
+                    doc.autoTable({
+                        startY: startY,
+                        head: [['Fecha Salida', 'Tipos de Residuo', 'Destino', 'Responsable']],
+                        body: datosRecoleccionTabla,
+                        theme: 'grid',
+                        headStyles: {
+                            fillColor: [46, 204, 113],
+                            textColor: 255,
+                            fontStyle: 'bold',
+                            fontSize: 8,
+                            halign: 'center'
+                        },
+                        bodyStyles: {
+                            fontSize: 7,
+                            textColor: 0,
+                            halign: 'center'
+                        },
+                        margin: { left: margin, right: margin },
+                        tableWidth: 'auto',
+                        styles: {
+                            cellPadding: 2,
+                            fontSize: 7,
+                            lineColor: [0, 0, 0],
+                            lineWidth: 0.1,
+                            halign: 'center'
+                        },
+                        columnStyles: {
+                            0: { cellWidth: availableWidth * 0.12 },
+                            1: { cellWidth: availableWidth * 0.38 },
+                            2: { cellWidth: availableWidth * 0.35 },
+                            3: { cellWidth: availableWidth * 0.15 }
+                        },
+                        didDrawPage: addFooter
+                    });
+                }
+
+                // ============================================================
+                // REGISTROS DE DEVOLUCIÓN (NUEVA PÁGINA - SIN ENCABEZADO)
+                // ============================================================
+                if (datosDevoluciones && datosDevoluciones.length > 0) {
+                    // Nueva página sin encabezado
+                    doc.addPage();
+                    startY = 20;
+
+                    const rectHeight = 8;
+                    doc.setFillColor(155, 89, 182);
+                    doc.rect(margin, startY, pageWidth - (2 * margin), rectHeight, 'F');
+                    
+                    doc.setFontSize(12);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setTextColor(255, 255, 255);
+                    doc.text('REGISTROS DE DEVOLUCIÓN DE RESIDUOS', pageWidth / 2, startY + (rectHeight / 2), {
+                        align: 'center',
+                        baseline: 'middle'
+                    });
+                    startY += rectHeight + 10;
+
+                    const devData = datosDevoluciones.map(reg => {
+                        const cantidadConvertida = convertirCantidadPDF(reg.cantidad);
+                        return [
+                            reg.fecha || '',
+                            reg.tipoResiduo || '',
+                            cantidadConvertida.toFixed(2),
+                            reg.clasificacion || '',
+                            reg.estadoFisico || '',
+                            reg.destino || '',
+                            formatearNombre(reg.responsable) || ''
+                        ];
+                    });
+
+                    const availableWidth = pageWidth - (2 * margin);
+                    
+                    doc.autoTable({
+                        startY: startY,
+                        head: [['Fecha', 'Tipo Residuo', `Cantidad (${simboloUnidad})`, 'Clasificación', 'Estado Físico', 'Destino', 'Responsable']],
+                        body: devData,
+                        theme: 'grid',
+                        headStyles: {
+                            fillColor: [155, 89, 182],
+                            textColor: 255,
+                            fontStyle: 'bold',
+                            fontSize: 8,
+                            halign: 'center'
+                        },
+                        bodyStyles: {
+                            fontSize: 7,
+                            textColor: 0,
+                            halign: 'center'
+                        },
+                        margin: { left: margin, right: margin },
+                        tableWidth: availableWidth,
+                        styles: {
+                            cellPadding: 2,
+                            fontSize: 7,
+                            lineColor: [0, 0, 0],
+                            lineWidth: 0.1,
+                            halign: 'center'
+                        },
+                        columnStyles: {
+                            0: { cellWidth: availableWidth * 0.12 },
+                            1: { cellWidth: availableWidth * 0.14 },
+                            2: { cellWidth: availableWidth * 0.14 },
+                            3: { cellWidth: availableWidth * 0.14 },
+                            4: { cellWidth: availableWidth * 0.14 },
+                            5: { cellWidth: availableWidth * 0.16 },
+                            6: { cellWidth: availableWidth * 0.16 }
+                        },
+                        didDrawPage: addFooter
+                    });
+                }
+
+                // ============================================================
+                // DETALLE DE INGRESOS POR EDIFICIO (NUEVA PÁGINA - SIN ENCABEZADO)
+                // ============================================================
+                const datosAgrupados = {};
+                
+                datosFiltrados.forEach(reg => {
+                    if (!datosAgrupados[reg.edificio]) {
+                        datosAgrupados[reg.edificio] = {
+                            registros: [],
+                            totales: { común: 0, plástico: 0, aluminio: 0, cartón: 0, papel: 0, vidrio: 0, chatarra: 0, rpbi: 0 }
+                        };
+                    }
+                    datosAgrupados[reg.edificio].registros.push(reg);
+                    
+                    const tipo = reg.tipoResiduo.toLowerCase();
+                    if (datosAgrupados[reg.edificio].totales.hasOwnProperty(tipo)) {
+                        datosAgrupados[reg.edificio].totales[tipo] += parseFloat(reg.cantidad) || 0;
+                    }
+                });
+
+// ORDEN COMPLETO: Edificios + Locales Comerciales
+const edificiosOrdenPDF = [
+    "CBA", "CBB", "CBC", "Torre #1", "Torre #2",
+    "A-05: Pronto #1", "A-06: Espresso Americano #1", "A-07: City Net",
+    "T2-02: Punto Farma", "T2-03: Sumitec",
+    "B-01: Galeano", "B-02: Cofinter", "B-03: Cuscatlan", "B-04: Claro",
+    "B-05: Ficohsa", "B-06: Davivienda", "B-07: Lafise",
+    "C-01: Occidente",
+    "T1-01: Espresso Americano #2", "T1-02: Sagrada Familia", "T1-03: Pacasa", "T1-04: Pronto #2"
+];
+const edificiosAProcesar = edificiosOrdenPDF.filter(e => datosAgrupados.hasOwnProperty(e));
+
+                if (edificiosAProcesar.length > 0) {
+                    // Primera página de edificios (sin encabezado)
+                    doc.addPage();
+                    startY = 20;
+                    
+                    let primerEdificio = true;
+
+                    for (const edificio of edificiosAProcesar) {
+                        const dataEdificio = datosAgrupados[edificio];
+                        
+                        if (!dataEdificio || dataEdificio.registros.length === 0) {
+                            continue;
+                        }
+                        
+                        if (!primerEdificio) {
+                            doc.addPage();
+                            startY = 20;
+                        } else {
+                            primerEdificio = false;
+                        }
+                        
+                        // Título del Edificio
+                        const rectHeight = 10;
+                        doc.setFillColor(52, 152, 219);
+                        doc.rect(margin, startY, pageWidth - (2 * margin), rectHeight, 'F');
+                        
+                        doc.setFontSize(14);
+                        doc.setFont('helvetica', 'bold');
+                        doc.setTextColor(255, 255, 255);
+                        
+// Determinar si es edificio o local comercial
+const esLocal = edificio.includes(':');
+const tituloUbicacion = esLocal ? `Local Comercial: ${edificio}` : `Edificio: ${edificio}`;
+
+doc.text(tituloUbicacion, pageWidth / 2, startY + (rectHeight / 2), {
+    align: 'center',
+    baseline: 'middle'
+});
+                        startY += rectHeight + 8;
+
+                        // TABLA DE TOTALES (por edificio)
+                        doc.setFontSize(12);
+                        doc.setFont('helvetica', 'bold');
+                        doc.setTextColor(44, 62, 80);
+                        doc.text(`TOTALES POR TIPO DE RESIDUO - UNIDAD: ${simboloUnidad.toUpperCase()}`, pageWidth / 2, startY, { align: 'center' });
+                        
+                        const totalesDataEdif = [
+                            ['Común', 'Plástico', 'Aluminio', 'Cartón', 'Papel', 'Vidrio', 'Chatarra', 'RPBI'],
+                            [
+                                `${convertirCantidadPDF(dataEdificio.totales.común).toFixed(2)} ${simboloUnidad}`,
+                                `${convertirCantidadPDF(dataEdificio.totales.plástico).toFixed(2)} ${simboloUnidad}`,
+                                `${convertirCantidadPDF(dataEdificio.totales.aluminio).toFixed(2)} ${simboloUnidad}`,
+                                `${convertirCantidadPDF(dataEdificio.totales.cartón).toFixed(2)} ${simboloUnidad}`,
+                                `${convertirCantidadPDF(dataEdificio.totales.papel).toFixed(2)} ${simboloUnidad}`,
+                                `${convertirCantidadPDF(dataEdificio.totales.vidrio).toFixed(2)} ${simboloUnidad}`,
+                                `${convertirCantidadPDF(dataEdificio.totales.chatarra).toFixed(2)} ${simboloUnidad}`,
+                                `${convertirCantidadPDF(dataEdificio.totales.rpbi).toFixed(2)} ${simboloUnidad}`
+                            ]
+                        ];
+                        
+                        doc.autoTable({
+                            startY: startY + 4,
+                            head: [totalesDataEdif[0]],
+                            body: [totalesDataEdif[1]],
+                            theme: 'grid',
+                            headStyles: {
+                                fillColor: [44, 62, 80],
+                                textColor: 255,
+                                fontStyle: 'bold',
+                                fontSize: 8,
+                                halign: 'center'
+                            },
+                            bodyStyles: {
+                                fontSize: 8,
+                                textColor: 0,
+                                halign: 'center'
+                            },
+                            margin: { left: margin, right: margin },
+                            tableWidth: pageWidth - (2 * margin),
+                            styles: { cellPadding: 3, fontSize: 8, halign: 'center' },
+                            didDrawPage: addFooter
+                        });
+                        
+                        startY = doc.lastAutoTable.finalY + 10;
+
+                        // DETALLE DE REGISTROS (por edificio)
+                        if (dataEdificio.registros.length > 0) {
+                            doc.setFontSize(12);
+                            doc.setFont('helvetica', 'bold');
+                            doc.setTextColor(44, 62, 80);
+                            doc.text('DETALLE DE REGISTROS', pageWidth / 2, startY, { align: 'center' });
+
+                            const datosTabla = dataEdificio.registros.map(registro => {
+                                const clasificacionOrganico = registro.clasificacion.toLowerCase().includes('orgánico') ? 'X' : '';
+                                const clasificacionInorganico = registro.clasificacion.toLowerCase().includes('inorgánico') ? 'X' : '';
+                                const estadoSolido = registro.estadoFisico.toLowerCase().includes('sólido') ? 'X' : '';
+                                const estadoLiquido = registro.estadoFisico.toLowerCase().includes('líquido') ? 'X' : '';
+                                const estadoGaseoso = registro.estadoFisico.toLowerCase().includes('gaseoso') ? 'X' : '';
+                                
+                                const cantidadConvertida = convertirCantidadPDF(registro.cantidad);
+                                const cantidadStr = cantidadConvertida.toFixed(2);
+                                
+                                const cantidadComun = registro.tipoResiduo.toLowerCase().includes('común') ? cantidadStr : '';
+                                const cantidadPlastico = registro.tipoResiduo.toLowerCase().includes('plástico') ? cantidadStr : '';
+                                const cantidadAluminio = registro.tipoResiduo.toLowerCase().includes('aluminio') ? cantidadStr : '';
+                                const cantidadCarton = registro.tipoResiduo.toLowerCase().includes('cartón') ? cantidadStr : '';
+                                const cantidadPapel = registro.tipoResiduo.toLowerCase().includes('papel') ? cantidadStr : '';
+                                const cantidadVidrio = registro.tipoResiduo.toLowerCase().includes('vidrio') ? cantidadStr : '';
+                                const cantidadChatarra = registro.tipoResiduo.toLowerCase().includes('chatarra') ? cantidadStr : '';
+                                const cantidadRPBI = registro.tipoResiduo.toLowerCase().includes('rpbi') ? cantidadStr : '';
+                                
+                                const responsableFormateado = registro.responsable ? 
+                                    registro.responsable.toLowerCase().split(' ').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ') : 
+                                    'N/A';
+                                
+                                return [
+                                    formatearFecha(registro.fecha),
+                                    cantidadComun,
+                                    cantidadPlastico,
+                                    cantidadAluminio,
+                                    cantidadCarton,
+                                    cantidadPapel,
+                                    cantidadVidrio,
+                                    cantidadChatarra,
+                                    cantidadRPBI,
+                                    clasificacionOrganico,
+                                    clasificacionInorganico,
+                                    estadoSolido,
+                                    estadoLiquido,
+                                    estadoGaseoso,
+                                    responsableFormateado
+                                ];
+                            });
+
+                            const availableWidth = pageWidth - (2 * margin);
+                            const columnWidths = {
+                                0: availableWidth * 0.06,
+                                1: availableWidth * 0.05,
+                                2: availableWidth * 0.05,
+                                3: availableWidth * 0.05,
+                                4: availableWidth * 0.05,
+                                5: availableWidth * 0.05,
+                                6: availableWidth * 0.05,
+                                7: availableWidth * 0.05,
+                                8: availableWidth * 0.05,
+                                9: availableWidth * 0.05,
+                                10: availableWidth * 0.05,
+                                11: availableWidth * 0.05,
+                                12: availableWidth * 0.05,
+                                13: availableWidth * 0.05,
+                                14: availableWidth * 0.13
+                            };
+                            
+                            const head = [
+                                [
+                                    { content: 'Fecha', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+                                    { content: `Tipo de Residuo (${simboloUnidad.toUpperCase()})`, colSpan: 8, styles: { halign: 'center' } },
+                                    { content: 'Clasificación', colSpan: 2, styles: { halign: 'center' } },
+                                    { content: 'Estado Físico', colSpan: 3, styles: { halign: 'center' } },
+                                    { content: 'Responsable', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } }
+                                ],
+                                [
+                                    'Común', 'Plástico', 'Aluminio', 'Cartón', 'Papel', 'Vidrio', 'Chatarra', 'RPBI',
+                                    'Orgánico', 'Inorgánico',
+                                    'Sólido', 'Líquido', 'Gaseoso'
+                                ]
+                            ];
+
+                            doc.autoTable({
+                                startY: startY + 4,
+                                head: head,
+                                body: datosTabla,
+                                theme: 'grid',
+                                headStyles: {
+                                    fillColor: [52, 152, 219],
+                                    textColor: 255,
+                                    fontStyle: 'bold',
+                                    fontSize: 5,
+                                    halign: 'center',
+                                    valign: 'middle',
+                                    cellPadding: 1
+                                },
+                                bodyStyles: {
+                                    fontSize: 5,
+                                    textColor: 0,
+                                    halign: 'center',
+                                    valign: 'middle',
+                                    cellPadding: 1
+                                },
+                                margin: { left: margin, right: margin },
+                                tableWidth: availableWidth,
+                                styles: {
+                                    cellPadding: 1,
+                                    fontSize: 5,
+                                    lineColor: [0, 0, 0],
+                                    lineWidth: 0.1
+                                },
+                                columnStyles: columnWidths,
+                                didDrawPage: addFooter
+                            });
+                            
+                            startY = doc.lastAutoTable.finalY + 15;
+                        } else {
+                            startY += 15;
+                        }
+                    }
+                }
+
+                if (typeof doc.putTotalPages === 'function') {
+                    doc.putTotalPages(totalPagesExp);
+                }
+
+                const pdfName = `Reporte General - ${mesSeleccionado}-${anioSeleccionado} - ${simboloUnidad.toUpperCase()} - Registro de Trazabilidad & Volumen de Residuos.pdf`;
+                const pdfBlob = doc.output('blob');
+                const pdfFile = new File([pdfBlob], pdfName, { type: 'application/pdf' });
+
+                $('#overlay').hide();
+
+                Swal.fire({
+                    html: `
+                        <div style="text-align: center;">
+                            <p style="font-size: 1.1em; margin-bottom: 15px;">Reporte generado correctamente</p>
+                            <div style="color: #28a745; font-size: 2em; margin-bottom: 15px;">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <p style="font-size: 0.9em; color: #666; margin-bottom: 10px;">
+                                <strong>Reporte:</strong> General<br>
+                                <strong>Período:</strong> ${obtenerNombreMes(mesSeleccionado)} ${anioSeleccionado}<br>
+                                <strong>Unidad:</strong> ${simboloUnidad.toUpperCase()}<br>
+                                <strong>Registros:</strong> ${datosFiltrados.length} ingresos | ${datosDevoluciones.length} devoluciones | ${datosRecoleccion ? datosRecoleccion.length : 0} recolecciones
+                            </p>
+                            <p style="font-size: 0.9em; color: #666; margin-bottom: 20px;">¿Qué deseas hacer con el PDF?</p>
+                            <div style="display: flex; justify-content: center; gap: 10px;">
+                                <button id="sharePdfBtn" class="swal2-confirm swal2-styled" style="background-color: #007bff;">
+                                    <i class="fas fa-share-alt"></i> Compartir
+                                </button>
+                                <button id="downloadPdfBtn" class="swal2-cancel swal2-styled" style="background-color: #6c757d;">
+                                    <i class="fas fa-download"></i> Descargar
+                                </button>
+                            </div>
+                        </div>
+                    `,
+                    icon: 'success',
+                    showConfirmButton: false,
+                    showCloseButton: true,
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        document.getElementById('sharePdfBtn').addEventListener('click', async function() {
+                            try {
+                                if (navigator.share) {
+                                    await navigator.share({
+                                        files: [pdfFile],
+                                        title: pdfName,
+                                        text: `Comparto el reporte de residuos del período ${obtenerNombreMes(mesSeleccionado)} ${anioSeleccionado} en ${simboloUnidad.toUpperCase()}.`
+                                    });
+                                } else {
+                                    doc.save(pdfName);
+                                }
+                            } catch (error) {
+                                console.error('Error al compartir el archivo:', error);
+                                if (error.name !== 'AbortError') {
+                                    doc.save(pdfName);
+                                }
+                            }
+                        });
+                        
+                        document.getElementById('downloadPdfBtn').addEventListener('click', function() {
+                            doc.save(pdfName);
+                        });
+                    }
+                }).then((result) => {
+                    if (result.dismiss === Swal.DismissReason.close) {
+                        console.log('Cerrando modal...');
+                    }
+                });
+
+            }, 500);
+        }
+
+
+    </script>
+</body>
+</html>

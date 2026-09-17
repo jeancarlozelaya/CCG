@@ -12053,6 +12053,12 @@ function descargarPermisoPDF(codigo) {
         detallePermiso = `${permiso.horasPermiso}`;
     }
     
+    // ============================================================
+    // ⚠️ SECCIÓN COMENTADA: VARIABLES DE ESTADO
+    // Para reactivar el estado (PENDIENTE/APROBADO/RECHAZADO) en el PDF,
+    // descomentar las siguientes líneas:
+    // ============================================================
+    /*
     let estadoClase = 'estado-pendiente-pdf';
     let estadoTexto = 'PENDIENTE';
     if (permiso.estado === 'Aprobado') {
@@ -12062,6 +12068,10 @@ function descargarPermisoPDF(codigo) {
         estadoClase = 'estado-rechazado-pdf';
         estadoTexto = 'RECHAZADO';
     }
+    */
+    // ============================================================
+    // FIN SECCIÓN COMENTADA
+    // ============================================================
     
     // Generar HTML para la firma (si existe)
     let firmaHtml = '';
@@ -12083,6 +12093,53 @@ function descargarPermisoPDF(codigo) {
         `;
     }
     
+    // ============================================================
+    // ⚠️ SECCIÓN COMENTADA: CÓDIGO Y ESTADO + EVIDENCIAS
+    // Se guardan como strings vacíos para que el template literal
+    // no intente evaluar variables inexistentes.
+    // 
+    // PARA REACTIVAR EN EL FUTURO:
+    // 1. Descomentar las variables estadoClase y estadoTexto arriba.
+    // 2. Reemplazar las dos variables de abajo por el HTML comentado
+    //    que está en los bloques de comentarios.
+    // ============================================================
+    
+    // Bloque de Código y Estado (desactivado)
+    const bloqueCodigoEstado = '';
+    /*
+    const bloqueCodigoEstado = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; padding: 8px 12px; background: #f8f9fa; border-radius: 6px;">
+            <div style="font-size: 13px; color: #2c3e50;">
+                <strong>Código:</strong> <span style="font-size: 15px; font-weight: 700; color: #2c3e50;">${permiso.codigo}</span>
+            </div>
+            <div>
+                <span class="estado-badge-pdf ${estadoClase}" style="font-size: 12px; padding: 4px 18px;">
+                    ${estadoTexto}
+                </span>
+            </div>
+        </div>
+    `;
+    */
+    
+    // Bloque de Evidencias (desactivado)
+    const bloqueEvidencias = '';
+    /*
+    const bloqueEvidencias = (permiso.fotos && permiso.fotos.trim()) ? `
+        <div style="margin: 15px 0; padding: 10px 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
+            <div style="font-weight: 600; color: #2c3e50; font-size: 11px; margin-bottom: 8px;">
+                <i class="fas fa-camera me-1" style="color: #3498db;"></i>Evidencias Adjuntas:
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                ${permiso.fotos.split(';').filter(f => f.trim()).map(f => `
+                    <img src="${f}" style="width: 70px; height: 70px; object-fit: cover; border-radius: 6px; border: 1px solid #ddd;">
+                `).join('')}
+            </div>
+        </div>` : '';
+    */
+    // ============================================================
+    // FIN SECCIÓN COMENTADA
+    // ============================================================
+    
     // Generar el HTML completo del formato
     const htmlPDF = `
         <div class="permiso-pdf-format" id="permiso-pdf-content">
@@ -12091,17 +12148,8 @@ function descargarPermisoPDF(codigo) {
                 <h1 style="font-size: 20px; font-weight: 700; color: #2c3e50; margin: 0; letter-spacing: 2px;">SOLICITUD DE PERMISO</h1>
             </div>
             
-            <!-- CÓDIGO Y ESTADO EN LA MISMA LÍNEA -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; padding: 8px 12px; background: #f8f9fa; border-radius: 6px;">
-                <div style="font-size: 13px; color: #2c3e50;">
-                    <strong>Código:</strong> <span style="font-size: 15px; font-weight: 700; color: #2c3e50;">${permiso.codigo}</span>
-                </div>
-                <div>
-                    <span class="estado-badge-pdf ${estadoClase}" style="font-size: 12px; padding: 4px 18px;">
-                        ${estadoTexto}
-                    </span>
-                </div>
-            </div>
+            <!-- CÓDIGO Y ESTADO (DESACTIVADO - VER bloqueCodigoEstado ARRIBA) -->
+            ${bloqueCodigoEstado}
             
             <!-- DATOS DEL COLABORADOR (AL INICIO) -->
             <div style="margin-bottom: 15px;">
@@ -12112,6 +12160,10 @@ function descargarPermisoPDF(codigo) {
                 <div style="display: flex; padding: 5px 0; border-bottom: 1px solid #ecf0f1;">
                     <span style="font-weight: 600; color: #2c3e50; min-width: 140px; font-size: 11px;">Identidad:</span>
                     <span style="flex: 1; color: #34495e; font-size: 12px;">${permiso.identidad || 'N/A'}</span>
+                </div>
+                <div style="display: flex; padding: 5px 0; border-bottom: 1px solid #ecf0f1;">
+                    <span style="font-weight: 600; color: #2c3e50; min-width: 140px; font-size: 11px;">Puesto:</span>
+                    <span style="flex: 1; color: #34495e; font-size: 12px;">Auxiliar de Higiene</span>
                 </div>
             </div>
             
@@ -12161,18 +12213,8 @@ function descargarPermisoPDF(codigo) {
                 <div style="font-size: 12px; color: #34495e; line-height: 1.6;">${permiso.motivo}</div>
             </div>
             
-            <!-- EVIDENCIAS (si las hay) -->
-            ${permiso.fotos && permiso.fotos.trim() ? `
-            <div style="margin: 15px 0; padding: 10px 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
-                <div style="font-weight: 600; color: #2c3e50; font-size: 11px; margin-bottom: 8px;">
-                    <i class="fas fa-camera me-1" style="color: #3498db;"></i>Evidencias Adjuntas:
-                </div>
-                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    ${permiso.fotos.split(';').filter(f => f.trim()).map(f => `
-                        <img src="${f}" style="width: 70px; height: 70px; object-fit: cover; border-radius: 6px; border: 1px solid #ddd;">
-                    `).join('')}
-                </div>
-            </div>` : ''}
+            <!-- EVIDENCIAS ADJUNTAS (DESACTIVADO - VER bloqueEvidencias ARRIBA) -->
+            ${bloqueEvidencias}
             
             <!-- FIRMAS -->
             <div style="margin-top: 25px; padding-top: 18px; border-top: 2px solid #ecf0f1; display: flex; justify-content: space-around; flex-wrap: wrap; gap: 20px;">

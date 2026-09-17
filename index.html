@@ -99,7 +99,6 @@
             background: linear-gradient(90deg, var(--secondary), var(--accent));
         }
 
-        /* NUEVO: Botón de actualización en el header */
         .update-button {
             position: absolute;
             left: 15px;
@@ -501,7 +500,6 @@
             color: var(--primary);
         }
 
-        /* NUEVO: Estilos para el modal de actualización */
         .update-modal {
             position: fixed;
             top: 0;
@@ -789,7 +787,6 @@
 
 <body>
     <div class="header">
-        <!-- NUEVO: Botón de actualización manual -->
         <button class="update-button" id="update-button" onclick="abrirModalActualizacion()" title="Verificar actualizaciones">
             <i class="fas fa-sync-alt"></i>
         </button>
@@ -885,7 +882,6 @@
         </div>
     </div>
 
-    <!-- NUEVO: Modal de actualización -->
     <div id="update-modal" class="update-modal">
         <div class="update-modal-content">
             <div class="update-icon" id="update-icon">
@@ -919,251 +915,279 @@
 
     <footer>
         JZ © <span id="current-year"></span> - Sistema de Gestión
+        <span style="margin-left: 10px; font-size: 0.85em; color: #999;">
+            | <span id="footer-version">v?</span>
+        </span>
     </footer>
 
     <script>
-        // Establecer el año actual en el footer
+        // ============================================
+        // AÑO EN FOOTER
+        // ============================================
         document.getElementById('current-year').textContent = new Date().getFullYear();
 
         // ============================================
-        // NUEVO: VARIABLES PARA EL SISTEMA DE ACTUALIZACIÓN
+        // VARIABLES GLOBALES PARA ACTUALIZACIÓN
         // ============================================
         let swRegistration = null;
         let nuevaVersionDisponible = false;
         let versionActual = 'Desconocida';
         let versionDisponible = 'Desconocida';
 
-// Obtener la versión actual desde el Service Worker activo
-async function obtenerVersionActual() {
-    try {
-        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-            return new Promise((resolve) => {
-                const messageChannel = new MessageChannel();
-                let respondido = false;
-                
-                messageChannel.port1.onmessage = (event) => {
-                    respondido = true;
-                    if (event.data && event.data.type === 'VERSION_INFO') {
-                        resolve(event.data.version);
-                    } else {
-                        resolve('Desconocida');
-                    }
-                };
-                
+        // ============================================
+        // OBTENER VERSIÓN ACTUAL (3 estrategias en cascada)
+        // ============================================
+        async function obtenerVersionActual() {
+            // ESTRATEGIA 1: Preguntar al SW activo
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
                 try {
-                    navigator.serviceWorker.controller.postMessage(
-                        { type: 'GET_VERSION' },
-                        [messageChannel.port2]
-                    );
-                } catch (e) {
-                    console.log('Error al enviar mensaje al SW:', e);
-                    resolve('Desconocida');
-                    return;
-                }
-                
-                // Timeout de seguridad
-                setTimeout(() => {
-                    if (!respondido) resolve('Desconocida');
-                }, 1500);
-            });
-        }
-    } catch (e) {
-        console.log('No se pudo obtener la versión:', e);
-    }
-    return 'Desconocida';
-}
+                    const versionDesdeSW = await new Promise((resolve) => {
+                        const messageChannel = new MessageChannel();
+                        let respondido = false;
+                        
+                        messageChannel.port1.onmessage = (event) => {
+                            respondido = true;
+                            if (event.data && event.data.type === 'VERSION_INFO') {
+                                resolve(event.data.version);
+                            } else {
+                                resolve(null);
+                            }
+                        };
+                        
+                        try {
+                            navigator.serviceWorker.controller.postMessage(
+                                { type: 'GET_VERSION' },
+                                [messageChannel.port2]
+                            );
+                        } catch (e) {
+                            console.log('Error al enviar mensaje al SW:', e);
+                            resolve(null);
+                            return;
+                        }
+                        
+                        setTimeout(() => {
+                            if (!respondido) resolve(null);
+                        }, 1200);
+                    });
 
-// Obtener la versión disponible desde el servidor (leyendo el sw-index.js)
-async function obtenerVersionDisponible() {
-    try {
-        const swResponse = await fetch('sw-index.js?t=' + Date.now(), {
-            cache: 'no-store',
-            headers: { 'Cache-Control': 'no-cache' }
-        });
-        
-        if (swResponse.ok) {
-            const swText = await swResponse.text();
-            const versionMatch = swText.match(/CACHE_NAME_INDEX\s*=\s*['"]pibrisa-index-([^'"]+)['"]/);
-            if (versionMatch) {
-                return versionMatch[1];
+                    if (versionDesdeSW) {
+                        console.log('✅ Versión obtenida del SW:', versionDesdeSW);
+                        localStorage.setItem('pibrisa_version_actual', versionDesdeSW);
+                        return versionDesdeSW;
+                    }
+                } catch (e) {
+                    console.log('Estrategia 1 falló:', e);
+                }
+            }
+
+            // ESTRATEGIA 2: Leer de localStorage
+            const versionGuardada = localStorage.getItem('pibrisa_version_actual');
+            if (versionGuardada) {
+                console.log('📦 Versión obtenida de localStorage:', versionGuardada);
+                return versionGuardada;
+            }
+
+            // ESTRATEGIA 3: Leer del archivo sw-index.js del servidor
+            try {
+                const swResponse = await fetch('sw-index.js?t=' + Date.now(), {
+                    cache: 'no-store'
+                });
+                if (swResponse.ok) {
+                    const swText = await swResponse.text();
+                    const versionMatch = swText.match(/CACHE_NAME_INDEX\s*=\s*['"]pibrisa-index-([^'"]+)['"]/);
+                    if (versionMatch) {
+                        const version = versionMatch[1];
+                        console.log('🌐 Versión obtenida del servidor:', version);
+                        localStorage.setItem('pibrisa_version_actual', version);
+                        return version;
+                    }
+                }
+            } catch (e) {
+                console.log('Estrategia 3 falló:', e);
+            }
+
+            return 'Desconocida';
+        }
+
+        // ============================================
+        // OBTENER VERSIÓN DISPONIBLE (lee del servidor)
+        // ============================================
+        async function obtenerVersionDisponible() {
+            try {
+                const swResponse = await fetch('sw-index.js?t=' + Date.now(), {
+                    cache: 'no-store',
+                    headers: { 'Cache-Control': 'no-cache' }
+                });
+                
+                if (swResponse.ok) {
+                    const swText = await swResponse.text();
+                    const versionMatch = swText.match(/CACHE_NAME_INDEX\s*=\s*['"]pibrisa-index-([^'"]+)['"]/);
+                    if (versionMatch) {
+                        return versionMatch[1];
+                    }
+                }
+            } catch (e) {
+                console.log('No se pudo obtener versión del SW:', e);
+            }
+            
+            return versionActual;
+        }
+
+        // ============================================
+        // ABRIR MODAL DE ACTUALIZACIÓN
+        // ============================================
+        async function abrirModalActualizacion() {
+            const modal = document.getElementById('update-modal');
+            const updateIcon = document.getElementById('update-icon');
+            const updateTitle = document.getElementById('update-title');
+            const currentVersionEl = document.getElementById('current-version');
+            const availableVersionEl = document.getElementById('available-version');
+            const statusEl = document.getElementById('update-status');
+            const btnConfirm = document.getElementById('btn-confirm-update');
+
+            modal.classList.add('active');
+            updateIcon.className = 'update-icon';
+            updateIcon.innerHTML = '<i class="fas fa-sync-alt"></i>';
+            updateTitle.textContent = 'Verificando Actualizaciones';
+            currentVersionEl.textContent = 'Detectando...';
+            currentVersionEl.classList.remove('new-version');
+            availableVersionEl.textContent = 'Verificando...';
+            availableVersionEl.classList.remove('new-version');
+            statusEl.textContent = 'Buscando nueva versión...';
+            btnConfirm.disabled = true;
+            nuevaVersionDisponible = false;
+
+            // Obtener versión actual
+            versionActual = await obtenerVersionActual();
+            currentVersionEl.textContent = versionActual || 'Desconocida';
+
+            // Forzar verificación de update (con try/catch)
+            if (swRegistration && swRegistration.active) {
+                try {
+                    await swRegistration.update();
+                    console.log('Verificación de SW completada');
+                } catch (e) {
+                    console.log('Info: no se pudo forzar update:', e.message);
+                }
+            }
+
+            await new Promise(resolve => setTimeout(resolve, 1500));
+
+            const hayNuevaVersion = await verificarNuevaVersionSW();
+            versionDisponible = await obtenerVersionDisponible();
+
+            const vActual = (versionActual || '').replace(/^v/, '');
+            const vDisponible = (versionDisponible || '').replace(/^v/, '');
+
+            if (hayNuevaVersion || (vDisponible !== vActual && vDisponible !== 'Desconocida' && vActual !== 'Desconocida')) {
+                nuevaVersionDisponible = true;
+                updateIcon.className = 'update-icon update-available';
+                updateIcon.innerHTML = '<i class="fas fa-cloud-download-alt"></i>';
+                updateTitle.textContent = '¡Actualización Disponible!';
+                availableVersionEl.textContent = versionDisponible;
+                availableVersionEl.classList.add('new-version');
+                statusEl.textContent = 'Hay una nueva versión disponible. Presiona "Actualizar" para instalarla.';
+                btnConfirm.disabled = false;
+            } else {
+                updateIcon.className = 'update-icon up-to-date';
+                updateIcon.innerHTML = '<i class="fas fa-check-circle"></i>';
+                updateTitle.textContent = 'Aplicación Actualizada';
+                availableVersionEl.textContent = versionActual;
+                statusEl.textContent = 'Ya tienes la última versión instalada.';
+                btnConfirm.disabled = true;
             }
         }
-    } catch (e) {
-        console.log('No se pudo obtener versión del SW:', e);
-    }
-    
-    return versionActual;
-}
 
-        // Abrir el modal de actualización
-async function abrirModalActualizacion() {
-    const modal = document.getElementById('update-modal');
-    const updateIcon = document.getElementById('update-icon');
-    const updateTitle = document.getElementById('update-title');
-    const currentVersionEl = document.getElementById('current-version');
-    const availableVersionEl = document.getElementById('available-version');
-    const statusEl = document.getElementById('update-status');
-    const btnConfirm = document.getElementById('btn-confirm-update');
-
-    // Resetear estado
-    modal.classList.add('active');
-    updateIcon.className = 'update-icon';
-    updateIcon.innerHTML = '<i class="fas fa-sync-alt"></i>';
-    updateTitle.textContent = 'Verificando Actualizaciones';
-    currentVersionEl.textContent = 'Detectando...';
-    currentVersionEl.classList.remove('new-version');
-    availableVersionEl.textContent = 'Verificando...';
-    availableVersionEl.classList.remove('new-version');
-    statusEl.textContent = 'Buscando nueva versión...';
-    btnConfirm.disabled = true;
-    nuevaVersionDisponible = false;
-
-    // Obtener versión actual
-    versionActual = await obtenerVersionActual();
-    currentVersionEl.textContent = versionActual;
-
-    // Forzar verificación de actualización del SW (con validaciones)
-    if (swRegistration && swRegistration.active) {
-        try {
-            await swRegistration.update();
-            console.log('Verificación de SW completada');
-        } catch (e) {
-            // Silenciar el error de estado inválido - es normal
-            console.log('Info: no se pudo forzar update (puede ser normal):', e.message);
-        }
-    }
-
-    // Esperar un momento para que el SW se actualice
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    // Verificar si hay un nuevo SW esperando
-    const hayNuevaVersion = await verificarNuevaVersionSW();
-    
-    // Obtener versión disponible del servidor
-    versionDisponible = await obtenerVersionDisponible();
-
-    // Comparar versiones (limpiando el prefijo 'v' si existe)
-    const vActual = versionActual.replace(/^v/, '');
-    const vDisponible = versionDisponible.replace(/^v/, '');
-
-    if (hayNuevaVersion || (vDisponible !== vActual && vDisponible !== 'Desconocida')) {
-        // Hay una nueva versión disponible
-        nuevaVersionDisponible = true;
-        updateIcon.className = 'update-icon update-available';
-        updateIcon.innerHTML = '<i class="fas fa-cloud-download-alt"></i>';
-        updateTitle.textContent = '¡Actualización Disponible!';
-        availableVersionEl.textContent = versionDisponible;
-        availableVersionEl.classList.add('new-version');
-        statusEl.textContent = 'Hay una nueva versión disponible. Presiona "Actualizar" para instalarla.';
-        btnConfirm.disabled = false;
-    } else {
-        // Está actualizado
-        updateIcon.className = 'update-icon up-to-date';
-        updateIcon.innerHTML = '<i class="fas fa-check-circle"></i>';
-        updateTitle.textContent = 'Aplicación Actualizada';
-        availableVersionEl.textContent = versionActual;
-        statusEl.textContent = 'Ya tienes la última versión instalada.';
-        btnConfirm.disabled = true;
-    }
-}
-
-        // Verificar si hay un nuevo Service Worker esperando
-async function verificarNuevaVersionSW() {
-    if (!swRegistration) return false;
-    
-    // Verificar si hay un SW esperando
-    if (swRegistration.waiting) {
-        return true;
-    }
-    
-    // Verificar si hay un SW instalándose
-    if (swRegistration.installing) {
-        return new Promise((resolve) => {
-            const worker = swRegistration.installing;
-            const checkState = () => {
-                if (worker.state === 'installed' || worker.state === 'activated') {
-                    resolve(true);
-                }
-            };
+        // ============================================
+        // VERIFICAR SI HAY NUEVA VERSIÓN DE SW ESPERANDO
+        // ============================================
+        async function verificarNuevaVersionSW() {
+            if (!swRegistration) return false;
             
-            worker.addEventListener('statechange', checkState);
-            setTimeout(() => {
-                worker.removeEventListener('statechange', checkState);
-                resolve(worker.state === 'installed' || worker.state === 'activated');
-            }, 3000);
-        });
-    }
-    
-    return false;
-}
+            if (swRegistration.waiting) {
+                return true;
+            }
+            
+            if (swRegistration.installing) {
+                return new Promise((resolve) => {
+                    const worker = swRegistration.installing;
+                    const checkState = () => {
+                        if (worker.state === 'installed' || worker.state === 'activated') {
+                            resolve(true);
+                        }
+                    };
+                    
+                    worker.addEventListener('statechange', checkState);
+                    setTimeout(() => {
+                        worker.removeEventListener('statechange', checkState);
+                        resolve(worker.state === 'installed' || worker.state === 'activated');
+                    }, 3000);
+                });
+            }
+            
+            return false;
+        }
 
-        // Cerrar el modal de actualización
+        // ============================================
+        // CERRAR MODAL
+        // ============================================
         function cerrarModalActualizacion() {
             document.getElementById('update-modal').classList.remove('active');
         }
 
-        // Forzar la actualización de la aplicación
-async function forzarActualizacion() {
-    const btnConfirm = document.getElementById('btn-confirm-update');
-    const statusEl = document.getElementById('update-status');
+        // ============================================
+        // FORZAR ACTUALIZACIÓN
+        // ============================================
+        async function forzarActualizacion() {
+            const btnConfirm = document.getElementById('btn-confirm-update');
+            const statusEl = document.getElementById('update-status');
 
-    btnConfirm.disabled = true;
-    btnConfirm.innerHTML = '<div class="loading-spinner"></div> Actualizando...';
-    statusEl.textContent = 'Limpiando caché y descargando nueva versión...';
+            btnConfirm.disabled = true;
+            btnConfirm.innerHTML = '<div class="loading-spinner"></div> Actualizando...';
+            statusEl.textContent = 'Limpiando caché y descargando nueva versión...';
 
-    try {
-        // 1. Limpiar todas las cachés
-        if ('caches' in window) {
-            const cacheNames = await caches.keys();
-            await Promise.all(
-                cacheNames.map(cacheName => {
-                    console.log('Eliminando caché:', cacheName);
-                    return caches.delete(cacheName);
-                })
-            );
-            statusEl.textContent = 'Caché limpiada. Aplicando actualización...';
-        }
-
-        // 2. Decirle al Service Worker en espera que se active
-        if (swRegistration && swRegistration.waiting) {
             try {
-                swRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
-                statusEl.textContent = 'Service Worker actualizado. Recargando...';
-                await new Promise(resolve => setTimeout(resolve, 1500));
-            } catch (e) {
-                console.log('Error al activar SW en espera:', e);
+                // 1. Limpiar todas las cachés
+                if ('caches' in window) {
+                    const cacheNames = await caches.keys();
+                    await Promise.all(
+                        cacheNames.map(cacheName => {
+                            console.log('Eliminando caché:', cacheName);
+                            return caches.delete(cacheName);
+                        })
+                    );
+                    statusEl.textContent = 'Caché limpiada. Aplicando actualización...';
+                }
+
+                // 2. Activar SW en espera
+                if (swRegistration && swRegistration.waiting) {
+                    try {
+                        swRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
+                        statusEl.textContent = 'Service Worker actualizado. Recargando...';
+                        await new Promise(resolve => setTimeout(resolve, 1500));
+                    } catch (e) {
+                        console.log('Error al activar SW en espera:', e);
+                    }
+                }
+
+                // 3. Recargar
+                statusEl.textContent = 'Recargando aplicación...';
+                await new Promise(resolve => setTimeout(resolve, 800));
+                
+                window.location.reload();
+
+            } catch (error) {
+                console.error('Error durante la actualización:', error);
+                statusEl.textContent = 'Recargando aplicación...';
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
             }
         }
 
-        // 3. Desregistrar el SW actual y volver a registrar (más agresivo)
-        //    Solo si no hay SW esperando (caso extremo)
-        if (!swRegistration || !swRegistration.waiting) {
-            const registrations = await navigator.serviceWorker.getRegistrations();
-            for (let reg of registrations) {
-                await reg.update().catch(e => console.log('Info update:', e.message));
-            }
-        }
-
-        // 4. Forzar recarga
-        statusEl.textContent = 'Recargando aplicación...';
-        await new Promise(resolve => setTimeout(resolve, 800));
-        
-        // Recarga forzada (con bypass de caché HTTP)
-        window.location.reload();
-
-    } catch (error) {
-        console.error('Error durante la actualización:', error);
-        statusEl.textContent = 'Recargando aplicación...';
-        setTimeout(() => {
-            window.location.reload();
-        }, 1500);
-    }
-}
-
         // ============================================
-        // FIN NUEVO: SISTEMA DE ACTUALIZACIÓN
+        // FUNCIONES GENERALES
         // ============================================
-
         function openInIframe(url) {
             document.getElementById('iframe').src = url;
             document.getElementById('iframe-container').style.display = 'block';
@@ -1185,8 +1209,10 @@ async function forzarActualizacion() {
             document.getElementById('info-modal').classList.remove('active');
         }
 
+        // ============================================
+        // INSTALACIÓN PWA
+        // ============================================
         let deferredPrompt;
-
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
@@ -1201,6 +1227,9 @@ async function forzarActualizacion() {
             });
         });
 
+        // ============================================
+        // NOTIFICACIONES
+        // ============================================
         const SCRIPT_URL = "";
         const NOTIFICACIONES_VISTAS_KEY = `notificacionesVistas_${window.location.pathname}`;
         let notificacionesCache = null;
@@ -1301,7 +1330,6 @@ async function forzarActualizacion() {
         }
 
         setInterval(verificarNotificaciones, 10000);
-
         window.addEventListener("load", verificarNotificaciones);
 
         async function verificarNotificaciones() {
@@ -1309,7 +1337,6 @@ async function forzarActualizacion() {
             const notificacionesVistas = JSON.parse(localStorage.getItem(NOTIFICACIONES_VISTAS_KEY)) || [];
             
             let contadorNoVistas = 0;
-            let hayNuevasNotificaciones = false;
 
             notificaciones.forEach(notificacion => {
                 const notifNormalizada = JSON.stringify({
@@ -1320,7 +1347,6 @@ async function forzarActualizacion() {
 
                 if (!notificacionesVistas.includes(notifNormalizada)) {
                     contadorNoVistas++;
-                    hayNuevasNotificaciones = true;
                 }
             });
 
@@ -1332,8 +1358,10 @@ async function forzarActualizacion() {
         document.addEventListener('contextmenu', function(e) {
             e.preventDefault();
         });
-        
-        // --- INICIO DE MODIFICACIÓN (Función de Contraseña RRHH) ---
+
+        // ============================================
+        // CONTRASEÑA RRHH
+        // ============================================
         function promptForRRHH() {
             const sessionKey = 'passwordSessionTimestamp';
             const sessionStart = localStorage.getItem(sessionKey);
@@ -1373,9 +1401,10 @@ async function forzarActualizacion() {
                 }
             });
         }
-        // --- FIN DE MODIFICACIÓN ---
 
-        // --- INICIO: NUEVA FUNCIÓN (Tarea Actual) ---
+        // ============================================
+        // CONTRASEÑA ACTUALIZACIÓN DE DATOS
+        // ============================================
         function promptForActualizacion() {
             const sessionKey = 'actualizacionDatosSessionTimestamp'; 
             const sessionStart = localStorage.getItem(sessionKey);
@@ -1415,23 +1444,19 @@ async function forzarActualizacion() {
                 }
             });
         }
-        // --- FIN: NUEVA FUNCIÓN ---
 
-        // --- REGISTRO DE SERVICE WORKER CON ACTUALIZACIÓN AUTOMÁTICA ---
+        // ============================================
+        // REGISTRO DEL SERVICE WORKER
+        // ============================================
         if ('serviceWorker' in navigator) {
-            // Detectar cuando el Service Worker cambia
-            navigator.serviceWorker.addEventListener('controllerchange', () => {
-                console.log('Nueva versión del Service Worker detectada.');
-                // Marcar que hay una nueva versión disponible (pero no recargar automáticamente)
-                nuevaVersionDisponible = true;
-                const updateBtn = document.getElementById('update-button');
-                if (updateBtn) {
-                    updateBtn.classList.add('has-update');
-                }
-            });
-
-            // Escuchar mensajes del Service Worker
+            // Escuchar mensajes del SW
             navigator.serviceWorker.addEventListener('message', (event) => {
+                if (event.data && event.data.type === 'SW_ACTIVATED') {
+                    console.log('🎉 SW activado con versión:', event.data.version);
+                    localStorage.setItem('pibrisa_version_actual', event.data.version);
+                    versionActual = event.data.version;
+                    document.getElementById('footer-version').textContent = 'v' + event.data.version;
+                }
                 if (event.data && event.data.type === 'NEW_VERSION_AVAILABLE') {
                     console.log('Nueva versión disponible:', event.data.version);
                     nuevaVersionDisponible = true;
@@ -1442,36 +1467,49 @@ async function forzarActualizacion() {
                     }
                 }
             });
-            
+
+            // Detectar cambio de controlador
+            navigator.serviceWorker.addEventListener('controllerchange', async () => {
+                console.log('Nueva versión del Service Worker detectada.');
+                nuevaVersionDisponible = true;
+                const updateBtn = document.getElementById('update-button');
+                if (updateBtn) {
+                    updateBtn.classList.add('has-update');
+                }
+                
+                const nuevaV = await obtenerVersionActual();
+                localStorage.setItem('pibrisa_version_actual', nuevaV);
+            });
+
             window.addEventListener('load', function() {
                 navigator.serviceWorker.register('sw-index.js')
                     .then(function(registration) {
                         console.log('Service Worker Index registrado con éxito:', registration.scope);
                         swRegistration = registration;
 
-                        // Obtener versión actual inicial
+                        // Obtener versión inicial y mostrarla en el footer
                         obtenerVersionActual().then(v => {
                             versionActual = v;
                             console.log('Versión actual:', versionActual);
+                            document.getElementById('footer-version').textContent = 'v' + versionActual;
                         });
+
+                        // Verificar actualizaciones al cargar
+                        registration.update().catch(e => console.log('Info update:', e.message));
                         
-                        // Verificar actualizaciones al cargar la página
-                        registration.update();
-                        
-                        // Verificar actualizaciones cada hora
+                        // Verificar cada hora
                         setInterval(() => {
-                            registration.update();
+                            registration.update().catch(e => console.log('Info update:', e.message));
                             console.log('Verificando actualizaciones del Service Worker...');
                         }, 60 * 60 * 1000);
 
-                        // Detectar cuando hay una nueva versión instalándose
+                        // Detectar nueva versión instalándose
                         registration.addEventListener('updatefound', () => {
                             console.log('¡Nueva versión del Service Worker encontrada!');
                             const newWorker = registration.installing;
                             
                             newWorker.addEventListener('statechange', () => {
                                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                    // Hay una nueva versión esperando
                                     console.log('Nueva versión instalada y esperando activación');
                                     nuevaVersionDisponible = true;
                                     const updateBtn = document.getElementById('update-button');
@@ -1488,19 +1526,20 @@ async function forzarActualizacion() {
                     });
             });
             
-            // Verificar actualizaciones cuando la página recibe foco
+            // Verificar cuando la página recupera foco
             document.addEventListener('visibilitychange', () => {
                 if (document.visibilityState === 'visible') {
                     navigator.serviceWorker.ready.then(registration => {
                         swRegistration = registration;
-                        registration.update();
-                        console.log('Verificando actualizaciones (página visible)');
+                        registration.update().catch(e => console.log('Info update:', e.message));
                     });
                 }
             });
         }
 
-        // Cerrar modales al hacer clic fuera
+        // ============================================
+        // CERRAR MODALES AL HACER CLIC FUERA
+        // ============================================
         document.getElementById('update-modal').addEventListener('click', function(e) {
             if (e.target === this) {
                 cerrarModalActualizacion();

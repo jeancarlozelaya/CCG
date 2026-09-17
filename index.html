@@ -933,163 +933,169 @@
         let versionActual = 'Desconocida';
         let versionDisponible = 'Desconocida';
 
-        // Obtener la versión actual desde el caché del Service Worker
-        async function obtenerVersionActual() {
-            try {
-                // Intentar obtener la versión desde el Service Worker activo
-                if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-                    // Usar postMessage para preguntar al SW su versión
-                    return new Promise((resolve) => {
-                        const messageChannel = new MessageChannel();
-                        messageChannel.port1.onmessage = (event) => {
-                            if (event.data && event.data.type === 'VERSION_INFO') {
-                                resolve(event.data.version);
-                            } else {
-                                resolve('v1.0.0');
-                            }
-                        };
-                        
-                        navigator.serviceWorker.controller.postMessage(
-                            { type: 'GET_VERSION' },
-                            [messageChannel.port2]
-                        );
-                        
-                        // Timeout de seguridad
-                        setTimeout(() => resolve('v1.0.0'), 1000);
-                    });
-                }
-            } catch (e) {
-                console.log('No se pudo obtener la versión:', e);
-            }
-            return 'v1.0.0';
-        }
-
-        // Obtener la versión disponible desde el servidor
-        async function obtenerVersionDisponible() {
-            try {
-                // Intentar obtener la versión desde un archivo version.json
-                // Si no existe, intentamos desde el SW
-                const response = await fetch('version.json?t=' + Date.now(), {
-                    cache: 'no-store',
-                    headers: { 'Cache-Control': 'no-cache' }
-                });
+// Obtener la versión actual desde el Service Worker activo
+async function obtenerVersionActual() {
+    try {
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            return new Promise((resolve) => {
+                const messageChannel = new MessageChannel();
+                let respondido = false;
                 
-                if (response.ok) {
-                    const data = await response.json();
-                    return data.version || 'v1.0.0';
-                }
-            } catch (e) {
-                console.log('No se encontró version.json, usando método alternativo');
-            }
-            
-            // Método alternativo: intentar obtener del SW
-            try {
-                const swResponse = await fetch('sw-index.js?t=' + Date.now(), {
-                    cache: 'no-store'
-                });
-                if (swResponse.ok) {
-                    const swText = await swResponse.text();
-                    const versionMatch = swText.match(/CACHE_VERSION\s*=\s*['"]([^'"]+)['"]/);
-                    if (versionMatch) {
-                        return versionMatch[1];
+                messageChannel.port1.onmessage = (event) => {
+                    respondido = true;
+                    if (event.data && event.data.type === 'VERSION_INFO') {
+                        resolve(event.data.version);
+                    } else {
+                        resolve('Desconocida');
                     }
+                };
+                
+                try {
+                    navigator.serviceWorker.controller.postMessage(
+                        { type: 'GET_VERSION' },
+                        [messageChannel.port2]
+                    );
+                } catch (e) {
+                    console.log('Error al enviar mensaje al SW:', e);
+                    resolve('Desconocida');
+                    return;
                 }
-            } catch (e) {
-                console.log('No se pudo obtener versión del SW');
-            }
-            
-            return versionActual; // Si no se puede detectar, asumir misma versión
+                
+                // Timeout de seguridad
+                setTimeout(() => {
+                    if (!respondido) resolve('Desconocida');
+                }, 1500);
+            });
         }
+    } catch (e) {
+        console.log('No se pudo obtener la versión:', e);
+    }
+    return 'Desconocida';
+}
+
+// Obtener la versión disponible desde el servidor (leyendo el sw-index.js)
+async function obtenerVersionDisponible() {
+    try {
+        const swResponse = await fetch('sw-index.js?t=' + Date.now(), {
+            cache: 'no-store',
+            headers: { 'Cache-Control': 'no-cache' }
+        });
+        
+        if (swResponse.ok) {
+            const swText = await swResponse.text();
+            const versionMatch = swText.match(/CACHE_NAME_INDEX\s*=\s*['"]pibrisa-index-([^'"]+)['"]/);
+            if (versionMatch) {
+                return versionMatch[1];
+            }
+        }
+    } catch (e) {
+        console.log('No se pudo obtener versión del SW:', e);
+    }
+    
+    return versionActual;
+}
 
         // Abrir el modal de actualización
-        async function abrirModalActualizacion() {
-            const modal = document.getElementById('update-modal');
-            const updateIcon = document.getElementById('update-icon');
-            const updateTitle = document.getElementById('update-title');
-            const currentVersionEl = document.getElementById('current-version');
-            const availableVersionEl = document.getElementById('available-version');
-            const statusEl = document.getElementById('update-status');
-            const btnConfirm = document.getElementById('btn-confirm-update');
+async function abrirModalActualizacion() {
+    const modal = document.getElementById('update-modal');
+    const updateIcon = document.getElementById('update-icon');
+    const updateTitle = document.getElementById('update-title');
+    const currentVersionEl = document.getElementById('current-version');
+    const availableVersionEl = document.getElementById('available-version');
+    const statusEl = document.getElementById('update-status');
+    const btnConfirm = document.getElementById('btn-confirm-update');
 
-            // Resetear estado
-            modal.classList.add('active');
-            updateIcon.className = 'update-icon';
-            updateIcon.innerHTML = '<i class="fas fa-sync-alt"></i>';
-            updateTitle.textContent = 'Verificando Actualizaciones';
-            currentVersionEl.textContent = 'Detectando...';
-            currentVersionEl.classList.remove('new-version');
-            availableVersionEl.textContent = 'Verificando...';
-            availableVersionEl.classList.remove('new-version');
-            statusEl.textContent = 'Buscando nueva versión...';
-            btnConfirm.disabled = true;
-            nuevaVersionDisponible = false;
+    // Resetear estado
+    modal.classList.add('active');
+    updateIcon.className = 'update-icon';
+    updateIcon.innerHTML = '<i class="fas fa-sync-alt"></i>';
+    updateTitle.textContent = 'Verificando Actualizaciones';
+    currentVersionEl.textContent = 'Detectando...';
+    currentVersionEl.classList.remove('new-version');
+    availableVersionEl.textContent = 'Verificando...';
+    availableVersionEl.classList.remove('new-version');
+    statusEl.textContent = 'Buscando nueva versión...';
+    btnConfirm.disabled = true;
+    nuevaVersionDisponible = false;
 
-            // Obtener versiones
-            versionActual = await obtenerVersionActual();
-            currentVersionEl.textContent = versionActual;
+    // Obtener versión actual
+    versionActual = await obtenerVersionActual();
+    currentVersionEl.textContent = versionActual;
 
-            // Forzar verificación de actualización del SW
-            if (swRegistration) {
-                try {
-                    await swRegistration.update();
-                } catch (e) {
-                    console.log('Error al verificar actualización:', e);
-                }
-            }
-
-            // Esperar un momento para que el SW se actualice
-            await new Promise(resolve => setTimeout(resolve, 1500));
-
-            // Verificar si hay un nuevo SW esperando
-            const hayNuevaVersion = await verificarNuevaVersionSW();
-            
-            versionDisponible = await obtenerVersionDisponible();
-
-            if (hayNuevaVersion || versionDisponible !== versionActual) {
-                // Hay una nueva versión disponible
-                nuevaVersionDisponible = true;
-                updateIcon.className = 'update-icon update-available';
-                updateIcon.innerHTML = '<i class="fas fa-cloud-download-alt"></i>';
-                updateTitle.textContent = '¡Actualización Disponible!';
-                availableVersionEl.textContent = versionDisponible;
-                availableVersionEl.classList.add('new-version');
-                statusEl.textContent = 'Hay una nueva versión disponible. Presiona "Actualizar" para instalarla.';
-                btnConfirm.disabled = false;
-            } else {
-                // Está actualizado
-                updateIcon.className = 'update-icon up-to-date';
-                updateIcon.innerHTML = '<i class="fas fa-check-circle"></i>';
-                updateTitle.textContent = 'Aplicación Actualizada';
-                availableVersionEl.textContent = versionActual;
-                statusEl.textContent = 'Ya tienes la última versión instalada.';
-                btnConfirm.disabled = true;
-            }
+    // Forzar verificación de actualización del SW (con validaciones)
+    if (swRegistration && swRegistration.active) {
+        try {
+            await swRegistration.update();
+            console.log('Verificación de SW completada');
+        } catch (e) {
+            // Silenciar el error de estado inválido - es normal
+            console.log('Info: no se pudo forzar update (puede ser normal):', e.message);
         }
+    }
+
+    // Esperar un momento para que el SW se actualice
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    // Verificar si hay un nuevo SW esperando
+    const hayNuevaVersion = await verificarNuevaVersionSW();
+    
+    // Obtener versión disponible del servidor
+    versionDisponible = await obtenerVersionDisponible();
+
+    // Comparar versiones (limpiando el prefijo 'v' si existe)
+    const vActual = versionActual.replace(/^v/, '');
+    const vDisponible = versionDisponible.replace(/^v/, '');
+
+    if (hayNuevaVersion || (vDisponible !== vActual && vDisponible !== 'Desconocida')) {
+        // Hay una nueva versión disponible
+        nuevaVersionDisponible = true;
+        updateIcon.className = 'update-icon update-available';
+        updateIcon.innerHTML = '<i class="fas fa-cloud-download-alt"></i>';
+        updateTitle.textContent = '¡Actualización Disponible!';
+        availableVersionEl.textContent = versionDisponible;
+        availableVersionEl.classList.add('new-version');
+        statusEl.textContent = 'Hay una nueva versión disponible. Presiona "Actualizar" para instalarla.';
+        btnConfirm.disabled = false;
+    } else {
+        // Está actualizado
+        updateIcon.className = 'update-icon up-to-date';
+        updateIcon.innerHTML = '<i class="fas fa-check-circle"></i>';
+        updateTitle.textContent = 'Aplicación Actualizada';
+        availableVersionEl.textContent = versionActual;
+        statusEl.textContent = 'Ya tienes la última versión instalada.';
+        btnConfirm.disabled = true;
+    }
+}
 
         // Verificar si hay un nuevo Service Worker esperando
-        async function verificarNuevaVersionSW() {
-            if (!swRegistration) return false;
+async function verificarNuevaVersionSW() {
+    if (!swRegistration) return false;
+    
+    // Verificar si hay un SW esperando
+    if (swRegistration.waiting) {
+        return true;
+    }
+    
+    // Verificar si hay un SW instalándose
+    if (swRegistration.installing) {
+        return new Promise((resolve) => {
+            const worker = swRegistration.installing;
+            const checkState = () => {
+                if (worker.state === 'installed' || worker.state === 'activated') {
+                    resolve(true);
+                }
+            };
             
-            // Verificar si hay un SW esperando
-            if (swRegistration.waiting) {
-                return true;
-            }
-            
-            // Verificar si hay un SW instalándose
-            if (swRegistration.installing) {
-                return new Promise((resolve) => {
-                    swRegistration.installing.addEventListener('statechange', (e) => {
-                        if (e.target.state === 'installed') {
-                            resolve(true);
-                        }
-                    });
-                    // Timeout de seguridad
-                    setTimeout(() => resolve(false), 3000);
-                });
-            }
-            
-            return false;
-        }
+            worker.addEventListener('statechange', checkState);
+            setTimeout(() => {
+                worker.removeEventListener('statechange', checkState);
+                resolve(worker.state === 'installed' || worker.state === 'activated');
+            }, 3000);
+        });
+    }
+    
+    return false;
+}
 
         // Cerrar el modal de actualización
         function cerrarModalActualizacion() {
@@ -1097,64 +1103,62 @@
         }
 
         // Forzar la actualización de la aplicación
-        async function forzarActualizacion() {
-            const btnConfirm = document.getElementById('btn-confirm-update');
-            const statusEl = document.getElementById('update-status');
-            const updateIcon = document.getElementById('update-icon');
+async function forzarActualizacion() {
+    const btnConfirm = document.getElementById('btn-confirm-update');
+    const statusEl = document.getElementById('update-status');
 
-            btnConfirm.disabled = true;
-            btnConfirm.innerHTML = '<div class="loading-spinner"></div> Actualizando...';
-            statusEl.textContent = 'Limpiando caché y descargando nueva versión...';
+    btnConfirm.disabled = true;
+    btnConfirm.innerHTML = '<div class="loading-spinner"></div> Actualizando...';
+    statusEl.textContent = 'Limpiando caché y descargando nueva versión...';
 
+    try {
+        // 1. Limpiar todas las cachés
+        if ('caches' in window) {
+            const cacheNames = await caches.keys();
+            await Promise.all(
+                cacheNames.map(cacheName => {
+                    console.log('Eliminando caché:', cacheName);
+                    return caches.delete(cacheName);
+                })
+            );
+            statusEl.textContent = 'Caché limpiada. Aplicando actualización...';
+        }
+
+        // 2. Decirle al Service Worker en espera que se active
+        if (swRegistration && swRegistration.waiting) {
             try {
-                // 1. Limpiar todas las cachés
-                if ('caches' in window) {
-                    const cacheNames = await caches.keys();
-                    await Promise.all(
-                        cacheNames.map(cacheName => {
-                            console.log('Eliminando caché:', cacheName);
-                            return caches.delete(cacheName);
-                        })
-                    );
-                    statusEl.textContent = 'Caché limpiada. Aplicando actualización...';
-                }
-
-                // 2. Decirle al Service Worker que se salte la espera
-                if (swRegistration && swRegistration.waiting) {
-                    swRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
-                    statusEl.textContent = 'Service Worker actualizado. Recargando...';
-                    
-                    // Esperar a que el nuevo SW tome el control
-                    await new Promise(resolve => setTimeout(resolve, 1500));
-                }
-
-                // 3. Si hay un SW instalándose, esperar a que termine
-                if (swRegistration && swRegistration.installing) {
-                    await new Promise((resolve) => {
-                        swRegistration.installing.addEventListener('statechange', (e) => {
-                            if (e.target.state === 'activated') {
-                                resolve();
-                            }
-                        });
-                        setTimeout(resolve, 3000);
-                    });
-                }
-
-                // 4. Forzar recarga desde el servidor sin caché
-                statusEl.textContent = 'Recargando aplicación...';
-                await new Promise(resolve => setTimeout(resolve, 800));
-                
-                // Recargar forzando bypass del caché
-                window.location.reload(true);
-
-            } catch (error) {
-                console.error('Error durante la actualización:', error);
-                statusEl.textContent = 'Error al actualizar. Recargando...';
-                setTimeout(() => {
-                    window.location.reload(true);
-                }, 1500);
+                swRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
+                statusEl.textContent = 'Service Worker actualizado. Recargando...';
+                await new Promise(resolve => setTimeout(resolve, 1500));
+            } catch (e) {
+                console.log('Error al activar SW en espera:', e);
             }
         }
+
+        // 3. Desregistrar el SW actual y volver a registrar (más agresivo)
+        //    Solo si no hay SW esperando (caso extremo)
+        if (!swRegistration || !swRegistration.waiting) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            for (let reg of registrations) {
+                await reg.update().catch(e => console.log('Info update:', e.message));
+            }
+        }
+
+        // 4. Forzar recarga
+        statusEl.textContent = 'Recargando aplicación...';
+        await new Promise(resolve => setTimeout(resolve, 800));
+        
+        // Recarga forzada (con bypass de caché HTTP)
+        window.location.reload();
+
+    } catch (error) {
+        console.error('Error durante la actualización:', error);
+        statusEl.textContent = 'Recargando aplicación...';
+        setTimeout(() => {
+            window.location.reload();
+        }, 1500);
+    }
+}
 
         // ============================================
         // FIN NUEVO: SISTEMA DE ACTUALIZACIÓN

@@ -1,7 +1,7 @@
 // Archivo: sw-index.js
 
 // ⚠️ IMPORTANTE: Cambia esta versión CADA VEZ que hagas cambios
-const CACHE_NAME_INDEX = 'pibrisa-index-v8.3.81'; 
+const CACHE_NAME_INDEX = 'pibrisa-index-v8.3.82'; 
 
 const APP_VERSION = CACHE_NAME_INDEX.replace('pibrisa-index-', '');
 
@@ -9,14 +9,14 @@ const urlsToCacheIndex = [
     './',
     './index.html',
     './QR.html',
-    
     './manifest.json',
+    './Imágenes/Icono.png',
+
+    './Control de Llaves.html',
+    './Control de PEPS de Insumos.html',
+    
     './Pag - Reportería.html',
     './Reporte de Supervisión.html',
-    './Control de Llaves.html',
-  
-    './Imágenes/Icono.png',
-    './Control de PEPS de Insumos.html',
     
     './Liberación de Responsabilidad/Pag - Liberación de Responsabilidad.html',
     './Liberación de Responsabilidad/Liberación de Responsabilidad.html',

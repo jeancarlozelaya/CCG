@@ -1,7 +1,7 @@
 // Archivo: sw-index.js
 
 // ⚠️ IMPORTANTE: Cambia esta versión CADA VEZ que hagas cambios
-const CACHE_NAME_INDEX = 'pibrisa-index-v8.3.7'; 
+const CACHE_NAME_INDEX = 'pibrisa-index-v8.3.8'; 
 
 const APP_VERSION = CACHE_NAME_INDEX.replace('pibrisa-index-', '');
 
@@ -14,17 +14,20 @@ const urlsToCacheIndex = [
     './Pag - Reportería.html',
     './Reporte de Supervisión.html',
     './Control de Llaves.html',
-    './Pag - Residuos.html',
-    './Registro de Residuos.html',
-    './Registro de Trazabilidad & Volumen de Residuos.html',   
+  
     './Imágenes/Icono.png',
     './Control de PEPS de Insumos.html',
     
     './Liberación de Responsabilidad/Pag - Liberación de Responsabilidad.html',
     './Liberación de Responsabilidad/Liberación de Responsabilidad.html',
+    
     './Pruebas Microbiológicas/Pag - Pruebas Microbiológicas.html',
     './Pruebas Microbiológicas/Registro de Pruebas Microbiológicas.html',
 
+    './Pag - Residuos.html',
+    './Registro de Residuos.html',
+    './Registro de Trazabilidad & Volumen de Residuos.html', 
+    
     'https://raw.githubusercontent.com/jeancarlozelaya/CCG/refs/heads/main/Im%C3%A1genes/Otros/HojadeLiberaci%C3%B3n.jpg', 
     'https://unpkg.com/dexie/dist/dexie.js',
     'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css',

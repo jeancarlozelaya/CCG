@@ -2,7 +2,7 @@
 
 // ⚠️ IMPORTANTE: Cambia esta versión CADA VEZ que hagas cambios
 // Formato: pibrisa-index-vX.Y.Z
-const CACHE_NAME_INDEX = 'pibrisa-index-v8.3.3'; 
+const CACHE_NAME_INDEX = 'pibrisa-index-v8.3.4'; 
 
 // Extraer solo la versión (para mostrarla al usuario)
 const APP_VERSION = CACHE_NAME_INDEX.replace('pibrisa-index-', '');
@@ -37,11 +37,10 @@ const urlsToCacheIndex = [
 ];
 
 // ============================================
-// NUEVO: Escuchar mensajes desde la página
+// ESCUCHAR MENSAJES DESDE LA PÁGINA
 // ============================================
 self.addEventListener('message', function(event) {
     if (event.data && event.data.type === 'GET_VERSION') {
-        // Responder con la versión actual
         if (event.ports && event.ports[0]) {
             event.ports[0].postMessage({
                 type: 'VERSION_INFO',
@@ -55,6 +54,9 @@ self.addEventListener('message', function(event) {
     }
 });
 
+// ============================================
+// INSTALL
+// ============================================
 self.addEventListener('install', function(event) {
     event.waitUntil(
         caches.open(CACHE_NAME_INDEX)
@@ -65,30 +67,52 @@ self.addEventListener('install', function(event) {
     );
 });
 
+// ============================================
+// ACTIVATE - Limpia cachés antiguas y notifica a clientes
+// ============================================
 self.addEventListener('activate', function(event) {
     event.waitUntil(
-        caches.keys().then(function(cacheNames) {
-            return Promise.all(
-                cacheNames.map(function(cacheName) {
-                    if (cacheName !== CACHE_NAME_INDEX && cacheName.startsWith('pibrisa-index')) {
-                        console.log('Eliminando caché antigua:', cacheName);
-                        return caches.delete(cacheName);
-                    }
-                })
-            );
-        }).then(() => self.clients.claim())
+        caches.keys()
+            .then(function(cacheNames) {
+                return Promise.all(
+                    cacheNames.map(function(cacheName) {
+                        if (cacheName !== CACHE_NAME_INDEX && cacheName.startsWith('pibrisa-index')) {
+                            console.log('Eliminando caché antigua:', cacheName);
+                            return caches.delete(cacheName);
+                        }
+                    })
+                );
+            })
+            .then(() => self.clients.claim())
+            .then(() => {
+                // Notificar a todas las ventanas abiertas sobre la versión activa
+                return self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+                    .then(clients => {
+                        clients.forEach(client => {
+                            client.postMessage({
+                                type: 'SW_ACTIVATED',
+                                version: APP_VERSION
+                            });
+                        });
+                    });
+            })
     );
 });
 
+// ============================================
+// FETCH - Estrategia de caché
+// ============================================
 self.addEventListener('fetch', function(event) {
     if (event.request.method !== 'GET') return;
     
-    // No cachear las peticiones al propio sw-index.js ni a version.json
     const url = event.request.url;
+    
+    // No cachear peticiones al propio sw-index.js ni a version.json
     if (url.includes('sw-index.js') || url.includes('version.json')) {
         return;
     }
     
+    // No interceptar peticiones de otros orígenes que no estén en la lista
     event.respondWith(
         caches.match(event.request).then(function(response) {
             return response || fetch(event.request);

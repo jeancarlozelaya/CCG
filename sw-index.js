@@ -1,10 +1,8 @@
 // Archivo: sw-index.js
 
 // ⚠️ IMPORTANTE: Cambia esta versión CADA VEZ que hagas cambios
-// Formato: pibrisa-index-vX.Y.Z
-const CACHE_NAME_INDEX = 'pibrisa-index-v8.3.5'; 
+const CACHE_NAME_INDEX = 'pibrisa-index-v8.3.7'; 
 
-// Extraer solo la versión (para mostrarla al usuario)
 const APP_VERSION = CACHE_NAME_INDEX.replace('pibrisa-index-', '');
 
 const urlsToCacheIndex = [
@@ -55,20 +53,34 @@ self.addEventListener('message', function(event) {
 });
 
 // ============================================
-// INSTALL
+// INSTALL - Usa add() individual en lugar de addAll()
+// para que una URL fallida NO tumbe todo el SW
 // ============================================
 self.addEventListener('install', function(event) {
     event.waitUntil(
         caches.open(CACHE_NAME_INDEX)
             .then(function(cache) {
-                return cache.addAll(urlsToCacheIndex);
+                // ✅ Promise.allSettled: si una URL falla, las demás se cachean igual
+                return Promise.allSettled(
+                    urlsToCacheIndex.map(url => {
+                        return cache.add(url).catch(err => {
+                            console.warn('⚠️ No se pudo cachear:', url, '-', err.message);
+                        });
+                    })
+                );
             })
-            .then(() => self.skipWaiting())
+            .then(() => {
+                console.log('✅ Instalación del SW completada. Versión:', APP_VERSION);
+                return self.skipWaiting();
+            })
+            .catch(err => {
+                console.error('❌ Error en install:', err);
+            })
     );
 });
 
 // ============================================
-// ACTIVATE - Limpia cachés antiguas y notifica a clientes
+// ACTIVATE
 // ============================================
 self.addEventListener('activate', function(event) {
     event.waitUntil(
@@ -77,7 +89,7 @@ self.addEventListener('activate', function(event) {
                 return Promise.all(
                     cacheNames.map(function(cacheName) {
                         if (cacheName !== CACHE_NAME_INDEX && cacheName.startsWith('pibrisa-index')) {
-                            console.log('Eliminando caché antigua:', cacheName);
+                            console.log('🗑️ Eliminando caché antigua:', cacheName);
                             return caches.delete(cacheName);
                         }
                     })
@@ -85,7 +97,6 @@ self.addEventListener('activate', function(event) {
             })
             .then(() => self.clients.claim())
             .then(() => {
-                // Notificar a todas las ventanas abiertas sobre la versión activa
                 return self.clients.matchAll({ type: 'window', includeUncontrolled: true })
                     .then(clients => {
                         clients.forEach(client => {
@@ -107,12 +118,11 @@ self.addEventListener('fetch', function(event) {
     
     const url = event.request.url;
     
-    // No cachear peticiones al propio sw-index.js ni a version.json
+    // No interceptar sw-index.js ni version.json
     if (url.includes('sw-index.js') || url.includes('version.json')) {
         return;
     }
     
-    // No interceptar peticiones de otros orígenes que no estén en la lista
     event.respondWith(
         caches.match(event.request).then(function(response) {
             return response || fetch(event.request);

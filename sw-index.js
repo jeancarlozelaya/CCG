@@ -2,7 +2,7 @@
 
 // ⚠️ IMPORTANTE: Cambia esta versión CADA VEZ que hagas cambios
 // Formato: pibrisa-index-vX.Y.Z
-const CACHE_NAME_INDEX = 'pibrisa-index-v8.3.4'; 
+const CACHE_NAME_INDEX = 'pibrisa-index-v8.3.5'; 
 
 // Extraer solo la versión (para mostrarla al usuario)
 const APP_VERSION = CACHE_NAME_INDEX.replace('pibrisa-index-', '');

@@ -27,6 +27,9 @@ const urlsToCacheIndex = [
 
     './Gestión de Residuos/Pag - Residuos.html',
     './Gestión de Residuos/Registro de Residuos.html',
+
+    './Primeros Pasos/Pag - Primeros Pasos.html',
+    './Primeros Pasos/Grupos de WhatsApp.html',
     
     'https://raw.githubusercontent.com/jeancarlozelaya/CCG/refs/heads/main/Im%C3%A1genes/Otros/HojadeLiberaci%C3%B3n.jpg', 
     'https://unpkg.com/dexie/dist/dexie.js',

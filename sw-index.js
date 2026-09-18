@@ -25,9 +25,8 @@ const urlsToCacheIndex = [
     './Pruebas Microbiológicas/Pag - Pruebas Microbiológicas.html',
     './Pruebas Microbiológicas/Registro de Pruebas Microbiológicas.html',
 
-    './Pag - Residuos.html',
-    './Registro de Residuos.html',
-    './Registro de Trazabilidad & Volumen de Residuos.html', 
+    './Gestión de Residuos/Pag - Residuos.html',
+    './Gestión de Residuos/Registro de Residuos.html',
     
     'https://raw.githubusercontent.com/jeancarlozelaya/CCG/refs/heads/main/Im%C3%A1genes/Otros/HojadeLiberaci%C3%B3n.jpg', 
     'https://unpkg.com/dexie/dist/dexie.js',

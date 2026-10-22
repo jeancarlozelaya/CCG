@@ -9,6 +9,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Chart.js para gráficos -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- jsPDF para exportar a PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -131,6 +134,31 @@
             border-radius: 50px;
             font-size: 0.9rem;
             font-weight: 500;
+        }
+
+        /* Botón PDF */
+        .btn-pdf {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.4);
+            padding: 8px 16px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: var(--transition);
+        }
+        .btn-pdf:hover {
+            background: white;
+            color: var(--accent-color);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        .btn-pdf i {
+            font-size: 1rem;
         }
 
         .section-body {
@@ -489,6 +517,10 @@
             .filtros-historial input {
                 padding: 10px 12px;
             }
+            .btn-pdf {
+                padding: 6px 12px;
+                font-size: 0.8rem;
+            }
         }
     </style>
 </head>
@@ -514,8 +546,13 @@
         <div class="section-card">
             <div class="section-header">
                 <h2><i class="fas fa-box-open"></i> Inventario de Productos</h2>
-                <div class="stats-badge">
-                    <i class="fas fa-chart-line"></i> Total productos: <span id="totalProductosGeneral">0</span>
+                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <div class="stats-badge">
+                        <i class="fas fa-chart-line"></i> Total productos: <span id="totalProductosGeneral">0</span>
+                    </div>
+                    <button class="btn-pdf" onclick="descargarPDFGeneral()" title="Descargar PDF">
+                        <i class="fas fa-file-pdf"></i> PDF
+                    </button>
                 </div>
             </div>
             <div class="section-body">
@@ -532,8 +569,13 @@
         <div class="section-card">
             <div class="section-header" style="background: linear-gradient(135deg, #e67e22, #f39c12);">
                 <h2><i class="fas fa-flask"></i> Químicos & Aromas</h2>
-                <div class="stats-badge">
-                    <i class="fas fa-chart-line"></i> Total: <span id="totalQuimicos">0</span> unidades
+                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <div class="stats-badge">
+                        <i class="fas fa-chart-line"></i> Total: <span id="totalQuimicos">0</span> unidades
+                    </div>
+                    <button class="btn-pdf" onclick="descargarPDFQuimicos()" title="Descargar PDF">
+                        <i class="fas fa-file-pdf"></i> PDF
+                    </button>
                 </div>
             </div>
             <div class="section-body">
@@ -1132,6 +1174,312 @@ function configurarBuscadorGeneral() {
         });
         
         document.getElementById('totalCantidadHistorial').textContent = totalUnidades;
+    }
+    
+    // ==================== EXPORTAR PDF ====================
+async function descargarPDFGeneral() {
+    if (typeof window.jspdf === 'undefined') {
+        Swal.fire('Error', 'La librería PDF no está cargada', 'error');
+        return;
+    }
+    
+    if (inventarioGeneral.length === 0) {
+        Swal.fire('Sin datos', 'No hay productos para exportar', 'info');
+        return;
+    }
+    
+    // Filtrar: excluir ilimitados y categorías vacías
+    const categoriasFiltradas = inventarioGeneral
+        .map(cat => ({
+            nombre: cat.nombre,
+            productos: cat.productos.filter(p => p.cantidadClass !== 'ilimitado')
+        }))
+        .filter(cat => cat.productos.length > 0);
+    
+    if (categoriasFiltradas.length === 0) {
+        Swal.fire('Sin datos', 'No hay productos para exportar (solo hay productos ilimitados)', 'info');
+        return;
+    }
+    
+    showLoading();
+    document.getElementById('loadingMessage').innerHTML = '<p>Generando PDF, por favor espera...</p>';
+    
+    try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = doc.internal.pageSize.getWidth();
+        
+        // Encabezado
+        doc.setFillColor(44, 62, 80);
+        doc.rect(0, 0, pageWidth, 25, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Pisos Brillantes', pageWidth / 2, 12, { align: 'center' });
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'normal');
+        doc.text('Inventario General', pageWidth / 2, 20, { align: 'center' });
+        
+        doc.setTextColor(100, 100, 100);
+        doc.setFontSize(9);
+        const fechaStr = new Date().toLocaleString('es-MX');
+        doc.text(`Generado: ${fechaStr}`, pageWidth - 14, 32, { align: 'right' });
+        
+        let startY = 38;
+        
+        // Precargar imágenes (las que se puedan; el resto queda null)
+        const imagenesCache = {};
+        const tareasCarga = [];
+        
+        categoriasFiltradas.forEach(cat => {
+            cat.productos.forEach(p => {
+                if (p.imagen && !(p.imagen in imagenesCache)) {
+                    imagenesCache[p.imagen] = null;
+                    tareasCarga.push(
+                        cargarImagenComoDataURL(p.imagen).then(dataUrl => {
+                            imagenesCache[p.imagen] = dataUrl;
+                        }).catch(() => {
+                            imagenesCache[p.imagen] = null;
+                        })
+                    );
+                }
+            });
+        });
+        
+        await Promise.all(tareasCarga);
+        
+        for (const categoria of categoriasFiltradas) {
+            if (startY > doc.internal.pageSize.getHeight() - 40) {
+                doc.addPage();
+                startY = 20;
+            }
+            
+            // Título categoría
+            doc.setFillColor(52, 152, 219);
+            doc.rect(14, startY, pageWidth - 28, 8, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(11);
+            doc.setFont('helvetica', 'bold');
+            doc.text(categoria.nombre, 16, startY + 5.5);
+            startY += 10;
+            
+            const body = categoria.productos.map(p => [
+                '',
+                p.nombre,
+                String(p.cantidadDisplay)
+            ]);
+            
+            doc.autoTable({
+                startY: startY,
+                head: [['Imagen', 'Producto', 'Cantidad']],
+                body: body,
+                theme: 'grid',
+                styles: { fontSize: 9, cellPadding: 2.5, minCellHeight: 14 },
+                headStyles: { fillColor: [44, 62, 80], textColor: 255, fontStyle: 'bold' },
+                alternateRowStyles: { fillColor: [245, 247, 250] },
+                columnStyles: {
+                    0: { cellWidth: 16, halign: 'center' },
+                    1: { cellWidth: 'auto' },
+                    2: { cellWidth: 35, halign: 'center' }
+                },
+                margin: { left: 14, right: 14 },
+                didDrawCell: function (data) {
+                    // CORREGIDO: usamos data.row.raw (el array body) para ubicar la fila real
+                    if (data.section !== 'body' || data.column.index !== 0) return;
+                    
+                    // data.row.raw es el array ['', nombre, cantidad]; necesitamos el índice absoluto
+                    // El nombre está en data.row.raw[1]
+                    const nombreProducto = data.row.raw[1];
+                    const producto = categoria.productos.find(p => p.nombre === nombreProducto);
+                    if (!producto) return;
+                    if (!producto.imagen || !imagenesCache[producto.imagen]) return;
+                    
+                    try {
+                        const imgData = imagenesCache[producto.imagen];
+                        const cell = data.cell;
+                        const padding = 1.5;
+                        const maxW = cell.width - padding * 2;
+                        const maxH = cell.height - padding * 2;
+                        
+                        const imgProps = doc.getImageProperties(imgData);
+                        const ratio = imgProps.width / imgProps.height;
+                        
+                        let drawW = maxW;
+                        let drawH = drawW / ratio;
+                        if (drawH > maxH) {
+                            drawH = maxH;
+                            drawW = drawH * ratio;
+                        }
+                        
+                        const x = cell.x + (cell.width - drawW) / 2;
+                        const y = cell.y + (cell.height - drawH) / 2;
+                        
+                        doc.addImage(imgData, 'PNG', x, y, drawW, drawH);
+                    } catch (e) {
+                        // Silencioso: si una imagen falla, no rompe el PDF
+                    }
+                },
+                didDrawPage: function () {
+                    const pageCount = doc.internal.getNumberOfPages();
+                    doc.setFontSize(8);
+                    doc.setTextColor(150);
+                    doc.text(
+                        `Página ${doc.internal.getCurrentPageInfo().pageNumber} de ${pageCount}`,
+                        pageWidth / 2,
+                        doc.internal.pageSize.getHeight() - 8,
+                        { align: 'center' }
+                    );
+                }
+            });
+            
+            startY = doc.lastAutoTable.finalY + 8;
+        }
+        
+        doc.save(`Inventario_General_${new Date().toISOString().split('T')[0]}.pdf`);
+    } catch (error) {
+        console.error('Error generando PDF:', error);
+        Swal.fire('Error', 'No se pudo generar el PDF: ' + error.message, 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+// Carga una imagen desde URL y la convierte a Data URL (para jsPDF)
+function cargarImagenComoDataURL(url) {
+    return new Promise((resolve, reject) => {
+        // Si ya es data URL, retornar tal cual
+        if (url.startsWith('data:')) {
+            resolve(url);
+            return;
+        }
+        
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        
+        const timeout = setTimeout(() => reject(new Error('Timeout cargando imagen')), 8000);
+        
+        img.onload = function() {
+            clearTimeout(timeout);
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+                const ctx = canvas.getContext('2d');
+                // Fondo blanco para imágenes con transparencia
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0);
+                resolve(canvas.toDataURL('image/png'));
+            } catch (e) {
+                reject(e);
+            }
+        };
+        
+        img.onerror = function() {
+            clearTimeout(timeout);
+            reject(new Error('Error cargando imagen: ' + url));
+        };
+        
+        img.src = url;
+    });
+}
+
+
+    function descargarPDFQuimicos() {
+        if (typeof window.jspdf === 'undefined') {
+            Swal.fire('Error', 'La librería PDF no está cargada', 'error');
+            return;
+        }
+        
+        if (!quimicosInventario || quimicosInventario.length === 0) {
+            Swal.fire('Sin datos', 'No hay productos químicos para exportar', 'info');
+            return;
+        }
+        
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const hoy = new Date();
+        
+        // Encabezado
+        doc.setFillColor(230, 126, 34);
+        doc.rect(0, 0, pageWidth, 25, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Pisos Brillantes', pageWidth / 2, 12, { align: 'center' });
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'normal');
+        doc.text('Químicos & Aromas', pageWidth / 2, 20, { align: 'center' });
+        
+        // Fecha
+        doc.setTextColor(100, 100, 100);
+        doc.setFontSize(9);
+        const fechaStr = new Date().toLocaleString('es-MX');
+        doc.text(`Generado: ${fechaStr}`, pageWidth - 14, 32, { align: 'right' });
+        
+        // Ordenar por vencimiento
+        const datosOrdenados = [...quimicosInventario].sort((a, b) => new Date(a[1]) - new Date(b[1]));
+        
+        const body = datosOrdenados.map(fila => {
+            const [producto, vencimiento, cantidad] = fila;
+            const fechaVen = new Date(vencimiento);
+            const dia = String(fechaVen.getDate()).padStart(2, '0');
+            const mes = String(fechaVen.getMonth() + 1).padStart(2, '0');
+            const anio = fechaVen.getFullYear();
+            const fechaVencStr = `${dia}/${mes}/${anio}`;
+            
+            const diffDias = (fechaVen - hoy) / (1000 * 60 * 60 * 24);
+            let estado = 'Vigente';
+            if (diffDias < 0) estado = 'VENCIDO';
+            else if (diffDias <= 60) estado = `Por vencer (${Math.round(diffDias)} d)`;
+            
+            return [producto, fechaVencStr, String(cantidad), estado];
+        });
+        
+        doc.autoTable({
+            startY: 38,
+            head: [['Producto', 'Vencimiento', 'Cantidad', 'Estado']],
+            body: body,
+            theme: 'grid',
+            styles: { fontSize: 9, cellPadding: 2.5 },
+            headStyles: { fillColor: [230, 126, 34], textColor: 255, fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [254, 249, 230] },
+            columnStyles: {
+                0: { cellWidth: 'auto' },
+                1: { cellWidth: 30, halign: 'center' },
+                2: { cellWidth: 25, halign: 'center' },
+                3: { cellWidth: 40, halign: 'center' }
+            },
+            margin: { left: 14, right: 14 },
+            didParseCell: function (data) {
+                if (data.section === 'body' && data.column.index === 3) {
+                    const estado = data.cell.raw;
+                    if (estado === 'VENCIDO') {
+                        data.cell.styles.textColor = [231, 76, 60];
+                        data.cell.styles.fontStyle = 'bold';
+                    } else if (estado.startsWith('Por vencer')) {
+                        data.cell.styles.textColor = [243, 156, 18];
+                        data.cell.styles.fontStyle = 'bold';
+                    } else {
+                        data.cell.styles.textColor = [46, 204, 113];
+                    }
+                }
+            },
+            didDrawPage: function () {
+                const pageCount = doc.internal.getNumberOfPages();
+                doc.setFontSize(8);
+                doc.setTextColor(150);
+                doc.text(
+                    `Página ${doc.internal.getCurrentPageInfo().pageNumber} de ${pageCount}`,
+                    pageWidth / 2,
+                    doc.internal.pageSize.getHeight() - 8,
+                    { align: 'center' }
+                );
+            }
+        });
+        
+        doc.save(`Quimicos_Aromas_${new Date().toISOString().split('T')[0]}.pdf`);
     }
     
     function escapeHTML(str) {

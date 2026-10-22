@@ -1,0 +1,1572 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dashboard Supervisiones - Proyectos</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --warning-color: #f39c12;
+            --success-color: #2ecc71;
+            --dark-color: #34495e;
+            --border-color: #ddd;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+            --insumos-light-gray: #f0f2f5;
+        }
+
+        html, body {
+            touch-action: manipulation;
+            overflow-x: hidden;
+            width: 100%;
+            height: 100%;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--insumos-light-gray);
+            color: var(--dark-color);
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+            color: white;
+            padding: 14px 18px;
+            font-size: 1.4rem;
+            font-weight: bold;
+            box-shadow: var(--shadow);
+            position: relative;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+        .header-title { flex: 1; text-align: center; padding: 0 10px; }
+        .header-spacer { width: 42px; height: 42px; flex-shrink: 0; }
+        .header-actions { display: flex; gap: 8px; align-items: center; }
+        .header-btn {
+            background-color: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            color: white;
+            width: 42px; height: 42px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+        }
+        .header-btn:hover {
+            background-color: rgba(255, 255, 255, 0.25);
+            transform: translateY(-2px);
+        }
+        .header-btn.admin-active {
+            background-color: rgba(46, 204, 113, 0.35);
+            border-color: rgba(46, 204, 113, 0.8);
+        }
+
+        @media (max-width: 576px) {
+            .header-title { font-size: 1.1rem; }
+            .header-btn { width: 38px; height: 38px; font-size: 0.95rem; }
+            .header-spacer { width: 38px; height: 38px; }
+        }
+
+        .container-custom {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 15px 50px 15px;
+        }
+
+        .card-custom {
+            background-color: #fff;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            border: none;
+            margin-bottom: 25px;
+            border-top: 5px solid var(--secondary-color);
+            padding: 20px;
+            height: 100%;
+        }
+
+        .btn-custom {
+            border: none;
+            font-weight: 600;
+            padding: 10px 25px;
+            font-size: 0.95rem;
+            border-radius: 50px;
+            transition: var(--transition);
+            color: white !important;
+            background: linear-gradient(45deg, var(--secondary-color), #5dade2);
+            width: 100%;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .btn-custom:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.2); }
+
+        .form-control, .form-select {
+            border-radius: 8px; padding: 10px 15px; border: 1px solid var(--border-color);
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: var(--secondary-color); box-shadow: 0 0 0 0.25rem rgba(52, 152, 219, 0.25);
+        }
+
+        .chart-box { position: relative; height: 300px; width: 100%; }
+
+        .table-responsive { border-radius: 8px; overflow: hidden; }
+        .table thead { background-color: var(--primary-color); color: white; }
+        
+        .btn-action {
+            border: none; border-radius: 50px;
+            width: 35px; height: 35px;
+            font-size: 0.85rem; margin: 0 2px;
+            transition: var(--transition);
+            display: inline-flex; justify-content: center; align-items: center;
+            color: white;
+        }
+        .btn-action:hover { transform: translateY(-2px); color: white; }
+
+        .btn-pdf { background: linear-gradient(45deg, var(--accent-color), #e74c3c); }
+        .btn-share { background: linear-gradient(45deg, #1abc9c, #16a085); }
+        .btn-download { background: linear-gradient(45deg, #27ae60, #2ecc71); }
+        .btn-delete { background: #7f8c8d; }
+        .btn-delete:hover { background: #c0392b; }
+        .btn-restore { background: linear-gradient(45deg, #3498db, #2980b9); }
+
+        #overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(255, 255, 255, 0.95);
+            display: none; justify-content: center; align-items: center;
+            z-index: 9999; flex-direction: column;
+        }
+        .spinner {
+            width: 60px; height: 60px;
+            border: 5px solid rgba(52, 152, 219, 0.2);
+            border-radius: 50%; border-top-color: var(--secondary-color);
+            animation: spin 1s ease-in-out infinite; margin-bottom: 20px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #loadingMessage { text-align: center; color: var(--dark-color); }
+        #loadingMessage h4 { margin: 0 0 10px; font-size: 1.3rem; font-weight: bold; }
+        #loadingMessage p { margin: 0; color: #7f8c8d; font-weight: normal; }
+        
+        .modal-pdf-body {
+            height: calc(100vh - 56px); 
+            padding: 0;
+            overflow: hidden;
+            background-color: #525659;
+        }
+        .modal-pdf-iframe { width: 100%; height: 100%; border: none; display: block; }
+        .modal-header { background-color: #f8f9fa; border-bottom: 1px solid #dee2e6; padding: 10px 20px; }
+
+        .badge-supervisor {
+            background-color: #eaf2f8; color: #2471a3;
+            border: 1px solid #aed6f1; font-weight: 500;
+        }
+        .badge-ubicacion {
+            background-color: #e8f6f3; color: #27ae60;
+            border: 1px solid #a3e4d7; font-weight: 500;
+        }
+        .badge-sub {
+            background-color: #fef5e7; color: #b9770e;
+            border: 1px solid #f8c471; font-weight: 500;
+        }
+        td { font-size: 0.9rem; }
+
+        @media (min-width: 768px) {
+            .chart-col .chart-box { height: 280px; }
+        }
+        @media (max-width: 767px) {
+            .chart-col .chart-box { height: 300px; }
+        }
+
+        .password-indicator {
+            display: none; align-items: center; gap: 6px;
+            font-size: 0.85rem; color: var(--success-color); font-weight: 600;
+        }
+        .password-indicator.active { display: inline-flex; }
+        .admin-indicator {
+            display: none; align-items: center; gap: 6px;
+            font-size: 0.85rem; color: var(--warning-color); font-weight: 600;
+            margin-left: 15px;
+        }
+        .admin-indicator.active { display: inline-flex; }
+
+        .swal2-container { z-index: 20000 !important; }
+        .swal2-container .swal2-popup .swal2-input,
+        .swal2-container .swal2-popup .swal2-textarea {
+            user-select: text !important;
+            -webkit-user-select: text !important;
+        }
+
+        /* FIX DEFINITIVO PDF ENCIMA DE PAPELERA */
+        #modalPDF { z-index: 99999 !important; }
+        body.pdf-abierto #modalPapelera { z-index: 10040 !important; }
+
+        /* ============================================== */
+        /* MODAL CONFIGURACIÓN MANUAL (sin bootstrap.Modal) */
+        /* ============================================== */
+        .cfg-modal-backdrop {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0, 0, 0, 0.55);
+            z-index: 10500;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        .cfg-modal-backdrop.show { display: block; opacity: 1; }
+
+        .cfg-modal-wrapper {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: 10501;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+            overflow-y: auto;
+        }
+        .cfg-modal-wrapper.show { display: flex; }
+
+        .cfg-modal-content {
+            background-color: #fff;
+            border-radius: 8px;
+            max-width: 800px;
+            width: 100%;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            transform: translateY(-30px);
+            opacity: 0;
+            transition: transform 0.25s ease, opacity 0.25s ease;
+        }
+        .cfg-modal-wrapper.show .cfg-modal-content {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .cfg-modal-header {
+            background-color: var(--dark-color);
+            color: #fff;
+            padding: 14px 20px;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .cfg-modal-header h5 {
+            margin: 0;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        .cfg-modal-header .btn-close {
+            filter: invert(1);
+            opacity: 0.85;
+        }
+        .cfg-modal-body {
+            padding: 24px;
+            background-color: #f8f9fa;
+            border-radius: 0 0 8px 8px;
+        }
+
+        .setting-item {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 16px; border: 1px solid #e9ecef; border-radius: 10px;
+            background-color: #fff; margin-bottom: 12px;
+        }
+        .setting-info { flex: 1; padding-right: 15px; }
+        .setting-info .setting-title {
+            font-weight: 700; color: var(--primary-color);
+            display: flex; align-items: center; gap: 6px;
+            margin-bottom: 4px; font-size: 1rem;
+        }
+        .setting-info .setting-title i { color: var(--secondary-color); }
+        .setting-info .setting-description {
+            font-size: 0.85rem; color: #7f8c8d; margin: 0; line-height: 1.4;
+        }
+        .form-switch .form-check-input { width: 3em; height: 1.5em; cursor: pointer; }
+        .form-switch .form-check-input:checked { background-color: var(--success-color); border-color: var(--success-color); }
+        .config-section-title {
+            font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px;
+            color: #95a5a6; font-weight: 700; margin: 0 0 10px 0;
+            padding-bottom: 6px; border-bottom: 1px solid #ecf0f1;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="overlay">
+        <div class="spinner"></div>
+        <div id="loadingMessage">
+            <h4>Por favor espera un momento...</h4>
+            <p></p>
+        </div>
+    </div>
+
+    <!-- Modal visor PDF (Bootstrap) -->
+    <div class="modal fade" id="modalPDF" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-fullscreen">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title text-secondary"><i class="fas fa-file-pdf me-2"></i>Visualizador de Reporte de Supervisión</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body modal-pdf-body">
+                    <iframe id="iframePDF" class="modal-pdf-iframe" src=""></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Papelera (Bootstrap) -->
+    <div class="modal fade" id="modalPapelera" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-secondary text-white">
+                    <h5 class="modal-title"><i class="fas fa-trash-restore me-2"></i>Papelera de Reciclaje — <span id="papeleraProyectoNombre"></span></h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info border-info bg-info bg-opacity-10 small mb-3">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Los registros eliminados se guardan aquí. Puedes <strong>restaurarlos</strong> a su hoja original, o eliminarlos <strong>definitivamente</strong> (mueve el PDF a la carpeta basurero de Drive).
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover align-middle">
+                            <thead class="table-secondary">
+                                <tr>
+                                    <th>Fecha reporte</th>
+                                    <th>Supervisor</th>
+                                    <th>Ubicación</th>
+                                    <th>Sub Ubicación</th>
+                                    <th>Eliminado</th>
+                                    <th class="text-center" style="width: 150px;">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="papeleraCuerpo"></tbody>
+                        </table>
+                        <div id="papeleraVacia" class="text-center p-4 text-muted" style="display:none;">
+                            <i class="fas fa-inbox fa-2x mb-2 d-block opacity-50"></i>
+                            La papelera de este proyecto está vacía.
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL CONFIGURACIÓN MANUAL (NO es bootstrap.Modal) -->
+    <div class="cfg-modal-backdrop" id="cfgModalBackdrop"></div>
+    <div class="cfg-modal-wrapper" id="cfgModalWrapper">
+        <div class="cfg-modal-content">
+            <div class="cfg-modal-header">
+                <h5><i class="fas fa-cog me-2"></i>Configuraciones</h5>
+                <button type="button" class="btn-close" onclick="cerrarConfig()" aria-label="Close"></button>
+            </div>
+            <div class="cfg-modal-body">
+                <div class="config-section-title">Modo de Revisión</div>
+
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <div class="setting-title">
+                            <i class="fas fa-user-shield"></i>
+                            <span>Modo Administrador</span>
+                        </div>
+                        <p class="setting-description">
+                            Al activarlo se habilitan funciones avanzadas: papelera de reciclaje, botón de eliminar y acciones sin pedir contraseña. Requiere contraseña general para activarse.
+                        </p>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="toggle-modo-admin">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- HEADER -->
+    <div class="header">
+        <div class="header-spacer"></div>
+        <div class="header-title">Pisos Brillantes</div>
+        <div class="header-actions">
+            <button class="header-btn" id="btnVerPapelera" onclick="abrirPapelera()" title="Papelera de reciclaje" style="display: none;">
+                <i class="fas fa-trash-restore"></i>
+            </button>
+            <button class="header-btn" id="btnConfig" onclick="abrirConfig()" title="Configuraciones">
+                <i class="fas fa-cog"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="container-custom">
+        
+        <div class="card-custom">
+            <h5 class="mb-3 text-secondary border-bottom pb-2">
+                <i class="fas fa-sliders-h me-2"></i>Panel de Control - Revisión de Supervisiones
+            </h5>
+            <div class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Proyecto</label>
+                    <select id="filtroProyecto" class="form-select"></select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold">Mes</label>
+                    <select id="filtroMes" class="form-select"></select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold">Año</label>
+                    <select id="filtroAnio" class="form-select"></select>
+                </div>
+                <div class="col-md-5">
+                    <button class="btn-custom" onclick="consultarDatos()">
+                        <i class="fas fa-search me-1"></i> Consultar
+                    </button>
+                </div>
+            </div>
+            <div class="mt-2">
+                <span class="password-indicator" id="indicadorAcceso">
+                    <i class="fas fa-unlock-alt"></i> Acceso verificado
+                </span>
+                <span class="admin-indicator" id="indicadorAdmin">
+                    <i class="fas fa-user-shield"></i> Modo Administrador activo
+                </span>
+            </div>
+        </div>
+
+        <div id="dashboardContent" style="display: none;">
+
+            <div class="row g-3 mb-4">
+                <div class="col-md-4 chart-col">
+                    <div class="card-custom">
+                        <div class="chart-box"><canvas id="chartMensual"></canvas></div>
+                        <div class="text-center mt-2">
+                            <small class="text-muted"><i class="fas fa-info-circle me-1"></i>Supervisiones por día</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 chart-col">
+                    <div class="card-custom">
+                        <div class="chart-box"><canvas id="chartAnual"></canvas></div>
+                        <div class="text-center mt-2">
+                            <small class="text-muted"><i class="fas fa-info-circle me-1"></i>Tendencia anual por mes</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 chart-col" id="seccionUbicaciones" style="display: none;">
+                    <div class="card-custom">
+                        <div class="chart-box"><canvas id="chartUbicaciones"></canvas></div>
+                        <div class="text-center mt-2">
+                            <small class="text-muted"><i class="fas fa-info-circle me-1"></i>Supervisiones por ubicación</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-12">
+                    <div class="card-custom">
+                        <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-3 border-bottom pb-2">
+                            <h5 class="text-secondary mb-2 mb-md-0"><i class="fas fa-list me-2"></i>Historial de Supervisiones</h5>
+                            <div class="input-group" style="max-width: 400px; width: 100%;">
+                                <span class="input-group-text bg-light border-end-0">
+                                    <i class="fas fa-filter text-muted"></i>
+                                </span>
+                                <input type="text" id="filtroTabla" class="form-control border-start-0" placeholder="Buscar supervisor, ubicación...">
+                            </div>
+                        </div>
+
+                        <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                            <table class="table table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 100px;">Fecha</th>
+                                        <th>Supervisor</th>
+                                        <th>Ubicación</th>
+                                        <th>Sub Ubicación</th>
+                                        <th class="text-center" style="width: 200px;">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaCuerpo"></tbody>
+                            </table>
+                            <div id="sinResultadosFiltro" class="text-center p-4 text-muted" style="display:none;">
+                                No se encontraron resultados con ese filtro.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div> 
+        <div id="alertNoData" class="alert alert-warning text-center mt-4 shadow-sm" style="display:none;">
+            <i class="fas fa-info-circle me-2"></i> No existen registros para el mes seleccionado.
+        </div>
+
+    </div>
+
+    <script>
+        const URL_SCRIPT_GOOGLE = "https://script.google.com/macros/s/AKfycbzD79WlfK01t_wF9awCX_uR5wGEdu6R7C8TdKxuyOPs_bpzrqSL5zFM82sqU-PdEXQ/exec";
+        
+        let chartMensual = null;
+        let chartAnual = null;
+        let chartUbicaciones = null;
+        let datosTablaGlobal = [];
+        let datosPapeleraGlobal = [];
+        let modalPDF = null;
+        let modalPapelera = null;
+
+        const sessionPasswords = {};
+        let proyectoActivo = null;
+        let modoAdmin = sessionStorage.getItem('modoAdmin') === 'true';
+
+        // Estado del body antes de abrir modales (para restaurar)
+        let bodyStateBackup = null;
+
+        const mesesNombres = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+
+        // =========================================================
+        // FIX FOCUS SWEETALERT
+        // =========================================================
+        function fixSwalFocus() {
+            const observer = new MutationObserver(() => {
+                const swalContainers = document.querySelectorAll('.swal2-container');
+                swalContainers.forEach(sw => {
+                    if (sw.getAttribute('aria-hidden') === 'true') sw.removeAttribute('aria-hidden');
+                    if (sw.getAttribute('tabindex') === '-1') sw.removeAttribute('tabindex');
+                    let p = sw.parentElement;
+                    while (p && p !== document.body) {
+                        if (p.getAttribute('aria-hidden') === 'true') p.removeAttribute('aria-hidden');
+                        p = p.parentElement;
+                    }
+                });
+                if (swalContainers.length > 0) {
+                    const activeEl = document.activeElement;
+                    const inputSwal = document.querySelector('.swal2-container .swal2-input, .swal2-container .swal2-textarea');
+                    if (inputSwal && activeEl !== inputSwal && 
+                        !swalContainers[swalContainers.length - 1].contains(activeEl)) {
+                        setTimeout(() => { try { inputSwal.focus(); } catch(e) {} }, 50);
+                    }
+                }
+            });
+            observer.observe(document.body, {
+                childList: true, subtree: true, attributes: true,
+                attributeFilter: ['aria-hidden', 'tabindex', 'class']
+            });
+        }
+
+        // Guarda el estado del body para restaurarlo después
+        function guardarEstadoBody() {
+            bodyStateBackup = {
+                overflow: document.body.style.overflow,
+                paddingRight: document.body.style.paddingRight,
+                modalOpen: document.body.classList.contains('modal-open')
+            };
+        }
+
+        // Restaura el estado del body y limpia cualquier backdrop huérfano
+        function restaurarEstadoBody() {
+            setTimeout(() => {
+                // Solo limpia si NO hay ningún modal de Bootstrap realmente abierto
+                const bootstrapModalesAbiertos = document.querySelectorAll('.modal.show').length;
+                if (bootstrapModalesAbiertos === 0) {
+                    document.querySelectorAll('.modal-backdrop').forEach(bd => bd.remove());
+                    document.body.classList.remove('modal-open');
+                    document.body.style.overflow = '';
+                    document.body.style.paddingRight = '';
+                } else if (bodyStateBackup) {
+                    // Si hay un modal Bootstrap abierto, restaurar el estado guardado
+                    document.body.classList.add('modal-open');
+                    if (bodyStateBackup.paddingRight) {
+                        document.body.style.paddingRight = bodyStateBackup.paddingRight;
+                    }
+                }
+            }, 150);
+        }
+
+        function swalConInput(config) {
+            // No hacemos nada especial más que forzar foco. El observer ya limpia aria-hidden.
+            return Swal.fire(config);
+        }
+
+        function focusPDF() {
+            const iframe = document.getElementById('iframePDF');
+            if (iframe) {
+                iframe.focus();
+                try { iframe.contentWindow.focus(); } catch(e) {}
+            }
+        }
+
+        // =========================================================
+        // INICIALIZACIÓN
+        // =========================================================
+        window.onload = function() {
+            fixSwalFocus();
+
+            modalPDF = new bootstrap.Modal(document.getElementById('modalPDF'));
+            document.getElementById('modalPDF').addEventListener('shown.bs.modal', function () {
+                document.body.classList.add('pdf-abierto');
+                setTimeout(focusPDF, 100);
+            });
+            document.getElementById('modalPDF').addEventListener('hidden.bs.modal', function () {
+                document.body.classList.remove('pdf-abierto');
+                document.getElementById('iframePDF').src = '';
+                restaurarEstadoBody();
+            });
+
+            modalPapelera = new bootstrap.Modal(document.getElementById('modalPapelera'));
+            modalPapelera._element.addEventListener('hidden.bs.modal', function () {
+                restaurarEstadoBody();
+            });
+
+            document.getElementById('toggle-modo-admin').checked = modoAdmin;
+            aplicarEstadoAdminUI();
+
+            // Inicializar selects de mes/año
+            const selectMes = document.getElementById('filtroMes');
+            mesesNombres.forEach((m, i) => {
+                let opt = document.createElement('option');
+                opt.value = (i + 1).toString().padStart(2, '0');
+                opt.text = m;
+                if(i === new Date().getMonth()) opt.selected = true;
+                selectMes.appendChild(opt);
+            });
+
+            const selectAnio = document.getElementById('filtroAnio');
+            const currentYear = new Date().getFullYear();
+            const prevYear = currentYear - 1;
+
+            let optPrev = document.createElement('option');
+            optPrev.value = prevYear; optPrev.text = prevYear;
+            selectAnio.appendChild(optPrev);
+
+            let optCurr = document.createElement('option');
+            optCurr.value = currentYear; optCurr.text = currentYear; optCurr.selected = true;
+            selectAnio.appendChild(optCurr);
+
+            document.getElementById('filtroTabla').addEventListener('keyup', filtrarTablaLocal);
+
+            document.getElementById('filtroProyecto').addEventListener('change', function() {
+                const nuevo = this.value;
+                if (proyectoActivo !== nuevo) {
+                    proyectoActivo = null;
+                    document.getElementById('indicadorAcceso').classList.remove('active');
+                    if (!modoAdmin) {
+                        document.getElementById('btnVerPapelera').style.display = 'none';
+                    }
+                }
+            });
+
+            // Toggle del modo admin
+            document.getElementById('toggle-modo-admin').addEventListener('change', function() {
+                manejarToggleAdmin(this.checked);
+            });
+
+            cargarProyectos();
+        };
+
+        // =========================================================
+        // MODAL CONFIG MANUAL (NO bootstrap.Modal)
+        // =========================================================
+        function abrirConfig() {
+            document.getElementById('toggle-modo-admin').checked = modoAdmin;
+            document.getElementById('cfgModalBackdrop').classList.add('show');
+            document.getElementById('cfgModalWrapper').classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function cerrarConfig() {
+            document.getElementById('cfgModalBackdrop').classList.remove('show');
+            document.getElementById('cfgModalWrapper').classList.remove('show');
+            document.body.style.overflow = '';
+        }
+
+        // Cerrar al hacer clic en el backdrop
+        document.getElementById('cfgModalBackdrop').addEventListener('click', cerrarConfig);
+
+        async function manejarToggleAdmin(activar) {
+            const $toggle = document.getElementById('toggle-modo-admin');
+            // Resetear visualmente el toggle al estado anterior
+            $toggle.checked = !activar;
+
+            // Cerrar el modal manual de configuración
+            cerrarConfig();
+            await new Promise(resolve => setTimeout(resolve, 250));
+
+            if (activar) {
+                const result = await swalConInput({
+                    title: 'Activar Modo Administrador',
+                    html: `<p>Ingresa la contraseña general para activar las funciones avanzadas.</p>`,
+                    input: 'password',
+                    inputPlaceholder: 'Contraseña general',
+                    inputAttributes: { autocapitalize: 'off', autocomplete: 'off' },
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Activar',
+                    confirmButtonColor: '#2ecc71',
+                    cancelButtonText: 'Cancelar',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        setTimeout(() => {
+                            const inp = document.querySelector('.swal2-container .swal2-input');
+                            if (inp) inp.focus();
+                        }, 100);
+                    }
+                });
+
+                restaurarEstadoBody();
+
+                if (!result.isConfirmed) {
+                    setTimeout(abrirConfig, 200);
+                    return;
+                }
+
+                const passwordIngresada = result.value;
+                if (!passwordIngresada) {
+                    Swal.fire('Atención', 'Debes ingresar la contraseña.', 'warning');
+                    setTimeout(abrirConfig, 200);
+                    return;
+                }
+
+                showLoading();
+                try {
+                    const resp = await fetch(URL_SCRIPT_GOOGLE, {
+                        method: 'POST',
+                        body: JSON.stringify({ action: "validarAdminPassword", password: passwordIngresada })
+                    }).then(r => r.json());
+                    hideLoading();
+
+                    if (resp.status === "success" && resp.data.valida) {
+                        modoAdmin = true;
+                        sessionStorage.setItem('modoAdmin', 'true');
+                        aplicarEstadoAdminUI();
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Modo Administrador activado',
+                            toast: true, position: 'top-end',
+                            showConfirmButton: false, timer: 2000
+                        });
+                    } else {
+                        Swal.fire('Contraseña incorrecta', 'No se pudo activar el modo administrador.', 'error');
+                        setTimeout(abrirConfig, 200);
+                    }
+                } catch (e) {
+                    hideLoading();
+                    Swal.fire('Error', 'No se pudo validar la contraseña.', 'error');
+                    setTimeout(abrirConfig, 200);
+                }
+            } else {
+                modoAdmin = false;
+                sessionStorage.removeItem('modoAdmin');
+                aplicarEstadoAdminUI();
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Modo Administrador desactivado',
+                    toast: true, position: 'top-end',
+                    showConfirmButton: false, timer: 2000
+                });
+            }
+        }
+
+        function aplicarEstadoAdminUI() {
+            const $btnPapelera = document.getElementById('btnVerPapelera');
+            const $indicadorAdmin = document.getElementById('indicadorAdmin');
+            const $btnConfig = document.getElementById('btnConfig');
+            const $toggle = document.getElementById('toggle-modo-admin');
+
+            $toggle.checked = modoAdmin;
+
+            if (modoAdmin) {
+                $indicadorAdmin.classList.add('active');
+                $btnConfig.classList.add('admin-active');
+                const proyecto = document.getElementById('filtroProyecto').value;
+                if (proyecto) $btnPapelera.style.display = 'flex';
+            } else {
+                $indicadorAdmin.classList.remove('active');
+                $btnConfig.classList.remove('admin-active');
+                $btnPapelera.style.display = 'none';
+            }
+
+            if (datosTablaGlobal.length > 0) {
+                renderizarTabla(datosTablaGlobal);
+            }
+        }
+
+        // =========================================================
+        // CARGA DE PROYECTOS
+        // =========================================================
+        function cargarProyectos() {
+            showLoading();
+            fetch(URL_SCRIPT_GOOGLE, {
+                method: 'POST',
+                body: JSON.stringify({ action: "obtenerProyectos" })
+            })
+            .then(res => res.json())
+            .then(data => {
+                hideLoading();
+                const select = document.getElementById('filtroProyecto');
+                select.innerHTML = '';
+                if (data.status === "success" && data.data.proyectos.length > 0) {
+                    data.data.proyectos.forEach(p => {
+                        let opt = document.createElement('option');
+                        opt.value = p; opt.text = p;
+                        select.appendChild(opt);
+                    });
+                } else {
+                    let opt = document.createElement('option');
+                    opt.value = ""; opt.text = "Sin proyectos";
+                    select.appendChild(opt);
+                    Swal.fire('Atención', data.message || 'No se encontraron proyectos con hojas de cálculo.', 'info');
+                }
+            })
+            .catch(err => {
+                hideLoading();
+                console.error(err);
+                Swal.fire("Error", "Problema de conexión al cargar proyectos.", "error");
+            });
+        }
+
+        function showLoading() { document.getElementById('overlay').style.display = 'flex'; }
+        function hideLoading() { document.getElementById('overlay').style.display = 'none'; }
+
+        // =========================================================
+        // VALIDACIÓN DE PASSWORD DEL PROYECTO
+        // =========================================================
+        async function asegurarPasswordProyecto(proyecto) {
+            if (sessionPasswords[proyecto]) return true;
+
+            const result = await swalConInput({
+                title: 'Acceso restringido',
+                html: `
+                    <div class="text-start">
+                        <p>Ingresa la contraseña del proyecto <strong>${proyecto}</strong> para visualizar su información.</p>
+                    </div>
+                `,
+                input: 'password',
+                inputPlaceholder: 'Contraseña',
+                inputAttributes: { autocapitalize: 'off', autocomplete: 'off' },
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Acceder',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#3498db',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    setTimeout(() => {
+                        const inp = document.querySelector('.swal2-container .swal2-input');
+                        if (inp) inp.focus();
+                    }, 100);
+                }
+            });
+
+            restaurarEstadoBody();
+
+            if (!result.isConfirmed) return false;
+
+            const passwordIngresada = result.value;
+            if (!passwordIngresada) {
+                Swal.fire('Atención', 'Debes ingresar la contraseña.', 'warning');
+                return false;
+            }
+
+            showLoading();
+            try {
+                const resp = await fetch(URL_SCRIPT_GOOGLE, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: "validarPassword", proyecto: proyecto, password: passwordIngresada })
+                }).then(r => r.json());
+                hideLoading();
+
+                if (resp.status === "success" && resp.data.valida) {
+                    sessionPasswords[proyecto] = passwordIngresada;
+                    proyectoActivo = proyecto;
+                    document.getElementById('indicadorAcceso').classList.add('active');
+                    if (modoAdmin) {
+                        document.getElementById('btnVerPapelera').style.display = 'flex';
+                    }
+                    return true;
+                } else {
+                    Swal.fire('Acceso denegado', 'La contraseña es incorrecta.', 'error');
+                    return false;
+                }
+            } catch (e) {
+                hideLoading();
+                Swal.fire('Error', 'No se pudo validar la contraseña. Intenta de nuevo.', 'error');
+                return false;
+            }
+        }
+
+        // =========================================================
+        // CONSULTA DE DATOS
+        // =========================================================
+        async function consultarDatos() {
+            const proyecto = document.getElementById('filtroProyecto').value;
+            const mesVal = document.getElementById('filtroMes').value;
+            const anio = document.getElementById('filtroAnio').value;
+
+            if (!proyecto) {
+                Swal.fire("Atención", "Selecciona un proyecto.", "warning");
+                return;
+            }
+
+            const autorizado = await asegurarPasswordProyecto(proyecto);
+            if (!autorizado) return;
+
+            showLoading();
+            document.getElementById('dashboardContent').style.display = 'none';
+            document.getElementById('alertNoData').style.display = 'none';
+
+            fetch(URL_SCRIPT_GOOGLE, {
+                method: 'POST',
+                body: JSON.stringify({ 
+                    action: "obtenerDatos", 
+                    proyecto: proyecto, 
+                    mes: mesVal, 
+                    anio: anio,
+                    password: sessionPasswords[proyecto]
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                hideLoading();
+                if (data.status === "error") {
+                    Swal.fire("Error", data.message, "error");
+                    return;
+                }
+                const info = data.data;
+                renderizarDashboard(info, mesVal, anio);
+                
+                if (!info.existeHoja || info.totalSupervisiones === 0) {
+                     document.getElementById('alertNoData').style.display = 'block';
+                }
+            })
+            .catch(err => {
+                hideLoading();
+                console.error("Error:", err);
+                Swal.fire("Error", "Problema de conexión con el servidor.", "error");
+            });
+        }
+
+        function renderizarDashboard(data, mesVal, anio) {
+            document.getElementById('dashboardContent').style.display = 'block';
+            datosTablaGlobal = data.listaReportes;
+            ordenarDatosPorFecha(datosTablaGlobal, 'desc');
+
+            const nombreMes = mesesNombres[parseInt(mesVal) - 1];
+
+            const commonOpts = (titulo) => ({
+                responsive: true, maintainAspectRatio: false,
+                plugins: { 
+                    title: { display: true, text: titulo, font: {size: 12} }, 
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: ctx => `Supervisiones: ${ctx.raw}` } }
+                }
+            });
+
+            const ctxMensual = document.getElementById('chartMensual');
+            if (chartMensual) chartMensual.destroy();
+            chartMensual = new Chart(ctxMensual, {
+                type: 'bar',
+                data: {
+                    labels: data.datosGraficoDia.labels,
+                    datasets: [{ label: 'Supervisiones', data: data.datosGraficoDia.data, backgroundColor: '#3498db', borderRadius: 4 }]
+                },
+                options: { 
+                    ...commonOpts(`Supervisiones Diarias - ${nombreMes} ${anio}`), 
+                    scales: { 
+                        x: { title: { display: true, text: 'Día del mes', font: { weight: 'bold', size: 10 } }, ticks: { font: { size: 9 } } },
+                        y: { title: { display: true, text: 'N° Supervisiones', font: { weight: 'bold', size: 10 } }, beginAtZero: true, ticks: { precision: 0, font: { size: 9 } } }
+                    } 
+                }
+            });
+
+            const ctxAnual = document.getElementById('chartAnual');
+            if (chartAnual) chartAnual.destroy();
+            chartAnual = new Chart(ctxAnual, {
+                type: 'line',
+                data: {
+                    labels: data.datosGraficoAnual.labels,
+                    datasets: [{ 
+                        label: 'Supervisiones', data: data.datosGraficoAnual.data, 
+                        borderColor: '#3498db', backgroundColor: 'rgba(52, 152, 219, 0.1)', 
+                        fill: true, tension: 0.3,
+                        pointBackgroundColor: '#3498db', pointBorderColor: '#fff',
+                        pointBorderWidth: 2, pointRadius: 4
+                    }]
+                },
+                options: {
+                    ...commonOpts(`Tendencia Anual - ${anio}`),
+                    scales: { 
+                        x: { ticks: { font: { size: 9 } } },
+                        y: { title: { display: true, text: 'Supervisiones', font: { weight: 'bold', size: 10 } }, beginAtZero: true, ticks: { precision: 0, font: { size: 9 } } } 
+                    }
+                }
+            });
+
+            const seccion = document.getElementById('seccionUbicaciones');
+            const labelsUbi = data.supervisionesPorUbicacion?.labels || [];
+            const dataUbi = data.supervisionesPorUbicacion?.data || [];
+
+            if (labelsUbi.length > 0) {
+                seccion.style.display = 'block';
+                const ctxUbi = document.getElementById('chartUbicaciones');
+                if (chartUbicaciones) chartUbicaciones.destroy();
+                chartUbicaciones = new Chart(ctxUbi, {
+                    type: 'bar',
+                    data: {
+                        labels: labelsUbi,
+                        datasets: [{
+                            label: 'Supervisiones por Ubicación', data: dataUbi,
+                            backgroundColor: ['#3498db','#2ecc71','#e74c3c','#f39c12','#9b59b6','#1abc9c','#e67e22','#34495e','#16a085','#c0392b','#8e44ad','#27ae60','#d35400','#2980b9','#7f8c8d'],
+                            borderRadius: 5
+                        }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: {
+                            title: { display: true, text: `Supervisiones por Ubicación - ${nombreMes} ${anio}`, font: {size: 12} },
+                            legend: { display: false },
+                            tooltip: { callbacks: { label: ctx => `Supervisiones: ${ctx.raw}` } }
+                        },
+                        scales: {
+                            x: { title: { display: true, text: 'Ubicación', font: { weight: 'bold', size: 10 } }, ticks: { font: { size: 9 } } },
+                            y: { title: { display: true, text: 'N° Supervisiones', font: { weight: 'bold', size: 10 } }, beginAtZero: true, ticks: { precision: 0, font: { size: 9 } } }
+                        }
+                    }
+                });
+            } else {
+                seccion.style.display = 'none';
+                if (chartUbicaciones) { chartUbicaciones.destroy(); chartUbicaciones = null; }
+            }
+
+            renderizarTabla(datosTablaGlobal);
+        }
+
+        function ordenarDatosPorFecha(datos, direccion = 'desc') {
+            return datos.sort((a, b) => {
+                const fechaA = a.fecha.split('/').reverse().join('-');
+                const fechaB = b.fecha.split('/').reverse().join('-');
+                return direccion === 'desc' ? new Date(fechaB) - new Date(fechaA) : new Date(fechaA) - new Date(fechaB);
+            });
+        }
+
+        function filtrarTablaLocal() {
+            const texto = document.getElementById('filtroTabla').value.toLowerCase();
+            const filas = datosTablaGlobal.filter(item => 
+                (item.supervisor || '').toLowerCase().includes(texto) ||
+                (item.ubicacion || '').toLowerCase().includes(texto) ||
+                (item.subUbicacion || '').toLowerCase().includes(texto) ||
+                item.fecha.includes(texto)
+            );
+            renderizarTabla(filas);
+        }
+
+        // =========================================================
+        // PDF
+        // =========================================================
+        function verPDF(url) {
+            if(!url) return;
+            let previewUrl = url;
+            if (url.includes('/view')) {
+                previewUrl = url.replace(/\/view.*/, '/preview');
+            }
+            document.getElementById('iframePDF').src = previewUrl;
+            modalPDF.show();
+        }
+
+        function getDriveId(url) {
+            if (!url) return null;
+            let match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+            if (match) return match[1];
+            match = url.match(/id=([a-zA-Z0-9-_]+)/);
+            return match ? match[1] : null;
+        }
+
+        function descargarPDF(url) {
+            const id = getDriveId(url);
+            if (id) window.open(`https://drive.google.com/uc?export=download&id=${id}`, '_blank');
+            else Swal.fire('Error', 'No se pudo obtener el ID del archivo', 'error');
+        }
+
+        async function compartirPDF(url, supervisor, fecha) {
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        title: `Supervisión - ${supervisor} (${fecha})`,
+                        text: `Reporte de supervisión del ${fecha}`,
+                        url: url
+                    });
+                } catch (err) { console.log('Error compartiendo:', err); }
+            } else {
+                navigator.clipboard.writeText(url).then(() => {
+                    Swal.fire({ icon: 'success', title: 'Enlace copiado', text: 'El enlace del reporte se copió al portapapeles.', timer: 2000, showConfirmButton: false });
+                });
+            }
+        }
+
+        // =========================================================
+        // TABLA PRINCIPAL
+        // =========================================================
+        function renderizarTabla(lista) {
+            const tbody = document.getElementById('tablaCuerpo');
+            const aviso = document.getElementById('sinResultadosFiltro');
+            tbody.innerHTML = '';
+            
+            if (lista.length === 0) { aviso.style.display = 'block'; return; }
+            aviso.style.display = 'none';
+
+            lista.forEach((item, index) => {
+                let botones = '<span class="text-muted small">-</span>';
+                
+                if (item.url && item.url.includes('http')) {
+                    const btnVer = `<button class="btn btn-action btn-pdf" onclick="verPDF('${item.url}')" title="Ver Reporte"><i class="fas fa-eye"></i></button>`;
+                    const btnShare = `<button class="btn btn-action btn-share" onclick="compartirPDF('${item.url}', '${(item.supervisor||'').replace(/'/g,'')}', '${item.fecha}')" title="Compartir"><i class="fas fa-share-alt"></i></button>`;
+                    const btnDownload = `<button class="btn btn-action btn-download" onclick="descargarPDF('${item.url}')" title="Descargar"><i class="fas fa-download"></i></button>`;
+                    const btnDelete = modoAdmin 
+                        ? `<button class="btn btn-action btn-delete" onclick="confirmarEliminar(${index})" title="Eliminar"><i class="fas fa-trash-alt"></i></button>` 
+                        : '';
+                    
+                    botones = `<div class="d-flex justify-content-center">${btnVer}${btnShare}${btnDownload}${btnDelete}</div>`;
+                } else {
+                    if (modoAdmin) {
+                        botones = `<div class="d-flex justify-content-center">
+                            <button class="btn btn-action btn-delete" onclick="confirmarEliminar(${index})" title="Eliminar"><i class="fas fa-trash-alt"></i></button>
+                        </div>`;
+                    }
+                }
+
+                const supervisor = item.supervisor || '<span class="text-muted small">-</span>';
+                const ubicacion = item.ubicacion ? `<span class="badge badge-ubicacion">${item.ubicacion}</span>` : '<span class="text-muted small">-</span>';
+                const subUbicacion = item.subUbicacion ? `<span class="badge badge-sub">${item.subUbicacion}</span>` : '<span class="text-muted small">-</span>';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="fw-bold">${item.fecha}</td>
+                    <td><span class="badge badge-supervisor">${supervisor}</span></td>
+                    <td>${ubicacion}</td>
+                    <td>${subUbicacion}</td>
+                    <td class="text-center">${botones}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // =========================================================
+        // ELIMINAR (a la papelera)
+        // =========================================================
+        async function confirmarEliminar(index) {
+            const item = datosTablaGlobal[index];
+            if (!item) return;
+
+            const proyecto = document.getElementById('filtroProyecto').value;
+            
+            if (!sessionPasswords[proyecto]) {
+                const ok = await asegurarPasswordProyecto(proyecto);
+                if (!ok) return;
+            }
+
+            const passwordProyecto = sessionPasswords[proyecto];
+
+            if (modoAdmin) {
+                const result = await swalConInput({
+                    title: 'Eliminar Reporte de Supervisión',
+                    html: `
+                        <p>El reporte se moverá a la papelera de reciclaje del proyecto <strong>${proyecto}</strong>.</p>
+                        <div class="alert alert-info small mt-2 mb-0">
+                            <strong>Modo Administrador activo.</strong><br>
+                            ¿Deseas proceder con la eliminación?
+                        </div>
+                    `,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, eliminar',
+                    confirmButtonColor: '#e74c3c',
+                    cancelButtonText: 'Cancelar',
+                    allowOutsideClick: false
+                });
+                restaurarEstadoBody();
+                if (!result.isConfirmed) return;
+                ejecutarEliminacion(item, proyecto, passwordProyecto);
+                return;
+            }
+
+            const result = await swalConInput({
+                title: 'Eliminar Reporte de Supervisión',
+                html: `<p>El reporte se moverá a la papelera de reciclaje del proyecto <strong>${proyecto}</strong>.</p>`,
+                input: 'password',
+                inputPlaceholder: 'Contraseña del proyecto',
+                inputAttributes: { autocapitalize: 'off', autocomplete: 'off' },
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Eliminar',
+                confirmButtonColor: '#e74c3c',
+                cancelButtonText: 'Cancelar',
+                allowOutsideClick: false,
+                preConfirm: (pass) => {
+                    if (!pass) { Swal.showValidationMessage('Debes ingresar la contraseña'); return false; }
+                    if (pass !== passwordProyecto) { Swal.showValidationMessage('Contraseña incorrecta'); return false; }
+                    return pass;
+                }
+            });
+            restaurarEstadoBody();
+            if (!result.isConfirmed) return;
+            ejecutarEliminacion(item, proyecto, passwordProyecto);
+        }
+
+        function ejecutarEliminacion(item, proyecto, passwordProyecto) {
+            const mesVal = document.getElementById('filtroMes').value;
+            const anio = document.getElementById('filtroAnio').value;
+
+            showLoading();
+
+            fetch(URL_SCRIPT_GOOGLE, {
+                method: 'POST',
+                body: JSON.stringify({ 
+                    action: "eliminarReporte", 
+                    proyecto: proyecto,
+                    mes: mesVal, anio: anio,
+                    password: passwordProyecto,
+                    rowNumber: item.rowNumber,
+                    fileUrl: item.url,
+                    supervisor: item.supervisor,
+                    fechaReporte: item.fecha,
+                    ubicacion: item.ubicacion,
+                    subUbicacion: item.subUbicacion
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                hideLoading();
+                if (data.status === "success") {
+                    Swal.fire("Eliminado", data.data.message, "success").then(() => consultarDatos());
+                } else {
+                    Swal.fire("Error", data.message, "error");
+                }
+            })
+            .catch(err => {
+                hideLoading();
+                Swal.fire("Error", "No se pudo conectar con el servidor.", "error");
+            });
+        }
+
+        // =========================================================
+        // PAPELERA
+        // =========================================================
+        async function abrirPapelera() {
+            const proyecto = document.getElementById('filtroProyecto').value;
+            
+            if (!proyecto) {
+                Swal.fire('Atención', 'Selecciona un proyecto primero.', 'warning');
+                return;
+            }
+
+            if (!modoAdmin) {
+                Swal.fire('Acceso restringido', 'Activa el Modo Administrador para acceder a la papelera.', 'warning');
+                return;
+            }
+
+            if (!sessionPasswords[proyecto]) {
+                const ok = await asegurarPasswordProyecto(proyecto);
+                if (!ok) return;
+            }
+
+            const passwordProyecto = sessionPasswords[proyecto];
+
+            showLoading();
+            try {
+                const resp = await fetch(URL_SCRIPT_GOOGLE, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: "obtenerPapelera", proyecto: proyecto, password: passwordProyecto })
+                }).then(r => r.json());
+
+                hideLoading();
+
+                if (resp.status !== "success") {
+                    Swal.fire('Error', resp.message, 'error');
+                    return;
+                }
+
+                datosPapeleraGlobal = resp.data.items;
+                document.getElementById('papeleraProyectoNombre').textContent = proyecto;
+                renderizarPapelera(datosPapeleraGlobal);
+                modalPapelera.show();
+            } catch (e) {
+                hideLoading();
+                console.error(e);
+                Swal.fire('Error', 'No se pudo cargar la papelera.', 'error');
+            }
+        }
+
+        function renderizarPapelera(items) {
+            const tbody = document.getElementById('papeleraCuerpo');
+            const vacia = document.getElementById('papeleraVacia');
+            tbody.innerHTML = '';
+
+            if (!items || items.length === 0) {
+                vacia.style.display = 'block';
+                return;
+            }
+            vacia.style.display = 'none';
+
+            items.forEach((it, idx) => {
+                const ubic = it.ubicacion || '-';
+                const sub = it.subUbicacion || '-';
+                const fechaElim = it.fechaEliminacion || '-';
+                const horaElim = it.horaEliminacion ? ' ' + it.horaEliminacion : '';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="fw-bold">${it.fechaReporte || '-'}</td>
+                    <td>${it.supervisor || '-'}</td>
+                    <td>${ubic !== '-' ? `<span class="badge badge-ubicacion">${ubic}</span>` : '-'}</td>
+                    <td>${sub !== '-' ? `<span class="badge badge-sub">${sub}</span>` : '-'}</td>
+                    <td class="small text-muted">${fechaElim}${horaElim}</td>
+                    <td class="text-center">
+                        ${it.url ? `<button class="btn btn-action btn-pdf" onclick="verPDF('${it.url}')" title="Ver PDF"><i class="fas fa-eye"></i></button>` : ''}
+                        <button class="btn btn-action btn-restore" onclick="confirmarRestaurar(${idx})" title="Restaurar"><i class="fas fa-undo"></i></button>
+                        <button class="btn btn-action btn-delete" onclick="confirmarEliminarDefinitivo(${idx})" title="Borrar definitivamente"><i class="fas fa-trash-alt"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function confirmarRestaurar(index) {
+            const item = datosPapeleraGlobal[index];
+            if (!item) return;
+
+            const proyecto = document.getElementById('filtroProyecto').value;
+            
+            if (!sessionPasswords[proyecto]) {
+                const ok = await asegurarPasswordProyecto(proyecto);
+                if (!ok) return;
+            }
+            const passwordProyecto = sessionPasswords[proyecto];
+
+            if (modoAdmin) {
+                const result = await swalConInput({
+                    title: 'Restaurar Reporte',
+                    html: `
+                        <div class="text-start">
+                            <p>El reporte se restaurará a su hoja original del mes.</p>
+                            <div class="alert alert-info small mt-2 mb-2">
+                                <strong>Fecha:</strong> ${item.fechaReporte}<br>
+                                <strong>Supervisor:</strong> ${item.supervisor}<br>
+                                <strong>Ubicación:</strong> ${item.ubicacion || '-'}
+                            </div>
+                            <div class="alert alert-success small mt-2 mb-0">
+                                <strong>Modo Administrador activo.</strong> ¿Deseas proceder?
+                            </div>
+                        </div>
+                    `,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, restaurar',
+                    confirmButtonColor: '#3498db',
+                    cancelButtonText: 'Cancelar',
+                    allowOutsideClick: false
+                });
+                restaurarEstadoBody();
+                if (!result.isConfirmed) return;
+            } else {
+                const result = await swalConInput({
+                    title: 'Restaurar Reporte',
+                    html: `
+                        <div class="text-start">
+                            <p>El reporte se restaurará a su hoja original del mes.</p>
+                            <div class="alert alert-info small mt-2 mb-2">
+                                <strong>Fecha:</strong> ${item.fechaReporte}<br>
+                                <strong>Supervisor:</strong> ${item.supervisor}<br>
+                                <strong>Ubicación:</strong> ${item.ubicacion || '-'}
+                            </div>
+                            <p class="small">Para confirmar, ingresa la contraseña del proyecto:</p>
+                        </div>
+                    `,
+                    input: 'password',
+                    inputPlaceholder: 'Contraseña del proyecto',
+                    inputAttributes: { autocapitalize: 'off', autocomplete: 'off' },
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Restaurar',
+                    confirmButtonColor: '#3498db',
+                    cancelButtonText: 'Cancelar',
+                    allowOutsideClick: false,
+                    preConfirm: (pass) => {
+                        if (!pass) { Swal.showValidationMessage('Debes ingresar la contraseña'); return false; }
+                        if (pass !== passwordProyecto) { Swal.showValidationMessage('Contraseña incorrecta'); return false; }
+                        return pass;
+                    }
+                });
+                restaurarEstadoBody();
+                if (!result.isConfirmed) return;
+            }
+
+            showLoading();
+            try {
+                const resp = await fetch(URL_SCRIPT_GOOGLE, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: "restaurarReporte",
+                        proyecto: proyecto,
+                        password: passwordProyecto,
+                        papeleraRow: item.rowNumber
+                    })
+                }).then(r => r.json());
+
+                hideLoading();
+
+                if (resp.status === "success") {
+                    Swal.fire("Restaurado", resp.data.message, "success")
+                        .then(() => abrirPapelera());
+                } else {
+                    Swal.fire("Error", resp.message, "error");
+                }
+            } catch (e) {
+                hideLoading();
+                console.error(e);
+                Swal.fire('Error', 'No se pudo conectar con el servidor.', 'error');
+            }
+        }
+
+        async function confirmarEliminarDefinitivo(index) {
+            const item = datosPapeleraGlobal[index];
+            if (!item) return;
+
+            const proyecto = document.getElementById('filtroProyecto').value;
+            
+            if (!sessionPasswords[proyecto]) {
+                const ok = await asegurarPasswordProyecto(proyecto);
+                if (!ok) return;
+            }
+            const passwordProyecto = sessionPasswords[proyecto];
+
+            if (modoAdmin) {
+                const result = await swalConInput({
+                    title: 'Eliminar DEFINITIVAMENTE',
+                    html: `
+                        <div class="text-start">
+                            <p>El registro se eliminará de la papelera y el PDF se moverá a la carpeta basurero de Drive.</p>
+                            <div class="alert alert-danger small mt-2 mb-0">
+                                <strong>ADVERTENCIA:</strong> Esta acción no se puede deshacer.
+                            </div>
+                            <div class="alert alert-success small mt-2 mb-0">
+                                <strong>Modo Administrador activo.</strong> ¿Deseas proceder?
+                            </div>
+                        </div>
+                    `,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, borrar definitivamente',
+                    confirmButtonColor: '#c0392b',
+                    cancelButtonText: 'Cancelar',
+                    allowOutsideClick: false
+                });
+                restaurarEstadoBody();
+                if (!result.isConfirmed) return;
+
+                showLoading();
+                try {
+                    const resp = await fetch(URL_SCRIPT_GOOGLE, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            action: "eliminarDefinitivo",
+                            proyecto: proyecto,
+                            password: passwordProyecto,
+                            papeleraRow: item.rowNumber,
+                            fileUrl: item.url
+                        })
+                    }).then(r => r.json());
+
+                    hideLoading();
+
+                    if (resp.status === "success") {
+                        Swal.fire("Eliminado definitivamente", resp.data.message, "success")
+                            .then(() => abrirPapelera());
+                    } else {
+                        Swal.fire("Error", resp.message, "error");
+                    }
+                } catch (e) {
+                    hideLoading();
+                    console.error(e);
+                    Swal.fire('Error', 'No se pudo conectar con el servidor.', 'error');
+                }
+                return;
+            }
+
+            const result = await swalConInput({
+                title: 'Eliminar DEFINITIVAMENTE',
+                html: `
+                    <div class="text-start">
+                        <p>El registro se eliminará de la papelera y el PDF se moverá a la carpeta basurero de Drive.</p>
+                        <div class="alert alert-danger small mt-2 mb-0">
+                            <strong>ADVERTENCIA:</strong> Esta acción no se puede deshacer.
+                        </div>
+                        <p class="small mt-2">Ingresa la contraseña general para confirmar:</p>
+                    </div>
+                `,
+                input: 'password',
+                inputPlaceholder: 'Contraseña general',
+                inputAttributes: { autocapitalize: 'off', autocomplete: 'off' },
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Borrar definitivamente',
+                confirmButtonColor: '#c0392b',
+                cancelButtonText: 'Cancelar',
+                allowOutsideClick: false,
+                preConfirm: (pass) => {
+                    if (!pass) { Swal.showValidationMessage('Debes ingresar la contraseña'); return false; }
+                    return pass;
+                }
+            });
+            restaurarEstadoBody();
+            if (!result.isConfirmed) return;
+            const passwordGeneral = result.value;
+
+            showLoading();
+            try {
+                const resp = await fetch(URL_SCRIPT_GOOGLE, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: "eliminarDefinitivo",
+                        proyecto: proyecto,
+                        password: passwordProyecto,
+                        passwordGeneral: passwordGeneral,
+                        papeleraRow: item.rowNumber,
+                        fileUrl: item.url
+                    })
+                }).then(r => r.json());
+
+                hideLoading();
+
+                if (resp.status === "success") {
+                    Swal.fire("Eliminado definitivamente", resp.data.message, "success")
+                        .then(() => abrirPapelera());
+                } else {
+                    Swal.fire("Error", resp.message, "error");
+                }
+            } catch (e) {
+                hideLoading();
+                console.error(e);
+                Swal.fire('Error', 'No se pudo conectar con el servidor.', 'error');
+            }
+        }
+
+        // Cerrar config con tecla ESC
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const cfgWrapper = document.getElementById('cfgModalWrapper');
+                if (cfgWrapper.classList.contains('show')) {
+                    cerrarConfig();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

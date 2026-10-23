@@ -50,6 +50,11 @@
             z-index: 100;
         }
         .header-title { flex: 1; text-align: center; }
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
         .header-btn {
             background: rgba(255,255,255,0.15);
             border: 1px solid rgba(255,255,255,0.3);
@@ -76,6 +81,73 @@
             justify-content: center;
             font-weight: bold;
         }
+
+        /* === INDICADOR DE CONEXIÓN (wifi) === */
+        .conexion-indicator {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        .conexion-indicator.online {
+            background-color: rgba(46, 204, 113, 0.25);
+            color: #fff;
+        }
+        .conexion-indicator.offline {
+            background-color: rgba(231, 76, 60, 0.35);
+            color: #fff;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        .conexion-indicator .conexion-tooltip {
+            position: absolute;
+            right: 0;
+            top: 52px;
+            background-color: var(--dark-color);
+            color: white;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 0.72rem;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: var(--transition);
+            z-index: 1001;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        .conexion-indicator:hover .conexion-tooltip {
+            opacity: 1;
+        }
+
+        /* Banner offline */
+        .offline-banner {
+            display: none;
+            background: linear-gradient(to right, #e74c3c, #c0392b);
+            color: white;
+            padding: 10px 18px;
+            text-align: center;
+            font-size: 0.9rem;
+            font-weight: 600;
+            box-shadow: var(--shadow);
+        }
+        .offline-banner.active {
+            display: block;
+        }
+        .offline-banner i {
+            margin-right: 6px;
+        }
+
         .form-container {
             width: 90%;
             max-width: 1000px;
@@ -521,11 +593,15 @@
             .modal-content { max-height: 90vh; }
             .modal-footer { flex-direction: column; align-items: stretch; }
             .modal-footer > div { justify-content: center; }
+            .conexion-indicator { width: 38px; height: 38px; font-size: 0.9rem; }
+            .header-btn { width: 38px; height: 38px; font-size: 0.95rem; }
         }
         @media (max-width: 480px) {
             .productos-container { grid-template-columns: 1fr 1fr; }
             .question-container { padding: 15px; }
             #buscador { padding: 12px 15px 12px 40px; }
+            .conexion-indicator { width: 36px; height: 36px; font-size: 0.85rem; }
+            .header-btn { width: 36px; height: 36px; font-size: 0.9rem; }
         }
     </style>
 </head>
@@ -534,10 +610,20 @@
 <div class="header">
     <div style="width:42px;"></div>
     <div class="header-title">Pisos Brillantes</div>
-    <button id="btn-sync" class="header-btn" title="Revisar y sincronizar pendientes">
-        <i class="fas fa-cloud-upload-alt"></i>
-        <span id="badge-pendientes" class="badge-pendientes" style="display:none;">0</span>
-    </button>
+    <div class="header-actions">
+        <div class="conexion-indicator online" id="conexion-indicator">
+            <i class="fas fa-wifi" id="conexion-icon"></i>
+            <div class="conexion-tooltip" id="conexion-tooltip">Conectado</div>
+        </div>
+        <button id="btn-sync" class="header-btn" title="Revisar y sincronizar pendientes">
+            <i class="fas fa-cloud-upload-alt"></i>
+            <span id="badge-pendientes" class="badge-pendientes" style="display:none;">0</span>
+        </button>
+    </div>
+</div>
+
+<div class="offline-banner" id="offline-banner">
+    <i class="fas fa-wifi-slash"></i> Modo offline: puedes seguir registrando requisiciones. Se sincronizarán cuando vuelva la conexión.
 </div>
 
 <div class="form-container">
@@ -628,14 +714,20 @@ const DB_NAME = "RequisicionesDB";
 const DB_VERSION = 1;
 const STORE_PENDIENTES = "pendientes";
 
+// Claves para cache offline en localStorage
+const LS_PRODUCTOS = "cacheProductosRequisiciones";
+const LS_COLABORADORES = "cacheColaboradoresRequisiciones";
+const LS_DESTINOS = "cacheDestinosRequisiciones";
+
 let db = null;
 let productos = [];
 let colaboradores = [];
 let destinos = [];
 let sincronizando = false;
+let isOnline = navigator.onLine;
 
 // =========================================================================
-// OVERLAY (mensaje fijo siempre)
+// OVERLAY
 // =========================================================================
 function showOverlay() {
     document.getElementById('overlay').classList.add('active');
@@ -699,6 +791,82 @@ function dbUpdatePendiente(item) {
 }
 
 // =========================================================================
+// CACHE OFFLINE (localStorage)
+// =========================================================================
+function guardarCacheDatos() {
+    try {
+        localStorage.setItem(LS_PRODUCTOS, JSON.stringify(productos));
+        localStorage.setItem(LS_COLABORADORES, JSON.stringify(colaboradores));
+        localStorage.setItem(LS_DESTINOS, JSON.stringify(destinos));
+    } catch (e) {
+        console.warn("No se pudo guardar cache offline:", e);
+    }
+}
+function cargarCacheDatos() {
+    try {
+        const p = localStorage.getItem(LS_PRODUCTOS);
+        const c = localStorage.getItem(LS_COLABORADORES);
+        const d = localStorage.getItem(LS_DESTINOS);
+        if (p) productos = JSON.parse(p);
+        if (c) colaboradores = JSON.parse(c);
+        if (d) destinos = JSON.parse(d);
+        return p && p.length > 0;
+    } catch (e) {
+        console.warn("No se pudo leer cache offline:", e);
+        return false;
+    }
+}
+
+// =========================================================================
+// ESTADO DE CONEXIÓN
+// =========================================================================
+function actualizarEstadoConexion() {
+    isOnline = navigator.onLine;
+    const indicator = document.getElementById('conexion-indicator');
+    const icon = document.getElementById('conexion-icon');
+    const tooltip = document.getElementById('conexion-tooltip');
+    const banner = document.getElementById('offline-banner');
+    const btnSync = document.getElementById('btn-sync');
+
+    if (isOnline) {
+        indicator.className = 'conexion-indicator online';
+        icon.className = 'fas fa-wifi';
+        tooltip.textContent = 'Conectado a internet';
+        banner.classList.remove('active');
+        btnSync.style.opacity = '1';
+        btnSync.title = 'Revisar y sincronizar pendientes';
+    } else {
+        indicator.className = 'conexion-indicator offline';
+        icon.className = 'fas fa-wifi-slash';
+        tooltip.textContent = 'Sin conexión - Modo offline';
+        banner.classList.add('active');
+        btnSync.title = 'Sin conexión - No se puede sincronizar';
+    }
+
+    // Re-evaluar el botón de sincronizar del modal si está abierto
+    const btnSincronizarModal = document.getElementById('btn-sincronizar-seleccionados');
+    if (btnSincronizarModal) {
+        if (sincronizando) {
+            btnSincronizarModal.disabled = true;
+        } else {
+            const seleccionados = document.querySelectorAll('.check-pend:checked').length;
+            btnSincronizarModal.disabled = seleccionados === 0 || !isOnline;
+        }
+    }
+}
+
+window.addEventListener('online', function() {
+    console.log('🌐 Conexión restaurada');
+    actualizarEstadoConexion();
+    // Recargar datos frescos del servidor
+    cargarTodosLosDatos(true);
+});
+window.addEventListener('offline', function() {
+    console.log('📵 Sin conexión - Modo offline activado');
+    actualizarEstadoConexion();
+});
+
+// =========================================================================
 // INICIALIZACIÓN
 // =========================================================================
 document.addEventListener('DOMContentLoaded', async function() {
@@ -711,6 +879,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     document.getElementById("fecha").value = yyyy + '-' + mm + '-' + dd;
 
     await actualizarBadgePendientes();
+    actualizarEstadoConexion();
 
     cargarTodosLosDatos();
     configurarEventos();
@@ -737,25 +906,71 @@ function configurarEventos() {
 }
 
 // =========================================================================
-// CARGA DE DATOS
+// CARGA DE DATOS (con fallback a cache offline)
 // =========================================================================
-function cargarTodosLosDatos() {
+function cargarTodosLosDatos(esRecargaOnline) {
+    // Si estamos offline, intentar cargar cache inmediatamente
+    if (!navigator.onLine) {
+        const hayCache = cargarCacheDatos();
+        if (hayCache) {
+            mostrarProductosEnUI();
+            llenarSelects();
+            if (!esRecargaOnline) {
+                Swal.fire({
+                    title: 'Modo offline',
+                    html: `<p>Se cargaron los datos de la última sesión guardada.</p><p style="font-size:0.85em; color:#6c757d; margin-top:8px;">Puedes seguir registrando requisiciones. Se sincronizarán cuando vuelva el internet.</p>`,
+                    icon: 'info',
+                    confirmButtonColor: '#3498db',
+                    confirmButtonText: 'Entendido'
+                });
+            }
+        } else {
+            Swal.fire({
+                title: 'Sin conexión',
+                html: `<p>No hay conexión a internet y no hay datos en caché guardados.</p><p style="font-size:0.85em; color:#6c757d; margin-top:8px;">Conéctate a internet al menos una vez para que los datos queden guardados localmente.</p>`,
+                icon: 'warning',
+                confirmButtonColor: '#f39c12'
+            });
+        }
+        return;
+    }
+
+    // Online: traer datos frescos
     showOverlay();
     $.get(SCRIPT_URL_GET, function(data) {
         hideOverlay();
         if (data.error) {
-            Swal.fire('Error', 'No se pudieron cargar los datos: ' + data.mensaje, 'error');
+            // Fallback a cache si hay
+            const hayCache = cargarCacheDatos();
+            if (hayCache) {
+                mostrarProductosEnUI();
+                llenarSelects();
+                Swal.fire('Advertencia', 'No se pudieron cargar datos frescos. Se usó la última sesión guardada.', 'warning');
+            } else {
+                Swal.fire('Error', 'No se pudieron cargar los datos: ' + data.mensaje, 'error');
+            }
             return;
         }
         productos = data.productos;
         colaboradores = data.colaboradores;
         destinos = data.destinos;
 
+        // Guardar cache para uso offline
+        guardarCacheDatos();
+
         mostrarProductosEnUI();
         llenarSelects();
     }).fail(function(jqXHR, textStatus, errorThrown) {
         hideOverlay();
-        Swal.fire('Error', 'No se pudo conectar al servidor o hubo un error de red. ' + textStatus, 'error');
+        // Fallback a cache
+        const hayCache = cargarCacheDatos();
+        if (hayCache) {
+            mostrarProductosEnUI();
+            llenarSelects();
+            Swal.fire('Sin conexión al servidor', 'Se usó la última sesión guardada. Puedes seguir requisando.', 'warning');
+        } else {
+            Swal.fire('Error', 'No se pudo conectar al servidor o hubo un error de red. ' + textStatus, 'error');
+        }
         console.error("Error en la solicitud AJAX:", jqXHR, textStatus, errorThrown);
     });
 }
@@ -984,7 +1199,7 @@ function limpiarFormulario() {
 }
 
 // =========================================================================
-// GUARDAR LOCAL (botón Enviar)
+// GUARDAR LOCAL (botón Enviar) — Funciona online y offline
 // =========================================================================
 async function enviardatos() {
     let seleccion = [];
@@ -1019,6 +1234,7 @@ async function enviardatos() {
                 <strong>Fecha:</strong> ${fecha}<br>
                 <strong>Colaborador:</strong> ${colaborador}<br>
                 <strong>Área:</strong> ${area}<br>
+                ${!isOnline ? '<span style="color:#e74c3c; font-weight:600;"><i class="fas fa-wifi-slash"></i> Modo offline — se guardará para sincronizar después</span>' : ''}
             </div>
             <h4 style="margin: 12px 0 8px; color: #28a745; text-align: left; font-size: 1em;">Productos seleccionados (${totalProductos}):</h4>
             <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
@@ -1086,9 +1302,9 @@ async function enviardatos() {
         Swal.fire({
             icon: 'success',
             title: 'Requisición guardada localmente',
-            html: `<p>Se guardó como pendiente de sincronizar.</p><p style="font-size:0.85em; color:#6c757d; margin-top:10px;">Presiona el botón <i class="fas fa-cloud-upload-alt"></i> en la parte superior para sincronizar cuando estés listo.</p>`,
+            html: `<p>Se guardó como pendiente de sincronizar.</p><p style="font-size:0.85em; color:#6c757d; margin-top:10px;">${isOnline ? 'Presiona el botón <i class="fas fa-cloud-upload-alt"></i> en la parte superior para sincronizar cuando estés listo.' : '<i class="fas fa-wifi-slash"></i> Sin conexión: se sincronizará automáticamente cuando vuelva el internet y presiones el botón de sincronizar.'}</p>`,
             confirmButtonColor: '#28a745',
-            timer: 3500,
+            timer: 4000,
             showConfirmButton: true,
             confirmButtonText: 'Aceptar'
         });
@@ -1201,14 +1417,16 @@ async function abrirModalSync() {
 }
 
 function cerrarModalSync() {
-    if (sincronizando) return; // no se puede cerrar mientras sincroniza
+    if (sincronizando) return;
     document.getElementById('modal-sync').classList.remove('active');
 }
 
 function actualizarBotonesSel() {
     const seleccionados = document.querySelectorAll('.check-pend:checked').length;
     const total = document.querySelectorAll('.check-pend').length;
-    document.getElementById('btn-sincronizar-seleccionados').disabled = seleccionados === 0 || sincronizando;
+    const btnSinc = document.getElementById('btn-sincronizar-seleccionados');
+    btnSinc.disabled = seleccionados === 0 || sincronizando || !isOnline;
+    btnSinc.title = !isOnline ? 'Sin conexión - No se puede sincronizar' : 'Sincronizar pendientes';
     document.getElementById('btn-delete-sel').disabled = seleccionados === 0 || sincronizando;
 
     const checkAll = document.getElementById('check-all-pendientes');
@@ -1223,18 +1441,22 @@ function actualizarBotonesSel() {
 async function sincronizarSeleccionados() {
     if (sincronizando) return;
 
-    const ids = Array.from(document.querySelectorAll('.check-pend:checked')).map(c => c.value);
-    if (ids.length === 0) return;
-
     if (!navigator.onLine) {
-        Swal.fire('Sin conexión', 'No hay conexión a internet. Verifica e intenta nuevamente.', 'error');
+        Swal.fire({
+            title: 'Sin conexión',
+            html: `<p>No hay conexión a internet.</p><p style="font-size:0.85em; color:#6c757d; margin-top:8px;">Las requisiciones se mantienen guardadas localmente. Cuando vuelva el internet podrás sincronizarlas.</p>`,
+            icon: 'warning',
+            confirmButtonColor: '#f39c12'
+        });
         return;
     }
+
+    const ids = Array.from(document.querySelectorAll('.check-pend:checked')).map(c => c.value);
+    if (ids.length === 0) return;
 
     const pend = await dbGetAllPendientes();
     const aEnviar = pend.filter(r => ids.includes(r.id));
 
-    // Bloquear UI del modal
     sincronizando = true;
     const btn = document.getElementById('btn-sincronizar-seleccionados');
     const btnDel = document.getElementById('btn-delete-sel');
@@ -1248,7 +1470,6 @@ async function sincronizarSeleccionados() {
     document.getElementById('check-all-pendientes').disabled = true;
     document.querySelectorAll('.check-pend').forEach(c => c.disabled = true);
 
-    // Incrementar intentos
     for (const req of aEnviar) {
         req.syncAttempts = (req.syncAttempts || 0) + 1;
         await dbUpdatePendiente(req);
@@ -1303,7 +1524,6 @@ async function sincronizarSeleccionados() {
         const existentes = data.idsExistentes || [];
         const conError = data.idsConError || [];
 
-        // Eliminar procesados/existentes de la DB local
         const aEliminar = [...procesados, ...existentes];
         for (const id of aEliminar) {
             await dbDeletePendiente(id);
@@ -1311,7 +1531,6 @@ async function sincronizarSeleccionados() {
 
         await actualizarBadgePendientes();
 
-        // Cerrar modal ANTES de mostrar resultado
         document.getElementById('modal-sync').classList.remove('active');
 
         let mensajeHTML = `
@@ -1335,7 +1554,6 @@ async function sincronizarSeleccionados() {
             icon = 'info'; title = 'Ya sincronizado';
         }
 
-        // Restaurar estado ANTES de mostrar Swal (para que no se vea "colgado")
         sincronizando = false;
         btn.innerHTML = originalHtml;
         btn.disabled = false;
@@ -1346,15 +1564,13 @@ async function sincronizarSeleccionados() {
 
         await Swal.fire({ title, html: mensajeHTML, icon, confirmButtonColor: icon === 'success' ? '#28a745' : '#f39c12' });
 
-        // Refrescar stock
-        cargarTodosLosDatos();
+        cargarTodosLosDatos(true);
 
     } catch (err) {
         console.error('Error sync:', err);
         const timeout = err.name === 'AbortError';
         const esCORS = (err.message || '').toLowerCase().includes('fetch') || (err.message || '').includes('Failed to fetch');
 
-        // Desbloquear UI
         sincronizando = false;
         btn.innerHTML = originalHtml;
         btn.disabled = false;
@@ -1363,7 +1579,6 @@ async function sincronizarSeleccionados() {
         document.getElementById('check-all-pendientes').disabled = false;
         document.querySelectorAll('.check-pend').forEach(c => c.disabled = false);
 
-        // Cerrar modal antes de mostrar error
         document.getElementById('modal-sync').classList.remove('active');
 
         let detalleHTML = '';

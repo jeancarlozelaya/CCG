@@ -1,0 +1,2330 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Estado & Mantenimiento de Equipos</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --success-color: #2ecc71;
+            --warning-color: #f39c12;
+            --dark-color: #34495e;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%);
+            color: #333;
+            min-height: 100vh;
+            line-height: 1.5;
+        }
+        .header {
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            color: white;
+            padding: 16px 18px;
+            font-size: 1.4rem;
+            font-weight: bold;
+            box-shadow: var(--shadow);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header-title { flex: 1; text-align: center; }
+        .header-btn {
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            width: 42px; height: 42px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+        }
+        .header-btn:hover { background: rgba(255,255,255,0.3); transform: translateY(-2px); }
+        .header-btn .badge-pendientes {
+            position: absolute; top: -3px; right: -3px;
+            font-size: 0.65rem; padding: 0.25em 0.5em;
+        }
+        .container-main {
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 0 15px;
+        }
+        .main-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .main-tab {
+            flex: 1; min-width: 180px;
+            padding: 14px 22px;
+            border: none;
+            border-radius: 50px;
+            font-weight: 700;
+            font-size: 1rem;
+            background: white;
+            color: var(--dark-color);
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+            border: 2px solid transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+        .main-tab.active {
+            border-color: var(--secondary-color);
+            background: linear-gradient(135deg, #e8f4fd, #d4eaf7);
+            color: var(--secondary-color);
+            transform: translateY(-3px);
+        }
+        .main-tab:hover:not(.active) { transform: translateY(-2px); }
+        .seccion-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            margin-bottom: 30px;
+        }
+        .seccion-header {
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            color: white;
+            padding: 18px 22px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .seccion-header h2 {
+            margin: 0;
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .seccion-body { padding: 22px; }
+        .search-box { margin-bottom: 18px; position: relative; }
+        .search-box input {
+            width: 100%;
+            padding: 13px 18px 13px 44px;
+            font-size: 15px;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            transition: var(--transition);
+        }
+        .search-box input:focus {
+            border-color: var(--secondary-color);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(52,152,219,0.2);
+        }
+        .search-box:before {
+            content: '\f002';
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #aaa;
+        }
+        .category-separator {
+            width: 100%;
+            margin: 18px 0 12px 0;
+            padding: 13px 18px;
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+            color: white;
+            border-radius: 12px;
+            font-size: 1.05rem;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .category-separator:hover {
+            background: linear-gradient(135deg, var(--dark-color), var(--primary-color));
+            transform: translateX(4px);
+        }
+        .category-separator > div { display: flex; align-items: center; gap: 10px; flex: 1; }
+        .category-separator .toggle-icon { transition: transform 0.3s ease; }
+        .category-separator.collapsed .toggle-icon { transform: rotate(-90deg); }
+        .btn-cat-delete {
+            background: rgba(231,76,60,0.25);
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: var(--transition);
+            margin-left: 8px;
+        }
+        .btn-cat-delete:hover { background: #e74c3c; }
+        .category-separator.drop-target {
+            background: linear-gradient(135deg, #27ae60, #2ecc71) !important;
+            transform: scale(1.02);
+        }
+        .maquinas-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+            min-height: 40px;
+            border-radius: 12px;
+            padding: 6px;
+            transition: background 0.2s, border 0.2s;
+            border: 2px dashed transparent;
+        }
+        .maquinas-grid.drop-target {
+            background: #eafaf1;
+            border-color: #27ae60;
+        }
+        .maquina-card {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transition: var(--transition);
+            border: 1px solid #eee;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            cursor: grab;
+            user-select: none;
+            position: relative;
+        }
+        .maquina-card:active { cursor: grabbing; }
+        .maquina-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+            border-color: var(--secondary-color);
+        }
+        .maquina-card.dragging {
+            opacity: 0.35;
+            transform: scale(0.98);
+            cursor: grabbing;
+        }
+        .maquina-card.insert-before::before {
+            content: '';
+            position: absolute;
+            top: -8px;
+            left: -3px;
+            right: -3px;
+            height: 4px;
+            background: #3498db;
+            border-radius: 3px;
+            box-shadow: 0 0 6px rgba(52,152,219,0.7);
+            pointer-events: none;
+        }
+        .maquina-card.insert-after::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: -3px;
+            right: -3px;
+            height: 4px;
+            background: #3498db;
+            border-radius: 3px;
+            box-shadow: 0 0 6px rgba(52,152,219,0.7);
+            pointer-events: none;
+        }
+        .maquina-card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .maquina-imagen {
+            width: 55px; height: 55px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            padding: 6px;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+        .maquina-imagen img { max-width: 100%; max-height: 100%; object-fit: contain; pointer-events: none; }
+        .maquina-nombre {
+            flex: 1;
+            font-weight: 600;
+            color: var(--dark-color);
+            font-size: 1rem;
+            word-break: break-word;
+            pointer-events: none;
+        }
+        .drag-handle {
+            color: #bbb;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+            cursor: grab;
+        }
+        .estado-badge {
+            display: inline-block;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 25px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            width: fit-content;
+            pointer-events: none;
+        }
+        .estado-funcional { background: var(--success-color); }
+        .estado-mantenimiento { background: var(--warning-color); color: #333; }
+        .estado-fuera { background: var(--accent-color); }
+        .estado-sin { background: #95a5a6; }
+        .maquina-acciones {
+            display: flex;
+            gap: 5px;
+            margin-top: 4px;
+            flex-wrap: wrap;
+        }
+        .btn-accion {
+            flex: 1;
+            min-width: 40px;
+            padding: 7px 8px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+        .btn-editar { background: #eaf2f8; color: var(--secondary-color); }
+        .btn-editar:hover { background: var(--secondary-color); color: white; }
+        .btn-eliminar { background: #fdecea; color: var(--accent-color); }
+        .btn-eliminar:hover { background: var(--accent-color); color: white; }
+        .btn-mant { background: #fef5e7; color: var(--warning-color); }
+        .btn-mant:hover { background: var(--warning-color); color: white; }
+        .badge-local {
+            background: #f39c12;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.65rem;
+            font-weight: bold;
+            margin-left: 6px;
+        }
+        .grid-end-drop {
+            grid-column: 1 / -1;
+            height: 20px;
+            border-radius: 8px;
+            transition: background 0.15s, height 0.15s;
+        }
+        .grid-end-drop.active {
+            background: #3498db;
+            height: 8px;
+            box-shadow: 0 0 6px rgba(52,152,219,0.7);
+        }
+        .empty-state {
+            text-align: center;
+            padding: 50px 20px;
+            color: #999;
+        }
+        .empty-state i {
+            font-size: 3.5rem;
+            margin-bottom: 15px;
+            color: #ccc;
+            display: block;
+        }
+        .btn-primary-action {
+            background: linear-gradient(45deg, #2c3e50, #34495e);
+            color: white;
+            border: none;
+            padding: 11px 22px;
+            border-radius: 50px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-primary-action:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(44,62,80,0.4);
+        }
+        .btn-toolbar {
+            padding: 10px 18px;
+            border: none;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+        }
+        .btn-toolbar:hover { background: rgba(255,255,255,0.35); }
+        .list-group-item { cursor: pointer; transition: background 0.2s; }
+        .list-group-item:hover { background: #f1f3f5; }
+        .lista-scrollable {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 0.5rem;
+        }
+        .toolbar-lista {
+            background: #f8f9fa;
+            padding: 10px;
+            border: 1px solid #dee2e6;
+            border-bottom: none;
+            border-top-left-radius: 0.5rem;
+            border-top-right-radius: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .filtros-hist {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+            margin-bottom: 18px;
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 10px;
+        }
+        .filtros-hist select, .filtros-hist input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            background: white;
+        }
+        .hist-table-container {
+            overflow-x: auto;
+            border-radius: 10px;
+            max-height: 520px;
+            overflow-y: auto;
+        }
+        .hist-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+        .hist-table thead th {
+            background: var(--primary-color);
+            color: white;
+            padding: 11px 12px;
+            font-weight: 600;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            font-size: 0.85rem;
+        }
+        .hist-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #eee;
+            text-align: center;
+            font-size: 0.85rem;
+        }
+        .hist-table tr:hover { background: #f8f9fa; }
+        .badge-prev {
+            background: var(--secondary-color);
+            color: white;
+            padding: 3px 10px;
+            border-radius: 15px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        .badge-corr {
+            background: var(--accent-color);
+            color: white;
+            padding: 3px 10px;
+            border-radius: 15px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        .badge-na { color: #bbb; font-size: 0.75rem; }
+        #overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.95);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        .spinner {
+            width: 60px; height: 60px;
+            border: 5px solid rgba(52,152,219,0.2);
+            border-radius: 50%;
+            border-top-color: #3498db;
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #loadingMessage h4 {
+            margin: 0;
+            font-size: 1.3rem;
+            color: #2c3e50;
+            font-weight: bold;
+        }
+        #loadingMessage p { margin: 0; color: #7f8c8d; font-weight: normal; }
+        .tipo-mant-group { display: flex; gap: 10px; flex-wrap: wrap; }
+        .tipo-mant-btn {
+            flex: 1;
+            min-width: 130px;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            background: white;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: #666;
+        }
+        .tipo-mant-btn:hover { border-color: #3498db; color: #3498db; }
+        .tipo-mant-btn.active {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            border-color: #3498db;
+            color: white;
+            box-shadow: 0 4px 12px rgba(52,152,219,0.3);
+        }
+        .tipo-mant-btn.active.correctivo {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+            border-color: #e74c3c;
+            box-shadow: 0 4px 12px rgba(231,76,60,0.3);
+        }
+        .img-preview-inline {
+            max-width: 80px;
+            max-height: 80px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            margin-top: 8px;
+            display: block;
+        }
+        .badge-count-acciones {
+            background: #ffc107;
+            color: #333;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.65rem;
+            font-weight: bold;
+            margin-left: 6px;
+        }
+        .drag-hint {
+            background: #eaf4fc;
+            border-left: 4px solid var(--secondary-color);
+            padding: 10px 14px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: var(--dark-color);
+        }
+        .drag-hint i { color: var(--secondary-color); margin-right: 6px; }
+
+        /* Galería de imágenes por defecto */
+        .galeria-imagenes {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+            gap: 8px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 1px solid #e0e0e0;
+            margin-top: 8px;
+            max-height: 280px;
+            overflow-y: auto;
+        }
+        .galeria-item {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: var(--transition);
+            background: white;
+            position: relative;
+        }
+        .galeria-item:hover {
+            border-color: var(--secondary-color);
+            transform: scale(1.05);
+        }
+        .galeria-item.selected {
+            border-color: var(--success-color);
+            box-shadow: 0 0 0 2px rgba(46,204,113,0.4);
+        }
+        .galeria-item.selected::after {
+            content: '✓';
+            position: absolute;
+            top: 3px;
+            right: 3px;
+            width: 20px;
+            height: 20px;
+            background: var(--success-color);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.7rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .galeria-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            pointer-events: none;
+        }
+        .galeria-titulo {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--dark-color);
+            margin: 12px 0 4px 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .galeria-titulo i { color: var(--secondary-color); }
+
+        @media (max-width: 768px) {
+            .header { font-size: 1.15rem; padding: 12px; }
+            .main-tab { min-width: 120px; font-size: 0.8rem; padding: 12px 10px; }
+            .seccion-header h2 { font-size: 1.1rem; }
+            .maquinas-grid { grid-template-columns: 1fr; }
+            .btn-toolbar { font-size: 0.8rem; padding: 8px 14px; }
+            .galeria-imagenes { grid-template-columns: repeat(auto-fill, minmax(75px, 1fr)); }
+        }
+    </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+    <div style="width:42px;"></div>
+    <div class="header-title">Pisos Brillantes</div>
+    <div style="display:flex; gap:8px;">
+        <button id="btn-sync" class="header-btn" title="Sincronizar">
+            <i class="fas fa-cloud-upload-alt"></i>
+            <span id="badge-pendientes" class="badge bg-danger badge-pendientes" style="display:none;">0</span>
+        </button>
+    </div>
+</div>
+
+<div class="container-main">
+
+    <!-- TABS -->
+    <div class="main-tabs">
+        <button class="main-tab active" onclick="cambiarSeccion('equipos')" id="tab-equipos">
+            <i class="fas fa-tools"></i> Equipos
+        </button>
+        <button class="main-tab" onclick="cambiarSeccion('mantenimiento')" id="tab-mantenimiento">
+            <i class="fas fa-wrench"></i> Nuevo Mantenimiento
+        </button>
+        <button class="main-tab" onclick="cambiarSeccion('historial')" id="tab-historial">
+            <i class="fas fa-history"></i> Historial
+        </button>
+    </div>
+
+    <!-- SECCIÓN EQUIPOS -->
+    <div id="seccion-equipos">
+        <div class="seccion-card">
+            <div class="seccion-header">
+                <h2><i class="fas fa-industry"></i> Inventario de Equipos</h2>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button class="btn-toolbar" onclick="abrirModalAgregarCategoria()">
+                        <i class="fas fa-folder-plus"></i> Nueva Categoría
+                    </button>
+                    <button class="btn-toolbar" onclick="abrirModalAgregarMaquina()">
+                        <i class="fas fa-plus"></i> Nueva Máquina
+                    </button>
+                </div>
+            </div>
+            <div class="seccion-body">
+                <div class="drag-hint">
+                    <i class="fas fa-hand-pointer"></i>
+                    <strong>Tip:</strong> Mantén presionada una máquina y arrástrala. Suéltala sobre otra máquina para insertarla antes o después, o al espacio libre del grid para dejarla al final de esa categoría.
+                </div>
+                <div class="search-box">
+                    <input type="text" id="buscadorEquipos" placeholder="Buscar máquinas...">
+                </div>
+                <div id="maquinasContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SECCIÓN NUEVO MANTENIMIENTO -->
+    <div id="seccion-mantenimiento" style="display:none;">
+        <div class="seccion-card">
+            <div class="seccion-header">
+                <h2><i class="fas fa-wrench"></i> Registrar Mantenimiento</h2>
+            </div>
+            <div class="seccion-body">
+                <form id="form-mantenimiento">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Fecha <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="mant-fecha" required>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label fw-bold">Responsable <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="mant-responsable" placeholder="Nombre del responsable" required>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label fw-bold">Máquina <span class="text-danger">*</span></label>
+                            <select class="form-select" id="mant-maquina" required>
+                                <option value="">Seleccionar máquina...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label fw-bold">Tipo de Mantenimiento <span class="text-danger">*</span></label>
+                            <div class="tipo-mant-group">
+                                <button type="button" class="tipo-mant-btn" data-tipo="preventivo" onclick="seleccionarTipoMant('preventivo')">
+                                    <i class="fas fa-shield-alt"></i> Preventivo
+                                </button>
+                                <button type="button" class="tipo-mant-btn correctivo" data-tipo="correctivo" onclick="seleccionarTipoMant('correctivo')">
+                                    <i class="fas fa-tools"></i> Correctivo
+                                </button>
+                            </div>
+                            <input type="hidden" id="mant-tipo" required>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label fw-bold">Observaciones</label>
+                            <textarea class="form-control" id="mant-observaciones" rows="3" placeholder="Observaciones adicionales..."></textarea>
+                        </div>
+                    </div>
+                    <div class="mt-4 d-flex gap-2">
+                        <button type="submit" class="btn-primary-action">
+                            <i class="fas fa-save"></i> Guardar Mantenimiento
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary rounded-pill" onclick="limpiarFormMantenimiento()">
+                            <i class="fas fa-broom"></i> Limpiar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- SECCIÓN HISTORIAL -->
+    <div id="seccion-historial" style="display:none;">
+        <div class="seccion-card">
+            <div class="seccion-header">
+                <h2><i class="fas fa-history"></i> Historial de Mantenimiento</h2>
+            </div>
+            <div class="seccion-body">
+                <div class="filtros-hist">
+                    <select id="filtroMesHist">
+                        <option value="todos">Mes</option>
+                    </select>
+                    <select id="filtroAnioHist">
+                        <option value="todos">Año</option>
+                    </select>
+                    <select id="filtroTipoHist">
+                        <option value="todos">Tipo</option>
+                        <option value="preventivo">Preventivo</option>
+                        <option value="correctivo">Correctivo</option>
+                    </select>
+                    <input type="text" id="filtroTextoHist" placeholder="Buscar máquina, responsable u observaciones...">
+                </div>
+                <div class="hist-table-container">
+                    <table class="hist-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Responsable</th>
+                                <th>Máquina</th>
+                                <th>Preventivo</th>
+                                <th>Correctivo</th>
+                                <th>Observaciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="histTbody"></tbody>
+                    </table>
+                </div>
+                <div style="text-align:right; margin-top:15px; font-weight:bold;">
+                    Total registros: <span id="totalRegistrosHist">0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- MODAL: Agregar/Editar Máquina -->
+<div class="modal fade" id="modalMaquina" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title" id="modalMaquinaTitulo">Nueva Máquina</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="maquina-row-number">
+                <input type="hidden" id="maquina-modo">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Nombre de la máquina <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="maquina-nombre" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Estado <span class="text-danger">*</span></label>
+                    <select class="form-select" id="maquina-estado">
+                        <option value="Funcional">Funcional</option>
+                        <option value="Mantenimiento">Mantenimiento</option>
+                        <option value="Fuera de servicio">Fuera de servicio</option>
+                    </select>
+                </div>
+                <div class="mb-3" id="maquina-categoria-group">
+                    <label class="form-label fw-bold">Categoría</label>
+                    <select class="form-select" id="maquina-categoria">
+                        <option value="">(Sin categoría — al final)</option>
+                    </select>
+                    <small class="text-muted">Si la categoría no existe, se creará automáticamente.</small>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Imagen o URL de imagen</label>
+                    <div class="d-flex gap-2 mb-2">
+                        <button type="button" class="btn btn-outline-secondary rounded-pill btn-sm" onclick="document.getElementById('maquina-imagen-input').click()">
+                            <i class="fas fa-upload"></i> Seleccionar archivo
+                        </button>
+                        <input type="file" id="maquina-imagen-input" accept="image/*" style="display:none;" onchange="cargarImagenLocal(event)">
+                        <button type="button" class="btn btn-outline-danger rounded-pill btn-sm" onclick="limpiarImagenMaquina()">
+                            <i class="fas fa-times"></i> Quitar
+                        </button>
+                    </div>
+                    <input type="text" class="form-control" id="maquina-imagen" placeholder="https://... o selecciona un archivo">
+                    <div id="maquina-imagen-preview"></div>
+                    <small class="text-muted">La imagen se subirá a Drive al sincronizar.</small>
+                </div>
+
+                <!-- Galería de imágenes por defecto -->
+                <div class="mb-3">
+                    <div class="galeria-titulo">
+                        <i class="fas fa-images"></i> O elige una imagen por defecto
+                    </div>
+                    <div class="galeria-imagenes" id="galeriaImagenes"></div>
+                    <small class="text-muted">Haz clic para seleccionar. Se marcará con un ✓ verde.</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success rounded-pill px-4" onclick="guardarMaquina()">
+                    <i class="fas fa-save me-2"></i> Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: Agregar Categoría -->
+<div class="modal fade" id="modalCategoria" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title">Nueva Categoría</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Nombre de la categoría <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="categoria-nombre" placeholder="Ej: Bombas de agua">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success rounded-pill px-4" onclick="guardarCategoria()">
+                    <i class="fas fa-save me-2"></i> Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: Sincronización -->
+<div class="modal fade" id="modalSync" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title"><i class="fas fa-sync me-2"></i> Gestor de Envíos</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" id="btn-close-sync"></button>
+            </div>
+            <div class="modal-body bg-light p-0">
+                <div class="p-3">
+                    <div class="alert alert-info border-0 shadow-sm py-2 mb-3">
+                        <small><i class="fas fa-info-circle me-1"></i> Los cambios de inventario se agrupan en un solo item. Los mantenimientos se muestran por separado.</small>
+                    </div>
+                    <div class="toolbar-lista">
+                        <div class="form-check mb-0">
+                            <input class="form-check-input" type="checkbox" id="check-all-pendientes">
+                            <label class="form-check-label small fw-bold" for="check-all-pendientes">Seleccionar Todos</label>
+                        </div>
+                        <button class="btn btn-outline-danger btn-sm" id="btn-delete-pendientes-sel" disabled>
+                            <i class="fas fa-trash-alt me-1"></i> Eliminar Selección
+                        </button>
+                    </div>
+                    <div class="list-group list-group-flush lista-scrollable mb-3" id="lista-pendientes"></div>
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-primary rounded-pill" id="btn-sincronizar-seleccionados" disabled>
+                            <i class="fas fa-cloud-upload-alt me-2"></i>Sincronizar Cambios
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- OVERLAY -->
+<div id="overlay">
+    <div class="spinner"></div>
+    <div id="loadingMessage">
+        <h4>Por favor espera un momento...</h4>
+        <p></p>
+    </div>
+</div>
+
+<script>
+// =========================================================================
+// CONFIGURACIÓN
+// =========================================================================
+
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwPQLjNtm3mJG6udGg0aewR97dUrW4HUVVOmJ9uNBy4K-izIQ9coBHXEIHaseWNJaD5/exec";
+const DB_NAME = "MantenimientoEquiposDB";
+const DB_VERSION = 4;
+const STORE_PENDING = "pending_changes";
+const STORE_INVENTARIO = "inventario_batch";
+
+// Imágenes por defecto disponibles para seleccionar en el modal de máquina
+const IMAGENES_DEFECTO = [
+    "https://lh3.googleusercontent.com/rd-d/ALs6j_FcovGElIUs4i6raudQlkCOCGtGrFSwW4WuMDGt3RswEnGRJUJlfNN5VaTiUnPpIAhIYYMtGhVy2eMaeY11DfDTbL44zItICkIQsiDv9lpXd4FFp892yPjICw8V0w7YVwDWk2TqTIwh7oPYksDaIMivyA24OWgfpbvq65xo81bVn1kYTlZqQWng2LHbhL85TLvFQC7JlTgaoZfjuu3xrq181iLosNsVtWOIFXd8j75a5KtMtvDWu_tTBSjCQzQePtpE1tcxY-HYv0Jqyyg5aTWfUsi1tF6HUoI0WDvY3MTRSG9pqbwdLKYevV4J-4Q07uKEXxRKaUfcqqS45UyQCHqb4rRN6oBFGE_lQ8Lq2xH4f77JCTHfm5QSuMoIhbCsNDg0EFtvr8sWvEoVK1iJoMX-oyYu82GoBWCLTxLyAujE0iN_8nOTokyUroeOW8LNGa2zk23VHY4qsly1F0MnutwipQBy4WPzm6gHFAf5ZcrOseEOwGRZ3C6br2LKpEpjKdtSPesB7_LG0wWfQTOFu4JFkuoA6bNpjpLwdjpxjFPEuxP1hKSX9ueN8HaPvusO8OX3yk4hS8RlBfC__K6a1SQJl6zSmwjj8cQHQ9Ya3D6mTCXyOnJ9V0Cki6FtkuzQlfYoCv0qMzKFBiobq9OR_glkTg7wwK36zTskYERoLtFWXs9epyn8H_6Y_T-oELB2vfPibeMMCLgLIeaCTvmlOI1nNwqqwxl8HcQOeeEqU7qCnMrGbPAzuMmA8azDWwGqnixsGi96u1h-kSIouclfHGZLBYs0aIelhTZ4zgZK1gnYvCM5JSBaEF1xspGjdarERME2lWOSFg5pm3eECfmoQlkIe99zT4P0vTcYAVL8cMtAoHRLQL5YABIku8m0gkuMLE1NO71l3cxSI0CWZGNSKAM46j5u1H-WH6PUYwiFL3rYrjBM49hsMgGm5ZaVzS1ojg8hTBzim1kARu0n4QYSDloXUeZSy_ZFFCCk5bykrHTe5NTgAPaf2hCuBTiAtOL8S9OJ4N4Rho9pBSjQ2e6QY2_JbPKpzkUYjL1U5Yhy2XP4l7AI76X0xQlc-X0fbaoiLa8F2wFzYZTGAyYYymzPIfmgKjks-RQfMr0dZtFOPHOVQWvXJU0vMGEvsBkLKZ6nQuecUB7UoHgE=w1920-h912",
+    "https://lh3.googleusercontent.com/rd-d/ALs6j_G9tfD_6YcP8h2KZhKIUsu1f5YKMALHj1LXsPu2jsP4XvUpMfHC4_Jj9AnI_HxMuys0ZCVxuonvsWMJArf3w0Ov2MzeY_Jb21nNGhRYg89gkpYwH6LLicY4rEPQQVj-5AxSZGLXDn9IRuOFVi257Ut9a2GpVAR0aZmQPjQhyIa3DvZtU6ufzxfRBSs6XuSxOiSqhh0Cb1LsUCkmmH9lFO-rSxv6OM0HpCoNuR-am3qglGCBopxap8Qxg4QQFqTzCr_Lr80MwR6fTpQGRdfiQxLWOXKFsEVNLWk0LH46uWDHdUyEXFUrBv9kgPrG2dj1VhZ_74--QSeb7WD87UFvHgfAGXOFh-aYTAs0C0wf1-cPDeGE0IApAp7sfgbp9wMC-H6DTO0iBALPUCh23Cmp6518tgaPWy2fylzbCoYqsAwB517Sr34GYJcFN3epm_hkYlFM2mTFdOE6HdBDguRoerWjyw7jAF_NjsIolQwT5rzPSC8z6O95cgvolEl4Dm-ZSdQKmL_2nvqeDz-sKhBh11ZhbhoSlrldfNu1RCnx3d2JDdT0pj-0i5iEoaABsYWynnd_vkpu-SaMLzHNsxCv3EoXnBkdj90BAZ0DrrNIA9keK6Bt6YCwjO2YQdde6zEJCVKWQgILBRbdV3amzZfWGaZj2w959a92qW8J74zUCgCgbIZI-mnEnVyufNRJeQ8Y2VScpHBKYmZPOJwH-oZstwS1jJ8SQyusCSJhVxgXd_s5jI02L83B47JCz7eSMIQhbP08alQd6ddhclGoyQLMTzm7Yc9yoO7_r_6D5ReN9ZUORpQVOJF9l7maEZ_tEQLCbhbm9kRkOhKyBuw6m3l9wo0O-bn4Y99bGPQPzjdIJZyCPHj9mAO0DOT4-tA8JT0Gwmvq2QYj4AzfESo73Mg5CeODpp0N5WT5ZZYzFaK35DEgggVpPU9fbtExwYWkJ80YyW4qrq05ocP7sbeYj0xKUf73LesU7p8z4KXoRFRfmaRoJY_J13BlUOFb8J3YIP_VHYkkawUV6pR8d8e1tz3EsVkqy3EAUxuwo_bRZAAv92XSZVLR-gldq2Ml4E5jAcwX6qfzl1LhxVAUZu0IaDxxm36RJpIqrNhBXKWhjpmfWqJQE1tTf6IlrDA-1LSCX3D_WOg2GWqz_uR9ww=w1606-h912",
+    "https://lh3.googleusercontent.com/rd-d/ALs6j_FZHpWwDxBrj-4vDw_TE0yZ5TH7782rhHTkiBA-cBwH-ztBej45NnCEvpjsTk8f23CY-2ps12G9VbiuP-cuQ-VB539YiuhJDKjkinIylr9T5uPWBdGAimEXFyS7b5f2zGglMQcCYeHTNID5cRueytbB_tuI2iVPdCxfOJLvj4susIMt3CrWYyB8P7UamL2yvIROn2AKLGrQhqiS6mjvyw-UQuK8PlB-wNSXaI0zBoKydz8ZKZyJ7AAgGOGdmJRSQKzn8XzcbS6mMYKU12kKjpwOBrJ4-NAMRnZFPyZMbgg7B1_hR7pkeC6cCfP8hTFq2DKUyiJ8EoI8MvyuBtt6eaJlYz46pVKWWzIdDGbWy6Pidl7wMKzBgcfOXBcjc8P1oeT0E9SEz9nwsq1B0qKfdQ7e2vw5pl4N6slzSBRf3jvPWrSR6hmEolK5w3k2fy13Tr15kf_tXOusNM0O_epDuAVLBab-lRrgikFe-pmeTpaPw9brysIMASzPA5qR_fbf0gg0CfRuInvHzpX2Cy10Py6Y13-90eh4sIj6zAWOL-TRu02sjNki5QsWq2UdAs4stoUj6_azqkrduKj2nsMEENM71hshKqurqD8-LLHt7CnUnsBJYalRnyFWGbTt70lSGPUc7wTKBtpW5zsok2YDVMcVsG6pL2ql1A2f2UYT06ULiYZAlFC_k2z_xYUG2adRoIa8H3APSEavNF6yUxJB7p9umX8dXFQBJNd_Lu7Ge9F3XpGLAXISWW9wMU47Le5vMAYEuqRBwa9tRtYEQCQLyZQ6MOnFJUbN4Q9HIgAlTOq7p4Yue6Cw3dCZjXouPScMmrc0l0myiYo97-TUu4yybcukqjgb490JX7AyCDt24iDFyn0VtqttDHyJ3xioUDa0MGQJ1cIArwb79ub5btvpPWUCXJZU-2hDFM0u4dC8dWSPn8u46CSZQxzp0JarXg0uVCdtQtZrr7QytQdeJVzYX_PrMjgFPV-mrF2TN6pMIo97t7SCgEMdrhHMAu1SYOmK4eflijXI1Rk7RiA6Ev5oZASb11AHfbV093H3xotgN5RpxO1e8DMcVGscKpe-UQ2ow3wMo6HYhZHfpMTvqcBCDrk73s_T7--PAj8D-p8pAGfToT4PYS5oc_ju1T1kdT3soeK5UnXSo14v4g=w1606-h912",
+    "https://lh3.googleusercontent.com/rd-d/ALs6j_GrDN91vlU1quBICYCUOvo68Z2zsJPsL3f047vsJoxQVzvM21WLyVOJh2FadOyLXz7lRMyDTv1EpZ-TxOqPqYcEczKUauSAp7tKyfYzRiy1xGby-2ZCYgFTY0rIxKl2vMJNggMdHiGCUoljmGDpFpU3mYBOtmW8B8e10V_ydnWH-O_EP6rc6cN28stzAOS-kFWv3_o4hS25RaCCMxivSORi6vfXvsFwgBL3lXLQ-8wXyBk64bEIkZTFx-UdiwTu2yZhHlmeWKu1LFuusyzoG3u2D1Acys2btGmgayjVS1GGMTW5mC92_RGPxoSIawhs1LUE4Y3Ziu76HBpRx-1byMrRJF46TxUJtVNb0nyKvnJY1F0-_arNNtKbMcBYrTzS4OR2CL0wwFduaIrH5qc6LjKxzlExRzIzzEr448PTM1PB0gxY1yvP-62_UXzyq5EUevs9NPG0XiFe_axy6xQ_u8iYqbXN7KIE_3i3NPVxHVQWDOwCKFH5BC4__y-PueFN0MGzOy70DpjlvR6NEHpceNUuM8amxtf469MoF_WcyCdCTCP_t1Y0WfXR-uILhm3H9zgPj4YQE59urkgBrq92Lh-9lzCwkxZ9O187XwCwwiVM2HbqwD0-WrO20TbO6-VHAFdXgESra4kC3GdKCcQ0mY4UsHb7Lz37sQMlt71TQ2R7oTEDLsZxhr5DygW_9H6UpHzvrZhyfkbR6YsZ-JRm9Vy4ofhXw7lQzHtYCSDbvUltBh1jpRFRwxgMsYlTnJ4_phKDgayX0Wjjpzq8dunUOlLedVY5M5iY3dRYl15qFusyn9hKezZK7a2eQZepAyegij2x6PAaCr6VAg86cGdrxUlqtEselOM6EKgTyyTrk9r9e8y8YlXgoYhCL0F0y4e5ktnN2BD-1jeM97UAlvUTw-f7nr---cbyxyUAYxyv7Be15xp-_llqIz68uBqJWTMArZ75RR1zLr104TnxN4imP_EhCIDQqI1DjpPEUAp-LhfAsYanQySDBfPLAedebjCnuI_4aah5VSOERwWJghfPXQ9I-mZxAhyitMo_XG_G74V0C33UAidbtkgTfP58P1FDr0tgK2jF8bu88NfbV6JMpQt2O581rQsU_wTwdyUtpNY5fxkForJL7A-gXO35TdO4nip0bB-LWOFZ=w1606-h912",
+    "https://lh3.googleusercontent.com/rd-d/ALs6j_F4DiW2zeezGqS4C5EWuLu3YdPgx1qdW8yuZmZxAn6LOEy6XVnDBJBSLek1OXL5c28uIkUN50vSqJYLi-5_umwYnEDUdkCjeloHnHF_Uv3rLWT2vY2RBPVga5ZiHI8Wp3GWO7c-rHylddW54vMz0XKKYbrcaQ1se8zLAWLi-Ma4H2EY0OO-QUIEGtO-Ab0bRpZednY-XA7UiupU013dHZ-fPbdrnQObJfb--KxavAbJZ6_YWTRnCBkAxmlng9ACFbSZjK8UZUawoyYN8xLWckj_ci3RqizburaKFOAmvzcgGiArWlO2w0SSH4J-UH9rCjJ92MetznWQ_XsM5v056VjGDBEO8pzyhD2Qeft3wyqfEa2i2XF2hfDSt3n-ihEvBDj3ktKjpzIqtghBLqDYaba-cXI-B17ep4vhxNVsfTT95rhEaUF4x3DBsXZuZ8K9ismwvUkMU7E-eb3vUEXah21_fXzVTnd4Qg1cgBpIfBN0x8QmGTzWW4lmMjuDhkdWi5CEJ58Htx0_A-hnJMygm90p4sywxC8F0f4l2FU2QeoElOQP6awKmYqAuYCWFl9FlkKVtOisXMeL095aPMRJwNUBqeNOql5X9KzEESncFbZN8n5ALxLsWt9Dzvraj9l4U9iafS3jOvs-3WD2yS6M56Yj3msGmYLiDW5FbBPzia4bi_xpqUpA7fLpHw34cuHVj0yqgQyFzd59FAnxRq5gKxIVV4O_W2MZu4EgaYphB4AsLEmgujDwHPKqoBVCrhINK-l2xJDqg6PgJ0HflJis0wISofthHr9TkeZJg6uWYrXzxahXaYB1mJN4EA_lPibZ9oaMKtMdMzeVgTKarPtgyHvQaSXdIru8g1j0KROS5A7q7KUHAIx2l7oeOQURuHXNbjF-pdzUHDqXByYj80D4BYIR4SSRGJGSg-t_6m4eB2_gc7P6Vl1ucl5JAWN8CxuNhwCsoo7b9KfhXPZXpVdFledko6YlkQqGZzsF1DVYeP8yI-1XsTMqJByjt23dw_2zQ30ma1M0ZGOZV_xo61N1XIXRssM2d95BzEhe3uq84Mrp7l4M2b3Bp3_TOuWAErg31jq3RASjQtpoVOpJ5PWOPhZGRgf2pFlM3Sg4Sl8Ylb4eYk652KdfPWfGz9IzxK2xTR1HpocHPl_dlg=w1606-h912"
+];
+
+let db = null;
+let inventarioBase = [];
+let inventarioTrabajo = [];
+let pendingMaintenances = [];
+let pendingInventarioChanges = [];
+let historialActual = [];
+let imagenLocalPendiente = null;
+
+// Estado global de drag & drop
+const dragState = {
+    active: false,
+    maquina: null,
+    catOrigen: null,
+    indexOriginal: null
+};
+
+// =========================================================================
+// INICIALIZACIÓN
+// =========================================================================
+
+document.addEventListener('DOMContentLoaded', async () => {
+    await initDB();
+    await cargarPendientes();
+    await cargarInventario();
+    
+    const hoy = new Date();
+    document.getElementById('mant-fecha').value =
+        hoy.getFullYear() + '-' + String(hoy.getMonth()+1).padStart(2,'0') + '-' + String(hoy.getDate()).padStart(2,'0');
+    
+    document.getElementById('form-mantenimiento').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await guardarMantenimiento();
+    });
+    
+    document.getElementById('btn-sync').addEventListener('click', () => {
+        renderizarModalSync();
+        new bootstrap.Modal(document.getElementById('modalSync')).show();
+    });
+    
+    document.getElementById('buscadorEquipos').addEventListener('input', function() {
+        filtrarMaquinas(this.value.toLowerCase().trim());
+    });
+    
+    document.getElementById('check-all-pendientes').addEventListener('change', function() {
+        document.querySelectorAll('.check-pendiente').forEach(c => c.checked = this.checked);
+        actualizarBotonesSeleccion();
+    });
+    document.addEventListener('change', (e) => {
+        if (e.target.classList.contains('check-pendiente')) actualizarBotonesSeleccion();
+    });
+    
+    document.getElementById('btn-sincronizar-seleccionados').addEventListener('click', async () => {
+        const ids = Array.from(document.querySelectorAll('.check-pendiente:checked')).map(c => c.value);
+        if (ids.length === 0) return;
+        await sincronizarCambios(ids);
+    });
+    
+    document.getElementById('btn-delete-pendientes-sel').addEventListener('click', () => eliminarSeleccionados());
+    
+    ['filtroMesHist','filtroAnioHist','filtroTipoHist','filtroTextoHist'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', aplicarFiltrosHistorial);
+        if (el) el.addEventListener('change', aplicarFiltrosHistorial);
+    });
+    
+    document.addEventListener('dragend', () => {
+        if (dragState.active) limpiarIndicadoresDrag();
+    });
+});
+
+function cambiarSeccion(sec) {
+    document.getElementById('seccion-equipos').style.display = 'none';
+    document.getElementById('seccion-mantenimiento').style.display = 'none';
+    document.getElementById('seccion-historial').style.display = 'none';
+    document.querySelectorAll('.main-tab').forEach(t => t.classList.remove('active'));
+    
+    if (sec === 'equipos') {
+        document.getElementById('seccion-equipos').style.display = 'block';
+        document.getElementById('tab-equipos').classList.add('active');
+    } else if (sec === 'mantenimiento') {
+        document.getElementById('seccion-mantenimiento').style.display = 'block';
+        document.getElementById('tab-mantenimiento').classList.add('active');
+        poblarSelectMaquinas();
+    } else if (sec === 'historial') {
+        document.getElementById('seccion-historial').style.display = 'block';
+        document.getElementById('tab-historial').classList.add('active');
+        renderizarHistorial();
+    }
+}
+
+// =========================================================================
+// INDEXEDDB
+// =========================================================================
+
+function initDB() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = (e) => {
+            const d = e.target.result;
+            if (d.objectStoreNames.contains('pending_actions')) d.deleteObjectStore('pending_actions');
+            if (d.objectStoreNames.contains('synced_actions')) d.deleteObjectStore('synced_actions');
+            if (d.objectStoreNames.contains(STORE_PENDING)) d.deleteObjectStore(STORE_PENDING);
+            if (d.objectStoreNames.contains(STORE_INVENTARIO)) d.deleteObjectStore(STORE_INVENTARIO);
+            d.createObjectStore(STORE_PENDING, { keyPath: 'id', autoIncrement: true });
+            d.createObjectStore(STORE_INVENTARIO, { keyPath: 'id' });
+        };
+        req.onsuccess = (e) => { db = e.target.result; resolve(); };
+        req.onerror = (e) => reject(e.target.error);
+    });
+}
+
+function addPendingMant(data) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction([STORE_PENDING], 'readwrite');
+        const req = tx.objectStore(STORE_PENDING).add(data);
+        req.onsuccess = (e) => resolve(e.target.result);
+        req.onerror = (e) => reject(e.target.error);
+    });
+}
+function getAllPendingMants() {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction([STORE_PENDING], 'readonly');
+        const req = tx.objectStore(STORE_PENDING).getAll();
+        req.onsuccess = (e) => resolve(e.target.result);
+        req.onerror = (e) => reject(e.target.error);
+    });
+}
+function deletePendingMant(id) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction([STORE_PENDING], 'readwrite');
+        const req = tx.objectStore(STORE_PENDING).delete(id);
+        req.onsuccess = () => resolve();
+        req.onerror = (e) => reject(e.target.error);
+    });
+}
+
+function getInventarioBatch() {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction([STORE_INVENTARIO], 'readonly');
+        const req = tx.objectStore(STORE_INVENTARIO).get(1);
+        req.onsuccess = (e) => resolve(e.target.result ? e.target.result.actions : []);
+        req.onerror = (e) => reject(e.target.error);
+    });
+}
+function saveInventarioBatch(actions) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction([STORE_INVENTARIO], 'readwrite');
+        const store = tx.objectStore(STORE_INVENTARIO);
+        if (actions.length === 0) {
+            store.delete(1).onsuccess = () => resolve();
+        } else {
+            store.put({ id: 1, actions: actions }).onsuccess = () => resolve();
+        }
+        tx.onerror = (e) => reject(e.target.error);
+    });
+}
+
+// =========================================================================
+// CARGA
+// =========================================================================
+
+async function cargarInventario() {
+    showLoading("Por favor espera un momento...");
+    try {
+        const res = await fetch(SCRIPT_URL + '?t=' + Date.now());
+        const data = await res.json();
+        if (!data.success) {
+            Swal.fire('Error', 'No se pudo cargar: ' + (data.error || ''), 'error');
+            return;
+        }
+        inventarioBase = data.rows || [];
+        historialActual = data.historial || [];
+        reconstruirInventarioConCambiosLocales();
+    } catch (err) {
+        console.error(err);
+        Swal.fire('Error', 'No se pudo conectar al servidor', 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+function reconstruirInventarioConCambiosLocales() {
+    let rows = JSON.parse(JSON.stringify(inventarioBase));
+    pendingInventarioChanges.forEach(c => { rows = aplicarCambioLocal(rows, c); });
+    
+    inventarioTrabajo = [];
+    let currentCat = null;
+    rows.forEach(row => {
+        const colA = (row.colA || '').trim();
+        if (colA.indexOf('-') === 0) {
+            currentCat = { nombre: colA.substring(1).trim(), maquinas: [] };
+            inventarioTrabajo.push(currentCat);
+            return;
+        }
+        if (currentCat && colA) {
+            let estado = 'Sin estado';
+            const b = (row.funcional || '').toLowerCase();
+            const c = (row.mantenimiento || '').toLowerCase();
+            const d = (row.fueraServicio || '').toLowerCase();
+            const esX = v => v === 'x' || v === '✗' || v === '✓';
+            if (esX(b)) estado = 'Funcional';
+            else if (esX(c)) estado = 'Mantenimiento';
+            else if (esX(d)) estado = 'Fuera de servicio';
+            
+            currentCat.maquinas.push({
+                rowNumber: row.rowNumber,
+                nombre: colA,
+                estado: estado,
+                imagen: row.imagen || '',
+                _localId: row._localId || null,
+                _isNew: row._isNew || false,
+                _catActual: currentCat.nombre
+            });
+        }
+    });
+    renderizarInventario();
+    actualizarBadgePendientes();
+}
+
+function aplicarCambioLocal(rows, cambio) {
+    const p = cambio.payload;
+    switch (cambio.action) {
+        case 'addMachine': {
+            const newRow = {
+                rowNumber: null, _localId: cambio._localId, _isNew: true,
+                colA: p.nombre,
+                funcional: p.estado === 'Funcional' ? 'X' : '',
+                mantenimiento: p.estado === 'Mantenimiento' ? 'X' : '',
+                fueraServicio: p.estado === 'Fuera de servicio' ? 'X' : '',
+                imagen: p.imagen || (p.imagenLocal ? '(local)' : '')
+            };
+            let insertIdx = rows.length;
+            if (p.categoria) {
+                for (let i = 0; i < rows.length; i++) {
+                    const colA = (rows[i].colA || '').trim();
+                    if (colA.indexOf('-') === 0 && colA.substring(1).trim().toLowerCase() === p.categoria.toLowerCase()) {
+                        let nextCat = rows.length;
+                        for (let j = i + 1; j < rows.length; j++) {
+                            const v = (rows[j].colA || '').trim();
+                            if (v.indexOf('-') === 0) { nextCat = j; break; }
+                        }
+                        insertIdx = nextCat;
+                        break;
+                    }
+                }
+            }
+            rows.splice(insertIdx, 0, newRow);
+            return rows;
+        }
+        case 'updateMachine': {
+            const idx = rows.findIndex(r => r.rowNumber === p.rowNumber || r._localId === p.rowNumber);
+            if (idx >= 0) {
+                if (p.nombre) rows[idx].colA = p.nombre;
+                rows[idx].funcional = p.estado === 'Funcional' ? 'X' : '';
+                rows[idx].mantenimiento = p.estado === 'Mantenimiento' ? 'X' : '';
+                rows[idx].fueraServicio = p.estado === 'Fuera de servicio' ? 'X' : '';
+                if (p.imagen !== undefined && !p.imagenLocal) rows[idx].imagen = p.imagen;
+            }
+            return rows;
+        }
+        case 'deleteMachine': {
+            const idx = rows.findIndex(r => r.rowNumber === p.rowNumber || r._localId === p.rowNumber);
+            if (idx >= 0) rows.splice(idx, 1);
+            return rows;
+        }
+        case 'addCategory': {
+            rows.push({
+                rowNumber: null, _localId: cambio._localId, _isNew: true,
+                colA: '- ' + p.nombre,
+                funcional: '', mantenimiento: '', fueraServicio: '', imagen: ''
+            });
+            return rows;
+        }
+        case 'deleteCategory': {
+            let catIdx = -1;
+            for (let i = 0; i < rows.length; i++) {
+                const colA = (rows[i].colA || '').trim();
+                if (colA.indexOf('-') === 0 && colA.substring(1).trim().toLowerCase() === p.nombre.toLowerCase()) {
+                    catIdx = i; break;
+                }
+            }
+            if (catIdx === -1) return rows;
+            let nextCatIdx = rows.length;
+            for (let j = catIdx + 1; j < rows.length; j++) {
+                const v = (rows[j].colA || '').trim();
+                if (v.indexOf('-') === 0) { nextCatIdx = j; break; }
+            }
+            rows.splice(catIdx, nextCatIdx - catIdx);
+            return rows;
+        }
+        case 'moveMachineAt':
+        case 'moveMachine': {
+            var nombreMaquina = (p.maquina || '').toString().trim();
+            if (!nombreMaquina) return rows;
+            
+            let machineIdx = -1;
+            for (let i = 0; i < rows.length; i++) {
+                const v = (rows[i].colA || '').trim();
+                if (v && v.indexOf('-') !== 0 && v.toLowerCase() === nombreMaquina.toLowerCase()) {
+                    machineIdx = i;
+                    break;
+                }
+            }
+            if (machineIdx === -1) return rows;
+            const machineData = rows[machineIdx];
+            rows.splice(machineIdx, 1);
+            
+            var catDestino = (p.categoria === null || p.categoria === undefined)
+                ? ''
+                : p.categoria.toString().trim();
+            
+            var posFinal;
+            if (p.posicion === null || p.posicion === undefined || p.posicion === '') {
+                posFinal = null;
+            } else {
+                var num = parseInt(p.posicion);
+                posFinal = isNaN(num) ? null : num;
+            }
+            
+            let insertIdx = rows.length;
+            
+            if (catDestino !== '') {
+                for (let i = 0; i < rows.length; i++) {
+                    const colA = (rows[i].colA || '').trim();
+                    if (colA.indexOf('-') === 0 && colA.substring(1).trim().toLowerCase() === catDestino.toLowerCase()) {
+                        let nextCat = rows.length;
+                        for (let j = i + 1; j < rows.length; j++) {
+                            const v = (rows[j].colA || '').trim();
+                            if (v.indexOf('-') === 0) { nextCat = j; break; }
+                        }
+                        
+                        let totalMaquinasCat = 0;
+                        for (let k = i + 1; k < nextCat; k++) {
+                            const v = (rows[k].colA || '').trim();
+                            if (v && v.indexOf('-') !== 0) totalMaquinasCat++;
+                        }
+                        
+                        if (posFinal === null || posFinal > totalMaquinasCat) posFinal = totalMaquinasCat;
+                        if (posFinal < 0) posFinal = 0;
+                        
+                        if (posFinal < totalMaquinasCat) {
+                            let seen = 0;
+                            insertIdx = nextCat;
+                            for (let k = i + 1; k < nextCat; k++) {
+                                const v = (rows[k].colA || '').trim();
+                                if (v && v.indexOf('-') !== 0) {
+                                    if (seen === posFinal) { insertIdx = k; break; }
+                                    seen++;
+                                }
+                            }
+                        } else {
+                            insertIdx = nextCat;
+                        }
+                        break;
+                    }
+                }
+            }
+            
+            rows.splice(insertIdx, 0, machineData);
+            return rows;
+        }
+        default:
+            return rows;
+    }
+}
+
+// =========================================================================
+// RENDER INVENTARIO CON DRAG & DROP
+// =========================================================================
+
+function renderizarInventario() {
+    const cont = document.getElementById('maquinasContainer');
+    cont.innerHTML = '';
+    
+    if (inventarioTrabajo.length === 0) {
+        cont.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-tools"></i>
+                <h3>No hay máquinas registradas</h3>
+                <p>Usa "Nueva Categoría" y "Nueva Máquina" para empezar</p>
+            </div>`;
+        return;
+    }
+    
+    inventarioTrabajo.forEach((cat) => {
+        const catDiv = document.createElement('div');
+        catDiv.className = 'category-separator';
+        catDiv.dataset.cat = cat.nombre;
+        catDiv.innerHTML = `
+            <div>
+                <strong>${escapeHTML(cat.nombre)}</strong>
+                <span class="toggle-icon">▼</span>
+            </div>
+            <button class="btn-cat-delete" onclick="event.stopPropagation(); confirmarEliminarCategoria('${escapeAttr(cat.nombre)}', ${cat.maquinas.length})">
+                <i class="fas fa-trash"></i>
+            </button>
+        `;
+        
+        const grid = document.createElement('div');
+        grid.className = 'maquinas-grid';
+        grid.dataset.cat = cat.nombre;
+        
+        cat.maquinas.forEach((m, idx) => {
+            const estadoClass = m.estado === 'Funcional' ? 'estado-funcional'
+                              : m.estado === 'Mantenimiento' ? 'estado-mantenimiento'
+                              : m.estado === 'Fuera de servicio' ? 'estado-fuera'
+                              : 'estado-sin';
+            
+            const card = document.createElement('div');
+            card.className = 'maquina-card';
+            card.draggable = true;
+            card.dataset.maquina = m.nombre;
+            card.dataset.cat = cat.nombre;
+            card.dataset.index = idx;
+            card.innerHTML = `
+                <div class="maquina-card-header">
+                    <div class="maquina-imagen">
+                        ${m.imagen && m.imagen !== '(local)' ? `<img src="${m.imagen}" onerror="this.style.display='none'">` : '<i class="fas fa-tools" style="font-size:22px;color:#ccc;"></i>'}
+                    </div>
+                    <div class="maquina-nombre">
+                        ${escapeHTML(m.nombre)}
+                        ${m._isNew ? '<span class="badge-local">LOCAL</span>' : ''}
+                    </div>
+                    <i class="fas fa-grip-vertical drag-handle" title="Arrastra para mover"></i>
+                </div>
+                <span class="estado-badge ${estadoClass}">${escapeHTML(m.estado)}</span>
+                <div class="maquina-acciones">
+                    <button class="btn-accion btn-editar" onclick="abrirModalEditarMaquina(${m.rowNumber || 'null'}, '${m._localId || ''}')">
+                        <i class="fas fa-edit"></i> Editar
+                    </button>
+                    <button class="btn-accion btn-mant" onclick="irANuevoMantenimiento('${escapeAttr(m.nombre)}')">
+                        <i class="fas fa-wrench"></i> Mant.
+                    </button>
+                    <button class="btn-accion btn-eliminar" onclick="confirmarEliminarMaquina(${m.rowNumber || 'null'}, '${m._localId || ''}', '${escapeAttr(m.nombre)}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
+            
+            configurarEventosDragCard(card, m, cat.nombre, idx);
+            grid.appendChild(card);
+        });
+        
+        const endDrop = document.createElement('div');
+        endDrop.className = 'grid-end-drop';
+        grid.appendChild(endDrop);
+        
+        grid.addEventListener('dragover', function(e) {
+            if (!dragState.active) return;
+            if (e.target === grid || e.target === endDrop) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                limpiarIndicadoresVisuales();
+                endDrop.classList.add('active');
+                grid.classList.add('drop-target');
+            }
+        });
+        grid.addEventListener('dragleave', function(e) {
+            if (!grid.contains(e.relatedTarget)) {
+                grid.classList.remove('drop-target');
+                endDrop.classList.remove('active');
+            }
+        });
+        grid.addEventListener('drop', async function(e) {
+            if (e.target !== grid && e.target !== endDrop) return;
+            e.preventDefault();
+            
+            const catDestino = grid.dataset.cat;
+            const posicionDestino = cat.maquinas.length;
+            const origen = dragState.catOrigen;
+            const idxOrigen = dragState.indexOriginal;
+            const maquina = dragState.maquina;
+            
+            limpiarIndicadoresDrag();
+            if (!maquina) return;
+            
+            if (catDestino === origen && idxOrigen === posicionDestino) return;
+            
+            let finalIndex = posicionDestino;
+            if (catDestino === origen && idxOrigen < posicionDestino) {
+                finalIndex = posicionDestino - 1;
+            }
+            
+            await moverMaquinaA(maquina, catDestino, finalIndex);
+        });
+        
+        cont.appendChild(catDiv);
+        cont.appendChild(grid);
+        
+        catDiv.addEventListener('click', function() {
+            const g = catDiv.nextElementSibling;
+            const icon = catDiv.querySelector('.toggle-icon');
+            if (g.style.display === 'none') {
+                g.style.display = 'grid';
+                icon.innerHTML = '▼';
+                catDiv.classList.remove('collapsed');
+            } else {
+                g.style.display = 'none';
+                icon.innerHTML = '▶';
+                catDiv.classList.add('collapsed');
+            }
+        });
+        
+        catDiv.addEventListener('dragover', function(e) {
+            if (!dragState.active) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            limpiarIndicadoresVisuales();
+            catDiv.classList.add('drop-target');
+        });
+        catDiv.addEventListener('dragleave', function(e) {
+            if (!catDiv.contains(e.relatedTarget)) {
+                catDiv.classList.remove('drop-target');
+            }
+        });
+        catDiv.addEventListener('drop', async function(e) {
+            e.preventDefault();
+            
+            const catDestino = catDiv.dataset.cat;
+            const posicionDestino = cat.maquinas.length;
+            const origen = dragState.catOrigen;
+            const idxOrigen = dragState.indexOriginal;
+            const maquina = dragState.maquina;
+            
+            limpiarIndicadoresDrag();
+            if (!maquina) return;
+            
+            if (catDestino === origen && idxOrigen === posicionDestino) return;
+            
+            let finalIndex = posicionDestino;
+            if (catDestino === origen && idxOrigen < posicionDestino) {
+                finalIndex = posicionDestino - 1;
+            }
+            
+            await moverMaquinaA(maquina, catDestino, finalIndex);
+        });
+    });
+}
+
+function configurarEventosDragCard(card, maquina, catNombre, index) {
+    card.addEventListener('dragstart', function(e) {
+        dragState.active = true;
+        dragState.maquina = maquina.nombre;
+        dragState.catOrigen = catNombre;
+        dragState.indexOriginal = index;
+        card.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', maquina.nombre);
+    });
+    
+    card.addEventListener('dragend', function() {
+        card.classList.remove('dragging');
+        limpiarIndicadoresDrag();
+    });
+    
+    card.addEventListener('dragover', function(e) {
+        if (!dragState.active) return;
+        if (dragState.maquina === maquina.nombre && dragState.catOrigen === catNombre && dragState.indexOriginal === index) {
+            return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = 'move';
+        
+        limpiarIndicadoresVisuales();
+        
+        const rect = card.getBoundingClientRect();
+        const midpoint = rect.top + rect.height / 2;
+        const insertBefore = e.clientY < midpoint;
+        
+        if (insertBefore) {
+            card.classList.add('insert-before');
+        } else {
+            card.classList.add('insert-after');
+        }
+    });
+    
+    card.addEventListener('dragleave', function(e) {
+        if (!card.contains(e.relatedTarget)) {
+            card.classList.remove('insert-before', 'insert-after');
+        }
+    });
+    
+    card.addEventListener('drop', async function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const insertBefore = card.classList.contains('insert-before');
+        const catDestino = catNombre;
+        const idxTarjeta = index;
+        const posicionDestino = insertBefore ? idxTarjeta : (idxTarjeta + 1);
+        
+        const origen = dragState.catOrigen;
+        const idxOrigen = dragState.indexOriginal;
+        const maquina = dragState.maquina;
+        
+        limpiarIndicadoresDrag();
+        if (!maquina) return;
+        
+        let finalIndex = posicionDestino;
+        if (catDestino === origen && idxOrigen < posicionDestino) {
+            finalIndex = posicionDestino - 1;
+        }
+        
+        if (catDestino === origen && finalIndex === idxOrigen) return;
+        
+        await moverMaquinaA(maquina, catDestino, finalIndex);
+    });
+}
+
+function limpiarIndicadoresVisuales() {
+    document.querySelectorAll('.maquina-card').forEach(c => {
+        c.classList.remove('insert-before', 'insert-after');
+    });
+    document.querySelectorAll('.category-separator').forEach(s => {
+        s.classList.remove('drop-target');
+    });
+    document.querySelectorAll('.maquinas-grid').forEach(g => {
+        g.classList.remove('drop-target');
+        const endDrop = g.querySelector('.grid-end-drop');
+        if (endDrop) endDrop.classList.remove('active');
+    });
+}
+
+function limpiarIndicadoresDrag() {
+    limpiarIndicadoresVisuales();
+    document.querySelectorAll('.maquina-card.dragging').forEach(c => c.classList.remove('dragging'));
+    dragState.active = false;
+    dragState.maquina = null;
+    dragState.catOrigen = null;
+    dragState.indexOriginal = null;
+}
+
+async function moverMaquinaA(nombre, categoriaDestino, posicion) {
+    var cat = (categoriaDestino === null || categoriaDestino === undefined)
+        ? ''
+        : categoriaDestino.toString().trim();
+    var pos = (posicion === null || posicion === undefined || posicion === '')
+        ? null
+        : parseInt(posicion);
+    if (isNaN(pos)) pos = null;
+
+    await registrarCambioInventario('moveMachineAt', {
+        maquina: nombre,
+        categoria: cat,
+        posicion: pos
+    }, `Mover "${nombre}" a ${cat || '(sin categoría)'}`);
+
+    reconstruirInventarioConCambiosLocales();
+    Swal.fire({
+        icon: 'success',
+        title: 'Movido',
+        text: `"${nombre}" → ${cat || '(sin categoría)'}`,
+        toast: true, position: 'top-end', showConfirmButton: false, timer: 1500
+    });
+}
+
+function filtrarMaquinas(termino) {
+    const catDivs = document.querySelectorAll('#maquinasContainer > .category-separator');
+    const grids = document.querySelectorAll('#maquinasContainer > .maquinas-grid');
+    
+    if (!termino) {
+        catDivs.forEach(d => { d.style.display = 'flex'; });
+        grids.forEach(g => {
+            g.style.display = 'grid';
+            g.querySelectorAll('.maquina-card').forEach(c => c.style.display = '');
+        });
+        return;
+    }
+    
+    catDivs.forEach((catDiv, i) => {
+        const grid = grids[i];
+        let coincide = false;
+        grid.querySelectorAll('.maquina-card').forEach(c => {
+            const nombre = c.querySelector('.maquina-nombre').textContent.toLowerCase();
+            if (nombre.includes(termino)) { c.style.display = ''; coincide = true; }
+            else c.style.display = 'none';
+        });
+        if (coincide) { catDiv.style.display = 'flex'; grid.style.display = 'grid'; }
+        else { catDiv.style.display = 'none'; grid.style.display = 'none'; }
+    });
+}
+
+// =========================================================================
+// GALERÍA DE IMÁGENES POR DEFECTO
+// =========================================================================
+
+function renderizarGaleriaImagenes(imagenActual) {
+    const cont = document.getElementById('galeriaImagenes');
+    if (!cont) return;
+    cont.innerHTML = '';
+    const imgActual = (imagenActual || '').trim();
+    
+    IMAGENES_DEFECTO.forEach((url, idx) => {
+        const item = document.createElement('div');
+        item.className = 'galeria-item';
+        item.dataset.url = url;
+        item.dataset.index = idx;
+        if (url === imgActual) item.classList.add('selected');
+        item.innerHTML = `<img src="${url}" alt="Imagen ${idx + 1}" loading="lazy">`;
+        item.addEventListener('click', () => seleccionarImagenDefecto(url, idx));
+        cont.appendChild(item);
+    });
+}
+
+function seleccionarImagenDefecto(url, idx) {
+    // Marcar visualmente
+    document.querySelectorAll('#galeriaImagenes .galeria-item').forEach(g => g.classList.remove('selected'));
+    const item = document.querySelector(`#galeriaImagenes .galeria-item[data-index="${idx}"]`);
+    if (item) item.classList.add('selected');
+    
+    // Setear en el input de URL
+    document.getElementById('maquina-imagen').value = url;
+    
+    // Mostrar preview
+    document.getElementById('maquina-imagen-preview').innerHTML = `<img src="${url}" class="img-preview-inline">`;
+    
+    // Si había una imagen local pendiente, la descartamos (el usuario eligió una por defecto)
+    imagenLocalPendiente = null;
+    
+    Swal.fire({
+        icon: 'success',
+        title: 'Imagen seleccionada',
+        toast: true, position: 'top-end', showConfirmButton: false, timer: 1200
+    });
+}
+
+function limpiarImagenMaquina() {
+    document.getElementById('maquina-imagen').value = '';
+    document.getElementById('maquina-imagen-preview').innerHTML = '';
+    imagenLocalPendiente = null;
+    document.querySelectorAll('#galeriaImagenes .galeria-item').forEach(g => g.classList.remove('selected'));
+}
+
+// =========================================================================
+// MODAL AGREGAR / EDITAR MÁQUINA
+// =========================================================================
+
+function abrirModalAgregarMaquina() {
+    document.getElementById('modalMaquinaTitulo').textContent = 'Nueva Máquina';
+    document.getElementById('maquina-modo').value = 'add';
+    document.getElementById('maquina-row-number').value = '';
+    document.getElementById('maquina-nombre').value = '';
+    document.getElementById('maquina-estado').value = 'Funcional';
+    document.getElementById('maquina-categoria-group').style.display = 'block';
+    document.getElementById('maquina-imagen').value = '';
+    document.getElementById('maquina-imagen-preview').innerHTML = '';
+    imagenLocalPendiente = null;
+    
+    const sel = document.getElementById('maquina-categoria');
+    sel.innerHTML = '<option value="">(Sin categoría — al final)</option>';
+    inventarioTrabajo.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.nombre;
+        opt.textContent = c.nombre;
+        sel.appendChild(opt);
+    });
+    
+    renderizarGaleriaImagenes('');
+    new bootstrap.Modal(document.getElementById('modalMaquina')).show();
+}
+
+function abrirModalEditarMaquina(rowNumber, localId) {
+    let encontrada = null;
+    for (const cat of inventarioTrabajo) {
+        const m = cat.maquinas.find(x => (rowNumber && x.rowNumber === rowNumber) || (localId && x._localId === parseInt(localId)));
+        if (m) { encontrada = m; break; }
+    }
+    if (!encontrada) return;
+    
+    document.getElementById('modalMaquinaTitulo').textContent = 'Editar Máquina';
+    document.getElementById('maquina-modo').value = 'edit';
+    document.getElementById('maquina-row-number').value = encontrada.rowNumber || '';
+    document.getElementById('maquina-row-number').dataset.localId = encontrada._localId || '';
+    document.getElementById('maquina-nombre').value = encontrada.nombre;
+    document.getElementById('maquina-estado').value = encontrada.estado === 'Sin estado' ? 'Funcional' : encontrada.estado;
+    document.getElementById('maquina-categoria-group').style.display = 'none';
+    const imgActual = encontrada.imagen === '(local)' ? '' : (encontrada.imagen || '');
+    document.getElementById('maquina-imagen').value = imgActual;
+    imagenLocalPendiente = null;
+    
+    if (encontrada.imagen && encontrada.imagen !== '(local)') {
+        document.getElementById('maquina-imagen-preview').innerHTML = `<img src="${encontrada.imagen}" class="img-preview-inline">`;
+    } else {
+        document.getElementById('maquina-imagen-preview').innerHTML = '';
+    }
+    
+    renderizarGaleriaImagenes(imgActual);
+    new bootstrap.Modal(document.getElementById('modalMaquina')).show();
+}
+
+async function cargarImagenLocal(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    try {
+        const base64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+        
+        const comprimido = await comprimirImagen(base64, 800, 0.75);
+        imagenLocalPendiente = { base64: comprimido, fileName: file.name || ('img_' + Date.now() + '.jpg') };
+        
+        document.getElementById('maquina-imagen-preview').innerHTML = `<img src="${comprimido}" class="img-preview-inline">`;
+        document.getElementById('maquina-imagen').value = '';
+        // Deseleccionar galería porque se eligió archivo local
+        document.querySelectorAll('#galeriaImagenes .galeria-item').forEach(g => g.classList.remove('selected'));
+        
+        Swal.fire({icon:'info', title:'Imagen cargada', text:'Se subirá a Drive al sincronizar los cambios.', toast:true, position:'top-end', showConfirmButton:false, timer:2000});
+    } catch (err) {
+        console.error(err);
+        Swal.fire('Error', 'No se pudo cargar la imagen', 'error');
+    }
+}
+
+async function comprimirImagen(base64, maxWidth, quality) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let w = img.width, h = img.height;
+            if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+            canvas.width = w; canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, w, h);
+            resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.src = base64;
+    });
+}
+
+async function registrarCambioInventario(action, payload, descripcion) {
+    const localId = Date.now() + Math.floor(Math.random() * 1000);
+    const cambio = {
+        action, payload, descripcion,
+        _localId: localId,
+        creadoEn: Date.now()
+    };
+    
+    if (payload.imagenPendiente) {
+        cambio.payload.imagenLocal = payload.imagenPendiente;
+        delete cambio.payload.imagenPendiente;
+    }
+    
+    pendingInventarioChanges.push(cambio);
+    await saveInventarioBatch(pendingInventarioChanges);
+    actualizarBadgePendientes();
+}
+
+async function guardarMaquina() {
+    const modo = document.getElementById('maquina-modo').value;
+    const nombre = document.getElementById('maquina-nombre').value.trim();
+    const estado = document.getElementById('maquina-estado').value;
+    const categoria = document.getElementById('maquina-categoria').value.trim();
+    let imagen = document.getElementById('maquina-imagen').value.trim();
+    
+    if (!nombre) {
+        Swal.fire('Falta nombre', 'Ingresa el nombre de la máquina', 'warning');
+        return;
+    }
+    
+    let imagenPendienteData = null;
+    if (imagenLocalPendiente) {
+        imagenPendienteData = {
+            fileName: imagenLocalPendiente.fileName,
+            base64: imagenLocalPendiente.base64.split(',')[1]
+        };
+        imagen = '';
+    }
+    
+    if (modo === 'add') {
+        await registrarCambioInventario('addMachine', {
+            nombre, categoria, estado, imagen, imagenPendiente: imagenPendienteData
+        }, `Agregar máquina: ${nombre}`);
+    } else {
+        const rowNumber = parseInt(document.getElementById('maquina-row-number').value) || null;
+        const localId = parseInt(document.getElementById('maquina-row-number').dataset.localId) || null;
+        await registrarCambioInventario('updateMachine', {
+            rowNumber: rowNumber || localId, nombre, estado, imagen, imagenPendiente: imagenPendienteData
+        }, `Editar máquina: ${nombre}`);
+    }
+    
+    imagenLocalPendiente = null;
+    bootstrap.Modal.getInstance(document.getElementById('modalMaquina')).hide();
+    reconstruirInventarioConCambiosLocales();
+    Swal.fire({icon:'success', title:'Cambio registrado localmente', toast:true, position:'top-end', showConfirmButton:false, timer:1800});
+}
+
+function abrirModalAgregarCategoria() {
+    document.getElementById('categoria-nombre').value = '';
+    new bootstrap.Modal(document.getElementById('modalCategoria')).show();
+}
+
+async function guardarCategoria() {
+    const nombre = document.getElementById('categoria-nombre').value.trim();
+    if (!nombre) {
+        Swal.fire('Falta nombre', 'Ingresa el nombre de la categoría', 'warning');
+        return;
+    }
+    await registrarCambioInventario('addCategory', { nombre }, `Agregar categoría: ${nombre}`);
+    bootstrap.Modal.getInstance(document.getElementById('modalCategoria')).hide();
+    reconstruirInventarioConCambiosLocales();
+    Swal.fire({icon:'success', title:'Cambio registrado localmente', toast:true, position:'top-end', showConfirmButton:false, timer:1800});
+}
+
+async function confirmarEliminarCategoria(nombre, numMaquinas) {
+    const r = await Swal.fire({
+        title: '¿Eliminar categoría?',
+        html: `Se eliminará <b>${escapeHTML(nombre)}</b> y sus <b>${numMaquinas}</b> máquina(s).<br><small class="text-muted">Se aplicará cuando sincronices.</small>`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#e74c3c',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    });
+    if (!r.isConfirmed) return;
+    await registrarCambioInventario('deleteCategory', { nombre }, `Eliminar categoría: ${nombre}`);
+    reconstruirInventarioConCambiosLocales();
+    Swal.fire({icon:'success', title:'Cambio registrado localmente', toast:true, position:'top-end', showConfirmButton:false, timer:1800});
+}
+
+async function confirmarEliminarMaquina(rowNumber, localId, nombre) {
+    const r = await Swal.fire({
+        title: '¿Eliminar máquina?',
+        html: `Se eliminará <b>${escapeHTML(nombre)}</b>.<br><small class="text-muted">Se aplicará cuando sincronices.</small>`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#e74c3c',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    });
+    if (!r.isConfirmed) return;
+    const id = rowNumber || parseInt(localId);
+    await registrarCambioInventario('deleteMachine', { rowNumber: id }, `Eliminar máquina: ${nombre}`);
+    reconstruirInventarioConCambiosLocales();
+    Swal.fire({icon:'success', title:'Cambio registrado localmente', toast:true, position:'top-end', showConfirmButton:false, timer:1800});
+}
+
+// =========================================================================
+// MANTENIMIENTO
+// =========================================================================
+
+function seleccionarTipoMant(tipo) {
+    document.getElementById('mant-tipo').value = tipo;
+    document.querySelectorAll('.tipo-mant-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.tipo === tipo);
+    });
+}
+
+function poblarSelectMaquinas() {
+    const sel = document.getElementById('mant-maquina');
+    sel.innerHTML = '<option value="">Seleccionar máquina...</option>';
+    inventarioTrabajo.forEach(cat => {
+        if (cat.maquinas.length === 0) return;
+        const og = document.createElement('optgroup');
+        og.label = cat.nombre;
+        cat.maquinas.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m.nombre;
+            opt.textContent = m.nombre;
+            og.appendChild(opt);
+        });
+        sel.appendChild(og);
+    });
+}
+
+function irANuevoMantenimiento(nombreMaquina) {
+    cambiarSeccion('mantenimiento');
+    setTimeout(() => {
+        document.getElementById('mant-maquina').value = nombreMaquina;
+    }, 100);
+}
+
+async function guardarMantenimiento() {
+    const fecha = document.getElementById('mant-fecha').value;
+    const responsable = document.getElementById('mant-responsable').value.trim();
+    const maquina = document.getElementById('mant-maquina').value;
+    const tipo = document.getElementById('mant-tipo').value;
+    const observaciones = document.getElementById('mant-observaciones').value.trim();
+    
+    if (!fecha || !responsable || !maquina) {
+        Swal.fire('Campos incompletos', 'Fecha, Responsable y Máquina son obligatorios', 'warning');
+        return;
+    }
+    if (!tipo) {
+        Swal.fire('Falta tipo', 'Selecciona Preventivo o Correctivo', 'warning');
+        return;
+    }
+    
+    const now = new Date();
+    const hora = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+    const preventivo = tipo === 'preventivo' ? 'X' : '';
+    const correctivo = tipo === 'correctivo' ? 'X' : '';
+    
+    const cambio = {
+        action: 'addMaintenance',
+        payload: { fecha, hora, responsable, maquina, preventivo, correctivo, observaciones },
+        descripcion: `Mantenimiento: ${maquina} (${fecha})`,
+        creadoEn: Date.now()
+    };
+    const id = await addPendingMant(cambio);
+    pendingMaintenances.push({ id, ...cambio });
+    actualizarBadgePendientes();
+    
+    limpiarFormMantenimiento();
+    Swal.fire({icon:'success', title:'Cambio registrado localmente', toast:true, position:'top-end', showConfirmButton:false, timer:1800});
+}
+
+function limpiarFormMantenimiento() {
+    document.getElementById('mant-responsable').value = '';
+    document.getElementById('mant-maquina').value = '';
+    document.getElementById('mant-observaciones').value = '';
+    document.getElementById('mant-tipo').value = '';
+    document.querySelectorAll('.tipo-mant-btn').forEach(b => b.classList.remove('active'));
+    const hoy = new Date();
+    document.getElementById('mant-fecha').value =
+        hoy.getFullYear() + '-' + String(hoy.getMonth()+1).padStart(2,'0') + '-' + String(hoy.getDate()).padStart(2,'0');
+}
+
+// =========================================================================
+// HISTORIAL
+// =========================================================================
+
+function renderizarHistorial() {
+    const selAnio = document.getElementById('filtroAnioHist');
+    const selMes = document.getElementById('filtroMesHist');
+    
+    const añosSet = new Set();
+    historialActual.forEach(h => {
+        const f = parseFechaHist(h.fecha);
+        if (f) añosSet.add(f.getFullYear());
+    });
+    const años = Array.from(añosSet).sort((a,b) => b - a);
+    
+    const currentAnio = selAnio.value;
+    selAnio.innerHTML = '<option value="todos">Año</option>';
+    años.forEach(a => {
+        const o = document.createElement('option');
+        o.value = a; o.textContent = a;
+        selAnio.appendChild(o);
+    });
+    if (currentAnio && años.includes(parseInt(currentAnio))) selAnio.value = currentAnio;
+    
+    const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    const currentMes = selMes.value;
+    selMes.innerHTML = '<option value="todos">Mes</option>';
+    meses.forEach((m, i) => {
+        const o = document.createElement('option');
+        o.value = String(i+1).padStart(2,'0');
+        o.textContent = m;
+        selMes.appendChild(o);
+    });
+    selMes.value = currentMes || 'todos';
+    
+    aplicarFiltrosHistorial();
+}
+
+function parseFechaHist(fechaStr) {
+    if (!fechaStr) return null;
+    let m = fechaStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m) return new Date(parseInt(m[3]), parseInt(m[2]) - 1, parseInt(m[1]));
+    m = fechaStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (m) return new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
+    const d = new Date(fechaStr);
+    if (!isNaN(d.getTime())) return d;
+    return null;
+}
+
+function aplicarFiltrosHistorial() {
+    const mes = document.getElementById('filtroMesHist').value;
+    const anio = document.getElementById('filtroAnioHist').value;
+    const tipo = document.getElementById('filtroTipoHist').value;
+    const texto = document.getElementById('filtroTextoHist').value.toLowerCase().trim();
+    
+    let filtrados = historialActual.filter(h => {
+        const f = parseFechaHist(h.fecha);
+        const hMes = f ? String(f.getMonth() + 1).padStart(2,'0') : '';
+        const hAnio = f ? String(f.getFullYear()) : '';
+        if (mes !== 'todos' && hMes !== mes) return false;
+        if (anio !== 'todos' && hAnio !== anio) return false;
+        if (tipo === 'preventivo' && !h.preventivo) return false;
+        if (tipo === 'correctivo' && !h.correctivo) return false;
+        if (texto) {
+            const blob = ((h.maquina||'') + ' ' + (h.responsable||'') + ' ' + (h.observaciones||'')).toLowerCase();
+            if (!blob.includes(texto)) return false;
+        }
+        return true;
+    });
+    
+    filtrados.sort((a,b) => {
+        const fa = parseFechaHist(a.fecha);
+        const fb = parseFechaHist(b.fecha);
+        if (!fa) return 1;
+        if (!fb) return -1;
+        return fb - fa;
+    });
+    
+    const tbody = document.getElementById('histTbody');
+    tbody.innerHTML = '';
+    
+    if (filtrados.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="padding:30px;color:#999;"><i class="fas fa-inbox" style="font-size:2rem;display:block;margin-bottom:10px;color:#ccc;"></i>No hay registros con los filtros seleccionados</td></tr>`;
+        document.getElementById('totalRegistrosHist').textContent = '0';
+        return;
+    }
+    
+    filtrados.forEach(h => {
+        const prev = h.preventivo ? '<span class="badge-prev">SÍ</span>' : '<span class="badge-na">—</span>';
+        const corr = h.correctivo ? '<span class="badge-corr">SÍ</span>' : '<span class="badge-na">—</span>';
+        tbody.innerHTML += `
+            <tr>
+                <td>${escapeHTML(h.fecha || '-')}</td>
+                <td>${escapeHTML(h.responsable || '-')}</td>
+                <td style="font-weight:bold;">${escapeHTML(h.maquina || '-')}</td>
+                <td>${prev}</td>
+                <td>${corr}</td>
+                <td style="text-align:left;font-size:0.8rem;">${escapeHTML(h.observaciones || '-')}</td>
+            </tr>`;
+    });
+    
+    document.getElementById('totalRegistrosHist').textContent = filtrados.length;
+}
+
+// =========================================================================
+// CARGA DE PENDIENTES
+// =========================================================================
+
+async function cargarPendientes() {
+    pendingMaintenances = await getAllPendingMants();
+    pendingInventarioChanges = await getInventarioBatch();
+    actualizarBadgePendientes();
+}
+
+function actualizarBadgePendientes() {
+    const badge = document.getElementById('badge-pendientes');
+    let total = 0;
+    if (pendingInventarioChanges.length > 0) total += 1;
+    total += pendingMaintenances.length;
+    
+    if (total > 0) {
+        badge.textContent = total;
+        badge.style.display = 'inline-block';
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+// =========================================================================
+// MODAL SYNC
+// =========================================================================
+
+function renderizarModalSync() {
+    const list = document.getElementById('lista-pendientes');
+    list.innerHTML = '';
+    document.getElementById('check-all-pendientes').checked = false;
+    
+    const totalItems = (pendingInventarioChanges.length > 0 ? 1 : 0) + pendingMaintenances.length;
+    
+    if (totalItems === 0) {
+        list.innerHTML = '<div class="text-center p-4 text-muted small">No hay cambios pendientes.</div>';
+        actualizarBotonesSeleccion();
+        return;
+    }
+    
+    if (pendingInventarioChanges.length > 0) {
+        const numCambios = pendingInventarioChanges.length;
+        const tieneImagenes = pendingInventarioChanges.some(c => c.payload && c.payload.imagenLocal);
+        list.innerHTML += `
+            <div class="list-group-item d-flex align-items-center">
+                <input class="form-check-input check-pendiente me-2" type="checkbox" value="inv-batch" checked>
+                <div class="flex-grow-1">
+                    <div class="fw-bold text-dark">
+                        <i class="fas fa-boxes me-2 text-warning"></i>Cambios en Inventario
+                        <span class="badge-count-acciones">${numCambios} acción(es)</span>
+                        ${tieneImagenes ? '<span class="badge bg-info ms-1" style="font-size:0.6rem;">📷 imagen</span>' : ''}
+                    </div>
+                    <small class="text-muted">Todos los cambios de equipos se envían juntos</small>
+                </div>
+            </div>`;
+    }
+    
+    pendingMaintenances.forEach(p => {
+        const fecha = new Date(p.creadoEn).toLocaleString();
+        list.innerHTML += `
+            <div class="list-group-item d-flex align-items-center" id="row-pend-${p.id}">
+                <input class="form-check-input check-pendiente me-2" type="checkbox" value="mant-${p.id}" checked>
+                <div class="flex-grow-1">
+                    <div class="fw-bold text-dark">
+                        <i class="fas fa-wrench me-2 text-warning"></i>${escapeHTML(p.descripcion)}
+                    </div>
+                    <small class="text-muted">${fecha}</small>
+                </div>
+                <div class="status-wrapper ms-2"></div>
+            </div>`;
+    });
+    
+    document.getElementById('check-all-pendientes').checked = true;
+    actualizarBotonesSeleccion();
+}
+
+function actualizarBotonesSeleccion() {
+    const p = document.querySelectorAll('.check-pendiente:checked').length;
+    document.getElementById('btn-sincronizar-seleccionados').disabled = p === 0;
+    document.getElementById('btn-delete-pendientes-sel').disabled = p === 0;
+}
+
+async function sincronizarCambios(ids) {
+    if (ids.length === 0) return;
+    
+    const modal = document.getElementById('modalSync');
+    const btnSync = document.getElementById('btn-sincronizar-seleccionados');
+    const btnDelete = document.getElementById('btn-delete-pendientes-sel');
+    const btnClose = document.getElementById('btn-close-sync');
+    const checkAll = document.getElementById('check-all-pendientes');
+    
+    const originalHtml = btnSync.innerHTML;
+    btnSync.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Procesando...';
+    btnSync.disabled = true;
+    btnDelete.style.display = 'none';
+    btnClose.style.display = 'none';
+    checkAll.disabled = true;
+    modal.querySelectorAll('.check-pendiente').forEach(c => c.disabled = true);
+    
+    try {
+        if (ids.includes('inv-batch') && pendingInventarioChanges.length > 0) {
+            for (const cambio of pendingInventarioChanges) {
+                if (cambio.payload && cambio.payload.imagenLocal) {
+                    try {
+                        const resImg = await fetch(SCRIPT_URL, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                            body: JSON.stringify({
+                                action: 'uploadImage',
+                                payload: cambio.payload.imagenLocal
+                            })
+                        });
+                        const dataImg = await resImg.json();
+                        if (dataImg.success && dataImg.url) {
+                            cambio.payload.imagen = dataImg.url;
+                            delete cambio.payload.imagenLocal;
+                        } else {
+                            throw new Error('No se pudo subir la imagen: ' + (dataImg.error || ''));
+                        }
+                    } catch (e) {
+                        console.error('Error subiendo imagen:', e);
+                        Swal.fire('Error', 'No se pudo subir una imagen: ' + e.message, 'error');
+                        throw e;
+                    }
+                }
+            }
+            await saveInventarioBatch(pendingInventarioChanges);
+        }
+        
+        let exitos = 0, errores = 0, duplicados = 0;
+        
+        if (ids.includes('inv-batch') && pendingInventarioChanges.length > 0) {
+            const acciones = pendingInventarioChanges.map((c, idx) => ({
+                clientId: 'inv-' + idx,
+                action: c.action,
+                payload: c.payload
+            }));
+            
+            const res = await fetch(SCRIPT_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ action: 'syncAll', payload: { actions: acciones } })
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                const todosOk = data.results.every(r => r.success);
+                if (todosOk) {
+                    pendingInventarioChanges = [];
+                    await saveInventarioBatch([]);
+                    exitos++;
+                } else {
+                    const fallidos = data.results.filter(r => !r.success);
+                    Swal.fire('Advertencia', `Algunos cambios fallaron: ${fallidos.map(f => f.error).join(', ')}`, 'warning');
+                    exitos += (data.results.length - fallidos.length);
+                    errores += fallidos.length;
+                }
+            } else {
+                errores++;
+                throw new Error(data.error || 'Error en inventario');
+            }
+        }
+        
+        const mantIds = ids.filter(i => i.startsWith('mant-')).map(i => parseInt(i.replace('mant-', '')));
+        if (mantIds.length > 0) {
+            const acciones = mantIds.map(id => {
+                const p = pendingMaintenances.find(x => x.id === id);
+                return {
+                    clientId: 'mant-' + id,
+                    action: p.action,
+                    payload: p.payload
+                };
+            });
+            
+            const res = await fetch(SCRIPT_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ action: 'syncAll', payload: { actions: acciones } })
+            });
+            const data = await res.json();
+            
+            if (data.success && Array.isArray(data.results)) {
+                for (const r of data.results) {
+                    if (r.success) {
+                        const id = parseInt(r.clientId.replace('mant-', ''));
+                        await deletePendingMant(id);
+                        if (r.duplicated) duplicados++;
+                        else exitos++;
+                    } else {
+                        errores++;
+                    }
+                }
+            } else {
+                errores += mantIds.length;
+            }
+        }
+        
+        await cargarPendientes();
+        await cargarInventario();
+        
+        bootstrap.Modal.getInstance(modal).hide();
+        
+        let texto = `${exitos} cambio(s) aplicados.`;
+        if (duplicados > 0) texto += ` ${duplicados} duplicado(s) omitido(s).`;
+        if (errores > 0) texto += ` ${errores} con error.`;
+        await Swal.fire({ icon: errores > 0 ? 'warning' : 'success', title: 'Sincronización completada', text: texto });
+        
+    } catch (err) {
+        console.error(err);
+        await Swal.fire('Error', 'No se pudo sincronizar: ' + err.message, 'error');
+    } finally {
+        btnSync.innerHTML = originalHtml;
+        btnSync.disabled = false;
+        btnDelete.style.display = '';
+        btnClose.style.display = '';
+        checkAll.disabled = false;
+        modal.querySelectorAll('.check-pendiente').forEach(c => c.disabled = false);
+        actualizarBotonesSeleccion();
+    }
+}
+
+async function eliminarSeleccionados() {
+    const ids = Array.from(document.querySelectorAll('.check-pendiente:checked')).map(c => c.value);
+    if (ids.length === 0) return;
+    
+    const r = await Swal.fire({
+        title: '¿Descartar cambios?',
+        text: `Se eliminarán ${ids.length} item(s) pendientes sin aplicar.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#e74c3c',
+        confirmButtonText: 'Sí, descartar',
+        cancelButtonText: 'Cancelar'
+    });
+    if (!r.isConfirmed) return;
+    
+    if (ids.includes('inv-batch')) {
+        pendingInventarioChanges = [];
+        await saveInventarioBatch([]);
+    }
+    for (const id of ids.filter(i => i.startsWith('mant-'))) {
+        await deletePendingMant(parseInt(id.replace('mant-', '')));
+    }
+    
+    await cargarPendientes();
+    reconstruirInventarioConCambiosLocales();
+    renderizarModalSync();
+}
+
+// =========================================================================
+// HELPERS
+// =========================================================================
+
+function showLoading(msg, sub = '') {
+    document.querySelector('#loadingMessage h4').textContent = msg || 'Por favor espera un momento...';
+    document.querySelector('#loadingMessage p').textContent = sub;
+    document.getElementById('overlay').style.display = 'flex';
+}
+function hideLoading() {
+    document.getElementById('overlay').style.display = 'none';
+}
+function escapeHTML(s) {
+    if (!s) return '';
+    return s.toString().replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+}
+function escapeAttr(s) {
+    if (!s) return '';
+    return s.toString().replace(/['"\\]/g, '\\$&');
+}
+</script>
+
+</body>
+</html>

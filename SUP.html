@@ -2978,10 +2978,6 @@ async function handleInputFotoEstatico(event, previewId) {
     finally { try { inputEl.value = ''; } catch (_) {} }
 }
 
-/**
- * Comprime un File/Blob a 1000px / q=0.65 ANTES de decodificar en canvas grande.
- * Punto clave para evitar OOM en móviles.
- */
 function compressImage(file, quality = 0.65, maxWidth = 1000) {
     return new Promise((resolve, reject) => {
         if (!(file instanceof Blob)) {
@@ -2989,50 +2985,59 @@ function compressImage(file, quality = 0.65, maxWidth = 1000) {
             return;
         }
 
-        // Usar createImageBitmap si está disponible (más eficiente)
-        if (window.createImageBitmap) {
-            createImageBitmap(file)
-                .then(bitmap => {
-                    try {
-                        const canvas = document.createElement('canvas');
-                        const ctx = canvas.getContext('2d');
-                        
-                        let width = bitmap.width;
-                        let height = bitmap.height;
-                        
-                        if (width > maxWidth) {
-                            const ratio = maxWidth / width;
-                            width = maxWidth;
-                            height = Math.round(height * ratio);
-                        }
-                        
-                        canvas.width = width;
-                        canvas.height = height;
-                        ctx.drawImage(bitmap, 0, 0, width, height);
-                        
-                        const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
-                        
-                        // Liberar recursos
-                        bitmap.close();
-                        canvas.width = 0;
-                        canvas.height = 0;
-                        
-                        resolve(compressedBase64);
-                    } catch (e) {
-                        reject(e);
-                    }
-                })
-                .catch(err => {
-                    console.warn('createImageBitmap falló, usando FileReader:', err);
-                    // Fallback a FileReader
-                    compressImageFallback(file, quality, maxWidth).then(resolve).catch(reject);
-                });
-        } else {
-            // Fallback para navegadores sin createImageBitmap
-            compressImageFallback(file, quality, maxWidth).then(resolve).catch(reject);
-        }
+        // Crear un blob URL del archivo. El navegador NO carga el bitmap
+        // hasta que sea necesario dibujarlo en canvas. Esto es más eficiente
+        // que FileReader.readAsDataURL que carga todo en memoria de golpe.
+        const blobUrl = URL.createObjectURL(file);
+        const img = new Image();
+        
+        // Forzar al navegador a NO mantener la imagen decodificada en caché
+        img.decoding = 'async';
+        
+        img.onload = function() {
+            try {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                let width = img.naturalWidth;
+                let height = img.naturalHeight;
+                
+                if (width > maxWidth) {
+                    const ratio = maxWidth / width;
+                    width = maxWidth;
+                    height = Math.round(height * ratio);
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+                
+                // Limpieza AGRESIVA
+                URL.revokeObjectURL(blobUrl);
+                img.src = '';  // Liberar la imagen
+                img.onload = null;
+                img.onerror = null;
+                canvas.width = 0;
+                canvas.height = 0;
+                
+                resolve(compressedBase64);
+            } catch (e) {
+                URL.revokeObjectURL(blobUrl);
+                reject(e);
+            }
+        };
+        
+        img.onerror = function(err) {
+            URL.revokeObjectURL(blobUrl);
+            reject(err);
+        };
+        
+        img.src = blobUrl;
     });
 }
+
 
 function compressImageFallback(file, quality, maxWidth) {
     return new Promise((resolve, reject) => {
@@ -3150,7 +3155,7 @@ function openCameraModal() {
 async function initializeCamera() {
     try {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { showCameraError('Tu navegador no soporta el acceso a la cámara.'); return; }
-        const constraints = { video: { facingMode: currentFacingMode, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false };
+        const constraints = { video: { facingMode: currentFacingMode, width: { ideal: 2560 }, height: { ideal: 1440 } }, audio: false };
         cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
         const videoElement = document.getElementById('camera-video');
         videoElement.srcObject = cameraStream;
@@ -3165,8 +3170,51 @@ function stopCamera() { if (cameraStream) { cameraStream.getTracks().forEach(tra
 function resetCameraControls() { zoomLevel = 1; flashOn = false; currentFacingMode = 'environment'; $('#flash-toggle').removeClass('active'); applyZoom(); }
 function applyZoom() { const v = document.getElementById('camera-video'); if (v) v.style.transform = isMobileDevice ? `scale(${zoomLevel})` : `scaleX(-1) scale(${zoomLevel})`; }
 
-function capturePhoto() {
+async function capturePhoto() {
     if (!cameraStream) return;
+    
+    // ✅ NUEVO: Intentar usar ImageCapture API (foto a resolución completa del sensor)
+    if (window.ImageCapture && !isMobileDevice === false) {
+        // Nota: ImageCapture solo se intenta en móvil. En desktop usamos canvas (más predecible).
+        try {
+            const track = cameraStream.getVideoTracks()[0];
+            const imageCapture = new ImageCapture(track);
+            
+            // takePhoto() devuelve un Blob con la foto a resolución completa
+            const photoBlob = await imageCapture.takePhoto();
+            
+            // Comprimir el blob y procesarlo
+            const base64Data = await compressImage(photoBlob, 0.85, 1600);
+            
+            // Reutilizar la lógica de guardado existente
+            if (!currentPreviewId || !db) return;
+            if (!selectedFiles[currentPreviewId]) selectedFiles[currentPreviewId] = [];
+            
+            const newId = await saveImageToDB(base64Data);
+            selectedFiles[currentPreviewId].push(newId);
+            
+            await renderFotosPreview(currentPreviewId);
+            
+            // Actualizar contador de fotos (chip)
+            const $counter = $(`.foto-chip-count[data-count-for="${currentPreviewId}"]`);
+            if ($counter.length) {
+                $counter.text(selectedFiles[currentPreviewId].length);
+                if (selectedFiles[currentPreviewId].length > 0) $counter.addClass('has-fotos');
+                else $counter.removeClass('has-fotos');
+            }
+            
+            showPhotoCaptureToast();
+            await saveSession();
+            visualCaptureEffect();
+            return;  // ✅ Éxito: salir sin ejecutar el canvas
+            
+        } catch (e) {
+            console.warn('ImageCapture falló, usando canvas como fallback:', e);
+            // Continuar con el método tradicional (canvas) como fallback
+        }
+    }
+    
+    // 🔄 FALLBACK: Método tradicional con canvas (el que ya tienes)
     const videoElement = document.getElementById('camera-video');
     const canvas = document.getElementById('camera-canvas');
     const context = canvas.getContext('2d');
@@ -3180,7 +3228,7 @@ function capturePhoto() {
         if (isMobileDevice) context.drawImage(videoElement, offsetX, offsetY, zoomedWidth, zoomedHeight, 0, 0, canvas.width, canvas.height);
         else { context.translate(canvas.width, 0); context.scale(-1, 1); context.drawImage(videoElement, offsetX, offsetY, zoomedWidth, zoomedHeight, 0, 0, canvas.width, canvas.height); }
     } else context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
-    const imageData = canvas.toDataURL('image/jpeg', 0.8);
+    const imageData = canvas.toDataURL('image/jpeg', 0.9);
     processCapturedPhoto(imageData);
     visualCaptureEffect();
 }
@@ -3191,7 +3239,7 @@ async function processCapturedPhoto(imageData) {
     try {
         // Re-comprimir la captura del video a 1000px / q=0.65 (sin timestamp)
         const blob = await (await fetch(imageData)).blob();
-        const base64Data = await compressImage(blob, 0.65, 1000);
+        const base64Data = await compressImage(blob, 0.8, 1200);
         const newId = await saveImageToDB(base64Data);
         selectedFiles[currentPreviewId].push(newId);
         await renderFotosPreview(currentPreviewId);
@@ -3209,12 +3257,54 @@ function visualCaptureEffect() {
     }
 }
 
-function toggleFlash() {
+async function toggleFlash() {
     flashOn = !flashOn;
     const flashBtn = $('#flash-toggle');
-    if (flashOn) { flashBtn.addClass('active'); $('.camera-view').css('filter', 'brightness(1.5)'); }
-    else { flashBtn.removeClass('active'); $('.camera-view').css('filter', 'brightness(1)'); }
+    
+    if (flashOn) {
+        flashBtn.addClass('active');
+        // Intentar activar el flash real del hardware
+        if (cameraStream) {
+            const track = cameraStream.getVideoTracks()[0];
+            if (track && track.getCapabilities) {
+                const capabilities = track.getCapabilities();
+                if (capabilities.torch) {
+                    try {
+                        await track.applyConstraints({
+                            advanced: [{ torch: true }]
+                        });
+                        console.log('✅ Flash del hardware activado');
+                    } catch (e) {
+                        console.warn('No se pudo activar el flash del hardware:', e);
+                        // Fallback visual
+                        $('.camera-view').css('filter', 'brightness(1.5)');
+                    }
+                } else {
+                    // El dispositivo no soporta torch, usar fallback visual
+                    $('.camera-view').css('filter', 'brightness(1.5)');
+                }
+            }
+        }
+    } else {
+        flashBtn.removeClass('active');
+        // Desactivar flash real
+        if (cameraStream) {
+            const track = cameraStream.getVideoTracks()[0];
+            if (track && track.applyConstraints) {
+                try {
+                    await track.applyConstraints({
+                        advanced: [{ torch: false }]
+                    });
+                } catch (e) {
+                    // Ignorar
+                }
+            }
+        }
+        $('.camera-view').css('filter', 'brightness(1)');
+    }
 }
+
+
 function zoomIn() { if (zoomLevel < 3) { zoomLevel += 0.5; applyZoom(); } }
 function zoomOut() { if (zoomLevel > 0.5) { zoomLevel -= 0.5; applyZoom(); } }
 

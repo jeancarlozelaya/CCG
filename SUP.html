@@ -386,7 +386,7 @@
     .btn-flotante:hover { transform: scale(1.1); box-shadow: 0 6px 20px rgba(0,0,0,0.5); }
     .btn-flotante:active { transform: scale(0.95); }
 
-    /* ============ CÁMARA MODAL MEJORADA ============ */
+    /* ============ CÁMARA MODAL ============ */
     .camera-modal .modal-dialog {
         max-width: 100%;
         height: 100vh;
@@ -449,8 +449,9 @@
         height: 100%;
         object-fit: cover;
         transition: transform 0.3s ease;
-        /* Mejora la nitidez visual sin tocar resolución */
         image-rendering: -webkit-optimize-contrast;
+        /* Reducir el lag de autofocus en móviles */
+        will-change: transform;
     }
     .camera-controls {
         position: absolute;
@@ -507,6 +508,7 @@
         cursor: pointer;
     }
     .zoom-btn:hover { background-color: rgba(255, 255, 255, 0.2); }
+    .zoom-btn:active { transform: scale(0.9); }
 
     .flash-control {
         position: absolute;
@@ -530,26 +532,6 @@
     .flash-btn.active { background-color: #f39c12; color: #000; border-color: #f39c12; }
     .flash-btn.unavailable { opacity: 0.4; cursor: not-allowed; }
 
-    .camera-switch-control {
-        position: absolute;
-        right: 20px;
-        top: 80px;
-        z-index: 10002;
-    }
-    .camera-switch-btn {
-        background-color: rgba(0, 0, 0, 0.5);
-        color: white;
-        border: 2px solid white;
-        border-radius: 50%;
-        width: 50px; height: 50px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 18px;
-        cursor: pointer;
-    }
-    .camera-switch-btn:hover { background-color: rgba(255, 255, 255, 0.2); }
-
     .camera-message {
         position: absolute;
         top: 50%; left: 0; right: 0;
@@ -572,8 +554,7 @@
     }
     .no-camera .camera-controls,
     .no-camera .zoom-controls,
-    .no-camera .flash-control,
-    .no-camera .camera-switch-control { display: none; }
+    .no-camera .flash-control { display: none; }
 
     .camera-active .btn-flotante { display: none !important; }
 
@@ -1060,7 +1041,7 @@
                 <span>Usar cámara integrada (modal)</span>
             </div>
             <p class="setting-description">
-                Cuando está activo, se usa la cámara de la app (modal con vista previa en pantalla completa) en lugar de la cámara nativa del teléfono. Recomendado si la cámara nativa se cierra o reinicia la página. Incluye flash (torch) y control de zoom reales.
+                Cuando está activo, se usa la cámara de la app (modal con vista previa en pantalla completa) en lugar de la cámara nativa del teléfono. Recomendado si la cámara nativa se cierra o reinicia la página. Toma las fotos con la misma calidad que la cámara nativa (usa ImageCapture cuando el dispositivo lo soporta).
             </p>
         </div>
         <div class="form-check form-switch">
@@ -1256,11 +1237,6 @@
                             <button class="flash-btn" id="flash-toggle" title="Flash / Linterna">
                                 <i class="fas fa-bolt"></i>
                                 <span>Flash</span>
-                            </button>
-                        </div>
-                        <div class="camera-switch-control">
-                            <button class="camera-switch-btn" id="camera-switch" title="Cambiar cámara">
-                                <i class="fas fa-sync-alt"></i>
                             </button>
                         </div>
                         <div class="zoom-controls">
@@ -1815,10 +1791,11 @@ let $selectSupervisor, $selectProyecto, $selectUbicacion, $selectSubUbicacion, $
 
 let currentPreviewId = null;
 let cameraStream = null;
+let imageCapture = null;      // ImageCapture del track (si está disponible)
+let photoCapabilities = null; // capabilities del ImageCapture
 let currentFacingMode = 'environment';
-let zoomLevel = 1;
+let zoomLevel = 1;            // zoom digital a aplicar en captura (1 = sin zoom)
 let flashOn = false;
-let torchSupported = false;
 let isMobileDevice = false;
 let initialPinchDistance = 0;
 let lastZoomLevel = 1;
@@ -1847,7 +1824,6 @@ function esDispositivoMovil() {
 function getQuestionName(areaKey, index) { return `${areaKey}-p${index}`; }
 function getPreviewIdPregunta(areaKey, index) { return `preview-pregunta-${areaKey}-${index}`; }
 function getPreviewIdGeneral(areaKey) { return `preview-${areaKey}`; }
-function getInputIdDePreview(previewId) { return `input-${previewId}`; }
 
 function getTodosPreviewIdsDeArea(areaKey) {
     const ids = [];
@@ -2673,11 +2649,13 @@ function validarPagina(paginaId) {
 // CÁMARA
 // =========================================================================
 
-function openCamera(previewId) {
+async function openCamera(previewId) {
     if (appConfig.modoSinFotos) return;
     currentPreviewId = previewId;
     isMobileDevice = esDispositivoMovil();
-    // NUEVO: si el usuario activó "Usar cámara integrada (modal)" SIEMPRE usamos el modal.
+    // Guardar sesión AHORA antes de abrir cámara (por si el sistema mata el WebView)
+    try { await saveSession(); } catch (e) { console.warn('saveSession pre-camera falló:', e); }
+    // Si el usuario activó "Usar cámara integrada (modal)" SIEMPRE usamos el modal.
     if (appConfig.camaraModal) { openCameraModal(); return; }
     const ua = navigator.userAgent.toLowerCase();
     const esDesktop = ua.includes('windows') || ua.includes('macintosh') || ua.includes('mac os') || (ua.includes('linux') && !ua.includes('android'));
@@ -2688,7 +2666,9 @@ function openCamera(previewId) {
 /**
  * Dispara el <input type=file capture> nativo (móvil).
  * Se crea dinámicamente, se clickea y se elimina después.
- * Esto ahorra un poco de memoria vs. tener un input por preview en el DOM.
+ * Nota: algunos fabricantes (Xiaomi, Samsung, Huawei) pueden matar el WebView
+ * cuando la cámara nativa toma control completo del hardware. No hay forma
+ * de evitarlo 100% desde HTML. Por eso la sesión ya está guardada antes.
  */
 function dispararInputFotoNativo(previewId) {
     const input = document.createElement('input');
@@ -2706,7 +2686,7 @@ function dispararInputFotoNativo(previewId) {
 }
 
 // =========================================================================
-// COMPRESIÓN EFICIENTE CON createImageBitmap (menos memoria)
+// COMPRESIÓN EFICIENTE (evita reinicios por OOM)
 // =========================================================================
 
 const MAX_PHOTO_DIM = 1280;
@@ -2738,13 +2718,6 @@ function blobToDataURL(blob) {
     });
 }
 
-/**
- * Comprime un File/Blob a Base64 JPEG.
- * - Si el navegador soporta createImageBitmap + OffscreenCanvas, se usa ese camino
- *   (decodifica fuera del hilo principal y no crea un <img> grande en memoria).
- * - Si no, cae al camino clásico FileReader + Image.
- * - SIEMPRE libera canvas, image y blob al finalizar.
- */
 async function compressImageBlobEfficient(blob, maxDim = MAX_PHOTO_DIM, quality = PHOTO_QUALITY) {
     if (!(blob instanceof Blob)) throw new TypeError('Blob inválido');
     let bitmap = null;
@@ -2755,7 +2728,6 @@ async function compressImageBlobEfficient(blob, maxDim = MAX_PHOTO_DIM, quality 
         }
     } catch (e) { bitmap = null; }
 
-    // Camino con ImageBitmap (el preferido)
     if (bitmap) {
         try {
             let w = bitmap.width, h = bitmap.height;
@@ -2768,7 +2740,6 @@ async function compressImageBlobEfficient(blob, maxDim = MAX_PHOTO_DIM, quality 
             const ctx = canvas.getContext('2d', { alpha: false, willReadFrequently: false });
             ctx.drawImage(bitmap, 0, 0, w, h);
             const outBlob = await canvasToBlobAsync(canvas, 'image/jpeg', quality);
-            // Liberar
             bitmap.close && bitmap.close();
             bitmap = null;
             canvas.width = canvas.height = 0;
@@ -2776,11 +2747,9 @@ async function compressImageBlobEfficient(blob, maxDim = MAX_PHOTO_DIM, quality 
         } catch (e) {
             if (bitmap && bitmap.close) try { bitmap.close(); } catch (_) {}
             bitmap = null;
-            // caer al camino clásico
         }
     }
 
-    // Fallback: FileReader + Image
     const dataUrl = await blobToDataURL(blob);
     return new Promise((resolve) => {
         const img = new Image();
@@ -2805,14 +2774,6 @@ async function compressImageBlobEfficient(blob, maxDim = MAX_PHOTO_DIM, quality 
         img.src = dataUrl;
     });
 }
-
-// Compatibilidad: mantiene el nombre que ya usaban algunos puntos del código
-async function compressImage(file, quality = PHOTO_QUALITY, maxWidth = MAX_PHOTO_DIM) {
-    return compressImageBlobEfficient(file, maxWidth, quality);
-}
-
-// NOTA: se deja deshabilitado el timestamp en imagen (mucho consumo de memoria).
-async function addDateTimeToImage(base64Data) { return base64Data; }
 
 function showPhotoCaptureToast() {
     $('.photo-capture-toast').remove();
@@ -2855,7 +2816,7 @@ async function handleCameraPhoto(file) {
 }
 
 // =========================================================================
-// CÁMARA MODAL (mejorada: torch real, mejor resolución, switch cámara)
+// CÁMARA MODAL
 // =========================================================================
 
 function openCameraModal() {
@@ -2867,47 +2828,53 @@ function openCameraModal() {
 }
 
 /**
- * Inicializa la cámara con la MEJOR resolución posible.
- * - Pide 1920x1080 ideal y 1280x720 mínimo.
- * - Habilita torch si el dispositivo lo soporta (guardado en torchSupported).
- * - Maneja el botón de switch entre frontal y trasera.
+ * Inicializa la cámara modal pidiendo la MÁXIMA resolución posible.
+ * - Solicita 4032x3024 ideal (máximo típico de móvil) con mínimo 1920x1080.
+ * - Crea un ImageCapture sobre el track (si el navegador lo soporta) para
+ *   capturar con el pipeline nativo (misma calidad que la cámara nativa).
+ * - Lee getPhotoCapabilities() para conocer el máximo real (imageWidth.max).
+ * - Detecta zoom nativo del hardware (capabilities.zoom) si existe.
  */
 async function initializeCamera() {
     try {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { showCameraError('Tu navegador no soporta el acceso a la cámara.'); return; }
-        // Detener stream previo si existe
         stopCamera();
+        // Pedir la MAYOR resolución posible. Muchos navegadores ignoran el "ideal"
+        // y eligen lo máximo que soporte el hardware, así que insistimos con min alto.
         const constraints = {
             audio: false,
             video: {
                 facingMode: { ideal: currentFacingMode },
-                width: { ideal: 1920, min: 1280 },
-                height: { ideal: 1080, min: 720 },
-                // En algunos navegadores fuerza a la cámara principal sin zoom digital
-                // advanced: [{ focusMode: 'continuous' }]  // evitar por incompat
+                width: { ideal: 4032, min: 1920 },
+                height: { ideal: 3024, min: 1080 }
             }
         };
         cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
         const videoElement = document.getElementById('camera-video');
         videoElement.srcObject = cameraStream;
-        // Evitar el "espejo" del video en móvil (más natural)
-        videoElement.style.transform = currentFacingMode === 'user' && !isMobileDevice ? 'scaleX(-1)' : 'none';
+        // Sin espejo en móvil; con espejo solo si fuese cámara frontal en escritorio
+        videoElement.style.transform = 'none';
 
-        // Detectar soporte de torch en el track
-        torchSupported = false;
+        // ImageCapture: pipeline nativo de captura (mejor calidad y respeta flash del HW)
+        imageCapture = null;
+        photoCapabilities = null;
         try {
-            const track = cameraStream.getVideoTracks()[0];
-            const caps = track.getCapabilities ? track.getCapabilities() : {};
-            if (caps && caps.torch) torchSupported = true;
-            // Si ya estaba activo el flash, intentamos re-aplicarlo
-            if (flashOn && torchSupported) {
-                try { await track.applyConstraints({ advanced: [{ torch: true }] }); }
-                catch (e) { flashOn = false; }
+            if (typeof ImageCapture === 'function') {
+                const track = cameraStream.getVideoTracks()[0];
+                if (track) {
+                    imageCapture = new ImageCapture(track);
+                    if (imageCapture.getPhotoCapabilities) {
+                        try { photoCapabilities = await imageCapture.getPhotoCapabilities(); } catch (_) {}
+                    }
+                }
             }
-        } catch (e) {}
-        updateFlashButtonState();
+        } catch (e) { imageCapture = null; }
 
-        applyZoom();
+        // Ajustar zoom inicial al mínimo permitido por el hardware (si aplica)
+        await aplicarZoomHardware(1);
+        await aplicarFlashHardware(flashOn);
+        updateFlashButtonState();
+        applyZoomVisual();
         $('#camera-message').hide();
     } catch (error) {
         console.error('Error al acceder a la cámara:', error);
@@ -2915,122 +2882,218 @@ async function initializeCamera() {
     }
 }
 
+/**
+ * Aplica el flash (torch) al track si el hardware lo soporta.
+ * - Primero intenta el constraint estándar 'torch'.
+ * - Si el track no soporta torch, intenta con imageCapture.setOptions({fillLightMode:'flash'}).
+ */
+async function aplicarFlashHardware(encender) {
+    try {
+        const track = cameraStream && cameraStream.getVideoTracks()[0];
+        if (track) {
+            const caps = track.getCapabilities ? track.getCapabilities() : {};
+            if (caps && caps.torch !== undefined) {
+                try { await track.applyConstraints({ advanced: [{ torch: !!encender }] }); }
+                catch (e) {}
+            }
+        }
+        // Algunos dispositivos exponen 'fillLightMode' via ImageCapture
+        if (imageCapture) {
+            const capsFoto = photoCapabilities;
+            const modos = capsFoto && capsFoto.fillLightMode ? capsFoto.fillLightMode : [];
+            if (modos.includes('flash')) {
+                try { await imageCapture.setOptions({ fillLightMode: encender ? 'flash' : 'off' }); }
+                catch (e) {}
+            }
+        }
+    } catch (e) {}
+}
+
+/**
+ * Aplica el zoom al track si el hardware lo soporta (zoom óptico real).
+ * Si no lo soporta, no hace nada aquí: el zoom se aplicará en la captura
+ * (recorte digital del centro) en capturePhoto().
+ */
+async function aplicarZoomHardware(factor) {
+    try {
+        const track = cameraStream && cameraStream.getVideoTracks()[0];
+        if (!track || !track.getCapabilities) return false;
+        const caps = track.getCapabilities();
+        if (caps.zoom) {
+            const min = caps.zoom.min || 1;
+            const max = caps.zoom.max || 1;
+            const step = caps.zoom.step || 0.1;
+            const objetivo = Math.max(min, Math.min(max, factor));
+            const snap = Math.round(objetivo / step) * step;
+            try { await track.applyConstraints({ advanced: [{ zoom: snap }] }); return true; }
+            catch (e) { return false; }
+        }
+    } catch (e) {}
+    return false;
+}
+
 function updateFlashButtonState() {
     const $btn = $('#flash-toggle');
-    if (torchSupported) {
-        $btn.removeClass('unavailable');
-        $btn.prop('disabled', false);
-        if (flashOn) $btn.addClass('active'); else $btn.removeClass('active');
-    } else {
-        $btn.addClass('unavailable');
-        // No lo deshabilitamos del todo: puede que el usuario quiera intentar un flash por pantalla
-        $btn.prop('disabled', false);
-        $btn.removeClass('active');
-    }
+    let soportado = false;
+    try {
+        const track = cameraStream && cameraStream.getVideoTracks()[0];
+        const caps = track && track.getCapabilities ? track.getCapabilities() : {};
+        if (caps && caps.torch !== undefined) soportado = true;
+        if (!soportado && photoCapabilities && photoCapabilities.fillLightMode && photoCapabilities.fillLightMode.includes('flash')) soportado = true;
+    } catch (e) {}
+    if (soportado) { $btn.removeClass('unavailable'); }
+    else { $btn.addClass('unavailable'); }
+    $btn.prop('disabled', false);
+    if (flashOn) $btn.addClass('active'); else $btn.removeClass('active');
 }
 
 function showCameraError(message) { $('#camera-message').text(message).show(); $('.camera-container').addClass('no-camera'); }
 function stopCamera() {
     if (cameraStream) {
-        // Apagar torch antes de detener
         try {
             const track = cameraStream.getVideoTracks()[0];
-            if (track && track.applyConstraints && torchSupported) {
+            if (track && track.applyConstraints) {
                 try { track.applyConstraints({ advanced: [{ torch: false }] }); } catch (_) {}
             }
         } catch (_) {}
         cameraStream.getTracks().forEach(track => track.stop());
         cameraStream = null;
     }
+    imageCapture = null;
+    photoCapabilities = null;
     const v = document.getElementById('camera-video');
     if (v) v.srcObject = null;
 }
 function resetCameraControls() {
-    zoomLevel = 1; flashOn = false; torchSupported = false;
+    zoomLevel = 1; flashOn = false;
     currentFacingMode = 'environment';
     $('#flash-toggle').removeClass('active').removeClass('unavailable');
-    applyZoom();
+    $('.camera-view').css('filter', 'brightness(1)');
+    applyZoomVisual();
 }
-function applyZoom() { const v = document.getElementById('camera-video'); if (v) v.style.transform = (currentFacingMode === 'user' && !isMobileDevice ? 'scaleX(-1)' : 'none') + ` scale(${zoomLevel})`; }
+function applyZoomVisual() {
+    const v = document.getElementById('camera-video');
+    if (v) v.style.transform = `scale(${zoomLevel})`;
+}
 
 /**
- * Toggle del flash:
- * - Si el track soporta torch real, lo aplicamos (mejor flash real).
- * - Si no lo soporta, hacemos un "flash de pantalla" (destello blanco + brillo del video).
- * - En cualquier caso, al capturar, si flashOn, subimos brillo al dibujar el canvas.
+ * Toggle flash:
+ * - Encendemos/apagamos el hardware (torch o fillLightMode).
+ * - El brillo extra en pantalla es SOLO estético para el preview;
+ *   la captura final usa el flash del hardware si está disponible,
+ *   y un brillo leve adicional si no lo está.
  */
 async function toggleFlash() {
     flashOn = !flashOn;
     const $btn = $('#flash-toggle');
-    if (cameraStream && torchSupported) {
-        try {
-            const track = cameraStream.getVideoTracks()[0];
-            await track.applyConstraints({ advanced: [{ torch: flashOn }] });
-        } catch (e) { flashOn = false; }
-    }
+    await aplicarFlashHardware(flashOn);
     if (flashOn) {
         $btn.addClass('active');
-        $('.camera-view').css('filter', 'brightness(1.6)');
+        $('.camera-view').css('filter', 'brightness(1.35)');
     } else {
         $btn.removeClass('active');
         $('.camera-view').css('filter', 'brightness(1)');
     }
 }
 
-async function switchCamera() {
-    currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
-    await initializeCamera();
+async function zoomIn() {
+    if (zoomLevel >= 4) return;
+    zoomLevel = Math.min(4, zoomLevel + 0.5);
+    await aplicarZoomHardware(zoomLevel);
+    applyZoomVisual();
+}
+async function zoomOut() {
+    if (zoomLevel <= 1) return;
+    zoomLevel = Math.max(1, zoomLevel - 0.5);
+    await aplicarZoomHardware(zoomLevel);
+    applyZoomVisual();
 }
 
-function zoomIn() { if (zoomLevel < 3) { zoomLevel += 0.5; applyZoom(); } }
-function zoomOut() { if (zoomLevel > 1) { zoomLevel -= 0.5; applyZoom(); } }
-
 /**
- * Captura desde el video a un canvas aplicando:
- * - zoomLevel
- * - flashOn (brillo extra)
- * - sin espejo (foto coherente con lo que ve el ojo)
+ * Captura:
+ * 1) Si hay ImageCapture, usamos takePhoto() para obtener el blob JPEG del
+ *    pipeline nativo → esta es la MISMA calidad que la cámara nativa.
+ * 2) Si no, capturamos desde el <video> con un canvas aplicando zoom digital
+ *    y brillo, y obtenemos blob.
+ * En AMBOS casos luego pasamos por compressImageBlobEfficient para reducir
+ * el tamaño a 1280px / 0.6 antes de guardar (mantiene la calidad razonable
+ * y evita OOM al subir a IndexedDB).
  */
 async function capturePhoto() {
     if (!cameraStream) return;
+    visualCaptureEffect();
+
+    let blob = null;
+
+    // 1) Camino preferido: ImageCapture.takePhoto()
+    if (imageCapture && imageCapture.takePhoto) {
+        try {
+            // Intentar primero con flash si está encendido
+            if (flashOn && imageCapture.setOptions) {
+                try { await imageCapture.setOptions({ fillLightMode: 'flash' }); } catch (_) {}
+            }
+            blob = await imageCapture.takePhoto();
+            if (flashOn && imageCapture.setOptions) {
+                try { await imageCapture.setOptions({ fillLightMode: 'off' }); } catch (_) {}
+            }
+        } catch (e) {
+            console.warn('ImageCapture.takePhoto falló, usando canvas:', e);
+            blob = null;
+        }
+    }
+
+    // 2) Fallback: canvas desde el <video>
+    if (!blob) {
+        blob = await capturarConCanvas();
+    }
+
+    if (!blob) { Swal.fire('Error', 'No se pudo capturar la foto.', 'error'); return; }
+    await processCapturedBlob(blob);
+}
+
+/**
+ * Captura por canvas desde el <video>, aplicando zoom digital (recorte del
+ * centro) y brillo si el flash hardware no estaba disponible.
+ * Usa las dimensiones REALES del video (no las forzadas), por lo que
+ * la calidad es la máxima que el navegador esté entregando.
+ */
+async function capturarConCanvas() {
     const videoElement = document.getElementById('camera-video');
     const canvas = document.getElementById('camera-canvas');
     const vw = videoElement.videoWidth;
     const vh = videoElement.videoHeight;
-    if (!vw || !vh) return;
+    if (!vw || !vh) return null;
     const ctx = canvas.getContext('2d', { alpha: false });
 
-    // Recorte por zoom (centrado)
+    // Zoom digital: recorte central
     const cropW = vw / zoomLevel;
     const cropH = vh / zoomLevel;
     const sx = (vw - cropW) / 2;
     const sy = (vh - cropH) / 2;
+
     // Escalar a resolución de salida máxima
     let outW = cropW, outH = cropH;
     if (outW > MAX_PHOTO_DIM) { const r = MAX_PHOTO_DIM / outW; outW = MAX_PHOTO_DIM; outH = Math.round(outH * r); }
     canvas.width = Math.round(outW); canvas.height = Math.round(outH);
 
-    if (flashOn) ctx.filter = 'brightness(1.4)';
+    if (flashOn) ctx.filter = 'brightness(1.3)';
     ctx.drawImage(videoElement, sx, sy, cropW, cropH, 0, 0, canvas.width, canvas.height);
     ctx.filter = 'none';
 
-    visualCaptureEffect();
-
-    // Convertir a Blob (más eficiente que toDataURL)
     let blob;
-    try { blob = await canvasToBlobAsync(canvas, 'image/jpeg', 0.85); }
-    catch (e) { blob = dataUrlToBlob(canvas.toDataURL('image/jpeg', 0.85)); }
+    try { blob = await canvasToBlobAsync(canvas, 'image/jpeg', 0.9); }
+    catch (e) { try { blob = dataUrlToBlob(canvas.toDataURL('image/jpeg', 0.9)); } catch (_) { blob = null; } }
 
-    // Liberar canvas
     canvas.width = canvas.height = 0;
-
-    await processCapturedBlob(blob);
+    return blob;
 }
 
 async function processCapturedBlob(blob) {
     if (!currentPreviewId || !db) return;
     if (!selectedFiles[currentPreviewId]) selectedFiles[currentPreviewId] = [];
     try {
+        // La compresión a 1280px/0.6 se hace aquí para que el blob nativo
+        // (que puede ser de 3-5MB) no sature IndexedDB ni la RAM al serializar.
         const base64Data = await compressImageBlobEfficient(blob, MAX_PHOTO_DIM, PHOTO_QUALITY);
         const newId = await saveImageToDB(base64Data);
         selectedFiles[currentPreviewId].push(newId);
@@ -3043,18 +3106,11 @@ async function processCapturedBlob(blob) {
     }
 }
 
-// Compatibilidad con código existente
-async function processCapturedPhoto(imageData) {
-    const blob = await (await fetch(imageData)).blob();
-    await processCapturedBlob(blob);
-}
-
 function visualCaptureEffect() {
     const cameraView = document.querySelector('.camera-view');
     if (cameraView) {
         cameraView.style.backgroundColor = 'white';
-        setTimeout(() => { cameraView.style.backgroundColor = 'transparent'; }, 100);
-        if (flashOn) { setTimeout(() => { cameraView.style.backgroundColor = 'white'; }, 50); setTimeout(() => { cameraView.style.backgroundColor = 'transparent'; }, 150); }
+        setTimeout(() => { cameraView.style.backgroundColor = 'transparent'; }, 120);
     }
 }
 
@@ -3074,7 +3130,16 @@ function removeTouchZoomEvents() {
     v.removeEventListener('touchend', handleTouchEnd);
 }
 function handleTouchStart(e) { if (e.touches.length === 2) { e.preventDefault(); initialPinchDistance = getPinchDistance(e.touches[0], e.touches[1]); lastZoomLevel = zoomLevel; } }
-function handleTouchMove(e) { if (e.touches.length === 2) { e.preventDefault(); const d = getPinchDistance(e.touches[0], e.touches[1]); const r = d / initialPinchDistance; zoomLevel = Math.max(1, Math.min(3, lastZoomLevel * r)); applyZoom(); } }
+function handleTouchMove(e) {
+    if (e.touches.length === 2) {
+        e.preventDefault();
+        const d = getPinchDistance(e.touches[0], e.touches[1]);
+        const r = d / initialPinchDistance;
+        zoomLevel = Math.max(1, Math.min(4, lastZoomLevel * r));
+        aplicarZoomHardware(zoomLevel);
+        applyZoomVisual();
+    }
+}
 function handleTouchEnd(e) { if (e.touches.length < 2) initialPinchDistance = 0; }
 function getPinchDistance(t1, t2) { const dx = t1.clientX - t2.clientX; const dy = t1.clientY - t2.clientY; return Math.sqrt(dx * dx + dy * dy); }
 
@@ -3362,7 +3427,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     $('#flash-toggle').on('click', toggleFlash);
     $('#zoom-in').on('click', zoomIn);
     $('#zoom-out').on('click', zoomOut);
-    $('#camera-switch').on('click', switchCamera);
 
     $(document).on('click', '#btn-enviar-supervision', async function(e) { e.preventDefault(); await generatePDF(); });
 
@@ -3425,7 +3489,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 });
 
 // =========================================================================
-// SESIÓN (IndexedDB) con debounce para no reescribir en cada tecla
+// SESIÓN (IndexedDB) con debounce
 // =========================================================================
 
 function saveSessionDebounced() {
@@ -3435,7 +3499,7 @@ function saveSessionDebounced() {
 
 async function saveSession() {
     if (!db) return;
-    if (_saveSessionPending) return; // evitar guardados concurrentes
+    if (_saveSessionPending) return;
     _saveSessionPending = true;
     try {
         paginasDisponibles.forEach(pageConfig => {
@@ -3708,15 +3772,6 @@ function clearImageDB() {
         const request = tx.objectStore(STORE_NAME).clear();
         request.onsuccess = () => resolve();
         request.onerror = (e) => reject(e.target.error);
-    });
-}
-
-function fileToBase64(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = (error) => reject(error);
-        reader.readAsDataURL(file);
     });
 }
 

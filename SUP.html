@@ -335,42 +335,49 @@
 
     /* ===== CÁMARA MODAL ===== */
     .camera-modal .modal-dialog {
-        max-width: 100%; height: 100vh; margin: 0; padding: 0;
+        max-width: 100%; height: 100dvh; margin: 0; padding: 0;
         display: flex; align-items: center; justify-content: center;
     }
 
     .camera-modal .modal-content {
-        height: 100vh; width: 100vw; border-radius: 0;
+        height: 100dvh; width: 100vw; border-radius: 0;
         background-color: #000; border: none;
         position: fixed; top: 0; left: 0; right: 0; bottom: 0;
         z-index: 10000;
+        transition: none !important;
     }
+
+    /* Sin fade para evitar parpadeo al abrir */
+    #cameraModal.fade .modal-dialog { transition: none !important; }
+    #cameraModal.fade { transition: none !important; }
 
     .camera-modal .modal-header {
         border-bottom: 1px solid #333;
         background-color: rgba(0, 0, 0, 0.8);
         color: white; z-index: 10001;
         position: absolute; top: 0; left: 0; right: 0;
-        padding: 15px 20px; height: 60px;
+        padding: 12px 16px; height: 54px;
         display: flex; align-items: center;
     }
 
     .camera-modal .modal-body {
         padding: 0; display: flex; align-items: center; justify-content: center;
         background-color: #000; overflow: hidden;
-        height: 100vh; width: 100vw;
+        height: 100dvh; width: 100vw;
         touch-action: pinch-zoom pan-x pan-y;
     }
 
     .camera-container {
-        width: 100vw; height: 100vh; position: relative;
+        width: 100vw; height: 100dvh; position: relative;
         display: flex; flex-direction: column;
         align-items: center; justify-content: center;
+        overflow: hidden;
     }
 
     .camera-view {
-        width: 100vw; height: 100vh; background-color: #000;
-        overflow: hidden; position: relative;
+        position: absolute; inset: 0;
+        background-color: #000;
+        overflow: hidden;
         display: flex; align-items: center; justify-content: center;
     }
 
@@ -378,6 +385,7 @@
         width: 100%; height: 100%; object-fit: cover;
         transition: transform 0.15s ease-out;
         transform-origin: center center;
+        pointer-events: none;
     }
 
     /* Preview de la foto capturada */
@@ -387,98 +395,127 @@
         object-fit: contain;
         background-color: #000;
         display: none;
-        z-index: 10001;
+        z-index: 10002;
+        pointer-events: none;
     }
 
-    .camera-controls {
-        position: absolute; bottom: 100px; left: 0; right: 0;
-        display: flex; justify-content: center; gap: 30px; z-index: 10002;
+    /* Overlay de carga del video (evita el parpadeo negro) */
+    #camera-loading-overlay {
+        position: absolute; inset: 0;
+        background: #000;
+        display: flex; align-items: center; justify-content: center;
+        flex-direction: column; gap: 14px;
+        color: #fff; font-size: 15px;
+        z-index: 10001;
+        pointer-events: none;
     }
+    #camera-loading-overlay .spinner-border { width: 46px; height: 46px; border-width: 4px; }
+    #camera-loading-overlay.hidden { display: none; }
+
+    /* Controles generales */
+    .camera-controls {
+        position: absolute; bottom: 26px; left: 0; right: 0;
+        display: flex; justify-content: center; gap: 30px;
+        z-index: 10005;
+        pointer-events: none;
+    }
+    .camera-controls > * { pointer-events: auto; }
 
     .camera-btn {
-        width: 70px; height: 70px; border-radius: 50%;
+        width: 72px; height: 72px; border-radius: 50%;
         border: 3px solid white; background-color: rgba(0, 0, 0, 0.3);
         color: white; display: flex; align-items: center; justify-content: center;
-        font-size: 24px; cursor: pointer; transition: all 0.3s ease;
+        font-size: 24px; cursor: pointer; transition: all 0.2s ease;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
     }
-
-    .camera-btn:hover { background-color: rgba(255, 255, 255, 0.2); transform: scale(1.05); }
-    .camera-btn:active { transform: scale(0.95); }
-
+    .camera-btn:active { transform: scale(0.94); background-color: rgba(255, 255, 255, 0.25); }
     .camera-btn.capture {
-        width: 80px; height: 80px; background-color: white;
-        color: #333; font-size: 30px;
+        width: 84px; height: 84px; background-color: #fff;
+        color: #333; font-size: 32px;
     }
-
-    .camera-btn.capture:hover { background-color: #f0f0f0; }
 
     /* Controles de la vista previa de la foto */
     #fotoPreviewControls {
-        position: absolute; bottom: 30px; left: 0; right: 0;
-        display: none; justify-content: center; gap: 15px;
-        z-index: 10005; padding: 0 20px;
+        position: absolute; bottom: 26px; left: 0; right: 0;
+        display: none; justify-content: center; gap: 14px;
+        z-index: 10006; padding: 0 20px;
+        pointer-events: none;
     }
+    #fotoPreviewControls > * { pointer-events: auto; }
 
     #fotoPreviewControls .btn-preview-foto {
-        padding: 14px 28px; border-radius: 30px; border: 2px solid white;
+        padding: 14px 26px; border-radius: 30px; border: 2px solid white;
         background-color: rgba(0, 0, 0, 0.7); color: white;
         font-weight: 700; font-size: 1rem;
         display: flex; align-items: center; gap: 10px;
-        cursor: pointer; transition: all 0.2s ease;
+        cursor: pointer; transition: transform 0.15s ease;
         backdrop-filter: blur(4px);
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
     }
+    #fotoPreviewControls .btn-preview-foto:active { transform: scale(0.95); }
+    #fotoPreviewControls .btn-preview-foto.aceptar { background-color: rgba(46, 204, 113, 0.92); border-color: #2ecc71; }
+    #fotoPreviewControls .btn-preview-foto.reintentar { background-color: rgba(239, 83, 80, 0.92); border-color: #ef5350; }
 
-    #fotoPreviewControls .btn-preview-foto:hover { transform: translateY(-2px); }
-    #fotoPreviewControls .btn-preview-foto.aceptar { background-color: rgba(46, 204, 113, 0.9); border-color: #2ecc71; }
-    #fotoPreviewControls .btn-preview-foto.reintentar { background-color: rgba(239, 83, 80, 0.9); border-color: #ef5350; }
-
+    /* Zoom lateral — reposicionado para no chocar con el header en horizontal */
     .zoom-controls {
-        position: absolute; right: 20px; top: 50%;
+        position: absolute; right: 14px;
+        top: calc(50% + 30px);
         transform: translateY(-50%);
         display: flex; flex-direction: column;
-        align-items: center; gap: 10px; z-index: 10002;
+        align-items: center; gap: 8px;
+        z-index: 10005;
+        pointer-events: none;
     }
+    .zoom-controls > * { pointer-events: auto; }
 
     .zoom-btn {
-        width: 50px; height: 50px; border-radius: 50%;
-        background-color: rgba(0, 0, 0, 0.5); color: white;
+        width: 52px; height: 52px; border-radius: 50%;
+        background-color: rgba(0, 0, 0, 0.55); color: white;
         border: 2px solid white; display: flex;
         align-items: center; justify-content: center;
         font-size: 20px; cursor: pointer;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+        transition: transform 0.15s ease, background-color 0.15s ease;
     }
-
-    .zoom-btn:hover { background-color: rgba(255, 255, 255, 0.2); }
+    .zoom-btn:active { transform: scale(0.92); background-color: rgba(255, 255, 255, 0.3); }
 
     .zoom-level-display {
         background-color: rgba(0, 0, 0, 0.7); color: white;
-        padding: 4px 10px; border-radius: 12px;
-        font-size: 12px; font-weight: bold;
+        padding: 4px 8px; border-radius: 12px;
+        font-size: 11px; font-weight: bold;
         min-width: 40px; text-align: center;
+        pointer-events: none;
     }
 
     .flash-control {
-        position: absolute; left: 20px; top: 80px; z-index: 10002;
+        position: absolute; left: 14px; top: 68px; z-index: 10005;
+        pointer-events: none;
     }
+    .flash-control > * { pointer-events: auto; }
 
     .flash-btn {
-        background-color: rgba(0, 0, 0, 0.5); color: white;
+        background-color: rgba(0, 0, 0, 0.55); color: white;
         border: 2px solid white; border-radius: 25px;
-        padding: 8px 15px; display: flex; align-items: center; gap: 8px;
-        cursor: pointer; font-size: 14px;
+        padding: 8px 14px; display: flex; align-items: center; gap: 6px;
+        cursor: pointer; font-size: 13px;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
     }
-
-    .flash-btn:hover { background-color: rgba(255, 255, 255, 0.2); }
     .flash-btn.active { background-color: #f39c12; color: #000; }
 
     .camera-message {
         position: absolute; top: 50%; left: 0; right: 0;
-        text-align: center; color: white; font-size: 18px;
-        padding: 20px; background-color: rgba(0, 0, 0, 0.7); z-index: 10003;
-    }
-
-    .no-camera .camera-view {
-        background-color: #333; display: flex; align-items: center; justify-content: center;
-        color: white; font-size: 18px; text-align: center; padding: 20px;
+        transform: translateY(-50%);
+        text-align: center; color: white; font-size: 16px;
+        padding: 20px; background-color: rgba(0, 0, 0, 0.7);
+        z-index: 10007;
     }
 
     .no-camera .camera-controls,
@@ -486,7 +523,24 @@
     .no-camera .flash-control,
     .no-camera #fotoPreviewControls { display: none; }
 
-    .camera-active .btn-flotante { display: none !important; }
+    /* Bloqueo del scroll del body mientras la cámara está abierta */
+    body.camera-active { overflow: hidden !important; }
+    body.camera-active .btn-flotante { display: none !important; }
+
+    /* Ajustes para pantalla horizontal */
+    @media (orientation: landscape) and (max-height: 500px) {
+        .camera-modal .modal-header { height: 44px; padding: 8px 14px; }
+        .camera-modal .modal-header h5 { font-size: 1rem; }
+        .zoom-controls { top: calc(50% + 20px); gap: 6px; }
+        .zoom-btn { width: 44px; height: 44px; font-size: 17px; }
+        .camera-controls { bottom: 12px; }
+        .camera-btn.capture { width: 68px; height: 68px; font-size: 26px; }
+        .camera-btn { width: 58px; height: 58px; }
+        #fotoPreviewControls { bottom: 12px; }
+        #fotoPreviewControls .btn-preview-foto { padding: 10px 20px; font-size: 0.9rem; }
+        .flash-control { top: 52px; }
+    }
+
 
     /* ===== FOTO TOAST ===== */
     .photo-capture-toast {
@@ -1063,7 +1117,7 @@
     </div>
 
     <!-- ========== MODAL CÁMARA ========== -->
-    <div class="modal fade camera-modal" id="cameraModal" tabindex="-1" aria-hidden="true">
+    <div class="modal camera-modal" id="cameraModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
@@ -1075,30 +1129,34 @@
                 <div class="modal-body">
                     <div class="camera-container">
                         <div class="camera-view">
-                            <video id="camera-video" autoplay playsinline></video>
+                            <video id="camera-video" autoplay playsinline muted></video>
                             <canvas id="camera-canvas" style="display:none;"></canvas>
                             <img id="foto-capturada-preview" src="" alt="Foto capturada">
+                            <div id="camera-loading-overlay">
+                                <div class="spinner-border text-light" role="status"></div>
+                                <span>Iniciando cámara...</span>
+                            </div>
                             <div id="camera-message" class="camera-message" style="display:none;">
                                 No se pudo acceder a la cámara
                             </div>
                         </div>
                         <div class="flash-control">
-                            <button class="flash-btn" id="flash-toggle">
+                            <button class="flash-btn" id="flash-toggle" type="button">
                                 <i class="fas fa-bolt"></i>
                                 <span>Flash</span>
                             </button>
                         </div>
                         <div class="zoom-controls">
-                            <button class="zoom-btn" id="zoom-in">
+                            <button class="zoom-btn" id="zoom-in" type="button" aria-label="Acercar">
                                 <i class="fas fa-search-plus"></i>
                             </button>
                             <div class="zoom-level-display" id="zoom-level-display">1.0x</div>
-                            <button class="zoom-btn" id="zoom-out">
+                            <button class="zoom-btn" id="zoom-out" type="button" aria-label="Alejar">
                                 <i class="fas fa-search-minus"></i>
                             </button>
                         </div>
                         <div class="camera-controls" id="camera-controls-captura">
-                            <button class="camera-btn capture" id="capture-btn" title="Tomar foto">
+                            <button class="camera-btn capture" id="capture-btn" type="button" title="Tomar foto">
                                 <i class="fas fa-camera"></i>
                             </button>
                         </div>
@@ -1115,6 +1173,7 @@
             </div>
         </div>
     </div>
+
 
     <div class="modal fade photo-preview-modal" id="photoPreviewModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
@@ -2566,8 +2625,7 @@ async function handleInputFotoEstatico(event, previewId) {
  * Usa createImageBitmap si está disponible (más eficiente en memoria que <img>)
  * y libera referencias explícitamente.
  */
-async function compressImage(file, quality = 0.75, maxWidth = 1280) {
-    // Si el navegador soporta createImageBitmap, lo usamos (menos pico de RAM)
+async function compressImage(file, quality = 0.78, maxWidth = 1400) {
     if (typeof createImageBitmap === 'function') {
         try {
             const bitmap = await createImageBitmap(file);
@@ -2576,14 +2634,14 @@ async function compressImage(file, quality = 0.75, maxWidth = 1280) {
             const canvas = document.createElement('canvas');
             canvas.width = w; canvas.height = h;
             const ctx = canvas.getContext('2d');
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
             ctx.drawImage(bitmap, 0, 0, w, h);
             if (bitmap.close) bitmap.close();
             const result = canvas.toDataURL('image/jpeg', quality);
             canvas.width = 0; canvas.height = 0;
             return result;
-        } catch (e) {
-            // Fallback al método tradicional
-        }
+        } catch (e) {}
     }
 
     return new Promise((resolve, reject) => {
@@ -2595,6 +2653,8 @@ async function compressImage(file, quality = 0.75, maxWidth = 1280) {
                 try {
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
+                    ctx.imageSmoothingEnabled = true;
+                    ctx.imageSmoothingQuality = 'high';
                     let width = img.width, height = img.height;
                     if (width > maxWidth) { const ratio = maxWidth / width; width = maxWidth; height = Math.round(height * ratio); }
                     canvas.width = width; canvas.height = height;
@@ -2612,6 +2672,7 @@ async function compressImage(file, quality = 0.75, maxWidth = 1280) {
         reader.readAsDataURL(file);
     });
 }
+
 
 async function addDateTimeToImage(base64Data) {
     // Deshabilitado por seguridad de memoria (evita segundo procesamiento pesado)
@@ -2661,58 +2722,118 @@ async function handleCameraPhoto(file) {
 // ===== CÁMARA MODAL =====
 
 function openCameraModal() {
-    // Resetear estado
+    // Reset estado
     fotoPendientePreview = null;
     zoomLevel = 1;
     flashOn = false;
+    isMobileDevice = esDispositivoMovil();
+    currentFacingMode = 'environment';
+
+    // Mostrar overlay de carga ANTES de que se vea el modal (evita parpadeo negro)
+    const $loading = $('#camera-loading-overlay');
+    $loading.removeClass('hidden').show();
+    $('#camera-message').hide();
+    $('#foto-capturada-preview').hide();
+    $('#camera-controls-captura').show();
+    $('#fotoPreviewControls').hide();
 
     $('body').addClass('camera-active');
-    const cameraModal = new bootstrap.Modal(document.getElementById('cameraModal'), { backdrop: 'static', keyboard: false });
-    cameraModal.show();
-    $('#cameraModal').on('shown.bs.modal', async function() {
-        await initializeCamera();
-        addTouchZoomEvents();
+
+    const modalEl = document.getElementById('cameraModal');
+    const cameraModal = bootstrap.Modal.getOrCreateInstance(modalEl, {
+        backdrop: 'static',
+        keyboard: false
     });
-    $('#cameraModal').on('hidden.bs.modal', function() {
+
+    // Registrar handlers una sola vez (usando namespaced events)
+    $('#cameraModal').off('hidden.bs.modal.cam').on('hidden.bs.modal.cam', function() {
         stopCamera();
         resetCameraControls();
         resetFotoPreviewState();
         $('body').removeClass('camera-active');
         updateFloatingButtonVisibility();
         removeTouchZoomEvents();
+        $('#camera-loading-overlay').addClass('hidden');
     });
+
+    // Mostrar modal SIN fade (ya es class sin fade). El video se carga en paralelo.
+    cameraModal.show();
+
+    // Inicializar cámara inmediatamente después de show (el overlay tapa el repintado)
+    // Usamos setTimeout 0 para que el modal ya esté en el DOM
+    setTimeout(async () => {
+        await initializeCamera();
+        addTouchZoomEvents();
+    }, 0);
 }
 
 async function initializeCamera() {
+    const $loading = $('#camera-loading-overlay');
+    const $msg = $('#camera-message');
+    $msg.hide();
+    $loading.removeClass('hidden').show();
+
     try {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { showCameraError('Tu navegador no soporta el acceso a la cámara.'); return; }
-        // Resolución alta: mejor calidad en la foto final
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            showCameraError('Tu navegador no soporta el acceso a la cámara.');
+            $loading.addClass('hidden');
+            return;
+        }
+
+        // Resolución lo más alta posible para máxima nitidez
         const constraints = {
             video: {
-                facingMode: currentFacingMode,
-                width: { ideal: 1920 },
-                height: { ideal: 1080 }
+                facingMode: { ideal: currentFacingMode },
+                width:  { ideal: 3840, min: 1280 },
+                height: { ideal: 2160, min: 720 },
+                // Sin zoom ni focus constraints aquí: el zoom lo aplicamos manualmente
             },
             audio: false
         };
+
         cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+
         const videoElement = document.getElementById('camera-video');
         videoElement.srcObject = cameraStream;
-        // El video del celular no se refleja (como en cámara nativa)
-        if (isMobileDevice) videoElement.style.transform = `scale(${zoomLevel})`;
-        else videoElement.style.transform = `scaleX(-1) scale(${zoomLevel})`;
+
+        // Espejo solo en desktop; en móvil el video se ve natural (como cámara nativa)
+        videoElement.style.transform = isMobileDevice ? 'scale(1)' : 'scaleX(-1)';
+
+        // Esperar a que llegue el primer frame antes de ocultar el overlay
+        await new Promise((resolve) => {
+            let resolved = false;
+            const done = () => { if (!resolved) { resolved = true; resolve(); } };
+            videoElement.onloadeddata = done;
+            videoElement.oncanplay = done;
+            videoElement.play().then(done).catch(done);
+            // Fallback de seguridad por si ningún evento dispara
+            setTimeout(done, 1500);
+        });
+
         applyZoom();
-        $('#camera-message').hide();
         $('.camera-container').removeClass('no-camera');
-        $('#camera-controls-captura').show();
-        $('#fotoPreviewControls').hide();
+        $loading.addClass('hidden');
     } catch (error) {
+        console.error('Error al acceder a la cámara:', error);
         showCameraError('No se pudo acceder a la cámara. Verifica los permisos.');
+        $loading.addClass('hidden');
     }
 }
 
-function showCameraError(message) { $('#camera-message').text(message).show(); $('.camera-container').addClass('no-camera'); }
-function stopCamera() { if (cameraStream) { cameraStream.getTracks().forEach(track => track.stop()); cameraStream = null; } const v = document.getElementById('camera-video'); if (v) v.srcObject = null; }
+function showCameraError(message) {
+    $('#camera-message').text(message).show();
+    $('.camera-container').addClass('no-camera');
+}
+
+function stopCamera() {
+    if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+    }
+    const v = document.getElementById('camera-video');
+    if (v) v.srcObject = null;
+}
+
 function resetCameraControls() {
     zoomLevel = ZOOM_MIN;
     flashOn = false;
@@ -2725,7 +2846,9 @@ function resetCameraControls() {
 
 function applyZoom() {
     const v = document.getElementById('camera-video');
-    if (v) v.style.transform = isMobileDevice ? `scale(${zoomLevel})` : `scaleX(-1) scale(${zoomLevel})`;
+    if (!v) return;
+    const base = isMobileDevice ? '' : 'scaleX(-1) ';
+    v.style.transform = `${base}scale(${zoomLevel})`;
     updateZoomDisplay();
 }
 
@@ -2733,54 +2856,81 @@ function updateZoomDisplay() {
     $('#zoom-level-display').text(zoomLevel.toFixed(1) + 'x');
 }
 
-function capturePhoto() {
+async function capturePhoto() {
     if (!cameraStream) return;
+
     const videoElement = document.getElementById('camera-video');
     const canvas = document.getElementById('camera-canvas');
     const context = canvas.getContext('2d');
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = 'high';
 
-    // Capturamos la resolución NATIVA del video (máxima calidad)
     const vw = videoElement.videoWidth;
     const vh = videoElement.videoHeight;
+    if (!vw || !vh) return;
 
-    canvas.width = vw;
-    canvas.height = vh;
-
-    // Transformación con zoom y espejo si aplica
-    context.save();
-    if (zoomLevel !== 1) {
-        const offsetX = (vw - vw / zoomLevel) / 2;
-        const offsetY = (vh - vh / zoomLevel) / 2;
-        context.translate(vw / 2, vh / 2);
-        context.scale(zoomLevel, zoomLevel);
-        context.translate(-vw / 2, -vh / 2);
-        if (!isMobileDevice) {
-            context.translate(vw, 0);
-            context.scale(-1, 1);
+    // A) Intentar con ImageCapture si está disponible (calidad del sensor real)
+    let dataUrl = null;
+    if (typeof window.ImageCapture === 'function' && cameraStream) {
+        try {
+            const track = cameraStream.getVideoTracks()[0];
+            if (track) {
+                const imageCapture = new ImageCapture(track);
+                // Aplicamos zoom recortando después
+                const blob = await imageCapture.takePhoto();
+                dataUrl = await new Promise((res, rej) => {
+                    const fr = new FileReader();
+                    fr.onload = () => res(fr.result);
+                    fr.onerror = rej;
+                    fr.readAsDataURL(blob);
+                });
+                // Si usamos ImageCapture y hay zoom, recortamos con canvas
+                if (zoomLevel > 1 && dataUrl) {
+                    dataUrl = await recortarImagenConZoom(dataUrl, zoomLevel);
+                }
+            }
+        } catch (e) {
+            // Fallback a canvas
+            dataUrl = null;
         }
-        context.drawImage(videoElement, 0, 0, vw, vh);
-    } else {
-        if (!isMobileDevice) {
-            context.translate(vw, 0);
-            context.scale(-1, 1);
-        }
-        context.drawImage(videoElement, 0, 0, vw, vh);
     }
-    context.restore();
 
-    // Calidad máxima en la captura original
-    const imageData = canvas.toDataURL('image/jpeg', 1.0);
+    // B) Fallback: canvas con la resolución NATIVA del video (sin escalar)
+    if (!dataUrl) {
+        canvas.width = vw;
+        canvas.height = vh;
 
-    // Liberamos canvas grande
-    canvas.width = 0; canvas.height = 0;
+        // Recorte por zoom (SIN escalar el canvas → sin pérdida de calidad)
+        const cropW = vw / zoomLevel;
+        const cropH = vh / zoomLevel;
+        const cropX = (vw - cropW) / 2;
+        const cropY = (vh - cropH) / 2;
 
-    // Detenemos la cámara (libera RAM antes de procesar)
+        // Espejo solo si es desktop
+        if (!isMobileDevice) {
+            context.save();
+            context.translate(canvas.width, 0);
+            context.scale(-1, 1);
+            context.drawImage(videoElement, cropX, cropY, cropW, cropH, 0, 0, vw, vh);
+            context.restore();
+        } else {
+            context.drawImage(videoElement, cropX, cropY, cropW, cropH, 0, 0, vw, vh);
+        }
+
+        // JPEG con calidad máxima
+        dataUrl = canvas.toDataURL('image/jpeg', 1.0);
+
+        // Liberar canvas grande
+        canvas.width = 0; canvas.height = 0;
+    }
+
+    // Detener cámara ANTES de mostrar preview (libera recursos y acelera el cambio)
     stopCamera();
 
-    // Pasamos a la vista de preview
-    fotoPendientePreview = { base64: imageData };
+    // Pasar a vista de preview
+    fotoPendientePreview = { base64: dataUrl };
     const imgPreview = document.getElementById('foto-capturada-preview');
-    imgPreview.src = imageData;
+    imgPreview.src = dataUrl;
     imgPreview.style.display = 'block';
     $('#camera-controls-captura').hide();
     $('#fotoPreviewControls').css('display', 'flex');
@@ -2788,12 +2938,41 @@ function capturePhoto() {
     visualCaptureEffect();
 }
 
+// Recorta una imagen (dataURL) por el factor de zoom y devuelve dataURL
+function recortarImagenConZoom(dataUrl, factor) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            const w = img.width, h = img.height;
+            const cropW = w / factor;
+            const cropH = h / factor;
+            const cropX = (w - cropW) / 2;
+            const cropY = (h - cropH) / 2;
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, w, h);
+            const out = canvas.toDataURL('image/jpeg', 1.0);
+            canvas.width = 0; canvas.height = 0;
+            img.src = '';
+            resolve(out);
+        };
+        img.onerror = () => resolve(dataUrl);
+        img.src = dataUrl;
+    });
+}
+
 function visualCaptureEffect() {
     const cameraView = document.querySelector('.camera-view');
-    if (cameraView) {
-        cameraView.style.backgroundColor = 'white';
-        setTimeout(() => { cameraView.style.backgroundColor = 'transparent'; }, 100);
-        if (flashOn) { setTimeout(() => { cameraView.style.backgroundColor = 'white'; }, 50); setTimeout(() => { cameraView.style.backgroundColor = 'transparent'; }, 150); }
+    if (!cameraView) return;
+    cameraView.style.backgroundColor = 'white';
+    setTimeout(() => { cameraView.style.backgroundColor = 'transparent'; }, 100);
+    if (flashOn) {
+        setTimeout(() => { cameraView.style.backgroundColor = 'white'; }, 50);
+        setTimeout(() => { cameraView.style.backgroundColor = 'transparent'; }, 150);
     }
 }
 
@@ -2808,28 +2987,24 @@ function resetFotoPreviewState() {
 async function aceptarFotoCapturada() {
     if (!fotoPendientePreview || !fotoPendientePreview.base64) return;
     const base64Captura = fotoPendientePreview.base64;
-    // Limpiamos el preview para liberar memoria
     fotoPendientePreview = null;
     const imgPreview = document.getElementById('foto-capturada-preview');
     imgPreview.src = '';
     imgPreview.style.display = 'none';
 
-    // Cerramos el modal de cámara
     const camModal = bootstrap.Modal.getInstance(document.getElementById('cameraModal'));
     if (camModal) camModal.hide();
 
-    // Guardamos la foto (comprimida)
     try {
         const blob = await (await fetch(base64Captura)).blob();
-        const base64Data = await compressImage(blob, 0.82, 1600);
-        // Guardar a DB
+        // Comprimir solo lo necesario: 2400px max / q=0.92 (sin distorsión visible)
+        const base64Data = await compressImage(blob, 0.92, 2400);
+
         const newId = await saveImageToDB(base64Data);
         if (!selectedFiles[currentPreviewId]) selectedFiles[currentPreviewId] = [];
         selectedFiles[currentPreviewId].push(newId);
 
-        // Render miniatura en el contenedor correspondiente (o re-render completo)
         await renderFotosPreview(currentPreviewId);
-        // Actualizar contador de chip si existe (fotos por pregunta)
         const $counter = $(`.foto-chip-count[data-count-for="${currentPreviewId}"]`);
         if ($counter.length) {
             $counter.text(selectedFiles[currentPreviewId].length);
@@ -2843,60 +3018,70 @@ async function aceptarFotoCapturada() {
     }
 }
 
-function reintentarFotoCapturada() {
-    // Limpiar preview y reabrir cámara
+async function reintentarFotoCapturada() {
     fotoPendientePreview = null;
     const imgPreview = document.getElementById('foto-capturada-preview');
     imgPreview.src = '';
     imgPreview.style.display = 'none';
     $('#fotoPreviewControls').hide();
 
-    // Re-inicializar cámara (ya está dentro del modal)
-    initializeCamera().then(() => {
-        $('#camera-controls-captura').show();
-    });
+    $('#camera-loading-overlay').removeClass('hidden').show();
+    await initializeCamera();
+    $('#camera-controls-captura').show();
 }
 
 function toggleFlash() {
     flashOn = !flashOn;
     const flashBtn = $('#flash-toggle');
-    if (flashOn) { flashBtn.addClass('active'); $('.camera-view').css('filter', 'brightness(1.5)'); }
-    else { flashBtn.removeClass('active'); $('.camera-view').css('filter', 'brightness(1)'); }
+    if (flashOn) {
+        flashBtn.addClass('active');
+        $('.camera-view').css('filter', 'brightness(1.5)');
+    } else {
+        flashBtn.removeClass('active');
+        $('.camera-view').css('filter', 'brightness(1)');
+    }
 }
 
 function zoomIn() {
-    if (zoomLevel < ZOOM_MAX) { zoomLevel = Math.min(ZOOM_MAX, zoomLevel + 0.5); applyZoom(); }
+    if (zoomLevel < ZOOM_MAX) {
+        zoomLevel = Math.min(ZOOM_MAX, zoomLevel + 0.5);
+        applyZoom();
+    }
 }
 function zoomOut() {
-    if (zoomLevel > ZOOM_MIN) { zoomLevel = Math.max(ZOOM_MIN, zoomLevel - 0.5); applyZoom(); }
+    if (zoomLevel > ZOOM_MIN) {
+        zoomLevel = Math.max(ZOOM_MIN, zoomLevel - 0.5);
+        applyZoom();
+    }
 }
 
 function addTouchZoomEvents() {
     const v = document.querySelector('.camera-view');
     if (!v) return;
+    // .on para evitar doble registro
     v.addEventListener('touchstart', handleTouchStart, { passive: false });
     v.addEventListener('touchmove', handleTouchMove, { passive: false });
     v.addEventListener('touchend', handleTouchEnd, { passive: false });
-    v.addEventListener('dblclick', handleDoubleTapZoom);
 }
+
 function removeTouchZoomEvents() {
     const v = document.querySelector('.camera-view');
     if (!v) return;
     v.removeEventListener('touchstart', handleTouchStart);
     v.removeEventListener('touchmove', handleTouchMove);
     v.removeEventListener('touchend', handleTouchEnd);
-    v.removeEventListener('dblclick', handleDoubleTapZoom);
 }
+
 function handleTouchStart(e) {
     if (e.touches.length === 2) {
         e.preventDefault();
         initialPinchDistance = getPinchDistance(e.touches[0], e.touches[1]);
         lastZoomLevel = zoomLevel;
     } else if (e.touches.length === 1) {
-        // Detección de doble toque
+        // Solo doble-tap cuando NO está en preview
+        if ($('#fotoPreviewControls').css('display') === 'flex') return;
         const now = Date.now();
         if (now - lastTapTs < 300) {
-            // Double tap → alternar 1x / 2x
             zoomLevel = (zoomLevel > 1) ? 1 : 2;
             applyZoom();
             lastTapTs = 0;
@@ -2905,6 +3090,7 @@ function handleTouchStart(e) {
         }
     }
 }
+
 function handleTouchMove(e) {
     if (e.touches.length === 2) {
         e.preventDefault();
@@ -2914,12 +3100,15 @@ function handleTouchMove(e) {
         applyZoom();
     }
 }
+
 function handleTouchEnd(e) { if (e.touches.length < 2) initialPinchDistance = 0; }
-function handleDoubleTapZoom() {
-    zoomLevel = (zoomLevel > 1) ? 1 : 2;
-    applyZoom();
+
+function getPinchDistance(t1, t2) {
+    const dx = t1.clientX - t2.clientX;
+    const dy = t1.clientY - t2.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
 }
-function getPinchDistance(t1, t2) { const dx = t1.clientX - t2.clientX; const dy = t1.clientY - t2.clientY; return Math.sqrt(dx * dx + dy * dy); }
+
 
 // =========================================================================
 // VISTA PREVIA DE FOTOS (galería)

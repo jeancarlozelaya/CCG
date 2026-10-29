@@ -2929,7 +2929,14 @@ async function handleInputFotoEstatico(event, previewId) {
 }
 
 async function compressImage(file, quality = 0.92, maxWidth = 2400) {
-    if (typeof file === 'string' && file.startsWith('data:image/jpeg')) {
+    // Si es un dataURL (de cualquier tipo de imagen), devolverlo tal cual.
+    // El llamador se encarga de que ya esté en JPEG (ver normalizarAJPEG).
+    if (typeof file === 'string' && file.startsWith('data:image/')) {
+        return file;
+    }
+    // Si es un string que no es dataURL, es un error de programación → proteger
+    if (typeof file === 'string') {
+        console.warn('compressImage recibió un string no-dataURL:', file.slice(0, 40));
         return file;
     }
 
@@ -3210,6 +3217,11 @@ async function capturePhoto() {
 
     stopCamera();
 
+    // Normalizar a JPEG si el dataUrl no es JPEG (por ej. ImageCapture puede devolver PNG/WebP en desktop)
+    if (dataUrl && !dataUrl.startsWith('data:image/jpeg')) {
+        dataUrl = await normalizarAJPEG(dataUrl);
+    }
+
     fotoPendientePreview = { base64: dataUrl };
     const imgPreview = document.getElementById('foto-capturada-preview');
     imgPreview.src = dataUrl;
@@ -3245,6 +3257,36 @@ function recortarImagenConZoom(dataUrl, factor) {
         img.src = dataUrl;
     });
 }
+
+
+function normalizarAJPEG(dataUrl) {
+    return new Promise((resolve) => {
+        if (!dataUrl || typeof dataUrl !== 'string') { resolve(dataUrl); return; }
+        if (dataUrl.startsWith('data:image/jpeg')) { resolve(dataUrl); return; }
+        const img = new Image();
+        img.onload = () => {
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d', { alpha: false });
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0);
+                const out = canvas.toDataURL('image/jpeg', 0.95);
+                canvas.width = 0; canvas.height = 0;
+                img.src = '';
+                resolve(out);
+            } catch (e) {
+                resolve(dataUrl);
+            }
+        };
+        img.onerror = () => resolve(dataUrl);
+        img.src = dataUrl;
+    });
+}
+
+
 
 function visualCaptureEffect() {
     const cameraView = document.querySelector('.camera-view');

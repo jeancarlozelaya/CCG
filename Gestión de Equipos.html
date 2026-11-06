@@ -1160,7 +1160,7 @@
     </div>
 </div>
 
-<!-- MODAL CONFIGURACIÓN (solo modo admin) -->
+<!-- MODAL CONFIGURACIÓN -->
 <div class="modal fade" id="modalConfig" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0 shadow-lg">
@@ -1312,7 +1312,6 @@ const STORE_PENDING = 'pendingReports';
 const STORE_EQUIPOS = 'equiposData';
 const STORE_COLABORADORES = 'colaboradoresData';
 
-// URLs actualizadas según indicaciones del usuario
 const SCRIPT_URL_GET      = "https://script.google.com/macros/s/AKfycbxpaUXg2cCvPQkDByaJStw8RCl4Llorer9QIgrze6Qsnin0vQD4jrevtcOzawwxd-2A/exec";
 const SCRIPT_URL_SALIDAS  = "https://script.google.com/macros/s/AKfycbz3VbEJEwOUJFsBhPlt7NSVBBg0Qe3UDrsRnS9_AyoJjtcoUQOyFTWOZJhR-KWSlN4H/exec";
 const SCRIPT_URL_ENTRADAS = "https://script.google.com/macros/s/AKfycbxhsrlo0DGT24aGzSonIG6LWGnT2RRmP2OsWrAMpH_rz_-AdTD1npcu3W0t0LKR1ZT2/exec";
@@ -1821,20 +1820,34 @@ async function loadSession() {
         if (sessionData.estadoSalidas) estadoSalidas = sessionData.estadoSalidas;
         if (sessionData.estadoEntradas) estadoEntradas = sessionData.estadoEntradas;
 
+        // FIX Bug 1: cambiar modoActual antes de reconstruir la UI,
+        // y forzar reconstrucción completa del listado de equipos
         modoActual = sessionData.modoActual || 'salidas';
+
+        // Actualizar tabs + título
         actualizarUImodo();
 
+        // Renderizar equipos CON el modo correcto desde el principio
+        mostrarEquiposEnUI();
+
+        // Restaurar valores de campos (colaborador, área)
         const estadoActual = getEstadoActual();
         $('#colaborador').val(estadoActual.colaborador || '');
-        $('#area').val(estadoActual.area || '');
+        $('#area').val(estadoActual.area || (modoActual === 'entradas' ? 'Bodega' : ''));
 
+        // Restaurar equipo seleccionado
         if (sessionData.equipoSeleccionadoNombre && equipos.length > 0) {
             const index = equipos.findIndex(e => e.nombre === sessionData.equipoSeleccionadoNombre);
             if (index !== -1) {
                 equipoSeleccionado = equipos[index];
                 await cargarNoConformidadesPrevias(equipoSeleccionado);
+
+                // Re-marcar visualmente el equipo en la lista
                 setTimeout(() => {
-                    $(`#equipo-${index}`).css('border-color', '#007BFF').css('background-color', '#e6f0ff');
+                    const $el = $(`#equipo-${index}`);
+                    if ($el.length) {
+                        $el.css('border-color', '#007BFF').css('background-color', '#e6f0ff');
+                    }
                     if (modoActual === "entradas") {
                         $('#buscador').prop('disabled', true);
                         $('#colaborador').prop('disabled', true);
@@ -1843,6 +1856,7 @@ async function loadSession() {
                 }, 500);
             }
         }
+
         if (equipoSeleccionado) {
             selectedFiles = {};
             await restaurarChecklistCompleto(estadoActual.checklist);
@@ -1886,16 +1900,26 @@ async function clearSession() {
         estadoEntradas = { colaborador: '', area: 'Bodega', checklist: { respuestas: [], observaciones: "", fotos: {} } };
         noConformidadesPrevias = { preguntas: [], observacion: "", actaUrl: "" };
         $('#noConformidadesPrevias').hide();
+        $('#compromisoRevisado').prop('checked', false);
         selectedFiles = {};
         equipoSeleccionado = null;
         $('#colaborador').val('');
         $('#area').val('');
+        $('#buscador').val('').prop('disabled', false);
         ocultarChecklist();
         clearSignature(firmaResp);
         clearSignature(firmaEval);
+
+        // FIX Bug 1 (refuerzo): resetear también modo y forzar re-render
+        modoActual = 'salidas';
+        actualizarUImodo();
         setFechaHoy();
-        cambiarModo('salidas');
+
+        // Forzar re-render del listado para reflejar el nuevo estado del inventario
+        mostrarEquiposEnUI();
+
         verificarFormulario();
+        await saveSession();
     } catch (error) { console.error('Error limpiando sesión:', error); }
 }
 
@@ -3218,7 +3242,13 @@ function actualizarUImodo() {
 }
 
 async function cambiarModo(modo) {
-    if (modo === modoActual) return;
+    // FIX Bug 1 + Bug 2: aunque sea el mismo modo, forzamos re-render
+    // porque el inventario pudo haber cambiado (registro, sync, etc.)
+    if (modo === modoActual) {
+        mostrarEquiposEnUI();
+        actualizarUImodo();
+        return;
+    }
 
     const estadoAnterior = getEstadoActual();
     estadoAnterior.colaborador = $('#colaborador').val();
@@ -3328,6 +3358,7 @@ function filtrarEquipos() {
 
 async function seleccionarEquipo(index) {
     const equipo = equipos[index];
+    if (!equipo) return;
     if (modoActual === "salidas" && !equipo.disponible) { Swal.fire('No disponible', 'Esta aspiradora no está disponible para préstamo.', 'warning'); return; }
     if (modoActual === "entradas" && equipo.disponible) { Swal.fire('No disponible', 'Esta aspiradora no está actualmente prestada.', 'warning'); return; }
 
@@ -3587,6 +3618,9 @@ async function aplicarCambioInventarioLocal(nombreEquipo, tipo, colaborador) {
         await saveDataToStore(STORE_EQUIPOS, 'equipos', equipos);
         guardarCacheDatos();
     } catch (e) { console.warn('No se pudo persistir cambio de inventario:', e); }
+
+    // FIX Bug 2: forzar refresco visual inmediato del listado
+    mostrarEquiposEnUI();
 }
 
 // =========================================================================
@@ -4161,8 +4195,6 @@ async function ejecutarSync(pendientes, opciones) {
 
             const scriptURL = reporte.tipo === 'salidas' ? SCRIPT_URL_SALIDAS : SCRIPT_URL_ENTRADAS;
 
-            // Construir payload como form-data (x-www-form-urlencoded) que es
-            // lo que los scripts GAS esperan con e.parameter
             const params = new URLSearchParams();
             params.append('id', reporte.id);
             params.append('fecha', reporte.fecha);
@@ -4202,7 +4234,6 @@ async function ejecutarSync(pendientes, opciones) {
         } catch (error) {
             console.error("Error subiendo reporte:", error);
             errores++;
-            // Si es el primer error y NO es silencioso, avisamos al usuario
             if (!silencioso && errores === 1) {
                 const errMsg = error.name === 'AbortError'
                     ? 'La solicitud tardó demasiado (timeout).'
@@ -4225,6 +4256,15 @@ async function ejecutarSync(pendientes, opciones) {
 
     for (const id of idsOk) await dbDeletePendiente(id);
     await actualizarBadgePendientes();
+
+    // Refrescar el listado (con el estado real del servidor si es online)
+    if (exitos > 0) {
+        if (navigator.onLine) {
+            await cargarDatos();
+        } else {
+            mostrarEquiposEnUI();
+        }
+    }
 
     return { exitos, errores };
 }
@@ -4267,13 +4307,13 @@ async function sincronizarSeleccionados() {
             icon: 'success', title: 'Proceso Completado',
             html: `✅ Se enviaron ${result.exitos} reporte(s) correctamente.<br>📄 Los PDFs fueron subidos a Google Drive.`,
             confirmButtonColor: '#28a745'
-        }).then(() => { if (isOnline) cargarDatos(); });
+        });
     } else {
         Swal.fire({
             title: 'Proceso Finalizado',
             html: `✅ Enviados: ${result.exitos}<br>❌ Con errores: ${result.errores}<br><small>Los que fallaron se mantienen pendientes.</small>`,
             icon: 'warning'
-        }).then(() => { if (isOnline) cargarDatos(); });
+        });
     }
 }
 
@@ -4299,6 +4339,14 @@ async function eliminarSeleccionados() {
 
     for (const id of ids) await dbDeletePendiente(id);
     await actualizarBadgePendientes();
+
+    // Refrescar el listado tras descartar
+    if (navigator.onLine) {
+        await cargarDatos();
+    } else {
+        mostrarEquiposEnUI();
+    }
+
     abrirModalSync();
 }
 

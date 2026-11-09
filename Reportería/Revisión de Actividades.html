@@ -555,88 +555,132 @@
             }
         }
 
-        function filtrarTablaLocal() {
-            const texto = document.getElementById('filtroTabla').value.toLowerCase().trim();
-            if (!texto) {
-                renderizarTabla(datosTablaGlobal);
-                return;
-            }
+function filtrarTablaLocal() {
+    const texto = document.getElementById('filtroTabla').value.toLowerCase().trim();
+    if (!texto) {
+        renderizarTabla(datosTablaGlobal);
+        return;
+    }
 
-            const filtrados = datosTablaGlobal.filter(item => {
-                if (item.fecha.toLowerCase().includes(texto)) return true;
-                if (layoutActual === "shampu") {
-                    return (
-                        (item.edificio || "").toLowerCase().includes(texto) ||
-                        (item.nivel || "").toLowerCase().includes(texto) ||
-                        (item.observaciones || "").toLowerCase().includes(texto)
-                    );
-                } else {
-                    return (item.descripcion || "").toLowerCase().includes(texto);
-                }
-            });
-            renderizarTabla(filtrados);
+    const filtrados = datosTablaGlobal.filter(item => {
+        const fechaDMY = formatearFechaDMY(item.fecha).toLowerCase();
+        if (fechaDMY.includes(texto)) return true;
+        if (item.fecha.toLowerCase().includes(texto)) return true;
+        if (layoutActual === "shampu") {
+            return (
+                (item.edificio || "").toLowerCase().includes(texto) ||
+                (item.nivel || "").toLowerCase().includes(texto) ||
+                (item.observaciones || "").toLowerCase().includes(texto)
+            );
+        } else {
+            return (item.descripcion || "").toLowerCase().includes(texto);
         }
+    });
+    renderizarTabla(filtrados);
+}
 
-        function renderizarTabla(lista) {
-            const tbody = document.getElementById('tablaCuerpo');
-            const aviso = document.getElementById('sinResultadosFiltro');
-            tbody.innerHTML = '';
 
-            if (lista.length === 0) {
-                aviso.style.display = 'block';
-                return;
-            }
-            aviso.style.display = 'none';
+// Convierte cualquier fecha que venga del servidor a formato "dd/mm/aaaa"
+function formatearFechaDMY(fechaStr) {
+    if (!fechaStr) return '';
 
-            lista.forEach((item) => {
-                const botones = construirBotones(item);
-                const tr = document.createElement('tr');
+    const s = String(fechaStr).trim();
 
-                if (layoutActual === "shampu") {
-                    const obs = item.observaciones || '';
-                    const obsCorta = obs.length > 60 ? obs.substring(0, 60) + '...' : obs;
-                    const obsHTML = obs
-                        ? `<div class="observaciones-cell" title="${escapeHtml(obs)}">${escapeHtml(obsCorta)}</div>`
-                        : '<span class="text-muted small">-</span>';
+    // dd/mm/aaaa o dd-mm-aaaa
+    let m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+    if (m) {
+        const d = String(m[1]).padStart(2, '0');
+        const mo = String(m[2]).padStart(2, '0');
+        return `${d}/${mo}/${m[3]}`;
+    }
 
-                    tr.innerHTML = `
-                        <td>${item.fecha}</td>
-                        <td>${escapeHtml(item.edificio || '')}</td>
-                        <td>${escapeHtml(item.nivel || '')}</td>
-                        <td>${obsHTML}</td>
-                        <td class="text-center">${botones}</td>
-                    `;
-                } else {
-                    const desc = item.descripcion || '';
-                    const descCorta = desc.length > 60 ? desc.substring(0, 60) + '...' : desc;
-                    const descHTML = desc
-                        ? `<div class="descripcion-cell" title="${escapeHtml(desc)}">${escapeHtml(descCorta)}</div>`
-                        : '<span class="text-muted small">-</span>';
+    // aaaa-mm-dd o aaaa/mm/dd (con o sin hora)
+    m = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+    if (m) {
+        const d = String(m[3]).padStart(2, '0');
+        const mo = String(m[2]).padStart(2, '0');
+        return `${d}/${mo}/${m[1]}`;
+    }
 
-                    tr.innerHTML = `
-                        <td>${item.fecha}</td>
-                        <td>${descHTML}</td>
-                        <td class="text-center">${botones}</td>
-                    `;
-                }
-                tbody.appendChild(tr);
-            });
-        }
+    // Fallback: Date parseable
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) {
+        const dd = String(d.getDate()).padStart(2, '0');
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const yyyy = d.getFullYear();
+        return `${dd}/${mm}/${yyyy}`;
+    }
 
-        function construirBotones(item) {
-            if (item.url && item.url.includes('http')) {
-                const urlSafe = item.url.replace(/'/g, "\\'");
-                return `
-                    <button class="btn btn-action btn-pdf" onclick="verPDF('${urlSafe}')" title="Ver Reporte"><i class="fas fa-eye"></i></button>
-                    <button class="btn btn-action btn-share" onclick="compartirPDF('${urlSafe}')" title="Compartir"><i class="fas fa-share-alt"></i></button>
-                    <button class="btn btn-action btn-download" onclick="descargarPDF('${urlSafe}')" title="Descargar"><i class="fas fa-download"></i></button>
-                    <button class="btn btn-action btn-delete" onclick="confirmarEliminar('${escapeHtml(item.reporteId)}', '${urlSafe}', '${escapeHtml(item.fecha)}')" title="Eliminar"><i class="fas fa-trash-alt"></i></button>
-                `;
-            }
-            return `
-                <button class="btn btn-action btn-delete" onclick="confirmarEliminar('${escapeHtml(item.reporteId)}', '', '${escapeHtml(item.fecha)}')" title="Eliminar"><i class="fas fa-trash-alt"></i></button>
+    return s;
+}
+
+
+
+function renderizarTabla(lista) {
+    const tbody = document.getElementById('tablaCuerpo');
+    const aviso = document.getElementById('sinResultadosFiltro');
+    tbody.innerHTML = '';
+
+    if (lista.length === 0) {
+        aviso.style.display = 'block';
+        return;
+    }
+    aviso.style.display = 'none';
+
+    lista.forEach((item) => {
+        const botones = construirBotones(item);
+        const tr = document.createElement('tr');
+        const fechaDMY = formatearFechaDMY(item.fecha);
+
+        if (layoutActual === "shampu") {
+            const obs = item.observaciones || '';
+            const obsCorta = obs.length > 60 ? obs.substring(0, 60) + '...' : obs;
+            const obsHTML = obs
+                ? `<div class="observaciones-cell" title="${escapeHtml(obs)}">${escapeHtml(obsCorta)}</div>`
+                : '<span class="text-muted small">-</span>';
+
+            tr.innerHTML = `
+                <td>${fechaDMY}</td>
+                <td>${escapeHtml(item.edificio || '')}</td>
+                <td>${escapeHtml(item.nivel || '')}</td>
+                <td>${obsHTML}</td>
+                <td class="text-center">${botones}</td>
+            `;
+        } else {
+            const desc = item.descripcion || '';
+            const descCorta = desc.length > 60 ? desc.substring(0, 60) + '...' : desc;
+            const descHTML = desc
+                ? `<div class="descripcion-cell" title="${escapeHtml(desc)}">${escapeHtml(descCorta)}</div>`
+                : '<span class="text-muted small">-</span>';
+
+            tr.innerHTML = `
+                <td>${fechaDMY}</td>
+                <td>${descHTML}</td>
+                <td class="text-center">${botones}</td>
             `;
         }
+        tbody.appendChild(tr);
+    });
+}
+
+
+function construirBotones(item) {
+    const fechaDMY = formatearFechaDMY(item.fecha);
+
+    if (item.url && item.url.includes('http')) {
+        const urlSafe = item.url.replace(/'/g, "\\'");
+        return `
+            <button class="btn btn-action btn-pdf" onclick="verPDF('${urlSafe}')" title="Ver Reporte"><i class="fas fa-eye"></i></button>
+            <button class="btn btn-action btn-share" onclick="compartirPDF('${urlSafe}')" title="Compartir"><i class="fas fa-share-alt"></i></button>
+            <button class="btn btn-action btn-download" onclick="descargarPDF('${urlSafe}')" title="Descargar"><i class="fas fa-download"></i></button>
+            <button class="btn btn-action btn-delete" onclick="confirmarEliminar('${escapeHtml(item.reporteId)}', '${urlSafe}', '${fechaDMY}')" title="Eliminar"><i class="fas fa-trash-alt"></i></button>
+        `;
+    }
+    return `
+        <button class="btn btn-action btn-delete" onclick="confirmarEliminar('${escapeHtml(item.reporteId)}', '', '${fechaDMY}')" title="Eliminar"><i class="fas fa-trash-alt"></i></button>
+    `;
+}
+
 
         function escapeHtml(texto) {
             if (texto === null || texto === undefined) return '';
@@ -744,46 +788,49 @@
             });
         }
 
-        function ejecutarEliminacion(reporteId, fileUrl, fechaReporte) {
-            const anio = document.getElementById('filtroAnio').value;
-            // Determinar el mes del reporte a partir de la fecha (dd/mm/aaaa)
-            let mesDelReporte = periodoActual.mes;
-            if (periodoActual.esTodoElAnio && fechaReporte) {
-                const partes = fechaReporte.split('/');
-                if (partes.length === 3) {
-                    mesDelReporte = partes[1].padStart(2, '0');
-                }
-            }
+function ejecutarEliminacion(reporteId, fileUrl, fechaReporte) {
+    const anio = document.getElementById('filtroAnio').value;
+    let mesDelReporte = periodoActual.mes;
 
-            showLoading("Eliminando reporte...", "Por favor espera");
-
-            fetch(URL_SCRIPT_GOOGLE, {
-                method: 'POST',
-                body: JSON.stringify({
-                    action: "eliminarReporte",
-                    tipoActividad: tipoActual,
-                    mes: mesDelReporte,
-                    anio: anio,
-                    reporteId: reporteId,
-                    fileUrl: fileUrl
-                })
-            })
-            .then(res => res.json())
-            .then(data => {
-                hideLoading();
-                if (data.status === "success") {
-                    Swal.fire("Eliminado", data.data.message, "success")
-                        .then(() => consultarDatos());
-                } else {
-                    Swal.fire("Error", data.message, "error");
-                }
-            })
-            .catch(err => {
-                hideLoading();
-                console.error("Error:", err);
-                Swal.fire("Error", "No se pudo conectar con el servidor.", "error");
-            });
+    if (periodoActual.esTodoElAnio && fechaReporte) {
+        // fechaReporte ya viene en "dd/mm/aaaa"
+        const partes = fechaReporte.split('/');
+        if (partes.length === 3) {
+            mesDelReporte = partes[1].padStart(2, '0');
         }
+    }
+
+    showLoading("Eliminando reporte...", "Por favor espera");
+
+    fetch(URL_SCRIPT_GOOGLE, {
+        method: 'POST',
+        body: JSON.stringify({
+            action: "eliminarReporte",
+            tipoActividad: tipoActual,
+            mes: mesDelReporte,
+            anio: anio,
+            reporteId: reporteId,
+            fileUrl: fileUrl
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        hideLoading();
+        if (data.status === "success") {
+            Swal.fire("Eliminado", data.data.message, "success")
+                .then(() => consultarDatos());
+        } else {
+            Swal.fire("Error", data.message, "error");
+        }
+    })
+    .catch(err => {
+        hideLoading();
+        console.error("Error:", err);
+        Swal.fire("Error", "No se pudo conectar con el servidor.", "error");
+    });
+}
+
+
     </script>
 </body>
 </html>

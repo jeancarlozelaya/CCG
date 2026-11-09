@@ -1,0 +1,3956 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Reporte de Actividades</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+
+<style>
+    :root {
+        --primary-color: #2c3e50;
+        --secondary-color: #3498db;
+        --accent-color: #e74c3c;
+        --warning-color: #f39c12;
+        --success-color: #2ecc71;
+        --dark-color: #34495e;
+        --text-color: #333;
+        --border-color: #ddd;
+        --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        --transition: all 0.3s ease;
+        --insumos-primary: #3f7b57;
+        --insumos-accent: #2196F3;
+        --insumos-light-gray: #f0f2f5;
+        --insumos-danger: #ef5350;
+    }
+
+    html, body {
+        touch-action: manipulation;
+        overflow-x: hidden;
+        position: fixed;
+        width: 100%;
+        height: 100%;
+    }
+
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: var(--insumos-light-gray);
+        color: var(--dark-color);
+        line-height: 1.6;
+        zoom: 1;
+        -webkit-text-size-adjust: 100%;
+        -ms-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+    }
+
+    * { touch-action: pan-x pan-y; }
+
+    .header {
+        background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+        color: white;
+        padding: 14px 18px;
+        font-size: 1.4rem;
+        font-weight: bold;
+        box-shadow: var(--shadow);
+        position: relative;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .header-left { display: flex; align-items: center; gap: 10px; min-width: 42px; }
+    .header-title { flex: 1; text-align: center; padding: 0 10px; }
+    .header-actions { display: flex; gap: 8px; align-items: center; min-width: 42px; justify-content: flex-end; }
+
+    .header-btn {
+        background-color: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        color: white;
+        width: 42px; height: 42px;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.1rem;
+        cursor: pointer;
+        transition: var(--transition);
+        position: relative;
+    }
+
+    .header-btn:hover { background-color: rgba(255, 255, 255, 0.25); transform: translateY(-2px); }
+
+    .header-btn .badge-pendientes-header {
+        position: absolute; top: -3px; right: -3px;
+        font-size: 0.65rem; padding: 0.25em 0.5em;
+    }
+
+    h1 {
+        text-align: center; color: var(--primary-color);
+        margin-bottom: 25px; font-size: 1.8rem;
+        position: relative; padding-bottom: 10px; font-weight: bold;
+    }
+
+    h1:after {
+        content: ''; position: absolute; bottom: 0; left: 50%;
+        transform: translateX(-50%);
+        width: 80px; height: 4px;
+        background-color: var(--secondary-color); border-radius: 2px;
+    }
+
+    .container { max-width: 1200px; margin: 25px auto; padding: 0 15px; position: relative; z-index: 1; }
+
+    .card {
+        border-radius: 12px; box-shadow: var(--shadow);
+        border: none; margin-bottom: 25px;
+        border-top: 5px solid var(--insumos-primary);
+    }
+
+    .card-body { padding: 2.5rem; }
+
+    .tab-title {
+        text-align: center; color: var(--primary-color);
+        margin-bottom: 30px; padding: 20px 0; position: relative;
+    }
+
+    .tab-title h2 {
+        font-size: 1.5rem; font-weight: 700; margin: 0;
+        display: inline-block; padding: 0 25px; position: relative;
+    }
+
+    .tab-title h2:after {
+        content: ''; position: absolute; bottom: -10px; left: 50%;
+        transform: translateX(-50%);
+        width: 80px; height: 4px;
+        background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
+        border-radius: 2px;
+    }
+
+    .tab-title h2:before {
+        content: ''; position: absolute; bottom: -8px; left: 0; right: 0;
+        height: 1px; background-color: var(--border-color);
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: var(--secondary-color);
+        box-shadow: 0 0 0 0.25rem rgba(52, 152, 219, 0.25);
+    }
+
+    .btn-primary, .btn-success, .btn-secondary, .btn-danger {
+        border: none; font-weight: 600; padding: 10px 25px; font-size: 0.95rem;
+        border-radius: 50px; min-width: 130px;
+        transition: var(--transition); color: white !important;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .btn-primary { background: linear-gradient(45deg, var(--secondary-color), #5dade2); }
+    .btn-success { background: linear-gradient(45deg, #2ecc71, #58d68d); }
+    .btn-secondary { background: linear-gradient(45deg, var(--dark-color), var(--primary-color)); }
+    .btn-danger { background: linear-gradient(45deg, var(--accent-color), #e74c3c); }
+    .btn-warning {
+        background: linear-gradient(45deg, #f39c12, #f1c40f);
+        border: none; font-weight: 600; padding: 10px 25px; font-size: 0.95rem;
+        border-radius: 50px; min-width: 130px;
+        transition: var(--transition); color: white !important;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .btn-primary:hover, .btn-success:hover, .btn-secondary:hover, .btn-danger:hover, .btn-warning:hover {
+        transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+    }
+
+    .btn-primary:disabled { background: #ccc; box-shadow: none; transform: none; }
+
+    .form-label { font-weight: 600; color: var(--dark-color); margin-bottom: 8px; }
+
+    .evidencia-bloque {
+        border: 2px dashed #cbd5e0;
+        border-radius: 12px;
+        background-color: #fafbfc;
+        overflow: hidden;
+        transition: border-color 0.25s ease, background-color 0.25s ease;
+        margin-top: 10px;
+    }
+
+    .evidencia-bloque.drag-over {
+        border-color: var(--secondary-color);
+        background-color: rgba(52, 152, 219, 0.06);
+    }
+
+    .evidencia-bloque.has-fotos {
+        border-style: solid;
+        border-color: #d6e4f0;
+        background-color: #ffffff;
+    }
+
+    .evidencia-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 14px;
+        border-bottom: 1px solid transparent;
+        transition: border-color 0.25s ease;
+    }
+
+    .evidencia-bloque.has-fotos .evidencia-header {
+        border-bottom-color: #eef2f7;
+    }
+
+    .evidencia-header-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+    }
+
+    .evidencia-header-info .evidencia-titulo {
+        font-weight: 700;
+        color: var(--primary-color);
+        font-size: 0.95rem;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .evidencia-header-info .evidencia-contador {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 22px;
+        height: 22px;
+        padding: 0 7px;
+        border-radius: 11px;
+        background-color: #e2e8f0;
+        color: #64748b;
+        font-size: 0.72rem;
+        font-weight: 700;
+        transition: all 0.2s ease;
+    }
+
+    .evidencia-contador.activo {
+        background-color: var(--secondary-color);
+        color: #fff;
+    }
+
+    .evidencia-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
+    }
+
+    .evidencia-btn-add {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        border-radius: 20px;
+        border: none;
+        background: linear-gradient(45deg, var(--secondary-color), #5dade2);
+        color: #fff;
+        font-size: 0.82rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+        box-shadow: 0 2px 6px rgba(52, 152, 219, 0.25);
+    }
+
+    .evidencia-btn-add:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
+    }
+
+    .evidencia-btn-add:active { transform: scale(0.97); }
+    .evidencia-btn-add i { font-size: 0.85rem; }
+
+    .evidencia-btn-duplicados {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 1px solid #f39c12;
+        background: #fff;
+        color: #f39c12;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        flex-shrink: 0;
+    }
+
+    .evidencia-btn-duplicados:hover {
+        background: #f39c12;
+        color: #fff;
+        transform: translateY(-1px);
+    }
+
+    .evidencia-btn-duplicados i { font-size: 0.85rem; }
+
+    .evidencia-dropzone {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 26px 16px;
+        color: #718096;
+        cursor: pointer;
+        text-align: center;
+        transition: background-color 0.2s ease;
+        user-select: none;
+    }
+
+    .evidencia-bloque.has-fotos .evidencia-dropzone { display: none; }
+    .evidencia-dropzone:hover { background-color: rgba(52, 152, 219, 0.05); }
+
+    .evidencia-dropzone i {
+        font-size: 2rem;
+        color: #a0aec0;
+        margin-bottom: 8px;
+        transition: color 0.2s ease;
+    }
+
+    .evidencia-dropzone:hover i { color: var(--secondary-color); }
+
+    .evidencia-dropzone .dz-titulo {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: #4a5568;
+        margin-bottom: 2px;
+    }
+
+    .evidencia-dropzone .dz-subtitulo {
+        font-size: 0.78rem;
+        color: #a0aec0;
+    }
+
+    .evidencia-bloque.drag-over .evidencia-dropzone i,
+    .evidencia-bloque.drag-over .evidencia-dropzone .dz-titulo {
+        color: var(--secondary-color);
+    }
+
+    .evidencia-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 14px;
+    }
+
+    .evidencia-grid:empty { display: none; }
+    .evidencia-bloque:not(.has-fotos) .evidencia-grid { display: none; }
+
+    .evidencia-dual {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        margin-top: 10px;
+    }
+
+    @media (max-width: 768px) {
+        .evidencia-dual { grid-template-columns: 1fr; }
+    }
+
+    .evidencia-dual .evidencia-dropzone { padding: 22px 12px; }
+    .evidencia-dual .evidencia-dropzone i { font-size: 1.6rem; }
+    .evidencia-dual .evidencia-dropzone .dz-titulo { font-size: 0.85rem; }
+    .evidencia-dual .evidencia-grid { padding: 10px; gap: 8px; }
+
+    .image-preview-item {
+        position: relative;
+        width: 90px;
+        height: 90px;
+        overflow: hidden;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        transition: transform 0.2s ease, opacity 0.3s ease;
+    }
+
+    .image-preview-item:hover { transform: translateY(-3px); }
+    .image-preview-item img { width: 100%; height: 100%; object-fit: cover; cursor: pointer; }
+
+    .evidencia-dual .image-preview-item {
+        width: 72px;
+        height: 72px;
+    }
+
+    .pdf-preview-item {
+        position: relative;
+        width: 110px;
+        height: 130px;
+        overflow: hidden;
+        border-radius: 8px;
+        border: 1px solid #dbe4ed;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        transition: transform 0.2s ease, opacity 0.3s ease;
+        background: #fff;
+        display: flex;
+        flex-direction: column;
+        cursor: pointer;
+    }
+
+    .pdf-preview-item:hover { transform: translateY(-3px); box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+
+    .pdf-preview-item .pdf-thumb {
+        flex: 1;
+        background: #f7f9fb;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .pdf-preview-item .pdf-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: top;
+    }
+
+    .pdf-preview-item .pdf-thumb .pdf-thumb-loading {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f7f9fb;
+        color: #a0aec0;
+        font-size: 1.5rem;
+    }
+
+    .pdf-preview-item .pdf-info {
+        padding: 4px 6px;
+        background: #fff;
+        border-top: 1px solid #eef2f7;
+        font-size: 0.65rem;
+        color: #4a5568;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-weight: 600;
+    }
+
+    .pdf-preview-item .pdf-badge {
+        position: absolute;
+        top: 5px;
+        left: 5px;
+        background: var(--accent-color);
+        color: white;
+        font-size: 0.55rem;
+        font-weight: 700;
+        padding: 2px 6px;
+        border-radius: 8px;
+        z-index: 2;
+    }
+
+    .pdf-preview-item .pdf-remove {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: rgba(239, 83, 80, 0.95);
+        color: white;
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+        cursor: pointer;
+        z-index: 3;
+        transition: transform 0.15s ease;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .pdf-preview-item .pdf-remove:hover { transform: scale(1.15); background: #e74c3c; }
+
+    .image-preview-item.duplicate-highlight {
+        border: 3px solid #ef5350;
+        box-shadow: 0 0 15px rgba(239, 83, 80, 0.5);
+        transform: scale(1.02);
+        animation: pulse-duplicate 1.5s infinite;
+    }
+
+    .image-preview-item.duplicate-selected {
+        border: 3px solid #f39c12;
+        box-shadow: 0 0 15px rgba(243, 156, 18, 0.5);
+    }
+
+    @keyframes pulse-duplicate {
+        0% { box-shadow: 0 0 5px rgba(239, 83, 80, 0.5); }
+        50% { box-shadow: 0 0 20px rgba(239, 83, 80, 0.8); }
+        100% { box-shadow: 0 0 5px rgba(239, 83, 80, 0.5); }
+    }
+
+    .duplicate-control-panel {
+        position: sticky; top: 0; z-index: 1000;
+        background: white; padding: 15px; border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        margin-bottom: 20px; border-left: 5px solid #ef5350;
+    }
+
+    .duplicate-group {
+        background-color: #fff3f3; border-radius: 8px; padding: 10px;
+        margin-bottom: 15px; border: 1px solid #ef5350;
+    }
+
+    .duplicate-group-title {
+        font-weight: bold; color: #ef5350; margin-bottom: 10px;
+        padding-bottom: 5px; border-bottom: 1px dashed #ef5350;
+    }
+
+    .duplicate-thumbnails {
+        display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px;
+    }
+
+    .duplicate-thumb {
+        width: 80px; height: 80px; border-radius: 6px;
+        overflow: hidden; border: 2px solid transparent;
+        cursor: pointer; position: relative;
+    }
+
+    .duplicate-thumb.selected {
+        border-color: #f39c12;
+        box-shadow: 0 0 10px rgba(243, 156, 18, 0.5);
+    }
+
+    .duplicate-thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+    .duplicate-thumb .thumb-index {
+        position: absolute; bottom: 2px; right: 2px;
+        background-color: rgba(0,0,0,0.7); color: white;
+        font-size: 10px; padding: 2px 4px; border-radius: 3px;
+    }
+
+    .duplicate-thumb.kept {
+        border-color: #2ecc71;
+        box-shadow: 0 0 12px rgba(46, 204, 113, 0.7);
+    }
+
+    .duplicate-thumb.kept::after {
+        content: '✓';
+        position: absolute;
+        top: 2px; left: 2px;
+        background: #2ecc71; color: white;
+        width: 20px; height: 20px;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 12px; font-weight: bold;
+    }
+
+    .duplicate-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+
+    .btn-duplicate-keep {
+        background-color: #2ecc71; color: white; border: none;
+        padding: 5px 15px; border-radius: 20px; font-size: 12px;
+        font-weight: bold; cursor: pointer;
+    }
+
+    .btn-duplicate-keep:hover { background-color: #27ae60; }
+
+    .btn-duplicate-delete {
+        background-color: #ef5350; color: white; border: none;
+        padding: 5px 15px; border-radius: 20px; font-size: 12px;
+        font-weight: bold; cursor: pointer;
+    }
+
+    .btn-duplicate-delete:hover { background-color: #e74c3c; }
+    .btn-duplicate-delete:disabled { background-color: #ccc; cursor: not-allowed; }
+
+    .duplicate-toolbar {
+        background-color: #f8f9fa; padding: 10px; border-radius: 8px;
+        margin-bottom: 15px; display: flex;
+        justify-content: space-between; align-items: center;
+        flex-wrap: wrap; gap: 8px;
+    }
+
+    .image-preview-item .delete-icon { display: none !important; }
+
+    #overlay {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background-color: rgba(255, 255, 255, 0.95);
+        display: none; justify-content: center; align-items: center;
+        z-index: 9999; flex-direction: column;
+    }
+
+    .spinner {
+        width: 60px; height: 60px;
+        border: 5px solid rgba(52, 152, 219, 0.2); border-radius: 50%;
+        border-top-color: var(--secondary-color);
+        animation: spin 1s ease-in-out infinite; margin-bottom: 20px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #loadingMessage { text-align: center; color: var(--dark-color); }
+    #loadingMessage h4 { margin: 0 0 10px; font-size: 1.3rem; font-weight: bold; }
+    #loadingMessage p { margin: 0; color: #7f8c8d; font-weight: normal; }
+
+    .lista-scrollable {
+        max-height: 350px; overflow-y: auto;
+        border: 1px solid #dee2e6; border-radius: 0.25rem;
+        background-color: #fff;
+    }
+
+    .toolbar-lista {
+        background-color: #f8f9fa; padding: 10px;
+        border: 1px solid #dee2e6; border-bottom: none;
+        border-top-left-radius: 0.25rem; border-top-right-radius: 0.25rem;
+        display: flex; justify-content: space-between; align-items: center;
+    }
+
+    #syncTabs .nav-link {
+        background-color: #e9ecef; color: #7f8c8d;
+        border: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6;
+        margin-right: 4px; border-radius: 8px 8px 0 0;
+        transition: all 0.2s ease;
+    }
+
+    #syncTabs .nav-link:hover { background-color: #dde1e3; color: #2c3e50; }
+
+    #syncTabs .nav-link.active {
+        background-color: #ffffff !important; color: #2c3e50 !important;
+        font-weight: bold; border-color: #dee2e6 #dee2e6 #fff;
+        border-top: 4px solid #3498db; transform: translateY(1px);
+    }
+
+    #syncTabs {
+        border-bottom: 1px solid #dee2e6; background-color: #f8f9fa;
+        padding-top: 10px; padding-left: 10px; padding-right: 10px;
+    }
+
+    .photo-preview-modal .modal-dialog {
+        max-width: 100%; height: 100vh; margin: 0; padding: 0;
+        display: flex; align-items: center; justify-content: center;
+    }
+
+    .photo-preview-modal .modal-content {
+        height: 100vh; width: 100vw; border-radius: 0;
+        background-color: rgba(0, 0, 0, 0.95); border: none;
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        z-index: 10000;
+    }
+
+    .photo-preview-modal .modal-header {
+        border-bottom: 1px solid #333; background-color: rgba(0, 0, 0, 0.8);
+        color: white; z-index: 10001;
+        position: absolute; top: 0; left: 0; right: 0;
+        padding: 15px 20px; height: 60px;
+        display: flex; align-items: center;
+    }
+
+    .photo-preview-modal .modal-body {
+        padding: 0; display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        background-color: rgba(0, 0, 0, 0.95); overflow: hidden;
+        height: 100vh; width: 100vw; touch-action: pan-x pan-y;
+    }
+
+    .photo-preview-modal .modal-footer {
+        border-top: 1px solid #333; background-color: rgba(0, 0, 0, 0.8);
+        z-index: 10001; position: absolute; bottom: 0; left: 0; right: 0;
+        padding: 20px; height: 100px;
+        display: flex; justify-content: center; gap: 20px;
+    }
+
+    .photo-preview-container {
+        width: 100vw; height: 100vh; position: relative;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        padding-bottom: 120px;
+    }
+
+    .photo-view {
+        width: 100vw; height: calc(100vh - 240px);
+        display: flex; align-items: center; justify-content: center;
+        overflow: hidden; position: relative;
+    }
+
+    .photo-view img {
+        max-width: 100%; max-height: 100%;
+        object-fit: contain; transition: transform 0.3s ease;
+    }
+
+    .photo-navigation {
+        position: absolute; top: 50%; transform: translateY(-50%);
+        width: 100%; display: flex; justify-content: space-between;
+        padding: 0 20px; z-index: 10002;
+    }
+
+    .nav-btn {
+        width: 60px; height: 60px; border-radius: 50%;
+        background-color: rgba(0, 0, 0, 0.5); color: white;
+        border: 2px solid white; display: flex;
+        align-items: center; justify-content: center;
+        font-size: 24px; cursor: pointer;
+        transition: all 0.3s ease; opacity: 0.7;
+    }
+
+    .nav-btn:hover { background-color: rgba(255, 255, 255, 0.2); opacity: 1; transform: scale(1.1); }
+    .nav-btn:active { transform: scale(0.95); }
+    .nav-btn.disabled { opacity: 0.3; cursor: not-allowed; }
+    .nav-btn.disabled:hover { background-color: rgba(0, 0, 0, 0.5); transform: none; }
+
+    .photo-counter {
+        position: absolute; top: 80px; right: 20px;
+        background-color: rgba(0, 0, 0, 0.7); color: white;
+        padding: 8px 16px; border-radius: 20px;
+        font-size: 14px; font-weight: 600; z-index: 10002;
+    }
+
+    .photo-actions { display: flex; gap: 15px; align-items: center; }
+
+    .photo-action-btn {
+        background-color: rgba(255, 255, 255, 0.1); color: white;
+        border: 2px solid white; border-radius: 25px;
+        padding: 8px 20px; display: flex; align-items: center; gap: 8px;
+        cursor: pointer; font-size: 14px; font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .photo-action-btn:hover { background-color: rgba(255, 255, 255, 0.2); transform: translateY(-2px); }
+    .photo-action-btn.delete { background-color: rgba(239, 83, 80, 0.2); border-color: #ef5350; }
+    .photo-action-btn.delete:hover { background-color: rgba(239, 83, 80, 0.4); }
+
+    .photo-loading {
+        position: absolute; top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        color: white; font-size: 18px;
+        display: flex; flex-direction: column;
+        align-items: center; gap: 15px;
+    }
+
+    .photo-loading .spinner-border { width: 50px; height: 50px; }
+
+    .photo-thumbnails-container {
+        position: absolute; bottom: 100px; left: 0; right: 0;
+        height: 100px; background-color: rgba(0, 0, 0, 0.7);
+        padding: 10px 0; z-index: 10002;
+        overflow-x: auto; display: flex; justify-content: center;
+    }
+
+    .photo-thumbnails { display: flex; gap: 10px; padding: 0 10px; height: 100%; }
+
+    .photo-thumbnail {
+        width: 80px; height: 80px; border-radius: 6px; overflow: hidden;
+        border: 2px solid transparent; cursor: pointer;
+        transition: all 0.3s ease; flex-shrink: 0; position: relative;
+    }
+
+    .photo-thumbnail:hover { transform: translateY(-3px); border-color: rgba(255, 255, 255, 0.5); }
+    .photo-thumbnail.active { border-color: var(--secondary-color); box-shadow: 0 0 10px rgba(52, 152, 219, 0.5); }
+    .photo-thumbnail img { width: 100%; height: 100%; object-fit: cover; }
+
+    .photo-thumbnail-index {
+        position: absolute; bottom: 2px; right: 2px;
+        background-color: rgba(0, 0, 0, 0.7); color: white;
+        font-size: 10px; padding: 1px 4px;
+        border-radius: 3px; font-weight: bold;
+    }
+
+    .photo-enter-animation { animation: slideIn 0.3s ease-out; }
+
+    @keyframes slideIn {
+        from { opacity: 0; transform: scale(0.8); }
+        to { opacity: 1; transform: scale(1); }
+    }
+
+    .seccion-dinamica { animation: fadeInSection 0.4s ease-out; }
+
+    @keyframes fadeInSection {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 576px) {
+        .header-title { font-size: 1.1rem; }
+        .header-btn { width: 38px; height: 38px; font-size: 0.95rem; }
+        .evidencia-btn-add { font-size: 0.75rem; padding: 5px 10px; }
+        .evidencia-btn-add span { display: none; }
+        .pdf-preview-item { width: 90px; height: 110px; }
+    }
+</style>
+
+</head>
+<body>
+
+    <div class="header">
+        <div class="header-left"></div>
+        <div class="header-title">Pisos Brillantes</div>
+        <div class="header-actions">
+            <button id="btn-sync-manager" class="header-btn" title="Sincronizar">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <span id="badge-pendientes" class="badge rounded-pill bg-danger badge-pendientes-header" style="display: none;">0</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalSync" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title"><i class="fas fa-sync me-2"></i>Gestor de Envíos</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body bg-light p-0">
+                    <ul class="nav nav-tabs nav-justified" id="syncTabs" role="tablist" style="background: #fff; border-bottom: 1px solid #dee2e6;">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active fw-bold py-3" id="tab-pendientes" data-bs-toggle="tab" data-bs-target="#content-pendientes" type="button" role="tab">
+                                <i class="fas fa-hourglass-half me-2 text-warning"></i>Pendientes
+                                <span class="badge bg-danger ms-1" id="badge-tab-pendientes" style="display:none">0</span>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link fw-bold py-3 text-secondary" id="tab-sincronizados" data-bs-toggle="tab" data-bs-target="#content-sincronizados" type="button" role="tab">
+                                <i class="fas fa-check-circle me-2 text-success"></i>Sincronizados
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content p-3" id="syncTabsContent">
+
+                        <div class="tab-pane fade show active" id="content-pendientes" role="tabpanel">
+                            <div class="alert alert-info border-0 shadow-sm py-2 mb-2">
+                                <small><i class="fas fa-info-circle me-1"></i> Selecciona los registros para subir o eliminar.</small>
+                            </div>
+
+                            <div class="toolbar-lista">
+                                <div class="form-check mb-0">
+                                    <input class="form-check-input" type="checkbox" id="check-all-pendientes">
+                                    <label class="form-check-label small fw-bold" for="check-all-pendientes">Seleccionar Todos</label>
+                                </div>
+                                <button class="btn btn-outline-danger btn-sm" id="btn-delete-pendientes-sel" disabled>
+                                    <i class="fas fa-trash-alt me-1"></i> Eliminar Selección
+                                </button>
+                            </div>
+
+                            <div class="list-group list-group-flush lista-scrollable mb-2" id="lista-pendientes"></div>
+
+                            <div class="d-grid gap-2 mt-3">
+                                <button type="button" class="btn btn-primary rounded-pill" id="btn-sincronizar-seleccionados" disabled>
+                                    <i class="fas fa-cloud-upload-alt me-2"></i>Sincronizar Seleccionados
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane fade" id="content-sincronizados" role="tabpanel">
+                            <div class="alert alert-light border shadow-sm text-muted py-2 mb-2">
+                                <small><i class="fas fa-check-double me-1"></i> Historial de envíos exitosos.</small>
+                            </div>
+
+                            <div class="toolbar-lista">
+                                <div class="form-check mb-0">
+                                    <input class="form-check-input" type="checkbox" id="check-all-sincronizados">
+                                    <label class="form-check-label small fw-bold" for="check-all-sincronizados">Seleccionar Todos</label>
+                                </div>
+                                <button class="btn btn-outline-danger btn-sm" id="btn-delete-sincronizados-sel" disabled>
+                                    <i class="fas fa-trash-alt me-1"></i> Eliminar Selección
+                                </button>
+                            </div>
+
+                            <div class="list-group list-group-flush lista-scrollable mb-2" id="lista-sincronizados"></div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <img id="logo-loader" src="" style="display: none;" alt="Logo">
+
+    <div class="container">
+        <h1>Reporte de Actividades</h1>
+
+        <div class="card">
+            <div class="card-body p-4 p-md-5">
+                <form id="form-actividades">
+                    <div class="tab-title">
+                        <h2>Datos de la Actividad</h2>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="fecha-actividad" class="form-label">Fecha</label>
+                            <input type="date" class="form-control auto-save" id="fecha-actividad" required>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="select-tipo-actividad" class="form-label">Tipo de Actividad</label>
+                            <select class="form-select auto-save" id="select-tipo-actividad" required>
+                                <option value="">Seleccionar...</option>
+                                <option value="Limpiezas Profundas">Limpiezas Profundas</option>
+                                <option value="Capacitaciones">Capacitaciones</option>
+                                <option value="Revisión de Personal">Revisión de Personal</option>
+                                <option value="Shampuseado de Alfombras">Shampuseado de Alfombras</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="seccion-capacitaciones" class="seccion-dinamica" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-8 mb-3">
+                                <label for="capacitacion-nombre" class="form-label">Nombre de la Capacitación</label>
+                                <input type="text" class="form-control auto-save" id="capacitacion-nombre" placeholder="Nombre de la capacitación">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="capacitacion-participantes" class="form-label">Número de Participantes</label>
+                                <input type="number" class="form-control auto-save" id="capacitacion-participantes" min="1" placeholder="Ej: 15">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="capacitacion-objetivo" class="form-label">Objetivo de la Capacitación</label>
+                            <textarea class="form-control auto-save" id="capacitacion-objetivo" rows="3" placeholder="Objetivo de la capacitación..."></textarea>
+                        </div>
+                    </div>
+
+                    <div id="seccion-shampuseado" class="seccion-dinamica" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="shampu-edificio" class="form-label">Edificio</label>
+                                <select class="form-select auto-save" id="shampu-edificio">
+                                    <option value="">Seleccionar Edificio...</option>
+                                    <option value="CBA">CBA</option>
+                                    <option value="CBB">CBB</option>
+                                    <option value="CBC">CBC</option>
+                                    <option value="Torre #1">Torre #1</option>
+                                    <option value="Torre #2">Torre #2</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="shampu-nivel" class="form-label">Nivel</label>
+                                <select class="form-select auto-save" id="shampu-nivel" disabled>
+                                    <option value="">Seleccione un edificio primero...</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3" id="seccion-descripcion">
+                        <label for="descripcion-actividad" class="form-label">Descripción de Actividad</label>
+                        <textarea class="form-control auto-save" id="descripcion-actividad" rows="6" placeholder="Describa la actividad realizada..."></textarea>
+                    </div>
+
+                    <div class="mb-3 seccion-dinamica" id="seccion-conclusiones" style="display: none;">
+                        <label for="capacitacion-conclusiones" class="form-label">Conclusiones</label>
+                        <textarea class="form-control auto-save" id="capacitacion-conclusiones" rows="4" placeholder="Conclusiones de la capacitación..."></textarea>
+                    </div>
+
+                    <div class="seccion-fotos mb-4" id="seccion-evidencia-simple">
+                        <label class="form-label mb-2">Evidencia</label>
+
+                        <div class="evidencia-bloque" data-preview="preview-actividad" data-input="input-galeria-actividad">
+                            <div class="evidencia-header">
+                                <div class="evidencia-header-info">
+                                    <span class="evidencia-titulo"><i class="fas fa-images"></i> Imágenes</span>
+                                    <span class="evidencia-contador" data-count-for="preview-actividad">0</span>
+                                </div>
+                                <div class="evidencia-header-actions">
+                                    <button type="button" class="evidencia-btn-duplicados btn-detectar-duplicados" data-preview="preview-actividad" title="Detectar imágenes repetidas">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                    <button type="button" class="evidencia-btn-add">
+                                        <i class="fas fa-plus"></i>
+                                        <span>Agregar</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="evidencia-dropzone">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <div class="dz-titulo">Arrastra tus imágenes o haz clic para seleccionarlas</div>
+                                <div class="dz-subtitulo">JPG, PNG, WEBP</div>
+                            </div>
+                            <input type="file" id="input-galeria-actividad" accept="image/*" multiple style="display: none;">
+                            <div id="preview-actividad" class="evidencia-grid"></div>
+                        </div>
+                    </div>
+
+                    <div class="seccion-fotos mb-4 seccion-dinamica" id="seccion-evidencia-dual" style="display: none;">
+                        <label class="form-label mb-2">Evidencia</label>
+
+                        <div class="evidencia-dual">
+                            <div class="evidencia-bloque" data-preview="preview-antes" data-input="input-galeria-antes">
+                                <div class="evidencia-header">
+                                    <div class="evidencia-header-info">
+                                        <span class="evidencia-titulo"><i class="fas fa-clock text-warning"></i> Antes</span>
+                                        <span class="evidencia-contador" data-count-for="preview-antes">0</span>
+                                    </div>
+                                    <div class="evidencia-header-actions">
+                                        <button type="button" class="evidencia-btn-duplicados btn-detectar-duplicados" data-preview="preview-antes" title="Detectar duplicados">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                        <button type="button" class="evidencia-btn-add">
+                                            <i class="fas fa-plus"></i>
+                                            <span>Agregar</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="evidencia-dropzone">
+                                    <i class="fas fa-cloud-upload-alt"></i>
+                                    <div class="dz-titulo">Arrastra o haz clic</div>
+                                    <div class="dz-subtitulo">Antes del shampuseado</div>
+                                </div>
+                                <input type="file" id="input-galeria-antes" accept="image/*" multiple style="display: none;">
+                                <div id="preview-antes" class="evidencia-grid"></div>
+                            </div>
+
+                            <div class="evidencia-bloque" data-preview="preview-despues" data-input="input-galeria-despues">
+                                <div class="evidencia-header">
+                                    <div class="evidencia-header-info">
+                                        <span class="evidencia-titulo"><i class="fas fa-check-circle text-success"></i> Después</span>
+                                        <span class="evidencia-contador" data-count-for="preview-despues">0</span>
+                                    </div>
+                                    <div class="evidencia-header-actions">
+                                        <button type="button" class="evidencia-btn-duplicados btn-detectar-duplicados" data-preview="preview-despues" title="Detectar duplicados">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                        <button type="button" class="evidencia-btn-add">
+                                            <i class="fas fa-plus"></i>
+                                            <span>Agregar</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="evidencia-dropzone">
+                                    <i class="fas fa-cloud-upload-alt"></i>
+                                    <div class="dz-titulo">Arrastra o haz clic</div>
+                                    <div class="dz-subtitulo">Después del shampuseado</div>
+                                </div>
+                                <input type="file" id="input-galeria-despues" accept="image/*" multiple style="display: none;">
+                                <div id="preview-despues" class="evidencia-grid"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 seccion-dinamica" id="seccion-observaciones" style="display: none;">
+                        <label for="shampu-observaciones" class="form-label">Observaciones</label>
+                        <textarea class="form-control auto-save" id="shampu-observaciones" rows="6" placeholder="Describa las observaciones presentadas..."></textarea>
+                    </div>
+
+                    <div class="seccion-fotos mb-4 seccion-dinamica" id="seccion-evidencia-observaciones" style="display: none;">
+                        <label class="form-label mb-2">Evidencia de Observaciones <span class="text-muted fw-normal" style="font-size: 0.8rem;">(opcional)</span></label>
+
+                        <div class="evidencia-bloque" data-preview="preview-observaciones" data-input="input-galeria-observaciones">
+                            <div class="evidencia-header">
+                                <div class="evidencia-header-info">
+                                    <span class="evidencia-titulo"><i class="fas fa-exclamation-circle"></i> Imágenes de Observaciones</span>
+                                    <span class="evidencia-contador" data-count-for="preview-observaciones">0</span>
+                                </div>
+                                <div class="evidencia-header-actions">
+                                    <button type="button" class="evidencia-btn-duplicados btn-detectar-duplicados" data-preview="preview-observaciones" title="Detectar duplicados">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                    <button type="button" class="evidencia-btn-add">
+                                        <i class="fas fa-plus"></i>
+                                        <span>Agregar</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="evidencia-dropzone">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <div class="dz-titulo">Arrastra tus imágenes o haz clic para seleccionarlas</div>
+                                <div class="dz-subtitulo">JPG, PNG, WEBP</div>
+                            </div>
+                            <input type="file" id="input-galeria-observaciones" accept="image/*" multiple style="display: none;">
+                            <div id="preview-observaciones" class="evidencia-grid"></div>
+                        </div>
+                    </div>
+
+                    <div class="seccion-lista-asistencia mb-4 seccion-dinamica" id="seccion-lista-asistencia" style="display: none;">
+                        <label class="form-label mb-2">Listas de Asistencia (PDF)</label>
+
+                        <div class="evidencia-bloque" id="bloque-listas-pdf">
+                            <div class="evidencia-header">
+                                <div class="evidencia-header-info">
+                                    <span class="evidencia-titulo"><i class="fas fa-file-pdf text-danger"></i> Listas de Asistencia</span>
+                                    <span class="evidencia-contador" id="contador-listas">0</span>
+                                </div>
+                                <div class="evidencia-header-actions">
+                                    <button type="button" class="evidencia-btn-add" id="btn-add-lista">
+                                        <i class="fas fa-plus"></i>
+                                        <span>Agregar</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="evidencia-dropzone" id="dropzone-listas">
+                                <i class="fas fa-file-pdf"></i>
+                                <div class="dz-titulo">Arrastra tus PDFs o haz clic para seleccionarlos</div>
+                                <div class="dz-subtitulo">Solo archivos PDF, máximo 10 MB cada uno</div>
+                            </div>
+                            <input type="file" id="input-lista-asistencia" accept=".pdf" multiple style="display: none;">
+                            <div id="preview-listas" class="evidencia-grid"></div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end mt-4">
+                        <button type="button" class="btn btn-primary" id="btn-enviar-actividad">
+                            <i class="fas fa-paper-plane me-2"></i> Enviar Reporte
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade photo-preview-modal" id="photoPreviewModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-images me-2"></i>Vista Previa de Fotos</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="photo-preview-container">
+                        <div class="photo-counter" id="photo-counter">1 de 1</div>
+                        <div class="photo-view">
+                            <div class="photo-loading" id="photo-loading">
+                                <div class="spinner-border text-light" role="status">
+                                    <span class="visually-hidden">Cargando...</span>
+                                </div>
+                                <span>Cargando foto...</span>
+                            </div>
+                            <img id="preview-photo" src="" alt="Vista previa" style="display: none;">
+                        </div>
+                        <div class="photo-navigation">
+                            <button class="nav-btn" id="prev-photo"><i class="fas fa-chevron-left"></i></button>
+                            <button class="nav-btn" id="next-photo"><i class="fas fa-chevron-right"></i></button>
+                        </div>
+                        <div class="photo-thumbnails-container">
+                            <div class="photo-thumbnails" id="photo-thumbnails"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <div class="photo-actions">
+                        <button class="photo-action-btn" id="download-photo"><i class="fas fa-download me-2"></i>Descargar</button>
+                        <button class="photo-action-btn delete" id="delete-photo"><i class="fas fa-trash me-2"></i>Eliminar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="overlay">
+        <div class="spinner"></div>
+        <div id="loadingMessage">
+            <h4>Por favor espera un momento...</h4>
+            <p></p>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalPdfPreview" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-fullscreen">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title" id="pdf-preview-title"><i class="fas fa-file-pdf me-2"></i>Vista Previa</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body bg-secondary d-flex justify-content-center" style="overflow-y: auto;">
+                    <div id="pdf-render-container" class="d-flex flex-column align-items-center w-100 p-2"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+
+// =========================================================================
+// CONFIGURACIÓN CENTRALIZADA
+// =========================================================================
+
+const SESSION_KEY = 'actividadesSessionData';
+const DB_NAME = 'ActividadesAppDB';
+const STORE_NAME = 'images';
+const STORE_PENDING = 'pending_reports';
+const STORE_SESSION = 'sessionData';
+const SESSION_KEY_DB = 'currentSession';
+
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzfuUJONJupY8tnU5GEjH7QP1XyPTmnOnYUcwGQopV9F4lzMIppdLulTq94JbsPIzZK/exec";
+
+const PREVIEW_SIMPLE = 'preview-actividad';
+const PREVIEW_ANTES = 'preview-antes';
+const PREVIEW_DESPUES = 'preview-despues';
+const PREVIEW_OBSERVACIONES = 'preview-observaciones';
+
+const TIPO_SHAMPUSEADO = 'Shampuseado de Alfombras';
+const TIPO_CAPACITACIONES = 'Capacitaciones';
+
+let db;
+let selectedFiles = {};
+let reporteIdSesion = null;
+
+let listasAsistencia = [];
+let contadorListaId = 1;
+
+let $form, $fechaInput, $tipoActividadSelect, $descripcionInput, logoBase64_Cache = null;
+let currentPhotoPreview = null;
+let isSyncing = false;
+
+let modoDeteccionActivo = false;
+let gruposDuplicadosGlobal = [];
+let seleccionParaEliminar = new Set();
+let umbralSimilitud = 10;
+
+// =========================================================================
+// HELPERS
+// =========================================================================
+
+function generarReporteId() {
+    const ts = Date.now();
+    const rand = Math.random().toString(36).slice(2, 10).toUpperCase();
+    return `ACT-${ts}-${rand}`;
+}
+
+function obtenerOCrearReporteIdSesion() {
+    if (!reporteIdSesion) reporteIdSesion = generarReporteId();
+    return reporteIdSesion;
+}
+
+function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = (error) => reject(error);
+        reader.readAsDataURL(file);
+    });
+}
+
+function showLoadingOverlay(message = "Por favor espera un momento...", subMessage = "") {
+    const overlay = document.getElementById('overlay');
+    const loadingMessage = document.getElementById('loadingMessage');
+    if (loadingMessage) {
+        loadingMessage.querySelector('h4').textContent = message;
+        if (subMessage) {
+            loadingMessage.querySelector('p').textContent = subMessage;
+            loadingMessage.querySelector('p').style.display = 'block';
+        } else {
+            loadingMessage.querySelector('p').style.display = 'none';
+        }
+    }
+    overlay.style.display = 'flex';
+}
+
+function hideLoadingOverlay() {
+    document.getElementById('overlay').style.display = 'none';
+}
+
+// =========================================================================
+// INDEXEDDB
+// =========================================================================
+
+function initDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, 3);
+        request.onupgradeneeded = function(event) {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+            if (!db.objectStoreNames.contains(STORE_PENDING)) db.createObjectStore(STORE_PENDING, { keyPath: 'id', autoIncrement: true });
+            if (!db.objectStoreNames.contains(STORE_SESSION)) db.createObjectStore(STORE_SESSION, { keyPath: 'id' });
+        };
+        request.onsuccess = function(event) {
+            db = event.target.result;
+            console.log('IndexedDB de Actividades abierta correctamente');
+            actualizarContadorPendientes();
+            resolve(db);
+        };
+        request.onerror = function(event) {
+            reject(event.target.error);
+        };
+    });
+}
+
+function saveDataToStoreSession(key, data) {
+    return new Promise((resolve, reject) => {
+        if (!db) return reject('DB no inicializada');
+        const tx = db.transaction([STORE_SESSION], 'readwrite');
+        const request = tx.objectStore(STORE_SESSION).put({ id: key, data });
+        request.onsuccess = () => resolve();
+        request.onerror = (e) => reject(e.target.error);
+    });
+}
+
+function getDataFromStoreSession(key) {
+    return new Promise((resolve, reject) => {
+        if (!db) return reject('DB no inicializada');
+        const tx = db.transaction([STORE_SESSION], 'readonly');
+        const request = tx.objectStore(STORE_SESSION).get(key);
+        request.onsuccess = (e) => resolve(e.target.result ? e.target.result.data : null);
+        request.onerror = (e) => reject(e.target.error);
+    });
+}
+
+function deleteDataFromStoreSession(key) {
+    return new Promise((resolve, reject) => {
+        if (!db) return reject('DB no inicializada');
+        const tx = db.transaction([STORE_SESSION], 'readwrite');
+        const request = tx.objectStore(STORE_SESSION).delete(key);
+        request.onsuccess = () => resolve();
+        request.onerror = (e) => reject(e.target.error);
+    });
+}
+
+function saveImageToDB(base64Data) {
+    return new Promise((resolve, reject) => {
+        if (!db) return reject('La base de datos no está inicializada.');
+        const tx = db.transaction([STORE_NAME], 'readwrite');
+        const request = tx.objectStore(STORE_NAME).add({ image: base64Data });
+        request.onsuccess = (e) => resolve(e.target.result);
+        request.onerror = (e) => reject(e.target.error);
+    });
+}
+
+function getImageFromDB(id) {
+    return new Promise((resolve, reject) => {
+        if (!db) return reject('La base de datos no está inicializada.');
+        const tx = db.transaction([STORE_NAME], 'readonly');
+        const request = tx.objectStore(STORE_NAME).get(id);
+        request.onsuccess = (e) => resolve(e.target.result ? e.target.result.image : null);
+        request.onerror = (e) => reject(e.target.error);
+    });
+}
+
+function deleteImageFromDB(id) {
+    return new Promise((resolve, reject) => {
+        if (!db) return reject('La base de datos no está inicializada.');
+        const tx = db.transaction([STORE_NAME], 'readwrite');
+        const request = tx.objectStore(STORE_NAME).delete(id);
+        request.onsuccess = () => resolve();
+        request.onerror = (e) => reject(e.target.error);
+    });
+}
+
+function clearImageDB() {
+    return new Promise((resolve, reject) => {
+        if (!db) return reject('La base de datos no está inicializada.');
+        const tx = db.transaction([STORE_NAME], 'readwrite');
+        const request = tx.objectStore(STORE_NAME).clear();
+        request.onsuccess = () => resolve();
+        request.onerror = (e) => reject(e.target.error);
+    });
+}
+
+// =========================================================================
+// LOGO
+// =========================================================================
+
+function loadLogoCache() {
+    const img = document.getElementById('logo-loader');
+    if (!img) { logoBase64_Cache = null; return; }
+    const convertLogo = () => {
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
+            logoBase64_Cache = canvas.toDataURL('image/png');
+        } catch (e) {
+            console.error('Error al convertir el logo local (CORS?):', e);
+            logoBase64_Cache = null;
+        }
+    };
+    if (img.complete && img.naturalHeight !== 0) convertLogo();
+    else { img.onload = convertLogo; img.onerror = () => { logoBase64_Cache = null; }; }
+}
+
+// =========================================================================
+// MOSTRAR / OCULTAR SECCIONES
+// =========================================================================
+
+function actualizarSeccionesPorTipo() {
+    const tipo = $('#select-tipo-actividad').val();
+    const esShampu = tipo === TIPO_SHAMPUSEADO;
+    const esCapac = tipo === TIPO_CAPACITACIONES;
+
+    $('#seccion-capacitaciones').toggle(esCapac);
+    $('#seccion-conclusiones').toggle(esCapac);
+    $('#seccion-lista-asistencia').toggle(esCapac);
+
+    $('#seccion-shampuseado').toggle(esShampu);
+    $('#seccion-evidencia-dual').toggle(esShampu);
+    $('#seccion-observaciones').toggle(esShampu);
+    $('#seccion-evidencia-observaciones').toggle(esShampu);
+
+    $('#seccion-descripcion').toggle(!esShampu);
+    $('#seccion-evidencia-simple').toggle(!esShampu);
+}
+
+function actualizarNivelesShampuseado() {
+    const edificio = $('#shampu-edificio').val();
+    const $nivel = $('#shampu-nivel');
+    $nivel.empty();
+
+    if (!edificio) {
+        $nivel.append('<option value="">Seleccione un edificio primero...</option>');
+        $nivel.prop('disabled', true);
+        return;
+    }
+
+    let maxNivel = 0;
+    if (edificio === 'CBA') maxNivel = 5;
+    else if (edificio === 'CBB' || edificio === 'CBC') maxNivel = 7;
+    else if (edificio === 'Torre #1') maxNivel = 23;
+    else if (edificio === 'Torre #2') maxNivel = 24;
+
+    $nivel.append('<option value="">Seleccionar Nivel...</option>');
+    for (let i = 0; i <= maxNivel; i++) {
+        $nivel.append(`<option value="Nivel ${i}">Nivel ${i}</option>`);
+    }
+    $nivel.prop('disabled', false);
+}
+
+// =========================================================================
+// SESIÓN
+// =========================================================================
+
+async function saveSession() {
+    if (!db) return;
+
+    [PREVIEW_SIMPLE, PREVIEW_ANTES, PREVIEW_DESPUES, PREVIEW_OBSERVACIONES].forEach(pid => {
+        if (!selectedFiles[pid]) selectedFiles[pid] = [];
+    });
+
+    const sessionData = {
+        fecha: $('#fecha-actividad').val(),
+        tipoActividad: $('#select-tipo-actividad').val(),
+        descripcion: $('#descripcion-actividad').val(),
+        capacitacionNombre: $('#capacitacion-nombre').val(),
+        capacitacionParticipantes: $('#capacitacion-participantes').val(),
+        capacitacionObjetivo: $('#capacitacion-objetivo').val(),
+        capacitacionConclusiones: $('#capacitacion-conclusiones').val(),
+        shampuEdificio: $('#shampu-edificio').val(),
+        shampuNivel: $('#shampu-nivel').val(),
+        shampuObservaciones: $('#shampu-observaciones').val(),
+        fotos: selectedFiles,
+        listasAsistencia: listasAsistencia.map(x => ({
+            id: x.id, nombre: x.nombre, size: x.size, base64: x.base64, thumbnail: x.thumbnail
+        })),
+        reporteId: obtenerOCrearReporteIdSesion(),
+        timestamp: Date.now()
+    };
+
+    try { await saveDataToStoreSession(SESSION_KEY_DB, sessionData); }
+    catch (e) { console.error('Error guardando sesión:', e); }
+}
+
+async function loadSession() {
+    try {
+        const data = await getDataFromStoreSession(SESSION_KEY_DB);
+        if (!data) return;
+
+        $('#fecha-actividad').val(data.fecha);
+        $('#select-tipo-actividad').val(data.tipoActividad);
+        $('#descripcion-actividad').val(data.descripcion);
+        $('#capacitacion-nombre').val(data.capacitacionNombre || '');
+        $('#capacitacion-participantes').val(data.capacitacionParticipantes || '');
+        $('#capacitacion-objetivo').val(data.capacitacionObjetivo || '');
+        $('#capacitacion-conclusiones').val(data.capacitacionConclusiones || '');
+        $('#shampu-edificio').val(data.shampuEdificio || '');
+        if (data.shampuEdificio) {
+            actualizarNivelesShampuseado();
+            $('#shampu-nivel').val(data.shampuNivel || '');
+        }
+        $('#shampu-observaciones').val(data.shampuObservaciones || '');
+
+        if (data.reporteId) reporteIdSesion = data.reporteId;
+        else reporteIdSesion = generarReporteId();
+
+        actualizarSeccionesPorTipo();
+
+        listasAsistencia = [];
+        contadorListaId = 1;
+        if (data.listasAsistencia && Array.isArray(data.listasAsistencia)) {
+            listasAsistencia = data.listasAsistencia.map(x => ({
+                id: x.id || ('lista-' + (contadorListaId++)),
+                nombre: x.nombre,
+                size: x.size || 0,
+                base64: x.base64,
+                thumbnail: x.thumbnail || null
+            }));
+        }
+
+        if (data.fotos) selectedFiles = data.fotos;
+
+        [PREVIEW_SIMPLE, PREVIEW_ANTES, PREVIEW_DESPUES, PREVIEW_OBSERVACIONES].forEach(pid => {
+            if (!selectedFiles[pid]) selectedFiles[pid] = [];
+            renderFotosPreview(pid);
+        });
+
+        renderListasAsistencia();
+
+        await saveSession();
+    } catch (e) {
+        console.error("Error al cargar sesión:", e);
+        await clearSession();
+    }
+}
+
+async function clearSession() {
+    try { await deleteDataFromStoreSession(SESSION_KEY_DB); } catch (e) {}
+    selectedFiles = {};
+    listasAsistencia = [];
+    contadorListaId = 1;
+    reporteIdSesion = null;
+
+    $('#fecha-actividad').val('');
+    $('#select-tipo-actividad').val('');
+    $('#descripcion-actividad').val('');
+    $('#capacitacion-nombre').val('');
+    $('#capacitacion-participantes').val('');
+    $('#capacitacion-objetivo').val('');
+    $('#capacitacion-conclusiones').val('');
+    $('#shampu-edificio').val('');
+    $('#shampu-nivel').empty().prop('disabled', true);
+    $('#shampu-observaciones').val('');
+
+    $('#preview-actividad').empty();
+    $('#preview-antes').empty();
+    $('#preview-despues').empty();
+    $('#preview-observaciones').empty();
+    $('#preview-listas').empty();
+    $('#contador-listas').text('0').removeClass('activo');
+
+    actualizarSeccionesPorTipo();
+
+    if (db) {
+        try { await clearImageDB(); } catch (e) { console.error("No se pudo limpiar la IndexedDB:", e); }
+    }
+}
+
+async function checkForSavedSession() {
+    return new Promise(async (resolve) => {
+        let haySesion = false;
+        try { haySesion = !!(await getDataFromStoreSession(SESSION_KEY_DB)); } catch (e) {}
+        if (haySesion) {
+            Swal.fire({
+                title: 'Trabajo Pendiente',
+                text: 'Detectamos un reporte de actividad que no fue enviado. ¿Deseas recuperarlo?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, recuperarlo',
+                cancelButtonText: 'No, empezar de cero',
+                allowOutsideClick: false
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    await loadSession();
+                    Swal.fire('¡Listo!', 'Tu sesión ha sido restaurada.', 'success');
+                } else if (result.isDismissed) {
+                    Swal.fire({
+                        title: '¿Estás 100% seguro?',
+                        html: "Esta acción es irreversible y todo su progreso se perderá.",
+                        icon: 'error',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sí, borrar todo',
+                        cancelButtonText: 'Cancelar',
+                        confirmButtonColor: '#e74c3c'
+                    }).then(async (deleteResult) => {
+                        if (deleteResult.isConfirmed) {
+                            await clearSession();
+                            Swal.fire('Eliminado', 'Se ha borrado el progreso anterior.', 'success');
+                        } else {
+                            await loadSession();
+                            Swal.fire('¡Restaurado!', 'Tu sesión ha sido restaurada.', 'success');
+                        }
+                        resolve();
+                    });
+                    return;
+                }
+                resolve();
+            });
+        } else {
+            resolve();
+        }
+    });
+}
+
+// =========================================================================
+// RENDER FOTOS
+// =========================================================================
+
+async function renderFotosPreview(previewId) {
+    const previewContainer = document.getElementById(previewId);
+    if (!previewContainer) return;
+
+    const bloque = previewContainer.closest('.evidencia-bloque');
+    const idArray = selectedFiles[previewId] || [];
+
+    const $contador = $(`.evidencia-contador[data-count-for="${previewId}"]`);
+    if ($contador.length) {
+        $contador.text(idArray.length);
+        if (idArray.length > 0) $contador.addClass('activo');
+        else $contador.removeClass('activo');
+    }
+
+    if (bloque) {
+        if (idArray.length > 0) bloque.classList.add('has-fotos');
+        else bloque.classList.remove('has-fotos');
+    }
+
+    if (!db && idArray.length > 0) {
+        previewContainer.innerHTML = '<p class="text-danger">Error: DB de fotos no lista.</p>';
+        return;
+    }
+
+    previewContainer.innerHTML = '';
+
+    for (let i = 0; i < idArray.length; i++) {
+        const id = idArray[i];
+        try {
+            const base64String = await getImageFromDB(id);
+            if (base64String) {
+                const div = document.createElement("div");
+                div.classList.add("image-preview-item");
+                div.setAttribute('data-id', id);
+                div.setAttribute('data-index', i);
+                div.setAttribute('data-preview-id', previewId);
+                div.style.cursor = 'pointer';
+                div.onclick = function() { openPhotoPreview(previewId, i); };
+
+                const img = document.createElement("img");
+                img.src = base64String;
+                img.alt = `Vista previa ${id}`;
+                div.appendChild(img);
+
+                previewContainer.appendChild(div);
+            } else {
+                selectedFiles[previewId] = selectedFiles[previewId].filter(dbId => dbId !== id);
+                saveSession();
+            }
+        } catch (error) {
+            console.error(`Error al cargar imagen ID ${id}:`, error);
+        }
+    }
+}
+
+// =========================================================================
+// RENDER LISTAS DE ASISTENCIA
+// =========================================================================
+
+function renderListasAsistencia() {
+    const $grid = $('#preview-listas');
+    const $contador = $('#contador-listas');
+    const $bloque = $('#bloque-listas-pdf');
+    $grid.empty();
+
+    $contador.text(listasAsistencia.length);
+    if (listasAsistencia.length > 0) {
+        $contador.addClass('activo');
+        $bloque.addClass('has-fotos');
+    } else {
+        $contador.removeClass('activo');
+        $bloque.removeClass('has-fotos');
+    }
+
+    listasAsistencia.forEach((pdf, index) => {
+        const $item = $(`
+            <div class="pdf-preview-item" data-id="${pdf.id}" data-index="${index}">
+                <div class="pdf-thumb">
+                    ${pdf.thumbnail
+                        ? `<img src="${pdf.thumbnail}" alt="${pdf.nombre}">`
+                        : `<div class="pdf-thumb-loading"><i class="fas fa-spinner fa-spin"></i></div>`}
+                </div>
+                <span class="pdf-badge">PDF</span>
+                <button type="button" class="pdf-remove" title="Eliminar PDF" data-id="${pdf.id}">
+                    <i class="fas fa-times"></i>
+                </button>
+                <div class="pdf-info" title="${pdf.nombre}">${pdf.nombre}</div>
+            </div>
+        `);
+
+        $item.find('.pdf-thumb').on('click', function(e) {
+            e.stopPropagation();
+            abrirVisorPdfBase64(pdf.base64, pdf.nombre);
+        });
+
+        $item.find('.pdf-remove').on('click', async function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            const id = $(this).data('id');
+            await eliminarListaAsistencia(id);
+        });
+
+        $grid.append($item);
+
+        if (!pdf.thumbnail && pdf.base64) {
+            generarThumbnailPDF(pdf.base64).then(thumb => {
+                if (thumb) {
+                    pdf.thumbnail = thumb;
+                    $(`.pdf-preview-item[data-id="${pdf.id}"] .pdf-thumb`).html(`<img src="${thumb}" alt="${pdf.nombre}">`);
+                    saveSession();
+                }
+            });
+        }
+    });
+}
+
+// =========================================================================
+// THUMBNAIL DE PDF
+// =========================================================================
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+async function generarThumbnailPDF(base64DataUrl) {
+    try {
+        const base64 = base64DataUrl.includes(',') ? base64DataUrl.split(',')[1] : base64DataUrl;
+        const pdfData = atob(base64);
+        const loadingTask = pdfjsLib.getDocument({ data: pdfData });
+        const pdf = await loadingTask.promise;
+        const page = await pdf.getPage(1);
+        const viewport = page.getViewport({ scale: 0.5 });
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        await page.render({ canvasContext: context, viewport }).promise;
+        const thumb = canvas.toDataURL('image/jpeg', 0.7);
+        canvas.width = 0; canvas.height = 0;
+        return thumb;
+    } catch (error) {
+        console.error('Error generando thumbnail PDF:', error);
+        return null;
+    }
+}
+
+// =========================================================================
+// AGREGAR / ELIMINAR PDF
+// =========================================================================
+
+async function procesarArchivosPDF(files) {
+    if (!files || files.length === 0) return;
+
+    let procesados = 0;
+    let errores = 0;
+    const erroresMsgs = [];
+
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+
+        const nombreLower = (file.name || '').toLowerCase();
+        if (!nombreLower.endsWith('.pdf')) {
+            errores++;
+            erroresMsgs.push(`${file.name}: no es PDF`);
+            continue;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+            errores++;
+            erroresMsgs.push(`${file.name}: mayor a 10 MB`);
+            continue;
+        }
+
+        try {
+            const headBytes = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+            const head = String.fromCharCode(...headBytes);
+            if (head !== '%PDF') {
+                errores++;
+                erroresMsgs.push(`${file.name}: no es un PDF válido`);
+                continue;
+            }
+
+            const base64 = await fileToBase64(file);
+            const id = 'lista-' + (contadorListaId++);
+            const item = {
+                id: id,
+                nombre: file.name,
+                size: file.size,
+                base64: base64,
+                thumbnail: null
+            };
+            listasAsistencia.push(item);
+            procesados++;
+        } catch (e) {
+            console.error('Error procesando PDF:', e);
+            errores++;
+            erroresMsgs.push(`${file.name}: error al leer`);
+        }
+    }
+
+    renderListasAsistencia();
+    await saveSession();
+
+    if (procesados > 0) {
+        Swal.fire({
+            icon: errores === 0 ? 'success' : 'warning',
+            title: errores === 0
+                ? `${procesados} ${procesados === 1 ? 'PDF agregado' : 'PDFs agregados'}`
+                : 'Procesamiento parcial',
+            html: errores > 0
+                ? `<div class="text-start small">${erroresMsgs.map(m => `<div>• ${m}</div>`).join('')}</div>`
+                : undefined,
+            toast: errores === 0,
+            position: 'top-end',
+            showConfirmButton: errores !== 0,
+            timer: errores === 0 ? 2500 : undefined
+        });
+    } else if (errores > 0) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'No se agregó ningún PDF',
+            html: `<div class="text-start small">${erroresMsgs.map(m => `<div>• ${m}</div>`).join('')}</div>`
+        });
+    }
+}
+
+async function eliminarListaAsistencia(id) {
+    const index = listasAsistencia.findIndex(x => x.id === id);
+    if (index === -1) return;
+
+    const pdf = listasAsistencia[index];
+
+    const result = await Swal.fire({
+        title: '¿Eliminar este PDF?',
+        text: pdf.nombre,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef5350',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (result.isConfirmed) {
+        listasAsistencia.splice(index, 1);
+        renderListasAsistencia();
+        await saveSession();
+        Swal.fire({
+            icon: 'success',
+            title: 'Eliminado',
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 2000
+        });
+    }
+}
+
+// =========================================================================
+// VISOR PDF
+// =========================================================================
+
+async function abrirVisorPdfBase64(base64DataUrl, titulo) {
+    const container = document.getElementById('pdf-render-container');
+    container.innerHTML = '';
+    $('#pdf-preview-title').html(`<i class="fas fa-file-pdf me-2"></i>${titulo || 'Vista Previa'}`);
+    $('#modalPdfPreview').modal('show');
+
+    try {
+        const base64 = base64DataUrl.includes(',') ? base64DataUrl.split(',')[1] : base64DataUrl;
+        const pdfData = atob(base64);
+        const loadingTask = pdfjsLib.getDocument({ data: pdfData });
+        const pdf = await loadingTask.promise;
+
+        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+            const page = await pdf.getPage(pageNum);
+            const vpO = page.getViewport({ scale: 1 });
+            const containerWidth = container.clientWidth || window.innerWidth;
+            const desiredWidth = containerWidth - 20;
+            const visualScale = desiredWidth / vpO.width;
+            const pixelRatio = (window.devicePixelRatio || 1) * 1.5;
+            const viewport = page.getViewport({ scale: visualScale * pixelRatio });
+
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            canvas.style.width = "100%";
+            canvas.style.maxWidth = `${desiredWidth}px`;
+            canvas.style.height = "auto";
+            canvas.style.marginBottom = "20px";
+            canvas.style.boxShadow = "0 4px 10px rgba(0,0,0,0.3)";
+            canvas.style.borderRadius = "4px";
+
+            container.appendChild(canvas);
+            await page.render({ canvasContext: context, viewport }).promise;
+        }
+    } catch (renderError) {
+        console.error(renderError);
+        Swal.fire('Error Visualización', 'No se pudo renderizar el PDF.', 'error');
+    }
+}
+
+// =========================================================================
+// GALERÍA + DRAG & DROP (imágenes)
+// =========================================================================
+
+async function handleImageFiles(files, previewId) {
+    if (!db) return;
+    if (!selectedFiles[previewId]) selectedFiles[previewId] = [];
+
+    let procesadas = 0;
+    let errores = 0;
+
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (!file.type.match('image.*')) { errores++; continue; }
+        try {
+            const base64Data = await fileToBase64(file);
+            const newId = await saveImageToDB(base64Data);
+            selectedFiles[previewId].push(newId);
+            procesadas++;
+        } catch (e) {
+            console.error('Error guardando imagen:', e);
+            errores++;
+        }
+    }
+
+    await renderFotosPreview(previewId);
+    await saveSession();
+
+    if (procesadas > 0) {
+        Swal.fire({
+            icon: errores === 0 ? 'success' : 'warning',
+            title: errores === 0 ? `${procesadas} ${procesadas === 1 ? 'imagen agregada' : 'imágenes agregadas'}` : 'Procesamiento parcial',
+            html: errores > 0 ? `Agregadas: ${procesadas}<br>Errores: ${errores}` : undefined,
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 2500
+        });
+    }
+}
+
+function setupEvidenciaBloque($bloque) {
+    const bloqueEl = $bloque[0];
+    if (!bloqueEl) return;
+
+    const previewId = $bloque.data('preview');
+    const inputId = $bloque.data('input');
+    const $input = $('#' + inputId);
+
+    $bloque.find('.evidencia-btn-add, .evidencia-dropzone').on('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        $input[0].click();
+    });
+
+    $input.on('change', async function(e) {
+        if (e.target.files && e.target.files.length > 0) {
+            await handleImageFiles(e.target.files, previewId);
+            this.value = '';
+        }
+    });
+
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        bloqueEl.addEventListener(eventName, function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }, false);
+    });
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        bloqueEl.addEventListener(eventName, function() {
+            this.classList.add('drag-over');
+        }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        bloqueEl.addEventListener(eventName, function() {
+            this.classList.remove('drag-over');
+        }, false);
+    });
+
+    bloqueEl.addEventListener('drop', async function(e) {
+        const dt = e.dataTransfer;
+        if (dt && dt.files && dt.files.length > 0) {
+            await handleImageFiles(dt.files, previewId);
+        }
+    }, false);
+}
+
+// =========================================================================
+// VISTA PREVIA DE FOTOS
+// =========================================================================
+
+function openPhotoPreview(previewId, startIndex = 0) {
+    const idArray = selectedFiles[previewId] || [];
+    if (idArray.length === 0) return;
+
+    currentPhotoPreview = {
+        previewId: previewId,
+        photoIds: [...idArray],
+        currentIndex: startIndex,
+        totalPhotos: idArray.length
+    };
+
+    const photoPreviewModal = new bootstrap.Modal(document.getElementById('photoPreviewModal'), {
+        backdrop: 'static',
+        keyboard: false
+    });
+    photoPreviewModal.show();
+
+    loadPhotoForPreview();
+    updatePhotoCounter();
+    generatePhotoThumbnails();
+    setupPhotoPreviewEvents();
+}
+
+async function loadPhotoForPreview() {
+    if (!currentPhotoPreview) return;
+    const { photoIds, currentIndex } = currentPhotoPreview;
+    const currentId = photoIds[currentIndex];
+    if (!currentId) return;
+
+    $('#photo-loading').show();
+    $('#preview-photo').hide();
+
+    try {
+        const base64String = await getImageFromDB(currentId);
+        if (base64String) {
+            const img = document.getElementById('preview-photo');
+            img.src = base64String;
+            setTimeout(() => {
+                $('#photo-loading').hide();
+                $('#preview-photo').show().addClass('photo-enter-animation');
+                setTimeout(() => { $('#preview-photo').removeClass('photo-enter-animation'); }, 300);
+            }, 200);
+            updateNavigationButtons();
+            updateActiveThumbnail();
+        }
+    } catch (error) {
+        $('#photo-loading').html('<span>Error cargando la foto</span>');
+    }
+}
+
+async function generatePhotoThumbnails() {
+    if (!currentPhotoPreview) return;
+    const { photoIds } = currentPhotoPreview;
+    const $thumbnailsContainer = $('#photo-thumbnails');
+    $thumbnailsContainer.empty();
+
+    for (let i = 0; i < photoIds.length; i++) {
+        try {
+            const base64String = await getImageFromDB(photoIds[i]);
+            if (base64String) {
+                const thumbnail = document.createElement('div');
+                thumbnail.className = 'photo-thumbnail';
+                if (i === currentPhotoPreview.currentIndex) thumbnail.classList.add('active');
+                thumbnail.setAttribute('data-index', i);
+                thumbnail.onclick = function() {
+                    const index = parseInt(this.getAttribute('data-index'));
+                    if (index !== currentPhotoPreview.currentIndex) {
+                        currentPhotoPreview.currentIndex = index;
+                        updatePhotoCounter();
+                        loadPhotoForPreview();
+                    }
+                };
+                thumbnail.innerHTML = `
+                    <img src="${base64String}" alt="Miniatura ${i + 1}">
+                    <div class="photo-thumbnail-index">${i + 1}</div>
+                `;
+                $thumbnailsContainer.append(thumbnail);
+            }
+        } catch (error) { console.error(`Error cargando miniatura ${i}:`, error); }
+    }
+}
+
+function updateActiveThumbnail() {
+    if (!currentPhotoPreview) return;
+    const { currentIndex } = currentPhotoPreview;
+    $('.photo-thumbnail').removeClass('active');
+    $(`.photo-thumbnail[data-index="${currentIndex}"]`).addClass('active');
+    const activeThumbnail = $(`.photo-thumbnail[data-index="${currentIndex}"]`)[0];
+    if (activeThumbnail) activeThumbnail.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+}
+
+function updatePhotoCounter() {
+    if (!currentPhotoPreview) return;
+    const { currentIndex, totalPhotos } = currentPhotoPreview;
+    $('#photo-counter').text(`${currentIndex + 1} de ${totalPhotos}`);
+}
+
+function updateNavigationButtons() {
+    if (!currentPhotoPreview) return;
+    const { currentIndex, totalPhotos } = currentPhotoPreview;
+    if (currentIndex === 0) $('#prev-photo').addClass('disabled'); else $('#prev-photo').removeClass('disabled');
+    if (currentIndex === totalPhotos - 1) $('#next-photo').addClass('disabled'); else $('#next-photo').removeClass('disabled');
+}
+
+function setupPhotoPreviewEvents() {
+    $('#prev-photo').off('click').on('click', function() {
+        if (!currentPhotoPreview || $(this).hasClass('disabled')) return;
+        currentPhotoPreview.currentIndex--;
+        updatePhotoCounter();
+        loadPhotoForPreview();
+    });
+
+    $('#next-photo').off('click').on('click', function() {
+        if (!currentPhotoPreview || $(this).hasClass('disabled')) return;
+        currentPhotoPreview.currentIndex++;
+        updatePhotoCounter();
+        loadPhotoForPreview();
+    });
+
+    $('#download-photo').off('click').on('click', async function() {
+        if (!currentPhotoPreview) return;
+        const { photoIds, currentIndex } = currentPhotoPreview;
+        const currentId = photoIds[currentIndex];
+        if (!currentId) return;
+        try {
+            const base64String = await getImageFromDB(currentId);
+            if (base64String) {
+                const link = document.createElement('a');
+                link.href = base64String;
+                link.download = `foto_${currentId}.jpg`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                Swal.fire({ icon: 'success', title: 'Foto descargada', toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
+            }
+        } catch (error) { Swal.fire('Error', 'No se pudo descargar la foto.', 'error'); }
+    });
+
+    $('#delete-photo').off('click').on('click', async function() {
+        if (!currentPhotoPreview) return;
+        const { previewId, photoIds, currentIndex } = currentPhotoPreview;
+        const currentId = photoIds[currentIndex];
+        if (!currentId) return;
+
+        Swal.fire({
+            title: '¿Eliminar esta foto?',
+            text: "Esta acción no se puede deshacer.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef5350',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar'
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                try {
+                    await deleteImageFromDB(currentId);
+                    if (selectedFiles[previewId]) {
+                        selectedFiles[previewId] = selectedFiles[previewId].filter(id => id !== currentId);
+                    }
+                    currentPhotoPreview.photoIds = selectedFiles[previewId] || [];
+                    currentPhotoPreview.totalPhotos = currentPhotoPreview.photoIds.length;
+
+                    if (currentPhotoPreview.totalPhotos === 0) {
+                        const m = bootstrap.Modal.getInstance(document.getElementById('photoPreviewModal'));
+                        if (m) m.hide();
+                    } else {
+                        if (currentPhotoPreview.currentIndex >= currentPhotoPreview.totalPhotos) {
+                            currentPhotoPreview.currentIndex = currentPhotoPreview.totalPhotos - 1;
+                        }
+                        updatePhotoCounter();
+                        loadPhotoForPreview();
+                        generatePhotoThumbnails();
+                    }
+                    await renderFotosPreview(previewId);
+                    await saveSession();
+                    Swal.fire({ icon: 'success', title: 'Foto eliminada', toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
+                } catch (error) { Swal.fire('Error', 'No se pudo eliminar la foto.', 'error'); }
+            }
+        });
+    });
+
+    $('#photoPreviewModal').off('shown.bs.modal').on('shown.bs.modal', function() {
+        $(document).on('keydown.photoPreview', function(e) {
+            if (!currentPhotoPreview) return;
+            switch(e.key) {
+                case 'ArrowLeft':
+                    if (currentPhotoPreview.currentIndex > 0) {
+                        e.preventDefault();
+                        currentPhotoPreview.currentIndex--;
+                        updatePhotoCounter();
+                        loadPhotoForPreview();
+                    }
+                    break;
+                case 'ArrowRight':
+                    if (currentPhotoPreview.currentIndex < currentPhotoPreview.totalPhotos - 1) {
+                        e.preventDefault();
+                        currentPhotoPreview.currentIndex++;
+                        updatePhotoCounter();
+                        loadPhotoForPreview();
+                    }
+                    break;
+                case 'Escape':
+                    const m = bootstrap.Modal.getInstance(document.getElementById('photoPreviewModal'));
+                    if (m) m.hide();
+                    break;
+            }
+        });
+    });
+
+    $('#photoPreviewModal').off('hidden.bs.modal').on('hidden.bs.modal', function() {
+        $(document).off('keydown.photoPreview');
+        currentPhotoPreview = null;
+    });
+}
+
+// =========================================================================
+// PDF: LISTA DE ASISTENCIA A IMÁGENES
+// =========================================================================
+
+async function addPDFAsImagesToDoc(doc, pdfBase64DataUrl, yPosRef, pageHeight, margin) {
+    try {
+        const base64 = pdfBase64DataUrl.includes(',') ? pdfBase64DataUrl.split(',')[1] : pdfBase64DataUrl;
+        const pdfData = atob(base64);
+        const loadingTask = pdfjsLib.getDocument({ data: pdfData });
+        const pdf = await loadingTask.promise;
+        const numPages = pdf.numPages;
+
+        for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+            const page = await pdf.getPage(pageNum);
+            const viewport = page.getViewport({ scale: 2.5 });
+
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d', { alpha: false, willReadFrequently: false });
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            context.imageSmoothingEnabled = true;
+            context.imageSmoothingQuality = 'high';
+
+            await page.render({ canvasContext: context, viewport, background: 'white' }).promise;
+
+            const imageBase64 = canvas.toDataURL('image/jpeg', 0.92);
+
+            const pageWidth = doc.internal.pageSize.width;
+            const imgWidth = pageWidth - margin * 2;
+            const imgHeight = (viewport.height * imgWidth) / viewport.width;
+
+            if (yPosRef.y + imgHeight > pageHeight - margin) {
+                doc.addPage();
+                yPosRef.y = margin;
+            }
+
+            doc.addImage(imageBase64, 'JPEG', margin, yPosRef.y, imgWidth, imgHeight);
+            yPosRef.y += imgHeight + 10;
+
+            canvas.width = 0; canvas.height = 0;
+        }
+        return true;
+    } catch (error) {
+        console.error("Error convirtiendo PDF a imágenes:", error);
+        return false;
+    }
+}
+
+// =========================================================================
+// GENERACIÓN DEL PDF
+// =========================================================================
+
+function compressImageForPDF(base64String, quality = 0.7) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const maxWidth = 800;
+            let width = img.width, height = img.height;
+            if (width > maxWidth) {
+                const ratio = maxWidth / width;
+                width = maxWidth;
+                height = height * ratio;
+            }
+            canvas.width = width; canvas.height = height;
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+            canvas.width = 0; canvas.height = 0;
+            img.src = '';
+            resolve(compressedBase64);
+        };
+        img.onerror = () => resolve(null);
+        img.src = base64String;
+    });
+}
+
+const addPageFooters = (doc) => {
+    const pageCount = doc.internal.getNumberOfPages();
+    const pageHeight = doc.internal.pageSize.height;
+    const pageWidth = doc.internal.pageSize.width;
+    const margin = 40;
+    for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(150, 150, 150);
+        doc.text(`Página ${i} de ${pageCount}`, pageWidth - margin, pageHeight - 15, { align: 'right' });
+        doc.setTextColor(51, 51, 51);
+    }
+};
+
+/**
+ * Añade fotos en grid 3xN. Como ahora cada evidencia arranca en hoja nueva,
+ * el grid siempre empieza desde el top (yPosRef.y = margin).
+ * `yPosRef` debe venir con `y = margin` cuando se llama justo después de un salto.
+ */
+const addPhotos = async (doc, imageIds, yPosRef, pageHeight, margin) => {
+    if (!imageIds || imageIds.length === 0) return yPosRef.y;
+    let yPos = yPosRef.y + 10;
+    const imgWidth = 160, imgHeight = 120;
+    const marginX = margin;
+    const spacingX = (doc.internal.pageSize.width - margin * 2 - imgWidth * 3) / 2;
+    const spacingY = imgHeight + 15;
+    let imgCount = 0;
+
+    for (const id of imageIds) {
+        await new Promise(resolve => setTimeout(resolve, 0));
+        const base64String = await getImageFromDB(id);
+        if (!base64String) continue;
+        const compressedBase64 = await compressImageForPDF(base64String);
+        if (!compressedBase64) continue;
+
+        const col = imgCount % 3;
+        const row = Math.floor(imgCount / 3);
+        let x = col * (imgWidth + spacingX) + marginX;
+        let y = row * spacingY + yPos;
+
+        if (y + imgHeight > pageHeight - margin) {
+            doc.addPage();
+            yPos = margin;
+            imgCount = 0;
+            y = Math.floor(imgCount / 3) * spacingY + yPos;
+        }
+
+        doc.addImage(compressedBase64, 'JPEG', x, y, imgWidth, imgHeight);
+        imgCount++;
+    }
+
+    yPosRef.y = yPos + (Math.ceil(imgCount / 3) * spacingY) + 20;
+    return yPosRef.y;
+};
+
+// Barra oscura de sección (con salto de hoja forzado)
+const addSectionTitle = (doc, title, yPosRef, forceNewPage = false) => {
+    const pageHeight = doc.internal.pageSize.height;
+    const pageWidth = doc.internal.pageSize.width;
+    const margin = 40;
+    const rectHeight = 22;
+    const spacingAfter = 15;
+    if (forceNewPage || (yPosRef.y + rectHeight + spacingAfter > pageHeight - margin)) {
+        doc.addPage();
+        yPosRef.y = margin;
+    }
+    doc.setFillColor(44, 62, 80);
+    doc.rect(margin, yPosRef.y, pageWidth - margin * 2, rectHeight, 'F');
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255, 255, 255);
+    doc.text(title, margin + 10, yPosRef.y + (rectHeight / 2) + 4);
+    doc.setTextColor(51, 51, 51);
+    yPosRef.y += rectHeight + spacingAfter;
+};
+
+// Subsección con subrayado azul (solo el subrayado es azul; el texto en negro)
+const addSubsectionTitle = (doc, title, yPosRef, margin) => {
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+
+    if (yPosRef.y + 30 > pageHeight - margin) { doc.addPage(); yPosRef.y = margin; }
+
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 0); // negro
+    doc.text(title, margin, yPosRef.y);
+
+    const textWidth = doc.getTextWidth(title);
+    doc.setDrawColor(52, 152, 219);
+    doc.setLineWidth(1.2);
+    doc.line(margin, yPosRef.y + 3, margin + textWidth, yPosRef.y + 3);
+
+    doc.setTextColor(0, 0, 0); // negro para el contenido que venga después
+    doc.setLineWidth(0.2);
+    yPosRef.y += 16;
+};
+
+const addTextoParrafo = (doc, texto, yPosRef, margin) => {
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+    if (!texto || !String(texto).trim()) return;
+    doc.setFontSize(10.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(0, 0, 0); // negro puro
+    const lineas = doc.splitTextToSize(String(texto), pageWidth - margin * 2);
+    for (let i = 0; i < lineas.length; i++) {
+        if (yPosRef.y + 14 > pageHeight - margin) { doc.addPage(); yPosRef.y = margin; }
+        doc.text(lineas[i], margin, yPosRef.y);
+        yPosRef.y += 14;
+    }
+    yPosRef.y += 8;
+};
+
+async function addPortadaReporte(doc, data, yPosRef) {
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+    const margin = 40;
+    const innerWidth = pageWidth - margin * 2;
+
+    const bannerHeight = 64;
+    doc.setFillColor(44, 62, 80);
+    doc.rect(0, 0, pageWidth, bannerHeight, 'F');
+
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255, 255, 255);
+    doc.text('REPORTE DE ACTIVIDADES', pageWidth / 2, 32, { align: 'center' });
+
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(189, 213, 234);
+    doc.text(String(data.tipoActividad || ''), pageWidth / 2, 50, { align: 'center' });
+
+    doc.setFillColor(52, 152, 219);
+    doc.rect(0, bannerHeight, pageWidth, 4, 'F');
+
+    yPosRef.y = bannerHeight + 22;
+
+    const logoBase64 = logoBase64_Cache;
+    const logoWidth = 40, logoHeight = 40;
+    let logoX = margin;
+    let logoTouched = false;
+
+    if (logoBase64) {
+        try {
+            doc.addImage(logoBase64, "PNG", logoX, yPosRef.y, logoWidth, logoHeight);
+            logoTouched = true;
+        } catch (e) {}
+    }
+
+    let fechaFormateada = 'N/A';
+    if (data.fecha) {
+        try {
+            const fechaObj = new Date(data.fecha + 'T00:00:00');
+            fechaFormateada = fechaObj.toLocaleDateString('es-ES', {
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+            });
+            fechaFormateada = fechaFormateada.charAt(0).toUpperCase() + fechaFormateada.slice(1);
+        } catch (e) { fechaFormateada = data.fecha; }
+    }
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(120, 130, 140);
+    doc.text('Fecha de emisión', pageWidth - margin, yPosRef.y + 10, { align: 'right' });
+
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(44, 62, 80);
+    doc.text(fechaFormateada, pageWidth - margin, yPosRef.y + 26, { align: 'right' });
+
+    if (logoTouched) {
+        yPosRef.y += logoHeight + 14;
+    } else {
+        yPosRef.y += 34;
+    }
+
+    doc.setDrawColor(220, 225, 230);
+    doc.setLineWidth(0.8);
+    doc.line(margin, yPosRef.y, pageWidth - margin, yPosRef.y);
+    yPosRef.y += 20;
+
+    const metadata = [];
+
+    if (data.tipoActividad === TIPO_CAPACITACIONES) {
+        metadata.push({ label: 'Nombre de la Capacitación', value: data.capacitacionNombre || '—' });
+        metadata.push({ label: 'Número de Participantes', value: String(data.capacitacionParticipantes || '—') });
+    } else if (data.tipoActividad === TIPO_SHAMPUSEADO) {
+        metadata.push({ label: 'Edificio', value: data.shampuEdificio || '—' });
+        metadata.push({ label: 'Nivel', value: data.shampuNivel || '—' });
+    } else {
+        metadata.push({ label: 'Tipo de Actividad', value: data.tipoActividad || '—' });
+    }
+
+    if (metadata.length > 0) {
+        doc.autoTable({
+            startY: yPosRef.y,
+            body: metadata.map(m => [m.label, m.value]),
+            theme: 'plain',
+            styles: {
+                fontSize: 10.5,
+                cellPadding: { top: 6, right: 10, bottom: 6, left: 10 },
+                lineColor: [225, 230, 235],
+                lineWidth: 0.4,
+                textColor: [51, 51, 51],
+                valign: 'middle'
+            },
+            columnStyles: {
+                0: {
+                    cellWidth: innerWidth * 0.38,
+                    fontStyle: 'bold',
+                    fillColor: [245, 248, 252],
+                    textColor: [44, 62, 80]
+                },
+                1: {
+                    cellWidth: innerWidth * 0.62,
+                    fontStyle: 'normal'
+                }
+            },
+            margin: { left: margin, right: margin },
+            tableLineColor: [225, 230, 235],
+            tableLineWidth: 0.4
+        });
+
+        yPosRef.y = doc.autoTable.previous.finalY + 22;
+    }
+
+    if (data.tipoActividad === TIPO_CAPACITACIONES) {
+        addSubsectionTitle(doc, 'Objetivo de la Capacitación', yPosRef, margin);
+        addTextoParrafo(doc, data.capacitacionObjetivo || '—', yPosRef, margin);
+
+        addSubsectionTitle(doc, 'Descripción de Actividad', yPosRef, margin);
+        addTextoParrafo(doc, data.descripcion || '—', yPosRef, margin);
+
+        addSubsectionTitle(doc, 'Conclusiones', yPosRef, margin);
+        addTextoParrafo(doc, data.capacitacionConclusiones || '—', yPosRef, margin);
+    } else if (data.tipoActividad !== TIPO_SHAMPUSEADO) {
+        addSubsectionTitle(doc, 'Descripción de Actividad', yPosRef, margin);
+        addTextoParrafo(doc, data.descripcion || '—', yPosRef, margin);
+    }
+
+    if (yPosRef.y < pageHeight - margin - 10) {
+        doc.setDrawColor(220, 225, 230);
+        doc.setLineWidth(0.8);
+        doc.line(margin, yPosRef.y, pageWidth - margin, yPosRef.y);
+        yPosRef.y += 15;
+    }
+}
+
+async function generatePDFContent(doc, data, yPosRef) {
+    const pageHeight = doc.internal.pageSize.height;
+    const margin = 40;
+
+    const ALTO_FILA_FOTOS = 120 + 15;
+    const ALTO_TITULO = 22 + 15;
+    const ALTURA_MINIMA_EVIDENCIA = ALTO_TITULO + ALTO_FILA_FOTOS + margin;
+
+    const cabePrimeraEvidencia = (espacioRestante) => espacioRestante >= ALTURA_MINIMA_EVIDENCIA;
+
+    if (data.tipoActividad === TIPO_SHAMPUSEADO) {
+        let primeraSeccion = true;
+
+        // === ANTES ===
+        if (data.fotos && data.fotos[PREVIEW_ANTES] && data.fotos[PREVIEW_ANTES].length > 0) {
+            const espacioRestante = pageHeight - yPosRef.y;
+            const force = primeraSeccion ? !cabePrimeraEvidencia(espacioRestante) : true;
+            addSectionTitle(doc, 'Evidencia - Antes', yPosRef, force);
+            await addPhotos(doc, data.fotos[PREVIEW_ANTES], yPosRef, pageHeight, margin);
+            primeraSeccion = false;
+        }
+
+        // === DESPUÉS ===
+        if (data.fotos && data.fotos[PREVIEW_DESPUES] && data.fotos[PREVIEW_DESPUES].length > 0) {
+            const espacioRestante = pageHeight - yPosRef.y;
+            const force = primeraSeccion ? !cabePrimeraEvidencia(espacioRestante) : true;
+            addSectionTitle(doc, 'Evidencia - Después', yPosRef, force);
+            await addPhotos(doc, data.fotos[PREVIEW_DESPUES], yPosRef, pageHeight, margin);
+            primeraSeccion = false;
+        }
+
+        // === OBSERVACIONES + EVIDENCIA DE OBSERVACIONES ===
+        const tieneObservaciones = data.shampuObservaciones && data.shampuObservaciones.trim();
+        const tieneEvidenciaObs = data.fotos && data.fotos[PREVIEW_OBSERVACIONES] && data.fotos[PREVIEW_OBSERVACIONES].length > 0;
+
+        if (tieneObservaciones || tieneEvidenciaObs) {
+            const espacioRestante = pageHeight - yPosRef.y;
+            const ALTO_MINIMO_OBS = ALTO_TITULO + (14 * 2) + margin;
+            const forceFinal = primeraSeccion
+                ? (espacioRestante < (tieneEvidenciaObs ? ALTURA_MINIMA_EVIDENCIA : ALTO_MINIMO_OBS))
+                : true;
+
+            addSectionTitle(doc, 'Observaciones', yPosRef, forceFinal);
+
+            if (tieneObservaciones) {
+                addTextoParrafo(doc, data.shampuObservaciones, yPosRef, margin);
+            }
+            if (tieneEvidenciaObs) {
+                addSectionTitle(doc, 'Evidencia de Observaciones', yPosRef, false);
+                await addPhotos(doc, data.fotos[PREVIEW_OBSERVACIONES], yPosRef, pageHeight, margin);
+            }
+            primeraSeccion = false;
+        }
+    } else {
+        let primeraSeccion = true;
+
+        // === EVIDENCIA SIMPLE ===
+        if (data.fotos && data.fotos[PREVIEW_SIMPLE] && data.fotos[PREVIEW_SIMPLE].length > 0) {
+            const espacioRestante = pageHeight - yPosRef.y;
+            const force = primeraSeccion ? !cabePrimeraEvidencia(espacioRestante) : true;
+            addSectionTitle(doc, 'Evidencia Fotográfica', yPosRef, force);
+            await addPhotos(doc, data.fotos[PREVIEW_SIMPLE], yPosRef, pageHeight, margin);
+            primeraSeccion = false;
+        }
+
+        // === LISTAS DE ASISTENCIA ===
+        // SIN encabezado: se incrustan directamente.
+        // Se fuerza nueva hoja si ya hubo evidencia antes.
+        if (data.tipoActividad === TIPO_CAPACITACIONES && listasAsistencia.length > 0) {
+            const espacioRestante = pageHeight - yPosRef.y;
+            const ALTO_MINIMO_LISTAS = 100 + margin;
+            if (!primeraSeccion || espacioRestante < ALTO_MINIMO_LISTAS) {
+                doc.addPage();
+                yPosRef.y = margin;
+            }
+
+            for (let i = 0; i < listasAsistencia.length; i++) {
+                const pdf = listasAsistencia[i];
+                if (!pdf.base64) continue;
+                if (yPosRef.y + 40 > pageHeight - margin) { doc.addPage(); yPosRef.y = margin; }
+                const exito = await addPDFAsImagesToDoc(doc, pdf.base64, yPosRef, pageHeight, margin);
+                if (!exito) {
+                    doc.setFontSize(11);
+                    doc.setFont('helvetica', 'normal');
+                    doc.setTextColor(239, 83, 80);
+                    doc.text(`No se pudo procesar: ${pdf.nombre}`, margin, yPosRef.y);
+                    yPosRef.y += 20;
+                    doc.setTextColor(0, 0, 0);
+                }
+            }
+        }
+    }
+}
+
+
+function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+}
+
+function construirNombreArchivo(data) {
+    let fechaFormateada = 'dd-mm-aaaa';
+    if (data.fecha) {
+        const parts = data.fecha.split('-');
+        if (parts.length === 3) fechaFormateada = `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+
+    if (data.tipoActividad === TIPO_SHAMPUSEADO) {
+        const edificio = data.shampuEdificio || '';
+        const nivel = data.shampuNivel || '';
+        return `${fechaFormateada} - ${edificio} - ${nivel}.pdf`;
+    }
+
+    if (data.tipoActividad === TIPO_CAPACITACIONES) {
+        const nombreCap = (data.capacitacionNombre || '').trim();
+        if (nombreCap) {
+            const nombreSanitizado = nombreCap.replace(/[\\/:*?"<>|]/g, '-');
+            return `${fechaFormateada} - ${nombreSanitizado}.pdf`;
+        }
+    }
+
+    return `${fechaFormateada} - ${data.tipoActividad}.pdf`;
+}
+
+async function generatePDF() {
+    Swal.close();
+    showLoadingOverlay("Procesando...", "Generando documento PDF...");
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('p', 'pt', 'letter');
+
+    let data;
+    try { data = await getDataFromStoreSession(SESSION_KEY_DB); } catch (e) { data = null; }
+    if (!data) {
+        hideLoadingOverlay();
+        Swal.fire('Error', 'No se encontraron datos de sesión.', 'error');
+        return;
+    }
+
+    if (!data.fecha || !data.tipoActividad) {
+        hideLoadingOverlay();
+        Swal.fire('Campos Incompletos', 'Debe completar todos los campos requeridos.', 'warning');
+        return;
+    }
+
+    if (data.tipoActividad === TIPO_SHAMPUSEADO) {
+        if (!data.shampuEdificio || !data.shampuNivel) {
+            hideLoadingOverlay();
+            Swal.fire('Campos Incompletos', 'Debe seleccionar Edificio y Nivel.', 'warning');
+            return;
+        }
+        if (!data.fotos || !data.fotos[PREVIEW_ANTES] || data.fotos[PREVIEW_ANTES].length === 0) {
+            hideLoadingOverlay();
+            Swal.fire('Foto Requerida', 'Debe agregar al menos una imagen en "Antes".', 'warning');
+            return;
+        }
+        if (!data.fotos || !data.fotos[PREVIEW_DESPUES] || data.fotos[PREVIEW_DESPUES].length === 0) {
+            hideLoadingOverlay();
+            Swal.fire('Foto Requerida', 'Debe agregar al menos una imagen en "Después".', 'warning');
+            return;
+        }
+    } else {
+        if (!data.descripcion || !data.descripcion.trim()) {
+            hideLoadingOverlay();
+            Swal.fire('Campo Requerido', 'Debe ingresar una descripción de la actividad.', 'warning');
+            return;
+        }
+        if (!data.fotos || !data.fotos[PREVIEW_SIMPLE] || data.fotos[PREVIEW_SIMPLE].length === 0) {
+            hideLoadingOverlay();
+            Swal.fire('Foto Requerida', 'Debe agregar al menos una imagen como evidencia.', 'warning');
+            return;
+        }
+        if (data.tipoActividad === TIPO_CAPACITACIONES) {
+            if (!data.capacitacionNombre || !data.capacitacionNombre.trim()) {
+                hideLoadingOverlay();
+                Swal.fire('Campo Requerido', 'Debe ingresar el Nombre de la Capacitación.', 'warning');
+                return;
+            }
+            if (!data.capacitacionParticipantes) {
+                hideLoadingOverlay();
+                Swal.fire('Campo Requerido', 'Debe ingresar el Número de Participantes.', 'warning');
+                return;
+            }
+            if (!data.capacitacionObjetivo || !data.capacitacionObjetivo.trim()) {
+                hideLoadingOverlay();
+                Swal.fire('Campo Requerido', 'Debe ingresar el Objetivo de la Capacitación.', 'warning');
+                return;
+            }
+            if (!data.capacitacionConclusiones || !data.capacitacionConclusiones.trim()) {
+                hideLoadingOverlay();
+                Swal.fire('Campo Requerido', 'Debe ingresar las Conclusiones.', 'warning');
+                return;
+            }
+            if (listasAsistencia.length === 0) {
+                hideLoadingOverlay();
+                Swal.fire('PDF Requerido', 'Para Capacitaciones es obligatorio adjuntar al menos una Lista de Asistencia en PDF.', 'warning');
+                return;
+            }
+        }
+    }
+
+    const nombreArchivoFinal = construirNombreArchivo(data);
+    const margin = 40;
+    let yPosRef = { y: margin };
+
+    try {
+        showLoadingOverlay("Generando PDF", "Escribiendo contenido...");
+        await addPortadaReporte(doc, data, yPosRef);
+        await generatePDFContent(doc, data, yPosRef);
+        addPageFooters(doc);
+
+        const pdfBlob = doc.output('blob');
+        const pdfBase64 = await blobToBase64(pdfBlob);
+
+        const reporteIdActual = obtenerOCrearReporteIdSesion();
+        const todos = await obtenerPendientes();
+        const existentePendiente = todos.find(r => r.reporteId === reporteIdActual && r.estado === 'pendiente');
+        const existenteSincronizado = todos.find(r => r.reporteId === reporteIdActual && r.estado === 'sincronizado');
+
+        hideLoadingOverlay();
+
+        if (existenteSincronizado) {
+            const confirmar = await Swal.fire({
+                icon: 'warning',
+                title: 'Reporte ya sincronizado',
+                html: `Este reporte ya fue <b>enviado con anterioridad y sincronizado</b>.<br><br>Si lo envías de nuevo, se generará un <b>reporte duplicado</b> con un nuevo ID.<br><br>¿Estás seguro de volver a enviarlo?`,
+                showCancelButton: true,
+                confirmButtonText: 'Sí, enviar como nuevo',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#f39c12',
+                allowOutsideClick: false,
+                allowEscapeKey: false
+            });
+            if (!confirmar.isConfirmed) return;
+
+            showLoadingOverlay("Guardando reporte...", "Preparando el nuevo registro...");
+            reporteIdSesion = generarReporteId();
+            await saveSession();
+        }
+
+        const horaActual = (() => {
+            const now = new Date();
+            return `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+        })();
+
+        const reporteParaGuardar = {
+            reporteId: reporteIdSesion,
+            tipoActividad: data.tipoActividad,
+            fecha: data.fecha,
+            hora: horaActual,
+            nombreArchivo: nombreArchivoFinal,
+            pdfBase64: pdfBase64.split(',')[1],
+            descripcion: data.descripcion || '',
+            edificio: data.shampuEdificio || '',
+            nivel: data.shampuNivel || '',
+            capacitacionNombre: data.capacitacionNombre || '',
+            capacitacionParticipantes: data.capacitacionParticipantes || '',
+            capacitacionObjetivo: data.capacitacionObjetivo || '',
+            capacitacionConclusiones: data.capacitacionConclusiones || '',
+            observaciones: data.shampuObservaciones || '',
+            cantidadListas: listasAsistencia.length,
+            nombresListas: listasAsistencia.map(x => x.nombre),
+            tieneListaAsistencia: (data.tipoActividad === TIPO_CAPACITACIONES && listasAsistencia.length > 0)
+        };
+
+        if (existentePendiente && !existenteSincronizado) {
+            reporteParaGuardar.id = existentePendiente.id;
+            reporteParaGuardar.creadoEn = existentePendiente.creadoEn;
+            reporteParaGuardar.estado = 'pendiente';
+            await actualizarReportePendiente(reporteParaGuardar);
+        } else {
+            await guardarReportePendiente(reporteParaGuardar);
+        }
+
+        hideLoadingOverlay();
+
+        Swal.fire({
+            title: '¡Reporte Guardado!',
+            html: `
+                <div class="text-center">
+                    <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                    <p>El reporte está listo y se enviará una vez se sincronice.</p>
+                    ${(data.tipoActividad === TIPO_CAPACITACIONES && listasAsistencia.length > 0)
+                        ? `<p class="small text-success"><i class="fas fa-check me-1"></i>${listasAsistencia.length} ${listasAsistencia.length === 1 ? 'lista de asistencia adjunta' : 'listas de asistencia adjuntas'}</p>`
+                        : ''}
+                    <p class="small text-muted">Tu progreso actual sigue aquí por si necesitas editar algo más.</p>
+                </div>
+            `,
+            icon: 'success',
+            allowOutsideClick: false,
+            showCloseButton: true,
+            confirmButtonText: '<i class="fas fa-list-ul me-2"></i> Ver Pendientes',
+            confirmButtonColor: '#2c3e50',
+            showCancelButton: true,
+            cancelButtonText: '<i class="fas fa-plus me-2"></i> Nuevo Reporte',
+            cancelButtonColor: '#3498db'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                renderizarModalPendientes();
+                $('#modalSync').modal('show');
+            } else if (result.dismiss === Swal.DismissReason.cancel) {
+                confirmarNuevoReporte();
+            }
+        });
+
+    } catch (error) {
+        hideLoadingOverlay();
+        console.error("Error al guardar PDF:", error);
+        Swal.fire('Error', 'No se pudo guardar el reporte localmente: ' + error.message, 'error');
+    }
+}
+
+function confirmarNuevoReporte() {
+    Swal.fire({
+        title: '¿Iniciar nuevo reporte?',
+        text: "Esto borrará todo el formulario actual. Si ya generaste el PDF, es seguro continuar.",
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, empezar de cero',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#2ecc71',
+        cancelButtonColor: '#7f8c8d'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            await clearSession();
+            window.location.reload();
+        }
+    });
+}
+
+// =========================================================================
+// PENDIENTES / SINCRONIZACIÓN
+// =========================================================================
+
+function guardarReportePendiente(datosReporte) {
+    return new Promise((resolve, reject) => {
+        if (!db) return reject('DB no inicializada');
+        const tx = db.transaction([STORE_PENDING], 'readwrite');
+        datosReporte.creadoEn = new Date().getTime();
+        datosReporte.estado = 'pendiente';
+        const request = tx.objectStore(STORE_PENDING).add(datosReporte);
+        request.onsuccess = () => { actualizarContadorPendientes(); resolve(); };
+        request.onerror = (e) => reject(e.target.error);
+    });
+}
+
+function actualizarReportePendiente(datosReporte) {
+    return new Promise((resolve, reject) => {
+        if (!db) return reject('DB no inicializada');
+        const tx = db.transaction([STORE_PENDING], 'readwrite');
+        const request = tx.objectStore(STORE_PENDING).put(datosReporte);
+        request.onsuccess = () => { actualizarContadorPendientes(); resolve(); };
+        request.onerror = (e) => reject(e.target.error);
+    });
+}
+
+function marcarComoSincronizado(id) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction([STORE_PENDING], 'readwrite');
+        const store = tx.objectStore(STORE_PENDING);
+        const getRequest = store.get(id);
+        getRequest.onsuccess = () => {
+            const data = getRequest.result;
+            if (data) {
+                data.estado = 'sincronizado';
+                data.sincronizadoEn = new Date().getTime();
+                store.put(data);
+                actualizarContadorPendientes();
+                resolve();
+            } else resolve();
+        };
+        getRequest.onerror = (e) => reject(e);
+    });
+}
+
+function obtenerPendientes() {
+    return new Promise((resolve, reject) => {
+        if (!db) return resolve([]);
+        const tx = db.transaction([STORE_PENDING], 'readonly');
+        const request = tx.objectStore(STORE_PENDING).getAll();
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject([]);
+    });
+}
+
+function borrarPendiente(id) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction([STORE_PENDING], 'readwrite');
+        const request = tx.objectStore(STORE_PENDING).delete(id);
+        request.onsuccess = () => { actualizarContadorPendientes(); resolve(); };
+        request.onerror = (e) => reject(e);
+    });
+}
+
+async function actualizarContadorPendientes() {
+    try {
+        const todos = await obtenerPendientes();
+        const pendientes = todos.filter(r => r.estado === 'pendiente').length;
+        $('#badge-pendientes').text(pendientes);
+        if (pendientes === 0) $('#badge-pendientes').hide();
+        else $('#badge-pendientes').show();
+    } catch (e) { console.error("Error contando pendientes", e); }
+}
+
+function construirTituloReporte(reporte) {
+    if (reporte.tipoActividad === TIPO_SHAMPUSEADO) {
+        return `${reporte.tipoActividad} - ${reporte.edificio || ''} - ${reporte.nivel || ''}`;
+    }
+    return reporte.tipoActividad;
+}
+
+async function renderizarModalPendientes() {
+    const todosLosRegistros = await obtenerPendientes();
+
+    const pendientes = todosLosRegistros.filter(r => r.estado === 'pendiente').sort((a, b) => b.creadoEn - a.creadoEn);
+    const sincronizados = todosLosRegistros.filter(r => r.estado === 'sincronizado').sort((a, b) => b.sincronizadoEn - a.sincronizadoEn);
+
+    const $listaPendientes = $('#lista-pendientes');
+    const $listaSincronizados = $('#lista-sincronizados');
+    const $badgeTab = $('#badge-tab-pendientes');
+
+    $listaPendientes.empty();
+    $listaSincronizados.empty();
+
+    $('#check-all-pendientes').prop('checked', false);
+    $('#check-all-sincronizados').prop('checked', false);
+    actualizarBotonesSeleccion();
+
+    if (pendientes.length > 0) $badgeTab.text(pendientes.length).show();
+    else $badgeTab.hide();
+
+    if (pendientes.length === 0) {
+        $listaPendientes.html('<div class="text-center p-4 text-muted small">No hay reportes pendientes.</div>');
+    } else {
+        pendientes.forEach(reporte => {
+            const fechaObj = new Date(reporte.creadoEn);
+            const fechaStr = fechaObj.toLocaleDateString() + ' ' + fechaObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const badgeListas = reporte.cantidadListas > 0
+                ? `<span class="badge bg-success ms-1" style="font-size: 0.6rem;"><i class="fas fa-file-pdf"></i> ${reporte.cantidadListas}</span>`
+                : '';
+            const titulo = construirTituloReporte(reporte);
+
+            const html = `
+                <div class="list-group-item d-flex align-items-center" id="row-reporte-${reporte.id}">
+                    <div class="me-2 checkbox-container">
+                        <input class="form-check-input check-pendiente fs-5" type="checkbox" value="${reporte.id}">
+                    </div>
+                    <div class="flex-grow-1 overflow-hidden me-2">
+                        <h6 class="mb-0 fw-bold text-dark text-truncate">${titulo} ${badgeListas}</h6>
+                        <small class="text-muted d-block"><i class="far fa-calendar-alt me-1"></i>${fechaStr}</small>
+                        <span class="badge bg-warning text-dark rounded-pill mt-1" style="font-size: 0.7rem;">Pendiente</span>
+                    </div>
+                    <div class="status-wrapper ms-auto" style="display:none;"></div>
+                    <div class="action-buttons ms-auto d-flex gap-1">
+                        <button class="btn btn-sm btn-outline-primary btn-ver-pdf" data-id="${reporte.id}" title="Ver PDF"><i class="fas fa-eye"></i></button>
+                        <button class="btn btn-sm btn-outline-success btn-share-pdf" data-id="${reporte.id}" title="Compartir"><i class="fas fa-share-alt"></i></button>
+                        <button class="btn btn-sm btn-outline-danger btn-delete-registro" data-id="${reporte.id}" title="Eliminar"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+            `;
+            $listaPendientes.append(html);
+        });
+    }
+
+    if (sincronizados.length === 0) {
+        $listaSincronizados.html('<div class="text-center p-4 text-muted small">Historial vacío.</div>');
+    } else {
+        sincronizados.forEach(reporte => {
+            const fechaObj = new Date(reporte.sincronizadoEn || reporte.creadoEn);
+            const fechaStr = fechaObj.toLocaleDateString() + ' ' + fechaObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const badgeListas = reporte.cantidadListas > 0
+                ? `<span class="badge bg-success ms-1" style="font-size: 0.6rem;"><i class="fas fa-file-pdf"></i> ${reporte.cantidadListas}</span>`
+                : '';
+            const titulo = construirTituloReporte(reporte);
+
+            const html = `
+                <div class="list-group-item d-flex align-items-center" id="row-reporte-${reporte.id}">
+                    <div class="me-2 checkbox-container">
+                        <input class="form-check-input check-sincronizado fs-5" type="checkbox" value="${reporte.id}">
+                    </div>
+                    <div class="flex-grow-1 overflow-hidden me-2">
+                        <h6 class="mb-0 text-dark text-truncate">${titulo} ${badgeListas}</h6>
+                        <small class="text-success d-block"><i class="fas fa-check-double me-1"></i>${fechaStr}</small>
+                    </div>
+                    <div class="status-wrapper ms-auto" style="display:none;"></div>
+                    <div class="action-buttons ms-auto d-flex gap-1">
+                        <button class="btn btn-sm btn-outline-primary btn-ver-pdf" data-id="${reporte.id}" title="Ver PDF"><i class="fas fa-eye"></i></button>
+                        <button class="btn btn-sm btn-outline-success btn-share-pdf" data-id="${reporte.id}" title="Compartir"><i class="fas fa-share-alt"></i></button>
+                        <button class="btn btn-sm btn-outline-danger btn-delete-registro" data-id="${reporte.id}" title="Eliminar Historial"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+            `;
+            $listaSincronizados.append(html);
+        });
+    }
+}
+
+function actualizarBotonesSeleccion() {
+    const pendSeleccionados = $('.check-pendiente:checked').length;
+    const sincSeleccionados = $('.check-sincronizado:checked').length;
+
+    $('#btn-sincronizar-seleccionados').prop('disabled', pendSeleccionados === 0);
+    $('#btn-delete-pendientes-sel').prop('disabled', pendSeleccionados === 0);
+    $('#btn-delete-sincronizados-sel').prop('disabled', sincSeleccionados === 0);
+}
+
+async function procesarColaDeEnvio(listaDeReportes) {
+    if (listaDeReportes.length === 0) return;
+
+    window.isSyncing = true;
+    isSyncing = true;
+
+    $('.action-buttons').attr('style', 'display: none !important');
+    $('.checkbox-container').css('visibility', 'hidden');
+    $('#check-all-pendientes, #check-all-sincronizados').css('visibility', 'hidden');
+    $('label[for="check-all-pendientes"], label[for="check-all-sincronizados"]').css('visibility', 'hidden');
+    $('#modalSync .btn-close').hide();
+    $('#btn-sincronizar-seleccionados').hide();
+    $('#btn-delete-pendientes-sel, #btn-delete-sincronizados-sel').hide();
+    $('.btn').addClass('disabled');
+
+    let errores = 0;
+    let exitos = 0;
+
+    for (const reporte of listaDeReportes) {
+        const $row = $(`#row-reporte-${reporte.id}`);
+        const $status = $row.find('.status-wrapper');
+
+        $row.find('.action-buttons').hide();
+        $status.html('<span class="badge bg-info text-dark"><i class="fas fa-spinner fa-spin"></i> Subiendo...</span>').fadeIn();
+
+        if ($row.length) $row[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        try {
+            const requestData = {
+                reporteId: reporte.reporteId || '',
+                tipoActividad: reporte.tipoActividad,
+                fecha: reporte.fecha,
+                hora: reporte.hora || '',
+                nombreArchivo: reporte.nombreArchivo,
+                pdfBase64: reporte.pdfBase64,
+                descripcion: reporte.descripcion || '',
+                edificio: reporte.edificio || '',
+                nivel: reporte.nivel || '',
+                capacitacionNombre: reporte.capacitacionNombre || '',
+                capacitacionParticipantes: reporte.capacitacionParticipantes || '',
+                capacitacionObjetivo: reporte.capacitacionObjetivo || '',
+                capacitacionConclusiones: reporte.capacitacionConclusiones || '',
+                observaciones: reporte.observaciones || '',
+                cantidadListas: reporte.cantidadListas || 0,
+                tieneListaAsistencia: reporte.tieneListaAsistencia || false
+            };
+
+            // ⚠️ VOLVEMOS A no-cors
+            await fetch(SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestData)
+            });
+
+            // No podemos leer la respuesta, pero el servidor ya verificó duplicados
+            await marcarComoSincronizado(reporte.id);
+            $status.html('<span class="badge bg-success"><i class="fas fa-check"></i> Enviado</span>');
+            $row.addClass('list-group-item-success');
+            exitos++;
+
+        } catch (error) {
+            console.error("Error subiendo reporte:", error);
+            $status.html('<span class="badge bg-danger"><i class="fas fa-times"></i> Error</span>');
+            errores++;
+        }
+
+        await new Promise(r => setTimeout(r, 500));
+    }
+
+    if (errores === 0) {
+        await Swal.fire({
+            icon: 'success',
+            title: 'Proceso Completado',
+            text: `Se enviaron ${exitos} reportes correctamente.`,
+            timer: 1500,
+            showConfirmButton: false,
+            allowOutsideClick: false,
+            allowEscapeKey: false
+        });
+    } else {
+        await Swal.fire({
+            title: 'Proceso Finalizado',
+            text: `Enviados: ${exitos}. Errores: ${errores}.`,
+            icon: 'warning',
+            allowOutsideClick: false,
+            allowEscapeKey: false
+        });
+    }
+
+    await finishSyncProcess();
+}
+
+
+async function finishSyncProcess() {
+    await renderizarModalPendientes();
+    $('#check-all-pendientes, #check-all-sincronizados').css('visibility', 'visible');
+    $('label[for="check-all-pendientes"], label[for="check-all-sincronizados"]').css('visibility', 'visible');
+    $('#modalSync .btn-close').fadeIn();
+    $('#btn-sincronizar-seleccionados').fadeIn();
+    $('#btn-delete-pendientes-sel, #btn-delete-sincronizados-sel').fadeIn();
+    $('.btn').removeClass('disabled');
+    actualizarBotonesSeleccion();
+    window.isSyncing = false;
+    isSyncing = false;
+}
+
+async function eliminarRegistrosSeleccionados(claseCheckbox) {
+    const ids = [];
+    $(`.${claseCheckbox}:checked`).each(function() { ids.push(parseInt($(this).val())); });
+    if (ids.length === 0) return;
+
+    Swal.fire({
+        title: '¿Eliminar seleccionados?',
+        text: `Se eliminarán ${ids.length} registros permanentemente.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            for (const id of ids) await borrarPendiente(id);
+            renderizarModalPendientes();
+            Swal.fire('Eliminados', 'Los registros han sido borrados.', 'success');
+        }
+    });
+}
+
+// =========================================================================
+// VISTA PREVIA PDF (desde registro de pendientes)
+// =========================================================================
+
+$(document).on('click', '.btn-ver-pdf', async function(e) {
+    e.stopPropagation();
+    const id = parseInt($(this).data('id'));
+    if (!db) { Swal.fire('Error', 'Base de datos no inicializada', 'error'); return; }
+
+    const btn = $(this);
+    const originalHtml = btn.html();
+    btn.html('<i class="fas fa-spinner fa-spin"></i>').prop('disabled', true);
+
+    try {
+        const tx = db.transaction([STORE_PENDING], 'readonly');
+        const request = tx.objectStore(STORE_PENDING).get(id);
+
+        request.onsuccess = async function() {
+            const data = request.result;
+            if (data && data.pdfBase64) {
+                const container = document.getElementById('pdf-render-container');
+                container.innerHTML = '';
+                $('#pdf-preview-title').html(`<i class="fas fa-file-pdf me-2"></i>${data.nombreArchivo || 'Vista Previa'}`);
+                $('#modalPdfPreview').modal('show');
+
+                const pdfData = atob(data.pdfBase64);
+                try {
+                    const loadingTask = pdfjsLib.getDocument({ data: pdfData });
+                    const pdf = await loadingTask.promise;
+
+                    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                        const page = await pdf.getPage(pageNum);
+                        const vpO = page.getViewport({ scale: 1 });
+                        const containerWidth = container.clientWidth || window.innerWidth;
+                        const desiredWidth = containerWidth - 20;
+                        const visualScale = desiredWidth / vpO.width;
+                        const pixelRatio = (window.devicePixelRatio || 1) * 1.5;
+                        const viewport = page.getViewport({ scale: visualScale * pixelRatio });
+
+                        const canvas = document.createElement('canvas');
+                        const context = canvas.getContext('2d');
+                        canvas.height = viewport.height;
+                        canvas.width = viewport.width;
+                        canvas.style.width = "100%";
+                        canvas.style.maxWidth = `${desiredWidth}px`;
+                        canvas.style.height = "auto";
+                        canvas.style.marginBottom = "20px";
+                        canvas.style.boxShadow = "0 4px 10px rgba(0,0,0,0.3)";
+                        canvas.style.borderRadius = "4px";
+
+                        container.appendChild(canvas);
+                        await page.render({ canvasContext: context, viewport }).promise;
+                    }
+                } catch (renderError) {
+                    console.error(renderError);
+                    Swal.fire('Error Visualización', 'No se pudo renderizar el PDF.', 'error');
+                }
+            } else {
+                Swal.fire('Error', 'No se encontró el PDF.', 'error');
+            }
+            btn.html(originalHtml).prop('disabled', false);
+        };
+
+        request.onerror = function() {
+            Swal.fire('Error', 'Error al leer DB.', 'error');
+            btn.html(originalHtml).prop('disabled', false);
+        };
+    } catch (error) {
+        console.error(error);
+        btn.html(originalHtml).prop('disabled', false);
+    }
+});
+
+$('#modalPdfPreview').on('hidden.bs.modal', function() {
+    document.getElementById('pdf-render-container').innerHTML = '';
+});
+
+// =========================================================================
+// COMPARTIR PDF
+// =========================================================================
+
+function base64ToBlob(base64, type = 'application/pdf') {
+    const binStr = atob(base64);
+    const len = binStr.length;
+    const arr = new Uint8Array(len);
+    for (let i = 0; i < len; i++) arr[i] = binStr.charCodeAt(i);
+    return new Blob([arr], { type });
+}
+
+$(document).on('click', '.btn-share-pdf', async function(e) {
+    e.stopPropagation();
+    const id = parseInt($(this).data('id'));
+    if (!db) return;
+
+    const btn = $(this);
+    const originalHtml = btn.html();
+    btn.html('<i class="fas fa-spinner fa-spin"></i>').prop('disabled', true);
+
+    try {
+        const tx = db.transaction([STORE_PENDING], 'readonly');
+        const request = tx.objectStore(STORE_PENDING).get(id);
+
+        request.onsuccess = async function() {
+            const data = request.result;
+            if (data && data.pdfBase64) {
+                const blob = base64ToBlob(data.pdfBase64, 'application/pdf');
+                const file = new File([blob], data.nombreArchivo || "reporte_actividad.pdf", { type: "application/pdf" });
+
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({
+                            files: [file],
+                            title: 'Reporte de Actividades',
+                            text: `Adjunto reporte de ${data.tipoActividad}`
+                        });
+                    } catch (error) {
+                        if (error.name !== 'AbortError') {
+                            console.error('Error al compartir:', error);
+                            Swal.fire('Error', 'No se pudo compartir.', 'error');
+                        }
+                    }
+                } else {
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = data.nombreArchivo;
+                    link.click();
+                    Swal.fire('Descargando', 'Tu dispositivo no soporta compartir directo, se descargará el archivo.', 'info');
+                }
+            }
+            btn.html(originalHtml).prop('disabled', false);
+        };
+    } catch (error) {
+        console.error(error);
+        btn.html(originalHtml).prop('disabled', false);
+    }
+});
+
+// =========================================================================
+// DETECCIÓN DE DUPLICADOS
+// =========================================================================
+
+async function calcularHashPerceptualMejorado(base64Data) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 16;
+            canvas.height = 16;
+            ctx.drawImage(img, 0, 0, 16, 16);
+
+            const imageData = ctx.getImageData(0, 0, 16, 16);
+            const pixels = imageData.data;
+            const grayValues = [];
+            for (let i = 0; i < pixels.length; i += 4) {
+                const gray = Math.round(0.299 * pixels[i] + 0.587 * pixels[i + 1] + 0.114 * pixels[i + 2]);
+                grayValues.push(gray);
+            }
+
+            let hash = '';
+            for (let y = 0; y < 16; y++) {
+                for (let x = 0; x < 15; x++) {
+                    const idx1 = y * 16 + x;
+                    const idx2 = y * 16 + (x + 1);
+                    hash += grayValues[idx1] > grayValues[idx2] ? '1' : '0';
+                }
+            }
+            for (let x = 0; x < 16; x++) {
+                for (let y = 0; y < 15; y++) {
+                    const idx1 = y * 16 + x;
+                    const idx2 = (y + 1) * 16 + x;
+                    hash += grayValues[idx1] > grayValues[idx2] ? '1' : '0';
+                }
+            }
+            resolve(hash);
+        };
+        img.onerror = () => resolve(null);
+        img.src = base64Data;
+    });
+}
+
+function distanciaHamming(hash1, hash2) {
+    if (!hash1 || !hash2 || hash1.length !== hash2.length) return Infinity;
+    let distancia = 0;
+    for (let i = 0; i < hash1.length; i++) if (hash1[i] !== hash2[i]) distancia++;
+    return distancia;
+}
+
+function calcularSimilitud(distancia, longitudHash) {
+    return ((longitudHash - distancia) / longitudHash) * 100;
+}
+
+async function detectarImagenesDuplicadas(previewId) {
+    const idArray = selectedFiles[previewId] || [];
+    if (idArray.length < 2) {
+        Swal.fire({
+            icon: 'info',
+            title: 'Sin duplicados',
+            text: 'Se necesitan al menos 2 imágenes para buscar duplicados.',
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3000
+        });
+        return;
+    }
+
+    if (modoDeteccionActivo) { salirModoDeteccion(previewId); return; }
+
+    const btn = $(`.btn-detectar-duplicados[data-preview="${previewId}"]`);
+    const originalHtml = btn.html();
+    btn.html('<i class="fas fa-spinner fa-spin"></i>').prop('disabled', true);
+
+    try {
+        const { value: sensibilidad } = await Swal.fire({
+            title: 'Ajustar sensibilidad',
+            html: `
+                <p>¿Qué tan similares deben ser las imágenes para considerarse duplicadas?</p>
+                <input type="range" id="sensibilidad-range" class="form-range" min="70" max="99" value="85" step="1">
+                <div class="mt-2"><span id="sensibilidad-valor" class="badge bg-primary">85% similitud</span></div>
+            `,
+            input: 'range',
+            inputAttributes: { min: 70, max: 99, step: 1 },
+            inputValue: 85,
+            showCancelButton: true,
+            confirmButtonText: 'Detectar',
+            cancelButtonText: 'Cancelar',
+            didOpen: () => {
+                const range = document.getElementById('sensibilidad-range');
+                const valor = document.getElementById('sensibilidad-valor');
+                range.addEventListener('input', (e) => { valor.textContent = e.target.value + '% similitud'; });
+            }
+        });
+
+        if (!sensibilidad) { btn.html(originalHtml).prop('disabled', false); return; }
+
+        umbralSimilitud = Math.round((1 - sensibilidad / 100) * 480);
+
+        const imagenes = [];
+        for (let i = 0; i < idArray.length; i++) {
+            const id = idArray[i];
+            const base64String = await getImageFromDB(id);
+            if (base64String) {
+                const hash = await calcularHashPerceptualMejorado(base64String);
+                imagenes.push({ id, index: i, hash, base64: base64String });
+            }
+        }
+
+        const gruposDuplicados = [];
+        const idsProcesados = new Set();
+
+        for (let i = 0; i < imagenes.length; i++) {
+            const img1 = imagenes[i];
+            if (idsProcesados.has(img1.id)) continue;
+            const grupo = [img1];
+            idsProcesados.add(img1.id);
+
+            for (let j = i + 1; j < imagenes.length; j++) {
+                const img2 = imagenes[j];
+                if (idsProcesados.has(img2.id)) continue;
+                const distancia = distanciaHamming(img1.hash, img2.hash);
+                const similitud = calcularSimilitud(distancia, img1.hash.length);
+                if (distancia < umbralSimilitud) {
+                    grupo.push({ ...img2, similitud });
+                    idsProcesados.add(img2.id);
+                }
+            }
+
+            if (grupo.length > 1) gruposDuplicados.push(grupo);
+        }
+
+        gruposDuplicadosGlobal = gruposDuplicados;
+        seleccionParaEliminar.clear();
+
+        if (gruposDuplicados.length === 0) {
+            Swal.fire({
+                icon: 'success',
+                title: '¡Todo bien!',
+                text: `No se encontraron imágenes duplicadas con ${sensibilidad}% de similitud.`,
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 4000
+            });
+            btn.html(originalHtml).prop('disabled', false);
+        } else {
+            modoDeteccionActivo = true;
+            btn.html('<i class="fas fa-times-circle"></i>').prop('disabled', false);
+            resaltarGruposDuplicados(previewId, gruposDuplicados);
+            mostrarPanelControlDuplicados(previewId, gruposDuplicados, sensibilidad);
+        }
+    } catch (error) {
+        console.error("Error detectando duplicados:", error);
+        Swal.fire('Error', 'No se pudo completar la detección de duplicados.', 'error');
+        btn.html(originalHtml).prop('disabled', false);
+    }
+}
+
+function resaltarGruposDuplicados(previewId, grupos) {
+    $(`.image-preview-item`).removeClass('duplicate-highlight duplicate-selected');
+    $('.duplicate-badge').remove();
+
+    grupos.forEach((grupo, grupoIndex) => {
+        const colores = ['#ef5350', '#f39c12', '#3498db', '#2ecc71', '#9b59b6'];
+        const color = colores[grupoIndex % colores.length];
+
+        grupo.forEach((img, idxEnGrupo) => {
+            const elemento = $(`.image-preview-item[data-id="${img.id}"]`);
+            elemento.addClass('duplicate-highlight');
+            elemento.attr('data-duplicate-group', grupoIndex);
+            elemento.attr('data-in-group-index', idxEnGrupo);
+            elemento.css('border-color', color);
+            elemento.css('box-shadow', `0 0 15px ${color}`);
+
+            const badgeHtml = `
+                <span class="duplicate-badge" style="position: absolute; top: 5px; left: 5px; background: ${color}; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; z-index: 20;">
+                    ${grupoIndex + 1}
+                </span>
+            `;
+            if (elemento.find('.duplicate-badge').length === 0) elemento.append(badgeHtml);
+        });
+    });
+}
+
+function mostrarPanelControlDuplicados(previewId, grupos, sensibilidad) {
+    $('.duplicate-control-panel').remove();
+
+    const panel = $(`
+        <div class="duplicate-control-panel">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                <h5 class="mb-0" style="color: #ef5350;"><i class="fas fa-copy me-2"></i>Modo Detección de Duplicados</h5>
+                <div>
+                    <span class="badge bg-danger me-2">${grupos.length} grupo(s)</span>
+                    <span class="badge bg-info">${sensibilidad}% similitud</span>
+                </div>
+            </div>
+            <div class="duplicate-groups-container" style="max-height: 300px; overflow-y: auto;"></div>
+            <div class="duplicate-toolbar mt-3">
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-warning" id="btn-seleccionar-todos-duplicados">
+                        <i class="fas fa-check-double me-1"></i>Seleccionar Todos
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-warning" id="btn-deseleccionar-todos-duplicados">
+                        <i class="fas fa-times me-1"></i>Deseleccionar Todos
+                    </button>
+                    <button type="button" class="btn btn-sm btn-success" id="btn-conservar-una-todos">
+                        <i class="fas fa-magic me-1"></i>Conservar Una en Todos
+                    </button>
+                </div>
+                <div>
+                    <button type="button" class="btn btn-sm btn-danger" id="btn-eliminar-seleccionados-duplicados" disabled>
+                        <i class="fas fa-trash me-1"></i>Eliminar Seleccionados (<span id="contador-seleccionados">0</span>)
+                    </button>
+                </div>
+            </div>
+        </div>
+    `);
+
+    $(`#${previewId}`).closest('.evidencia-bloque').before(panel);
+
+    const groupsContainer = panel.find('.duplicate-groups-container');
+
+    grupos.forEach((grupo, grupoIndex) => {
+        const colores = ['#ef5350', '#f39c12', '#3498db', '#2ecc71', '#9b59b6'];
+        const color = colores[grupoIndex % colores.length];
+
+        const grupoDiv = $(`
+            <div class="duplicate-group" data-group-index="${grupoIndex}" style="border-left-color: ${color};">
+                <div class="duplicate-group-title" style="color: ${color};">
+                    <i class="fas fa-images me-2"></i>Grupo ${grupoIndex + 1} (${grupo.length} imágenes)
+                </div>
+                <div class="duplicate-thumbnails"></div>
+                <div class="duplicate-actions">
+                    <button type="button" class="btn-duplicate-keep" data-group="${grupoIndex}"><i class="fas fa-check me-1"></i>Conservar una</button>
+                    <button type="button" class="btn-duplicate-delete" data-group="${grupoIndex}"><i class="fas fa-trash me-1"></i>Eliminar todas</button>
+                </div>
+            </div>
+        `);
+
+        const thumbnailsContainer = grupoDiv.find('.duplicate-thumbnails');
+
+        grupo.forEach((img, idxEnGrupo) => {
+            const similitudTexto = img.similitud ? ` (${img.similitud.toFixed(1)}% similitud)` : '';
+            const thumb = $(`
+                <div class="duplicate-thumb" data-id="${img.id}" data-group="${grupoIndex}" data-index="${idxEnGrupo}" title="Imagen ${idxEnGrupo + 1}${similitudTexto}">
+                    <img src="${img.base64}" alt="Miniatura">
+                    <div class="thumb-index">${idxEnGrupo + 1}</div>
+                </div>
+            `);
+            thumb.on('click', function(e) {
+                e.preventDefault(); e.stopPropagation();
+                const id = $(this).data('id');
+                toggleSeleccionImagen(id, previewId);
+                $(this).toggleClass('selected');
+                $(this).removeClass('kept');
+                actualizarContadorSeleccionados();
+            });
+            thumbnailsContainer.append(thumb);
+        });
+
+        groupsContainer.append(grupoDiv);
+    });
+
+    $('#btn-seleccionar-todos-duplicados').on('click', function(e) {
+        e.preventDefault(); e.stopPropagation();
+        $('.duplicate-thumb').each(function() {
+            const id = $(this).data('id');
+            if (!$(this).hasClass('selected')) {
+                $(this).addClass('selected');
+                $(this).removeClass('kept');
+                seleccionParaEliminar.add(id);
+                $(`.image-preview-item[data-id="${id}"]`).addClass('duplicate-selected');
+            }
+        });
+        actualizarContadorSeleccionados();
+    });
+
+    $('#btn-deseleccionar-todos-duplicados').on('click', function(e) {
+        e.preventDefault(); e.stopPropagation();
+        $('.duplicate-thumb').removeClass('selected kept');
+        seleccionParaEliminar.clear();
+        $(`.image-preview-item`).removeClass('duplicate-selected');
+        actualizarContadorSeleccionados();
+    });
+
+    $('#btn-conservar-una-todos').on('click', function(e) {
+        e.preventDefault(); e.stopPropagation();
+
+        $('.duplicate-thumb').removeClass('selected kept');
+        seleccionParaEliminar.clear();
+        $(`.image-preview-item`).removeClass('duplicate-selected');
+
+        grupos.forEach(grupo => {
+            grupo.forEach((img, idx) => {
+                if (idx === 0) {
+                    $(`.duplicate-thumb[data-id="${img.id}"]`).addClass('kept');
+                } else {
+                    seleccionParaEliminar.add(img.id);
+                    $(`.duplicate-thumb[data-id="${img.id}"]`).addClass('selected');
+                    $(`.image-preview-item[data-id="${img.id}"]`).addClass('duplicate-selected');
+                }
+            });
+        });
+
+        actualizarContadorSeleccionados();
+    });
+
+    $('#btn-eliminar-seleccionados-duplicados').on('click', function(e) {
+        e.preventDefault(); e.stopPropagation();
+        eliminarSeleccionadosDuplicados(previewId);
+    });
+
+    $('.btn-duplicate-keep').on('click', function(e) {
+        e.preventDefault(); e.stopPropagation();
+        const grupoIndex = $(this).data('group');
+        const grupo = grupos[grupoIndex];
+
+        grupo.forEach((img, idx) => {
+            if (idx === 0) {
+                seleccionParaEliminar.delete(img.id);
+                $(`.duplicate-thumb[data-id="${img.id}"]`).removeClass('selected').addClass('kept');
+                $(`.image-preview-item[data-id="${img.id}"]`).removeClass('duplicate-selected');
+            } else {
+                seleccionParaEliminar.add(img.id);
+                $(`.duplicate-thumb[data-id="${img.id}"]`).addClass('selected').removeClass('kept');
+                $(`.image-preview-item[data-id="${img.id}"]`).addClass('duplicate-selected');
+            }
+        });
+
+        actualizarContadorSeleccionados();
+    });
+
+    $('.btn-duplicate-delete').on('click', function(e) {
+        e.preventDefault(); e.stopPropagation();
+        const grupoIndex = $(this).data('group');
+        const grupo = grupos[grupoIndex];
+        grupo.forEach(img => {
+            const id = img.id;
+            seleccionParaEliminar.add(id);
+            $(`.duplicate-thumb[data-id="${id}"]`).addClass('selected').removeClass('kept');
+            $(`.image-preview-item[data-id="${id}"]`).addClass('duplicate-selected');
+        });
+        actualizarContadorSeleccionados();
+    });
+}
+
+function toggleSeleccionImagen(id, previewId) {
+    if (seleccionParaEliminar.has(id)) {
+        seleccionParaEliminar.delete(id);
+        $(`.image-preview-item[data-id="${id}"]`).removeClass('duplicate-selected');
+    } else {
+        seleccionParaEliminar.add(id);
+        $(`.image-preview-item[data-id="${id}"]`).addClass('duplicate-selected');
+    }
+}
+
+function actualizarContadorSeleccionados() {
+    const count = seleccionParaEliminar.size;
+    $('#contador-seleccionados').text(count);
+    $('#btn-eliminar-seleccionados-duplicados').prop('disabled', count === 0);
+}
+
+async function eliminarSeleccionadosDuplicados(previewId) {
+    if (seleccionParaEliminar.size === 0) return;
+
+    const result = await Swal.fire({
+        title: '¿Eliminar imágenes seleccionadas?',
+        text: `Se eliminarán ${seleccionParaEliminar.size} imagen(es) permanentemente.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef5350',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (result.isConfirmed) {
+        const totalAEliminar = seleccionParaEliminar.size;
+        for (const id of seleccionParaEliminar) {
+            await deleteImageFromDB(id);
+            selectedFiles[previewId] = selectedFiles[previewId].filter(existingId => existingId !== id);
+        }
+        await saveSession();
+        await renderFotosPreview(previewId);
+        salirModoDeteccion(previewId);
+
+        Swal.fire({
+            icon: 'success',
+            title: 'Eliminadas',
+            text: `Se eliminaron ${totalAEliminar} imagen(es) duplicada(s).`,
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3000
+        });
+    }
+}
+
+function salirModoDeteccion(previewId) {
+    modoDeteccionActivo = false;
+    gruposDuplicadosGlobal = [];
+    seleccionParaEliminar.clear();
+
+    $(`.image-preview-item`).removeClass('duplicate-highlight duplicate-selected');
+    $('.duplicate-badge').remove();
+    $('.duplicate-control-panel').remove();
+    $(`.image-preview-item`).css('border-color', '').css('box-shadow', '');
+
+    $(`.btn-detectar-duplicados`).each(function() {
+        $(this).html('<i class="fas fa-copy"></i>');
+    });
+}
+
+// =========================================================================
+// INICIALIZACIÓN Y EVENTOS
+// =========================================================================
+
+document.addEventListener('DOMContentLoaded', async function() {
+    try {
+        loadLogoCache();
+        await initDB();
+
+        $form = $('#form-actividades');
+        $fechaInput = $('#fecha-actividad');
+        $tipoActividadSelect = $('#select-tipo-actividad');
+        $descripcionInput = $('#descripcion-actividad');
+
+        [PREVIEW_SIMPLE, PREVIEW_ANTES, PREVIEW_DESPUES, PREVIEW_OBSERVACIONES].forEach(pid => {
+            if (!selectedFiles[pid]) selectedFiles[pid] = [];
+        });
+
+        $('.evidencia-bloque[data-preview]').each(function() {
+            setupEvidenciaBloque($(this));
+        });
+
+        (function() {
+            const $bloque = $('#bloque-listas-pdf');
+            const $dropzone = $('#dropzone-listas');
+            const $btnAdd = $('#btn-add-lista');
+            const $input = $('#input-lista-asistencia');
+
+            function abrirInput() { $input[0].click(); }
+            $dropzone.on('click', abrirInput);
+            $btnAdd.on('click', abrirInput);
+
+            $input.on('change', async function(e) {
+                if (e.target.files && e.target.files.length > 0) {
+                    await procesarArchivosPDF(e.target.files);
+                    this.value = '';
+                }
+            });
+
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evt => {
+                $bloque[0].addEventListener(evt, function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }, false);
+            });
+            ['dragenter', 'dragover'].forEach(evt => {
+                $bloque[0].addEventListener(evt, function() { this.classList.add('drag-over'); }, false);
+            });
+            ['dragleave', 'drop'].forEach(evt => {
+                $bloque[0].addEventListener(evt, function() { this.classList.remove('drag-over'); }, false);
+            });
+            $bloque[0].addEventListener('drop', async function(e) {
+                const dt = e.dataTransfer;
+                if (dt && dt.files && dt.files.length > 0) {
+                    await procesarArchivosPDF(dt.files);
+                }
+            }, false);
+        })();
+
+        await checkForSavedSession();
+
+        actualizarSeccionesPorTipo();
+
+        [PREVIEW_SIMPLE, PREVIEW_ANTES, PREVIEW_DESPUES, PREVIEW_OBSERVACIONES].forEach(pid => renderFotosPreview(pid));
+        renderListasAsistencia();
+
+        await actualizarContadorPendientes();
+
+        if (sessionStorage.getItem('openSyncModal') === 'true') {
+            sessionStorage.removeItem('openSyncModal');
+            setTimeout(() => {
+                renderizarModalPendientes();
+                $('#modalSync').modal('show');
+            }, 800);
+        }
+    } catch (error) {
+        console.error("Error en inicialización:", error);
+    }
+
+    if ($('#fecha-actividad').val() === '') {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        $('#fecha-actividad').val(`${yyyy}-${mm}-${dd}`);
+    }
+
+    $tipoActividadSelect.on('change', function() {
+        actualizarSeccionesPorTipo();
+        saveSession();
+    });
+
+    $('#shampu-edificio').on('change', function() {
+        actualizarNivelesShampuseado();
+        saveSession();
+    });
+    $('#shampu-nivel').on('change', saveSession);
+
+    $form.on('change input', '.auto-save', saveSession);
+
+    $(document).on('click', '#btn-enviar-actividad', async function(e) {
+        e.preventDefault();
+
+        const tipo = $('#select-tipo-actividad').val();
+
+        if (!$fechaInput.val()) {
+            Swal.fire('Campo Requerido', 'Debe seleccionar una fecha.', 'warning');
+            return;
+        }
+        if (!tipo) {
+            Swal.fire('Campo Requerido', 'Debe seleccionar un Tipo de Actividad.', 'warning');
+            return;
+        }
+
+        if (tipo === TIPO_SHAMPUSEADO) {
+            if (!$('#shampu-edificio').val()) {
+                Swal.fire('Campo Requerido', 'Debe seleccionar un Edificio.', 'warning');
+                return;
+            }
+            if (!$('#shampu-nivel').val()) {
+                Swal.fire('Campo Requerido', 'Debe seleccionar un Nivel.', 'warning');
+                return;
+            }
+            if (!selectedFiles[PREVIEW_ANTES] || selectedFiles[PREVIEW_ANTES].length === 0) {
+                Swal.fire('Foto Requerida', 'Debe agregar al menos una imagen en "Antes".', 'warning');
+                return;
+            }
+            if (!selectedFiles[PREVIEW_DESPUES] || selectedFiles[PREVIEW_DESPUES].length === 0) {
+                Swal.fire('Foto Requerida', 'Debe agregar al menos una imagen en "Después".', 'warning');
+                return;
+            }
+        } else {
+            if (!$descripcionInput.val().trim()) {
+                Swal.fire('Campo Requerido', 'Debe ingresar una descripción de la actividad.', 'warning');
+                return;
+            }
+            if (!selectedFiles[PREVIEW_SIMPLE] || selectedFiles[PREVIEW_SIMPLE].length === 0) {
+                Swal.fire('Foto Requerida', 'Debe agregar al menos una imagen como evidencia.', 'warning');
+                return;
+            }
+            if (tipo === TIPO_CAPACITACIONES) {
+                if (!$('#capacitacion-nombre').val().trim()) {
+                    Swal.fire('Campo Requerido', 'Debe ingresar el Nombre de la Capacitación.', 'warning');
+                    return;
+                }
+                if (!$('#capacitacion-participantes').val()) {
+                    Swal.fire('Campo Requerido', 'Debe ingresar el Número de Participantes.', 'warning');
+                    return;
+                }
+                if (!$('#capacitacion-objetivo').val().trim()) {
+                    Swal.fire('Campo Requerido', 'Debe ingresar el Objetivo de la Capacitación.', 'warning');
+                    return;
+                }
+                if (!$('#capacitacion-conclusiones').val().trim()) {
+                    Swal.fire('Campo Requerido', 'Debe ingresar las Conclusiones.', 'warning');
+                    return;
+                }
+                if (listasAsistencia.length === 0) {
+                    Swal.fire('PDF Requerido', 'Para Capacitaciones es obligatorio adjuntar al menos una Lista de Asistencia en PDF.', 'warning');
+                    return;
+                }
+            }
+        }
+
+        await generatePDF();
+    });
+
+    $(document).on('click', '.btn-detectar-duplicados', function() {
+        const previewId = $(this).data('preview') || PREVIEW_SIMPLE;
+        detectarImagenesDuplicadas(previewId);
+    });
+
+    $('#btn-sync-manager').on('click', function() {
+        renderizarModalPendientes();
+        $('#modalSync').modal('show');
+    });
+
+    $(document).on('change', '#check-all-pendientes', function() {
+        $('.check-pendiente').prop('checked', $(this).is(':checked'));
+        actualizarBotonesSeleccion();
+    });
+
+    $(document).on('change', '#check-all-sincronizados', function() {
+        $('.check-sincronizado').prop('checked', $(this).is(':checked'));
+        actualizarBotonesSeleccion();
+    });
+
+    $(document).on('change', '.check-pendiente, .check-sincronizado', function() {
+        actualizarBotonesSeleccion();
+    });
+
+    $('#btn-sincronizar-seleccionados').on('click', async function() {
+        const ids = [];
+        $('.check-pendiente:checked').each(function() { ids.push(parseInt($(this).val())); });
+        if (ids.length === 0) return;
+        const todos = await obtenerPendientes();
+        const listaEnviar = todos.filter(r => ids.includes(r.id));
+        await procesarColaDeEnvio(listaEnviar);
+    });
+
+    $('#btn-delete-pendientes-sel').on('click', function() {
+        eliminarRegistrosSeleccionados('check-pendiente');
+    });
+
+    $('#btn-delete-sincronizados-sel').on('click', function() {
+        eliminarRegistrosSeleccionados('check-sincronizado');
+    });
+
+    $(document).on('click', '.btn-delete-registro', function() {
+        const id = parseInt($(this).data('id'));
+        Swal.fire({
+            title: '¿Eliminar registro?',
+            text: "Esta acción borrará el reporte de este dispositivo permanentemente.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar'
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                await borrarPendiente(id);
+                if ($('#modalSync').hasClass('show')) renderizarModalPendientes();
+                Swal.fire('Eliminado', 'El registro ha sido eliminado.', 'success');
+            }
+        });
+    });
+
+    $(document).on('click', '.list-group-item', function(e) {
+        if ($(e.target).is('input[type="checkbox"]') ||
+            $(e.target).closest('button').length > 0 ||
+            $(e.target).closest('.badge').length > 0) return;
+        const $checkbox = $(this).find('input[type="checkbox"]');
+        if ($checkbox.length > 0) {
+            $checkbox.prop('checked', !$checkbox.prop('checked'));
+            $checkbox.trigger('change');
+        }
+    });
+
+    $('#modalSync').on('hide.bs.modal', function(e) {
+        if (window.isSyncing) { e.preventDefault(); return false; }
+    });
+});
+
+</script>
+</body>
+</html>

@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Revisión de Actividades</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --warning-color: #f39c12;
+            --success-color: #2ecc71;
+            --dark-color: #34495e;
+            --text-color: #333;
+            --border-color: #ddd;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+            --insumos-light-gray: #f0f2f5;
+        }
+
+        html, body {
+            touch-action: manipulation;
+            overflow-x: hidden;
+            width: 100%;
+            height: 100%;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--insumos-light-gray);
+            color: var(--dark-color);
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+            color: white;
+            text-align: center;
+            padding: 18px 0;
+            font-size: 1.5rem;
+            font-weight: bold;
+            box-shadow: var(--shadow);
+            margin-bottom: 25px;
+        }
+
+        .container-custom {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 15px 50px 15px;
+        }
+
+        .card-custom {
+            background-color: #fff;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            border: none;
+            margin-bottom: 25px;
+            border-top: 5px solid var(--secondary-color);
+            padding: 20px;
+            height: 100%;
+        }
+
+        .form-title {
+            text-align: center;
+            color: var(--primary-color);
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #eef2f7;
+            position: relative;
+        }
+
+        .form-title:after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 3px;
+            background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
+            border-radius: 2px;
+        }
+
+        .btn-custom {
+            border: none;
+            font-weight: 600;
+            padding: 10px 25px;
+            font-size: 0.95rem;
+            border-radius: 50px;
+            transition: var(--transition);
+            color: white !important;
+            background: linear-gradient(45deg, var(--secondary-color), #5dade2);
+            width: 100%;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .btn-custom:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.2); }
+        .btn-custom:disabled { background: #ccc; box-shadow: none; transform: none; cursor: not-allowed; }
+
+        .form-control, .form-select {
+            border-radius: 8px; padding: 10px 15px; border: 1px solid var(--border-color);
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: var(--secondary-color); box-shadow: 0 0 0 0.25rem rgba(52, 152, 219, 0.25);
+        }
+
+        .chart-box { position: relative; height: 300px; width: 100%; }
+
+        .table-responsive { border-radius: 8px; overflow: hidden; }
+        .table thead { background-color: var(--primary-color); color: white; }
+        .table thead th { color: white !important; font-weight: 600; }
+
+        .btn-action {
+            border: none; border-radius: 50px;
+            width: 35px; height: 35px;
+            font-size: 0.85rem; margin: 0 2px;
+            transition: var(--transition);
+            display: inline-flex; justify-content: center; align-items: center;
+            color: white;
+        }
+        .btn-action:hover { transform: translateY(-2px); color: white; }
+
+        .btn-pdf { background: linear-gradient(45deg, var(--accent-color), #e74c3c); }
+        .btn-share { background: linear-gradient(45deg, #1abc9c, #16a085); }
+        .btn-download { background: linear-gradient(45deg, #27ae60, #2ecc71); }
+        .btn-delete { background: #7f8c8d; }
+        .btn-delete:hover { background: #c0392b; }
+
+        #overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(255, 255, 255, 0.95);
+            display: none; justify-content: center; align-items: center;
+            z-index: 9999; flex-direction: column;
+        }
+        .spinner {
+            width: 60px; height: 60px;
+            border: 5px solid rgba(52, 152, 219, 0.2);
+            border-radius: 50%; border-top-color: var(--secondary-color);
+            animation: spin 1s ease-in-out infinite; margin-bottom: 20px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #loadingMessage { text-align: center; color: var(--dark-color); }
+        #loadingMessage h4 { margin: 0 0 10px; font-size: 1.3rem; font-weight: bold; }
+        #loadingMessage p { margin: 0; color: #7f8c8d; font-weight: normal; }
+
+        .modal-pdf-body {
+            height: calc(100vh - 56px);
+            padding: 0;
+            overflow: hidden;
+            background-color: #525659;
+        }
+        .modal-pdf-iframe { width: 100%; height: 100%; border: none; display: block; }
+        .modal-header { background-color: #f8f9fa; border-bottom: 1px solid #dee2e6; padding: 10px 20px; }
+
+        .descripcion-cell {
+            max-width: 320px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .observaciones-cell {
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .table-sm td, .table-sm th { vertical-align: middle; }
+    </style>
+</head>
+<body>
+
+    <div id="overlay">
+        <div class="spinner"></div>
+        <div id="loadingMessage">
+            <h4>Cargando...</h4>
+            <p></p>
+        </div>
+    </div>
+
+    <!-- Modal PDF -->
+    <div class="modal fade" id="modalPDF" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-fullscreen">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title text-secondary"><i class="fas fa-file-pdf me-2"></i>Visualizador de Reporte</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body modal-pdf-body">
+                    <iframe id="iframePDF" class="modal-pdf-iframe" src=""></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="header">
+        Pisos Brillantes
+    </div>
+
+    <div class="container-custom">
+
+        <!-- Panel de Control -->
+        <div class="card-custom">
+            <h5 class="form-title">
+                <i class="fas fa-sliders-h me-2"></i>Revisión de Actividades
+            </h5>
+            <div class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">Tipo de Actividad</label>
+                    <select id="filtroTipo" class="form-select">
+                        <option value="">Seleccionar...</option>
+                        <option value="Limpiezas Profundas">Limpiezas Profundas</option>
+                        <option value="Capacitaciones">Capacitaciones</option>
+                        <option value="Revisión de Personal">Revisión de Personal</option>
+                        <option value="Shampuseado de Alfombras">Shampuseado de Alfombras</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Mes</label>
+                    <select id="filtroMes" class="form-select"></select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Año</label>
+                    <select id="filtroAnio" class="form-select"></select>
+                </div>
+                <div class="col-md-2">
+                    <button class="btn-custom" id="btnConsultar">
+                        <i class="fas fa-search me-1"></i> Consultar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard -->
+        <div id="dashboardContent" style="display: none;">
+
+            <!-- Gráficos -->
+            <div class="row g-4 mb-4">
+                <div class="col-md-6">
+                    <div class="card-custom">
+                        <div class="chart-box">
+                            <canvas id="chartMensual"></canvas>
+                        </div>
+                        <div class="text-center mt-2">
+                            <small class="text-muted" id="infoChartMensual">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Distribución diaria de reportes del período seleccionado
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card-custom">
+                        <div class="chart-box">
+                            <canvas id="chartAnual"></canvas>
+                        </div>
+                        <div class="text-center mt-2">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Tendencia anual de reportes por mes
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabla -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card-custom">
+                        <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-3 border-bottom pb-2">
+                            <h5 class="text-secondary mb-2 mb-md-0" id="tituloTabla">
+                                <i class="fas fa-list me-2"></i>Historial
+                            </h5>
+                            <div class="input-group" style="max-width: 400px; width: 100%;">
+                                <span class="input-group-text bg-light border-end-0">
+                                    <i class="fas fa-filter text-muted"></i>
+                                </span>
+                                <input type="text" id="filtroTabla" class="form-control border-start-0" placeholder="Buscar...">
+                            </div>
+                        </div>
+
+                        <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                            <table class="table table-hover align-middle">
+                                <thead id="tablaHeader"></thead>
+                                <tbody id="tablaCuerpo"></tbody>
+                            </table>
+                            <div id="sinResultadosFiltro" class="text-center p-4 text-muted" style="display:none;">
+                                No se encontraron resultados con ese filtro.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div id="alertNoData" class="alert alert-warning text-center mt-4 shadow-sm" style="display:none;">
+            <i class="fas fa-info-circle me-2"></i> No existen registros para el período seleccionado.
+        </div>
+
+    </div>
+
+    <script>
+        // =====================================================================
+        // CONFIGURACIÓN
+        // =====================================================================
+        const URL_SCRIPT_GOOGLE = "https://script.google.com/macros/s/AKfycbyB6lBzb1MnR7XH1Lqr6CdT9YmSOwvWQU_TU3viCM_0uMgoXIJdO_3oQ_Y5c7CsBs9U/exec";
+        const PASSWORD_ELIMINAR = "pisos2026";
+
+        const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+        let chartMensual = null;
+        let chartAnual = null;
+        let datosTablaGlobal = [];
+        let tipoActual = "";
+        let layoutActual = "simple";
+        let modalPDF = null;
+        let periodoActual = { mes: "", anio: "", esTodoElAnio: false };
+
+        // =====================================================================
+        // INIT
+        // =====================================================================
+        window.onload = function() {
+            const modalEl = document.getElementById('modalPDF');
+            modalPDF = new bootstrap.Modal(modalEl);
+
+            // Poblar meses (con opción "Todo el año")
+            const selectMes = document.getElementById('filtroMes');
+            MESES.forEach((m, i) => {
+                const opt = document.createElement('option');
+                opt.value = (i + 1).toString().padStart(2, '0');
+                opt.text = m;
+                if (i === new Date().getMonth()) opt.selected = true;
+                selectMes.appendChild(opt);
+            });
+            const optTodo = document.createElement('option');
+            optTodo.value = "ALL";
+            optTodo.text = "📅 Todo el año";
+            optTodo.style.fontWeight = "bold";
+            selectMes.appendChild(optTodo);
+
+            // Poblar años
+            const selectAnio = document.getElementById('filtroAnio');
+            const currentYear = new Date().getFullYear();
+            [currentYear - 1, currentYear].forEach(y => {
+                const opt = document.createElement('option');
+                opt.value = y;
+                opt.text = y;
+                if (y === currentYear) opt.selected = true;
+                selectAnio.appendChild(opt);
+            });
+
+            document.getElementById('filtroTabla').addEventListener('keyup', filtrarTablaLocal);
+            document.getElementById('btnConsultar').addEventListener('click', consultarDatos);
+        };
+
+        // =====================================================================
+        // LOADING
+        // =====================================================================
+        function showLoading(mensaje, submensaje = "") {
+            const overlay = document.getElementById('overlay');
+            document.querySelector('#loadingMessage h4').textContent = mensaje;
+            document.querySelector('#loadingMessage p').textContent = submensaje;
+            overlay.style.display = 'flex';
+        }
+        function hideLoading() {
+            document.getElementById('overlay').style.display = 'none';
+        }
+
+        // =====================================================================
+        // CONSULTAR
+        // =====================================================================
+        function consultarDatos() {
+            const tipo = document.getElementById('filtroTipo').value;
+            const mes = document.getElementById('filtroMes').value;
+            const anio = document.getElementById('filtroAnio').value;
+
+            if (!tipo) {
+                Swal.fire('Campo Requerido', 'Debe seleccionar un Tipo de Actividad.', 'warning');
+                return;
+            }
+
+            tipoActual = tipo;
+            periodoActual = {
+                mes: mes,
+                anio: anio,
+                esTodoElAnio: mes === "ALL"
+            };
+
+            showLoading("Por favor espera un momento...", "");
+
+            document.getElementById('dashboardContent').style.display = 'none';
+            document.getElementById('alertNoData').style.display = 'none';
+
+            const payload = {
+                action: "obtenerDatos",
+                tipoActividad: tipo,
+                mes: mes,
+                anio: anio
+            };
+
+            fetch(URL_SCRIPT_GOOGLE, {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                hideLoading();
+                if (data.status === "error") {
+                    Swal.fire("Error", data.message, "error");
+                    return;
+                }
+                renderizarDashboard(data.data, mes, anio);
+
+                if (!data.data.existeHoja || data.data.totalReportes === 0) {
+                    document.getElementById('alertNoData').style.display = 'block';
+                }
+            })
+            .catch(err => {
+                hideLoading();
+                console.error("Error:", err);
+                Swal.fire("Error", "Problema de conexión con el servidor.", "error");
+            });
+        }
+
+        // =====================================================================
+        // RENDER
+        // =====================================================================
+        function renderizarDashboard(data, mesVal, anio) {
+            document.getElementById('dashboardContent').style.display = 'block';
+            datosTablaGlobal = data.listaReportes;
+            layoutActual = data.layout || "simple";
+
+            const esTodoElAnio = mesVal === "ALL";
+            const nombreMes = esTodoElAnio ? "Todo el año" : MESES[parseInt(mesVal) - 1];
+
+            const commonOpts = (titulo) => ({
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    title: { display: true, text: titulo, font: { size: 14 } },
+                    legend: { display: false }
+                }
+            });
+
+            // Gráfico del período
+            if (chartMensual) chartMensual.destroy();
+
+            if (esTodoElAnio) {
+                // Cuando es todo el año, el gráfico principal se convierte en barras por mes
+                chartMensual = new Chart(document.getElementById('chartMensual'), {
+                    type: 'bar',
+                    data: {
+                        labels: data.datosGraficoAnual.labels,
+                        datasets: [{
+                            label: 'Reportes',
+                            data: data.datosGraficoAnual.data,
+                            backgroundColor: '#3498db',
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        ...commonOpts(`Reportes por Mes - ${anio}`),
+                        scales: {
+                            x: { title: { display: true, text: 'Mes', font: { weight: 'bold' } } },
+                            y: { title: { display: true, text: 'Número de Reportes', font: { weight: 'bold' } }, beginAtZero: true }
+                        }
+                    }
+                });
+                document.getElementById('infoChartMensual').innerHTML = '<i class="fas fa-info-circle me-1"></i> Distribución mensual de reportes del año completo';
+            } else {
+                chartMensual = new Chart(document.getElementById('chartMensual'), {
+                    type: 'bar',
+                    data: {
+                        labels: data.datosGraficoDia.labels,
+                        datasets: [{
+                            label: 'Reportes',
+                            data: data.datosGraficoDia.data,
+                            backgroundColor: '#3498db',
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        ...commonOpts(`Reportes Diarios - ${nombreMes} ${anio}`),
+                        scales: {
+                            x: { title: { display: true, text: 'Día del mes', font: { weight: 'bold' } } },
+                            y: { title: { display: true, text: 'Número de Reportes', font: { weight: 'bold' } }, beginAtZero: true }
+                        }
+                    }
+                });
+                document.getElementById('infoChartMensual').innerHTML = '<i class="fas fa-info-circle me-1"></i> Distribución diaria de reportes del mes seleccionado';
+            }
+
+            // Gráfico anual (línea)
+            if (chartAnual) chartAnual.destroy();
+            chartAnual = new Chart(document.getElementById('chartAnual'), {
+                type: 'line',
+                data: {
+                    labels: data.datosGraficoAnual.labels,
+                    datasets: [{
+                        label: 'Reportes',
+                        data: data.datosGraficoAnual.data,
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        pointBackgroundColor: '#3498db',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5
+                    }]
+                },
+                options: {
+                    ...commonOpts(`Tendencia Anual - ${anio}`),
+                    scales: {
+                        y: { title: { display: true, text: 'Reportes Totales', font: { weight: 'bold' } }, beginAtZero: true }
+                    }
+                }
+            });
+
+            // Título tabla
+            const tituloPeriodo = esTodoElAnio ? `Todo el Año ${anio}` : `${nombreMes} ${anio}`;
+            document.getElementById('tituloTabla').innerHTML = `<i class="fas fa-list me-2"></i>Historial - ${tipoActual} - ${tituloPeriodo}`;
+
+            // Tabla adaptativa
+            configurarTabla();
+            renderizarTabla(datosTablaGlobal);
+        }
+
+        function configurarTabla() {
+            const header = document.getElementById('tablaHeader');
+            if (layoutActual === "shampu") {
+                header.innerHTML = `
+                    <tr>
+                        <th style="width: 100px;">Fecha</th>
+                        <th style="width: 110px;">Edificio</th>
+                        <th style="width: 100px;">Nivel</th>
+                        <th>Observaciones</th>
+                        <th class="text-center" style="width: 200px;">Acciones</th>
+                    </tr>
+                `;
+            } else {
+                header.innerHTML = `
+                    <tr>
+                        <th style="width: 100px;">Fecha</th>
+                        <th>Descripción</th>
+                        <th class="text-center" style="width: 200px;">Acciones</th>
+                    </tr>
+                `;
+            }
+        }
+
+        function filtrarTablaLocal() {
+            const texto = document.getElementById('filtroTabla').value.toLowerCase().trim();
+            if (!texto) {
+                renderizarTabla(datosTablaGlobal);
+                return;
+            }
+
+            const filtrados = datosTablaGlobal.filter(item => {
+                if (item.fecha.toLowerCase().includes(texto)) return true;
+                if (layoutActual === "shampu") {
+                    return (
+                        (item.edificio || "").toLowerCase().includes(texto) ||
+                        (item.nivel || "").toLowerCase().includes(texto) ||
+                        (item.observaciones || "").toLowerCase().includes(texto)
+                    );
+                } else {
+                    return (item.descripcion || "").toLowerCase().includes(texto);
+                }
+            });
+            renderizarTabla(filtrados);
+        }
+
+        function renderizarTabla(lista) {
+            const tbody = document.getElementById('tablaCuerpo');
+            const aviso = document.getElementById('sinResultadosFiltro');
+            tbody.innerHTML = '';
+
+            if (lista.length === 0) {
+                aviso.style.display = 'block';
+                return;
+            }
+            aviso.style.display = 'none';
+
+            lista.forEach((item) => {
+                const botones = construirBotones(item);
+                const tr = document.createElement('tr');
+
+                if (layoutActual === "shampu") {
+                    const obs = item.observaciones || '';
+                    const obsCorta = obs.length > 60 ? obs.substring(0, 60) + '...' : obs;
+                    const obsHTML = obs
+                        ? `<div class="observaciones-cell" title="${escapeHtml(obs)}">${escapeHtml(obsCorta)}</div>`
+                        : '<span class="text-muted small">-</span>';
+
+                    tr.innerHTML = `
+                        <td>${item.fecha}</td>
+                        <td>${escapeHtml(item.edificio || '')}</td>
+                        <td>${escapeHtml(item.nivel || '')}</td>
+                        <td>${obsHTML}</td>
+                        <td class="text-center">${botones}</td>
+                    `;
+                } else {
+                    const desc = item.descripcion || '';
+                    const descCorta = desc.length > 60 ? desc.substring(0, 60) + '...' : desc;
+                    const descHTML = desc
+                        ? `<div class="descripcion-cell" title="${escapeHtml(desc)}">${escapeHtml(descCorta)}</div>`
+                        : '<span class="text-muted small">-</span>';
+
+                    tr.innerHTML = `
+                        <td>${item.fecha}</td>
+                        <td>${descHTML}</td>
+                        <td class="text-center">${botones}</td>
+                    `;
+                }
+                tbody.appendChild(tr);
+            });
+        }
+
+        function construirBotones(item) {
+            if (item.url && item.url.includes('http')) {
+                const urlSafe = item.url.replace(/'/g, "\\'");
+                return `
+                    <button class="btn btn-action btn-pdf" onclick="verPDF('${urlSafe}')" title="Ver Reporte"><i class="fas fa-eye"></i></button>
+                    <button class="btn btn-action btn-share" onclick="compartirPDF('${urlSafe}')" title="Compartir"><i class="fas fa-share-alt"></i></button>
+                    <button class="btn btn-action btn-download" onclick="descargarPDF('${urlSafe}')" title="Descargar"><i class="fas fa-download"></i></button>
+                    <button class="btn btn-action btn-delete" onclick="confirmarEliminar('${escapeHtml(item.reporteId)}', '${urlSafe}', '${escapeHtml(item.fecha)}')" title="Eliminar"><i class="fas fa-trash-alt"></i></button>
+                `;
+            }
+            return `
+                <button class="btn btn-action btn-delete" onclick="confirmarEliminar('${escapeHtml(item.reporteId)}', '', '${escapeHtml(item.fecha)}')" title="Eliminar"><i class="fas fa-trash-alt"></i></button>
+            `;
+        }
+
+        function escapeHtml(texto) {
+            if (texto === null || texto === undefined) return '';
+            return String(texto)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        // =====================================================================
+        // ACCIONES DE PDF
+        // =====================================================================
+        function verPDF(url) {
+            if (!url) return;
+            let previewUrl = url;
+            if (url.includes('/view')) {
+                previewUrl = url.replace(/\/view.*/, '/preview');
+            }
+            document.getElementById('iframePDF').src = previewUrl;
+            modalPDF.show();
+        }
+
+        function getDriveId(url) {
+            if (!url) return null;
+            let match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+            if (match) return match[1];
+            match = url.match(/id=([a-zA-Z0-9-_]+)/);
+            return match ? match[1] : null;
+        }
+
+        function descargarPDF(url) {
+            const id = getDriveId(url);
+            if (id) {
+                window.open(`https://drive.google.com/uc?export=download&id=${id}`, '_blank');
+            } else {
+                Swal.fire('Error', 'No se pudo obtener el ID del archivo.', 'error');
+            }
+        }
+
+        async function compartirPDF(url) {
+            if (!url) return;
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        title: 'Reporte de Actividad',
+                        text: 'Reporte de actividad',
+                        url: url
+                    });
+                } catch (err) {
+                    console.log('Error compartiendo:', err);
+                }
+            } else {
+                try {
+                    await navigator.clipboard.writeText(url);
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Enlace copiado',
+                        text: 'El enlace se ha copiado al portapapeles.',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                } catch (e) {
+                    Swal.fire('Error', 'No se pudo copiar el enlace.', 'error');
+                }
+            }
+        }
+
+        // =====================================================================
+        // ELIMINAR
+        // =====================================================================
+        function confirmarEliminar(reporteId, fileUrl, fechaReporte) {
+            if (!reporteId) {
+                Swal.fire('Error', 'No se pudo identificar el reporte.', 'error');
+                return;
+            }
+
+            Swal.fire({
+                title: 'Eliminar Reporte',
+                html: `
+                    <p>Se eliminará el reporte de <b>${escapeHtml(tipoActual)}</b>.</p>
+                    <p class="text-muted small">Fecha: ${escapeHtml(fechaReporte || '')}</p>
+                    <p class="text-muted small">El archivo PDF se moverá a la carpeta de reciclaje.</p>
+                    <p class="mt-3">Ingresa la contraseña para confirmar:</p>
+                `,
+                input: 'password',
+                inputAttributes: { autocapitalize: 'off', placeholder: 'Contraseña' },
+                showCancelButton: true,
+                confirmButtonText: 'Eliminar',
+                confirmButtonColor: '#e74c3c',
+                cancelButtonText: 'Cancelar',
+                allowOutsideClick: false,
+                preConfirm: (password) => {
+                    if (password !== PASSWORD_ELIMINAR) {
+                        Swal.showValidationMessage('Contraseña incorrecta');
+                        return false;
+                    }
+                    return true;
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    ejecutarEliminacion(reporteId, fileUrl, fechaReporte);
+                }
+            });
+        }
+
+        function ejecutarEliminacion(reporteId, fileUrl, fechaReporte) {
+            const anio = document.getElementById('filtroAnio').value;
+            // Determinar el mes del reporte a partir de la fecha (dd/mm/aaaa)
+            let mesDelReporte = periodoActual.mes;
+            if (periodoActual.esTodoElAnio && fechaReporte) {
+                const partes = fechaReporte.split('/');
+                if (partes.length === 3) {
+                    mesDelReporte = partes[1].padStart(2, '0');
+                }
+            }
+
+            showLoading("Eliminando reporte...", "Por favor espera");
+
+            fetch(URL_SCRIPT_GOOGLE, {
+                method: 'POST',
+                body: JSON.stringify({
+                    action: "eliminarReporte",
+                    tipoActividad: tipoActual,
+                    mes: mesDelReporte,
+                    anio: anio,
+                    reporteId: reporteId,
+                    fileUrl: fileUrl
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                hideLoading();
+                if (data.status === "success") {
+                    Swal.fire("Eliminado", data.data.message, "success")
+                        .then(() => consultarDatos());
+                } else {
+                    Swal.fire("Error", data.message, "error");
+                }
+            })
+            .catch(err => {
+                hideLoading();
+                console.error("Error:", err);
+                Swal.fire("Error", "No se pudo conectar con el servidor.", "error");
+            });
+        }
+    </script>
+</body>
+</html>

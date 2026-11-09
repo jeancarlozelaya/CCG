@@ -27,6 +27,8 @@ const urlsToCacheIndex = [
     './Supervisión/Pag - Reporte de Supervisión.html',
     './Supervisión/Reporte de Supervisión.html',
     
+    './Reporte de Actividades.html',
+    
     './Liberación de Responsabilidad/Pag - Liberación de Responsabilidad.html',
     './Liberación de Responsabilidad/Liberación de Responsabilidad.html',
     

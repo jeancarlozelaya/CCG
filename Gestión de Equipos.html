@@ -308,65 +308,17 @@
     .equipo label { font-weight: 600; margin-bottom: 8px; color: var(--dark-color); font-size: 15px; }
     .disponible { color: var(--success-color); font-weight: 600; }
     .no-disponible { color: var(--accent-color); font-weight: 600; font-size: 0.85rem; }
+    .tiempo-transcurrido {
+        display: block;
+        margin-top: 4px;
+        font-size: 0.78rem;
+        color: #7f8c8d;
+        font-weight: 600;
+    }
+    .tiempo-transcurrido i { color: var(--warning-color); }
     .empty-state { text-align: center; padding: 40px 20px; color: #6c757d; grid-column: 1/-1; }
     .empty-state i { font-size: 3rem; margin-bottom: 12px; color: #bdc3c7; display: block; }
 
-    .no-conformidades-previas {
-        background-color: #fff3cd;
-        border-left: 4px solid #ffc107;
-        margin-bottom: 25px;
-        padding: 20px;
-        border-radius: 8px;
-    }
-    .no-conformidades-previas h3 {
-        color: #856404;
-        font-size: 1.1rem;
-        margin-bottom: 15px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        flex-wrap: wrap;
-    }
-    .no-conformidades-list {
-        background-color: white;
-        border-radius: 6px;
-        padding: 15px;
-        margin-bottom: 15px;
-        max-height: 300px;
-        overflow-y: auto;
-    }
-    .no-conformidad-item { padding: 10px; border-bottom: 1px solid #ffeeba; color: #856404; }
-    .no-conformidad-item:last-child { border-bottom: none; }
-    .observacion-previa {
-        background-color: white;
-        border-radius: 6px;
-        padding: 15px;
-        margin-bottom: 15px;
-        border-left: 3px solid #ffc107;
-    }
-    .compromiso-check {
-        background-color: white;
-        border-radius: 6px;
-        padding: 15px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        flex-wrap: wrap;
-    }
-    .compromiso-check input { width: 22px; height: 22px; cursor: pointer; }
-    .compromiso-check label { margin: 0; font-weight: 600; color: #856404; cursor: pointer; }
-    .btn-ver-acta-anterior {
-        background-color: #17a2b8;
-        color: white;
-        border: none;
-        border-radius: 6px;
-        padding: 8px 15px;
-        font-size: 0.85rem;
-        cursor: pointer;
-        transition: var(--transition);
-        margin-left: auto;
-    }
-    .btn-ver-acta-anterior:hover { background-color: #138496; }
     .badge-no-conformidades {
         position: absolute;
         top: 5px; right: 5px;
@@ -553,7 +505,36 @@
         background: #f9f9f9;
         border-radius: 6px;
         border: 1px solid #eee;
+        position: relative;
     }
+    .checklist-item.resaltado-no-cumplia {
+        border: 2px solid #e74c3c;
+        background: #fdf3f2;
+    }
+    .checklist-item.resaltado-no-cumplia label {
+        color: #a93226;
+    }
+    .checklist-item.resaltado-no-aplicaba {
+        border: 2px solid #95a5a6;
+        background: #f4f6f7;
+    }
+    .checklist-item.resaltado-no-aplicaba label {
+        color: #5d6d7e;
+    }
+    .etiqueta-previa {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 3px 8px;
+        border-radius: 10px;
+        margin-bottom: 5px;
+        align-self: flex-start;
+        color: white;
+    }
+    .etiqueta-previa.no-cumplia { background: #e74c3c; }
+    .etiqueta-previa.no-aplicaba { background: #95a5a6; }
     .checklist-item label {
         font-size: 13px;
         color: #333;
@@ -1038,24 +1019,6 @@
         <div class="equipos-container" id="equipos"></div>
         <br>
 
-        <div id="noConformidadesPrevias" class="no-conformidades-previas" style="display: none;">
-            <h3>
-                <i class="fas fa-exclamation-triangle"></i>
-                No Conformidades de la Revisión Anterior
-                <button type="button" id="btnVerActaAnterior" class="btn-ver-acta-anterior" style="display:none;">
-                    <i class="fas fa-file-pdf"></i> Ver Acta Anterior
-                </button>
-            </h3>
-            <div id="noConformidadesList" class="no-conformidades-list"></div>
-            <div id="observacionPrevia" class="observacion-previa" style="display: none;"></div>
-            <div class="compromiso-check">
-                <input type="checkbox" id="compromisoRevisado">
-                <label for="compromisoRevisado">
-                    <i class="fas fa-check-circle"></i> Confirmo que he revisado las no conformidades y observaciones de la revisión anterior
-                </label>
-            </div>
-        </div>
-
         <div id="checklist-section" style="display: none;">
             <div class="checklist-header">
                 <h2 class="checklist-title" id="checklistTitulo">Checklist Preoperativo</h2>
@@ -1356,6 +1319,7 @@ let sincronizando = false;
 let _autoSyncInProgress = false;
 let _autoSyncTimer = null;
 let _revalidateTimer = null;
+let _timerTranscurrido = null;
 
 let equipos = [];
 let colaboradores = [];
@@ -1375,8 +1339,6 @@ let estadoEntradas = {
     colaborador: '', area: 'Bodega',
     checklist: { respuestas: [], observaciones: "", fotos: {} }
 };
-
-let noConformidadesPrevias = { preguntas: [], observacion: "", actaUrl: "" };
 
 function getEstadoActual() { return modoActual === 'salidas' ? estadoSalidas : estadoEntradas; }
 function setEstadoActual(estado) {
@@ -1535,6 +1497,64 @@ function generarIDUnico(extra) {
     return `${ts}-${rand}-${hash}-${extraKey}`;
 }
 
+function formatearTiempoTranscurrido(ms) {
+    if (!ms || ms < 0) return '';
+    const seg = Math.floor(ms / 1000);
+    const min = Math.floor(seg / 60);
+    const hor = Math.floor(min / 60);
+    const dia = Math.floor(hor / 24);
+
+    if (dia >= 1) {
+        const hResto = hor % 24;
+        return `${dia}d ${hResto}h`;
+    }
+    if (hor >= 1) {
+        const mResto = min % 60;
+        return `${hor}h ${mResto}m`;
+    }
+    if (min >= 1) {
+        const sResto = seg % 60;
+        return `${min}m ${sResto}s`;
+    }
+    return `${seg}s`;
+}
+
+// Parser robusto: acepta "YYYY-MM-DD HH:mm:ss" y "DD/MM/YYYY HH:mm:ss"
+function parseFechaAsignacion(str) {
+    if (!str) return null;
+    const s = String(str).trim();
+
+    // Formato ISO: YYYY-MM-DD HH:mm(:ss)?
+    let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?/);
+    if (m) {
+        const y = parseInt(m[1], 10);
+        const mo = parseInt(m[2], 10) - 1;
+        const d = parseInt(m[3], 10);
+        const h = parseInt(m[4], 10);
+        const mi = parseInt(m[5], 10);
+        const se = m[6] ? parseInt(m[6], 10) : 0;
+        const dt = new Date(y, mo, d, h, mi, se);
+        return isNaN(dt.getTime()) ? null : dt;
+    }
+
+    // Formato con barras: DD/MM/YYYY HH:mm(:ss)?
+    m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})[ ,T](\d{1,2}):(\d{2})(?::(\d{2}))?/);
+    if (m) {
+        const d = parseInt(m[1], 10);
+        const mo = parseInt(m[2], 10) - 1;
+        const y = parseInt(m[3], 10);
+        const h = parseInt(m[4], 10);
+        const mi = parseInt(m[5], 10);
+        const se = m[6] ? parseInt(m[6], 10) : 0;
+        const dt = new Date(y, mo, d, h, mi, se);
+        return isNaN(dt.getTime()) ? null : dt;
+    }
+
+    // Último intento: dejar que Date lo parsee
+    const dt = new Date(s);
+    return isNaN(dt.getTime()) ? null : dt;
+}
+
 // =========================================================================
 // CONFIG: MODO ADMIN
 // =========================================================================
@@ -1656,11 +1676,10 @@ function abrirConfiguracion() {
 }
 
 // =========================================================================
-// REINICIO DE CACHÉ (Mantenimiento)
+// REINICIO DE CACHÉ
 // =========================================================================
 
 async function reiniciarCachePagina() {
-    // 1) Verificar pendientes antes de advertir
     let numPendientes = 0;
     try {
         if (isDbInitialized) {
@@ -1669,7 +1688,6 @@ async function reiniciarCachePagina() {
         }
     } catch (e) { console.warn('No se pudo leer pendientes:', e); }
 
-    // 2) Primera advertencia con conteo real de pendientes
     const htmlAdvertencia = `
         <div style="text-align:left; font-size:0.95em;">
             <p style="margin-bottom:10px;">
@@ -1710,7 +1728,6 @@ async function reiniciarCachePagina() {
     });
     if (!r1.isConfirmed) return;
 
-    // 3) Segunda confirmación (irreversible)
     const r2 = await Swal.fire({
         title: '¿Estás 100% seguro?',
         html: `<p>Esta acción es <b>irreversible</b>. Después de reiniciar no podrás recuperar los datos borrados.</p>`,
@@ -1724,7 +1741,6 @@ async function reiniciarCachePagina() {
     });
     if (!r2.isConfirmed) return;
 
-    // 4) Mostrar overlay mientras borra
     showLoadingOverlay();
     const loadingMsg = document.getElementById('loadingMessage');
     if (loadingMsg) {
@@ -1733,7 +1749,6 @@ async function reiniciarCachePagina() {
     }
 
     try {
-        // 4a) Borrar IndexedDB completa (cerrando la conexión abierta primero)
         if (db) {
             try { db.close(); } catch (e) {}
             db = null;
@@ -1744,17 +1759,14 @@ async function reiniciarCachePagina() {
             req.onsuccess = () => resolve();
             req.onerror = () => resolve();
             req.onblocked = () => resolve();
-            // Si está bloqueada, forzamos resolución tras un tiempo
             setTimeout(resolve, 3000);
         });
 
-        // 4b) Borrar localStorage
         try {
             localStorage.removeItem(LS_CACHE_EQUIPOS);
             localStorage.removeItem(LS_CACHE_COLABORADORES);
             localStorage.removeItem(LS_CACHE_TIMESTAMP);
             localStorage.removeItem(LS_CONFIG);
-            // Por si acaso, limpieza total de claves de la app
             Object.keys(localStorage).forEach(k => {
                 if (k && (k.indexOf('cache') === 0 || k.indexOf('gestionEquipos') === 0)) {
                     localStorage.removeItem(k);
@@ -1762,7 +1774,6 @@ async function reiniciarCachePagina() {
             });
         } catch (e) { console.warn('Error limpiando localStorage:', e); }
 
-        // 4c) Borrar sessionStorage
         try {
             sessionStorage.removeItem(SESSION_ADMIN_KEY);
             Object.keys(sessionStorage).forEach(k => {
@@ -1770,7 +1781,6 @@ async function reiniciarCachePagina() {
             });
         } catch (e) { console.warn('Error limpiando sessionStorage:', e); }
 
-        // 4d) Aviso de éxito y recarga
         await Swal.fire({
             icon: 'success',
             title: 'Caché reiniciado',
@@ -1780,7 +1790,6 @@ async function reiniciarCachePagina() {
             confirmButtonColor: '#2c3e50'
         });
 
-        // Forzar recarga limpia
         window.location.reload();
     } catch (error) {
         console.error('Error reiniciando caché:', error);
@@ -1821,11 +1830,11 @@ function actualizarEstadoConexion() {
         btnSinc.disabled = sel === 0 || !isOnline;
     }
 }
-window.addEventListener('online', () => { actualizarEstadoConexion(); cargarDatos(); intentarAutoSync(); });
+window.addEventListener('online', () => { actualizarEstadoConexion(); cargarDatos({ silencioso: true }); intentarAutoSync(); });
 window.addEventListener('offline', () => { actualizarEstadoConexion(); });
 
 // =========================================================================
-// AUTOSYNC + REVALIDACIÓN PERIÓDICA
+// AUTOSYNC + REVALIDACIÓN PERIÓDICA + TIMER DE "HACE X"
 // =========================================================================
 
 function iniciarAutoSync() {
@@ -1843,6 +1852,30 @@ function iniciarRevalidacionPeriodica() {
             cargarDatos({ silencioso: true });
         }
     }, REVALIDATE_INTERVAL_MS);
+}
+
+function iniciarTimerTranscurrido() {
+    if (_timerTranscurrido) clearInterval(_timerTranscurrido);
+    _timerTranscurrido = setInterval(() => {
+        if (document.visibilityState !== 'visible') return;
+        actualizarTiemposTranscurridosUI();
+    }, 60000);
+}
+
+function actualizarTiemposTranscurridosUI() {
+    $('.equipo[data-fecha-asignacion]').each(function() {
+        const $eq = $(this);
+        const fechaStr = $eq.attr('data-fecha-asignacion');
+        const $cont = $eq.find('.tiempo-transcurrido');
+        if (!$cont.length) return;
+        const fecha = parseFechaAsignacion(fechaStr);
+        if (!fecha) return;
+        const ms = Date.now() - fecha.getTime();
+        const texto = formatearTiempoTranscurrido(ms);
+        if (texto) {
+            $cont.html(`<i class="fas fa-clock"></i> Hace ${escapeHtml(texto)}`);
+        }
+    });
 }
 
 function cacheEstaVencido() {
@@ -2008,7 +2041,6 @@ async function loadSession() {
             const index = equipos.findIndex(e => e.nombre === sessionData.equipoSeleccionadoNombre);
             if (index !== -1) {
                 equipoSeleccionado = equipos[index];
-                await cargarNoConformidadesPrevias(equipoSeleccionado);
                 setTimeout(() => {
                     const $el = $(`#equipo-${index}`);
                     if ($el.length) {
@@ -2064,9 +2096,6 @@ async function clearSession() {
         });
         estadoSalidas = { colaborador: '', area: '', checklist: { respuestas: [], observaciones: "", fotos: {} } };
         estadoEntradas = { colaborador: '', area: 'Bodega', checklist: { respuestas: [], observaciones: "", fotos: {} } };
-        noConformidadesPrevias = { preguntas: [], observacion: "", actaUrl: "" };
-        $('#noConformidadesPrevias').hide();
-        $('#compromisoRevisado').prop('checked', false);
         selectedFiles = {};
         equipoSeleccionado = null;
         $('#colaborador').val('');
@@ -2132,100 +2161,6 @@ async function checkForSavedSession() {
 }
 
 // =========================================================================
-// NO CONFORMIDADES PREVIAS
-// =========================================================================
-
-async function cargarNoConformidadesPrevias(equipo) {
-    noConformidadesPrevias = { preguntas: [], observacion: "", actaUrl: "" };
-    $('#noConformidadesPrevias').hide();
-    $('#compromisoRevisado').prop('checked', false);
-
-    if (appConfig.modoAdmin) {
-        $('#noConformidadesPrevias').hide();
-        ocultarChecklist();
-        return;
-    }
-    if (!equipo) return;
-
-    if (equipo.noConformidades && equipo.noConformidades.trim() !== "") {
-        const preguntasArray = equipo.noConformidades.split(';').filter(p => p.trim() !== "");
-        if (preguntasArray.length > 0) noConformidadesPrevias.preguntas = preguntasArray;
-    }
-    if (equipo.observacionesPrevias && equipo.observacionesPrevias.trim() !== "") {
-        noConformidadesPrevias.observacion = equipo.observacionesPrevias;
-    }
-    if (equipo.actaUrl && equipo.actaUrl.trim() !== "") {
-        noConformidadesPrevias.actaUrl = equipo.actaUrl;
-    }
-    if (noConformidadesPrevias.actaUrl) {
-        mostrarNoConformidadesPrevias();
-    } else {
-        $('#noConformidadesPrevias').hide();
-        $('#compromisoRevisado').prop('checked', false);
-        if (equipoSeleccionado) {
-            mostrarChecklist();
-            $('#btnConfirmar').prop('disabled', false);
-        }
-    }
-}
-
-function mostrarNoConformidadesPrevias() {
-    const $container = $('#noConformidadesPrevias');
-    const $listContainer = $('#noConformidadesList');
-    const $obsContainer = $('#observacionPrevia');
-    $listContainer.empty();
-
-    if (noConformidadesPrevias.preguntas.length > 0) {
-        $listContainer.append('<div class="mb-2"><strong><i class="fas fa-exclamation-triangle"></i> No conformidades encontradas:</strong></div>');
-        noConformidadesPrevias.preguntas.forEach(pregunta => {
-            $listContainer.append(`
-                <div class="no-conformidad-item">
-                    <i class="fas fa-times-circle" style="color: #dc3545;"></i>
-                    <strong>No cumplió:</strong> ${escapeHtml(pregunta)}
-                </div>
-            `);
-        });
-    } else {
-        $listContainer.html(`
-            <div class="no-conformidad-item" style="color: #28a745;">
-                <i class="fas fa-check-circle"></i>
-                <strong>No hay no conformidades registradas en la revisión anterior.</strong>
-            </div>
-        `);
-    }
-
-    if (noConformidadesPrevias.observacion && noConformidadesPrevias.observacion.trim() !== "") {
-        $obsContainer.html(`<strong><i class="fas fa-comment"></i> Observaciones de la revisión anterior:</strong><br>${escapeHtml(noConformidadesPrevias.observacion)}`).show();
-    } else {
-        $obsContainer.html(`<strong><i class="fas fa-comment"></i> Observaciones de la revisión anterior:</strong><br><span class="text-muted">No hay observaciones registradas.</span>`).show();
-    }
-
-    if (noConformidadesPrevias.actaUrl && noConformidadesPrevias.actaUrl !== "") {
-        $('#btnVerActaAnterior').show().off('click').on('click', function() {
-            window.open(noConformidadesPrevias.actaUrl, '_blank');
-        });
-    } else {
-        $('#btnVerActaAnterior').hide();
-    }
-
-    $container.show();
-    $('#checklist-section').hide();
-    $('#btnConfirmar').prop('disabled', true);
-
-    $('#compromisoRevisado').off('change').on('change', function() {
-        if ($(this).is(':checked')) {
-            if (equipoSeleccionado) {
-                mostrarChecklist();
-                $('#btnConfirmar').prop('disabled', false);
-            }
-        } else {
-            $('#checklist-section').hide();
-            $('#btnConfirmar').prop('disabled', true);
-        }
-    });
-}
-
-// =========================================================================
 // CHECKLIST
 // =========================================================================
 
@@ -2235,6 +2170,18 @@ function ocultarChecklist() {
     $('#checklistObservaciones').val('');
     $('#progressBar').css('width', '0%');
     $('#progressText').text('0% completado');
+}
+
+function obtenerRespuestasPreviasParaResaltar() {
+    if (!equipoSeleccionado) return null;
+    if (modoActual === 'entradas') {
+        const u = equipoSeleccionado.ultimoPreoperativo;
+        if (u && Array.isArray(u.respuestas)) return u.respuestas;
+    } else {
+        const u = equipoSeleccionado.ultimoPostoperativo;
+        if (u && Array.isArray(u.respuestas)) return u.respuestas;
+    }
+    return null;
 }
 
 async function mostrarChecklist() {
@@ -2287,13 +2234,30 @@ function generarChecklistUI(checklist) {
     if (!estadoActual.fotos) estadoActual.fotos = {};
     selectedFiles = {};
 
+    const respuestasPrevias = obtenerRespuestasPreviasParaResaltar();
+
     checklist.forEach((item, index) => {
         const itemDiv = document.createElement('div');
         itemDiv.className = 'checklist-item';
+
+        const previa = respuestasPrevias && respuestasPrevias[index];
+        const resaltarNoCumplia = (previa === 'X');
+        const resaltarNoAplicaba = (previa === 'N/A');
+        if (resaltarNoCumplia) itemDiv.classList.add('resaltado-no-cumplia');
+        else if (resaltarNoAplicaba) itemDiv.classList.add('resaltado-no-aplicaba');
+
         const numFotos = (estadoActual.fotos[index] || []).length;
         if (!estadoActual.fotos[index]) estadoActual.fotos[index] = [];
 
+        let etiquetaHtml = '';
+        if (resaltarNoCumplia) {
+            etiquetaHtml = `<span class="etiqueta-previa no-cumplia"><i class="fas fa-exclamation-triangle"></i> Antes: No Cumplía</span>`;
+        } else if (resaltarNoAplicaba) {
+            etiquetaHtml = `<span class="etiqueta-previa no-aplicaba"><i class="fas fa-minus-circle"></i> Antes: No Aplicaba</span>`;
+        }
+
         itemDiv.innerHTML = `
+            ${etiquetaHtml}
             <label>${escapeHtml(item)}</label>
             <div class="checklist-buttons">
                 <button type="button" class="check-button" onclick="seleccionarRespuesta(${index}, '✔')">Cumple</button>
@@ -3362,7 +3326,6 @@ function verificarFormulario() {
     const esAdmin = appConfig.modoAdmin;
     const hayFirmaResp = esAdmin ? true : !isCanvasBlank(canvas);
     const hayFirmaEval = esAdmin ? true : !isCanvasBlank(canvasEval);
-    const compromisoOk = $('#noConformidadesPrevias').is(':visible') ? $('#compromisoRevisado').is(':checked') : true;
 
     let colaboradorValido;
     if (modoActual === "salidas") colaboradorValido = allColaboradores.includes(colaborador);
@@ -3377,7 +3340,7 @@ function verificarFormulario() {
     canvasEval.style.borderColor = hayFirmaEval ? "#28a745" : "#ddd";
     canvasEval.style.borderWidth = hayFirmaEval ? "2px" : "1px";
 
-    if (equipoSeleccionado && colaborador && colaboradorValido && hayFirmaResp && hayFirmaEval && compromisoOk) {
+    if (equipoSeleccionado && colaborador && colaboradorValido && hayFirmaResp && hayFirmaEval) {
         $('#btnConfirmar').prop('disabled', false);
     } else {
         $('#btnConfirmar').prop('disabled', true);
@@ -3425,9 +3388,6 @@ async function cambiarModo(modo) {
                        (modo === 'entradas' && !equipoSeleccionado.disponible);
         if (!valido) {
             equipoSeleccionado = null;
-            noConformidadesPrevias = { preguntas: [], observacion: "", actaUrl: "" };
-            $('#noConformidadesPrevias').hide();
-            $('#compromisoRevisado').prop('checked', false);
             ocultarChecklist();
             $('.equipo').css('border-color', '').css('background-color', '');
             if (modo === 'entradas') {
@@ -3448,11 +3408,11 @@ async function cambiarModo(modo) {
         const valido = (modo === 'salidas' && equipoSeleccionado.disponible) ||
                        (modo === 'entradas' && !equipoSeleccionado.disponible);
         if (valido) {
-            await cargarNoConformidadesPrevias(equipoSeleccionado);
+            if (appConfig.modoAdmin) ocultarChecklist();
+            else mostrarChecklist();
         }
     } else {
         ocultarChecklist();
-        $('#noConformidadesPrevias').hide();
         $('#btnConfirmar').prop('disabled', true);
     }
 
@@ -3482,17 +3442,31 @@ function mostrarEquiposEnUI() {
         if (modoActual === "entradas" && equipo.disponible) return;
 
         const estadoClass = equipo.disponible ? 'disponible' : 'no-disponible';
-        const estadoText = equipo.disponible ? 'Disponible' : `Ocupada por: ${escapeHtml(equipo.asignadoA)}`;
+        let estadoText = equipo.disponible ? 'Disponible' : `Ocupada por: ${escapeHtml(equipo.asignadoA)}`;
+
+        let tiempoHtml = '';
+        let dataFechaAttr = '';
+        if (!equipo.disponible && equipo.fechaAsignacion) {
+            const fecha = parseFechaAsignacion(equipo.fechaAsignacion);
+            if (fecha) {
+                const ms = Date.now() - fecha.getTime();
+                const texto = formatearTiempoTranscurrido(ms);
+                if (texto) tiempoHtml = `<span class="tiempo-transcurrido"><i class="fas fa-clock"></i> Hace ${escapeHtml(texto)}</span>`;
+                dataFechaAttr = ` data-fecha-asignacion="${escapeHtml(equipo.fechaAsignacion)}"`;
+            }
+        }
+
         const isSelected = equipoSeleccionado && equipoSeleccionado.nombre === equipo.nombre;
         const borderStyle = isSelected ? 'border-color: #007BFF; background-color: #e6f0ff;' : '';
         const tieneNC = (equipo.noConformidades && equipo.noConformidades.trim() !== "") ? '<span class="badge-no-conformidades"><i class="fas fa-exclamation-triangle"></i></span>' : '';
 
         $container.append(`
-            <div class="equipo" id="equipo-${index}" data-index="${index}" onclick="seleccionarEquipo(${index})" style="${borderStyle}">
+            <div class="equipo" id="equipo-${index}" data-index="${index}"${dataFechaAttr} onclick="seleccionarEquipo(${index})" style="${borderStyle}">
                 ${tieneNC}
                 <img src="${equipo.imagen || ''}" alt="${escapeHtml(equipo.nombre)}" onerror="this.style.display='none'">
                 <label>${escapeHtml(equipo.nombre)}</label>
                 <span class="${estadoClass}">${estadoText}</span>
+                ${tiempoHtml}
             </div>
         `);
     });
@@ -3529,8 +3503,6 @@ async function seleccionarEquipo(index) {
     $('.equipo').css('border-color', '').css('background-color', '');
     $(`#equipo-${index}`).css('border-color', '#007BFF').css('background-color', '#e6f0ff');
 
-    await cargarNoConformidadesPrevias(equipo);
-
     const estadoActual = getEstadoActual();
     if (modoActual === "entradas") {
         $('#buscador').prop('disabled', true);
@@ -3549,15 +3521,8 @@ async function seleccionarEquipo(index) {
     }
 
     if (!anterior || anterior.nombre !== equipo.nombre) {
-        if ($('#noConformidadesPrevias').is(':visible')) {
-            if ($('#compromisoRevisado').is(':checked')) {
-                if (appConfig.modoAdmin) ocultarChecklist();
-                else mostrarChecklist();
-            }
-        } else {
-            if (appConfig.modoAdmin) ocultarChecklist();
-            else mostrarChecklist();
-        }
+        if (appConfig.modoAdmin) ocultarChecklist();
+        else mostrarChecklist();
     }
     verificarFormulario();
     saveSession();
@@ -3642,7 +3607,7 @@ function selectSuggestion(s) {
 }
 
 // =========================================================================
-// CARGA DE DATOS + APLICACIÓN DE CAMBIOS PENDIENTES
+// CARGA DE DATOS
 // =========================================================================
 
 function guardarCacheDatos() {
@@ -3802,19 +3767,34 @@ async function aplicarCambioInventarioLocal(nombreEquipo, tipo, colaborador) {
     const idx = equipos.findIndex(e => e.nombre === nombreEquipo);
     if (idx === -1) return;
 
+    const ahoraStr = (function() {
+        const d = new Date();
+        const y = d.getFullYear();
+        const mo = String(d.getMonth() + 1).padStart(2, '0');
+        const da = String(d.getDate()).padStart(2, '0');
+        const h = String(d.getHours()).padStart(2, '0');
+        const mi = String(d.getMinutes()).padStart(2, '0');
+        const s = String(d.getSeconds()).padStart(2, '0');
+        return `${y}-${mo}-${da} ${h}:${mi}:${s}`;
+    })();
+
     if (tipo === 'salidas') {
         equipos[idx].disponible = false;
         equipos[idx].asignadoA = colaborador;
+        equipos[idx].fechaAsignacion = ahoraStr;
         if (equipoSeleccionado && equipoSeleccionado.nombre === nombreEquipo) {
             equipoSeleccionado.disponible = false;
             equipoSeleccionado.asignadoA = colaborador;
+            equipoSeleccionado.fechaAsignacion = ahoraStr;
         }
     } else {
         equipos[idx].disponible = true;
         equipos[idx].asignadoA = '';
+        equipos[idx].fechaAsignacion = '';
         if (equipoSeleccionado && equipoSeleccionado.nombre === nombreEquipo) {
             equipoSeleccionado.disponible = true;
             equipoSeleccionado.asignadoA = '';
+            equipoSeleccionado.fechaAsignacion = '';
         }
     }
 
@@ -4606,7 +4586,6 @@ function configurarEventos() {
         });
     });
 
-    // NUEVO: Botón de reinicio de caché
     document.getElementById('btn-reiniciar-cache').addEventListener('click', async function() {
         const modal = bootstrap.Modal.getInstance(document.getElementById('modalConfig'));
         if (modal) modal.hide();
@@ -4639,6 +4618,12 @@ function configurarEventos() {
         ind.addEventListener('touchend', cancelar);
         ind.addEventListener('touchcancel', cancelar);
     })();
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            actualizarTiemposTranscurridosUI();
+        }
+    });
 }
 
 // =========================================================================
@@ -4647,6 +4632,9 @@ function configurarEventos() {
 
 document.addEventListener('DOMContentLoaded', async function() {
     try {
+        // Overlay de carga al abrir (si hay internet, siempre se muestra mientras llegan los datos)
+        if (navigator.onLine) showLoadingOverlay();
+
         await initDB();
 
         initializeCanvasFor(firmaResp);
@@ -4662,8 +4650,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         actualizarEstadoConexion();
         await actualizarBadgePendientes();
 
-        const hayCache = cargarCacheDatos();
-        await cargarDatos({ silencioso: hayCache && !cacheEstaVencido() });
+        // Carga inicial: siempre pide al servidor si hay internet, con overlay visible.
+        // El caché solo se usa como respaldo si falla la red.
+        await cargarDatos({ silencioso: false });
 
         await checkForSavedSession();
 
@@ -4672,10 +4661,12 @@ document.addEventListener('DOMContentLoaded', async function() {
 
         iniciarAutoSync();
         iniciarRevalidacionPeriodica();
+        iniciarTimerTranscurrido();
 
         console.log('Aplicación de gestión de aspiradoras inicializada');
     } catch (error) {
         console.error("Error en inicialización:", error);
+        hideLoadingOverlay();
         Swal.fire('Error', 'Hubo un error al inicializar la aplicación: ' + error.message, 'error');
     }
 });

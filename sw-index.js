@@ -1,7 +1,7 @@
 // Archivo: sw-index.js
 
 // ⚠️ IMPORTANTE: Cambia esta versión CADA VEZ que hagas cambios
-const CACHE_NAME_INDEX = 'pibrisa-index-v1.0.0'; 
+const CACHE_NAME_INDEX = 'pibrisa-index-v1.0.1'; 
 
 const APP_VERSION = CACHE_NAME_INDEX.replace('pibrisa-index-', '');
 
@@ -22,7 +22,10 @@ const urlsToCacheIndex = [
     './Pag - Reportería.html',
 
     './Gestión de Equipos.html',
-    './Estado & Mantenimiento de Máquinas.html',
+
+    './Máquinas/Pag - Estado & Mantenimiento de Máquinas.html',
+    './Máquinas/Reporte de Fallas en Equipos.html',
+    './Máquinas/Revisión & Mantenimiento de Máquinas.html',
     
     './Supervisión/Pag - Reporte de Supervisión.html',
     './Supervisión/Reporte de Supervisión.html',

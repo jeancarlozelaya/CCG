@@ -214,8 +214,9 @@
                     <label class="form-label fw-bold">Tipo de Actividad</label>
                     <select id="filtroTipo" class="form-select">
                         <option value="">Seleccionar...</option>
-                        <option value="Limpiezas Profundas">Limpiezas Profundas</option>
                         <option value="Capacitaciones">Capacitaciones</option>
+                        <option value="Limpiezas Profundas">Limpiezas Profundas</option>
+                        <option value="Pruebas Microbiológicas">Pruebas Microbiológicas</option>
                         <option value="Revisión de Personal">Revisión de Personal</option>
                         <option value="Shampuseado de Alfombras">Shampuseado de Alfombras</option>
                     </select>
@@ -330,7 +331,6 @@
             const modalEl = document.getElementById('modalPDF');
             modalPDF = new bootstrap.Modal(modalEl);
 
-            // Poblar meses (con opción "Todo el año")
             const selectMes = document.getElementById('filtroMes');
             MESES.forEach((m, i) => {
                 const opt = document.createElement('option');
@@ -345,7 +345,6 @@
             optTodo.style.fontWeight = "bold";
             selectMes.appendChild(optTodo);
 
-            // Poblar años
             const selectAnio = document.getElementById('filtroAnio');
             const currentYear = new Date().getFullYear();
             [currentYear - 1, currentYear].forEach(y => {
@@ -448,11 +447,9 @@
                 }
             });
 
-            // Gráfico del período
             if (chartMensual) chartMensual.destroy();
 
             if (esTodoElAnio) {
-                // Cuando es todo el año, el gráfico principal se convierte en barras por mes
                 chartMensual = new Chart(document.getElementById('chartMensual'), {
                     type: 'bar',
                     data: {
@@ -496,7 +493,6 @@
                 document.getElementById('infoChartMensual').innerHTML = '<i class="fas fa-info-circle me-1"></i> Distribución diaria de reportes del mes seleccionado';
             }
 
-            // Gráfico anual (línea)
             if (chartAnual) chartAnual.destroy();
             chartAnual = new Chart(document.getElementById('chartAnual'), {
                 type: 'line',
@@ -523,11 +519,9 @@
                 }
             });
 
-            // Título tabla
             const tituloPeriodo = esTodoElAnio ? `Todo el Año ${anio}` : `${nombreMes} ${anio}`;
             document.getElementById('tituloTabla').innerHTML = `<i class="fas fa-list me-2"></i>Historial - ${tipoActual} - ${tituloPeriodo}`;
 
-            // Tabla adaptativa
             configurarTabla();
             renderizarTabla(datosTablaGlobal);
         }
@@ -541,6 +535,14 @@
                         <th style="width: 110px;">Edificio</th>
                         <th style="width: 100px;">Nivel</th>
                         <th>Observaciones</th>
+                        <th class="text-center" style="width: 200px;">Acciones</th>
+                    </tr>
+                `;
+            } else if (layoutActual === "micro") {
+                header.innerHTML = `
+                    <tr>
+                        <th style="width: 120px;">Fecha</th>
+                        <th>Tipo</th>
                         <th class="text-center" style="width: 200px;">Acciones</th>
                     </tr>
                 `;
@@ -572,6 +574,8 @@ function filtrarTablaLocal() {
                 (item.nivel || "").toLowerCase().includes(texto) ||
                 (item.observaciones || "").toLowerCase().includes(texto)
             );
+        } else if (layoutActual === "micro") {
+            return "prueba microbiológica".includes(texto) || "prueba microbiologica".includes(texto);
         } else {
             return (item.descripcion || "").toLowerCase().includes(texto);
         }
@@ -586,7 +590,6 @@ function formatearFechaDMY(fechaStr) {
 
     const s = String(fechaStr).trim();
 
-    // dd/mm/aaaa o dd-mm-aaaa
     let m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
     if (m) {
         const d = String(m[1]).padStart(2, '0');
@@ -594,7 +597,6 @@ function formatearFechaDMY(fechaStr) {
         return `${d}/${mo}/${m[3]}`;
     }
 
-    // aaaa-mm-dd o aaaa/mm/dd (con o sin hora)
     m = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
     if (m) {
         const d = String(m[3]).padStart(2, '0');
@@ -602,7 +604,6 @@ function formatearFechaDMY(fechaStr) {
         return `${d}/${mo}/${m[1]}`;
     }
 
-    // Fallback: Date parseable
     const d = new Date(s);
     if (!isNaN(d.getTime())) {
         const dd = String(d.getDate()).padStart(2, '0');
@@ -644,6 +645,12 @@ function renderizarTabla(lista) {
                 <td>${escapeHtml(item.edificio || '')}</td>
                 <td>${escapeHtml(item.nivel || '')}</td>
                 <td>${obsHTML}</td>
+                <td class="text-center">${botones}</td>
+            `;
+        } else if (layoutActual === "micro") {
+            tr.innerHTML = `
+                <td>${fechaDMY}</td>
+                <td><span class="fw-semibold">Prueba Microbiológica</span></td>
                 <td class="text-center">${botones}</td>
             `;
         } else {
@@ -793,7 +800,6 @@ function ejecutarEliminacion(reporteId, fileUrl, fechaReporte) {
     let mesDelReporte = periodoActual.mes;
 
     if (periodoActual.esTodoElAnio && fechaReporte) {
-        // fechaReporte ya viene en "dd/mm/aaaa"
         const partes = fechaReporte.split('/');
         if (partes.length === 3) {
             mesDelReporte = partes[1].padStart(2, '0');

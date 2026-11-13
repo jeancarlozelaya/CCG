@@ -111,8 +111,22 @@
         .chart-box { position: relative; height: 300px; width: 100%; }
 
         .table-responsive { border-radius: 8px; overflow: hidden; }
-        .table thead { background-color: var(--primary-color); color: white; }
-        .table thead th { color: white !important; font-weight: 600; }
+
+        /* ⬇ Encabezados en NEGRO */
+        .table thead {
+            background-color: #e9ecef;
+        }
+        .table thead th {
+            color: #000000 !important;
+            font-weight: 700;
+            white-space: nowrap;
+            vertical-align: middle;
+            padding: 12px 10px;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #adb5bd;
+        }
 
         .btn-action {
             border: none; border-radius: 50px;
@@ -162,15 +176,47 @@
             text-overflow: ellipsis;
             white-space: nowrap;
         }
-
         .observaciones-cell {
             max-width: 300px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
-
         .table-sm td, .table-sm th { vertical-align: middle; }
+
+        .table-liberacion td {
+            vertical-align: middle;
+            font-size: 0.88rem;
+            padding: 10px 8px;
+        }
+
+        .badge-edificio {
+            background: linear-gradient(45deg, #3498db, #5dade2);
+            color: #fff;
+            font-size: 0.75rem;
+            padding: 5px 12px;
+            border-radius: 12px;
+            font-weight: 700;
+            display: inline-block;
+            white-space: nowrap;
+        }
+        .badge-nivel {
+            background: linear-gradient(45deg, #9b59b6, #af7ac5);
+            color: #fff;
+            font-size: 0.75rem;
+            padding: 5px 12px;
+            border-radius: 12px;
+            font-weight: 700;
+            display: inline-block;
+            white-space: nowrap;
+        }
+
+        .col-nivel { width: 110px; min-width: 110px; text-align: center; white-space: nowrap; }
+        .col-edificio { width: 120px; min-width: 110px; text-align: center; }
+        .col-fecha { width: 110px; min-width: 100px; white-space: nowrap; }
+        .col-numero { width: 120px; min-width: 100px; text-align: center; }
+        .col-ubicacion { min-width: 180px; }
+        .col-acciones { width: 210px; min-width: 210px; text-align: center; }
     </style>
 </head>
 <body>
@@ -183,7 +229,6 @@
         </div>
     </div>
 
-    <!-- Modal PDF -->
     <div class="modal fade" id="modalPDF" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-fullscreen">
             <div class="modal-content">
@@ -204,7 +249,6 @@
 
     <div class="container-custom">
 
-        <!-- Panel de Control -->
         <div class="card-custom">
             <h5 class="form-title">
                 <i class="fas fa-sliders-h me-2"></i>Revisión de Actividades
@@ -215,6 +259,7 @@
                     <select id="filtroTipo" class="form-select">
                         <option value="">Seleccionar...</option>
                         <option value="Capacitaciones">Capacitaciones</option>
+                        <option value="Hojas de Liberación">Hojas de Liberación</option>
                         <option value="Limpiezas Profundas">Limpiezas Profundas</option>
                         <option value="Pruebas Microbiológicas">Pruebas Microbiológicas</option>
                         <option value="Revisión de Personal">Revisión de Personal</option>
@@ -237,10 +282,8 @@
             </div>
         </div>
 
-        <!-- Dashboard -->
         <div id="dashboardContent" style="display: none;">
 
-            <!-- Gráficos -->
             <div class="row g-4 mb-4">
                 <div class="col-md-6">
                     <div class="card-custom">
@@ -270,7 +313,6 @@
                 </div>
             </div>
 
-            <!-- Tabla -->
             <div class="row">
                 <div class="col-12">
                     <div class="card-custom">
@@ -308,9 +350,6 @@
     </div>
 
     <script>
-        // =====================================================================
-        // CONFIGURACIÓN
-        // =====================================================================
         const URL_SCRIPT_GOOGLE = "https://script.google.com/macros/s/AKfycbyB6lBzb1MnR7XH1Lqr6CdT9YmSOwvWQU_TU3viCM_0uMgoXIJdO_3oQ_Y5c7CsBs9U/exec";
         const PASSWORD_ELIMINAR = "pisos2026";
 
@@ -324,9 +363,6 @@
         let modalPDF = null;
         let periodoActual = { mes: "", anio: "", esTodoElAnio: false };
 
-        // =====================================================================
-        // INIT
-        // =====================================================================
         window.onload = function() {
             const modalEl = document.getElementById('modalPDF');
             modalPDF = new bootstrap.Modal(modalEl);
@@ -359,9 +395,6 @@
             document.getElementById('btnConsultar').addEventListener('click', consultarDatos);
         };
 
-        // =====================================================================
-        // LOADING
-        // =====================================================================
         function showLoading(mensaje, submensaje = "") {
             const overlay = document.getElementById('overlay');
             document.querySelector('#loadingMessage h4').textContent = mensaje;
@@ -372,9 +405,6 @@
             document.getElementById('overlay').style.display = 'none';
         }
 
-        // =====================================================================
-        // CONSULTAR
-        // =====================================================================
         function consultarDatos() {
             const tipo = document.getElementById('filtroTipo').value;
             const mes = document.getElementById('filtroMes').value;
@@ -386,35 +416,35 @@
             }
 
             tipoActual = tipo;
-            periodoActual = {
-                mes: mes,
-                anio: anio,
-                esTodoElAnio: mes === "ALL"
-            };
+            periodoActual = { mes: mes, anio: anio, esTodoElAnio: mes === "ALL" };
 
             showLoading("Por favor espera un momento...", "");
-
             document.getElementById('dashboardContent').style.display = 'none';
             document.getElementById('alertNoData').style.display = 'none';
 
-            const payload = {
-                action: "obtenerDatos",
-                tipoActividad: tipo,
-                mes: mes,
-                anio: anio
-            };
-
             fetch(URL_SCRIPT_GOOGLE, {
                 method: 'POST',
-                body: JSON.stringify(payload)
+                body: JSON.stringify({
+                    action: "obtenerDatos",
+                    tipoActividad: tipo,
+                    mes: mes,
+                    anio: anio
+                })
             })
             .then(res => res.json())
             .then(data => {
                 hideLoading();
                 if (data.status === "error") {
-                    Swal.fire("Error", data.message, "error");
+                    Swal.fire("Error del servidor", data.message, "error");
                     return;
                 }
+
+                // Diagnóstico visual
+                if (!data.data) {
+                    Swal.fire("Error", "El servidor devolvió data vacía.", "error");
+                    return;
+                }
+
                 renderizarDashboard(data.data, mes, anio);
 
                 if (!data.data.existeHoja || data.data.totalReportes === 0) {
@@ -428,12 +458,9 @@
             });
         }
 
-        // =====================================================================
-        // RENDER
-        // =====================================================================
         function renderizarDashboard(data, mesVal, anio) {
             document.getElementById('dashboardContent').style.display = 'block';
-            datosTablaGlobal = data.listaReportes;
+            datosTablaGlobal = data.listaReportes || [];
             layoutActual = data.layout || "simple";
 
             const esTodoElAnio = mesVal === "ALL";
@@ -528,14 +555,17 @@
 
         function configurarTabla() {
             const header = document.getElementById('tablaHeader');
+            const tabla = header.closest('table');
+            tabla.classList.remove('table-liberacion');
+
             if (layoutActual === "shampu") {
                 header.innerHTML = `
                     <tr>
-                        <th style="width: 100px;">Fecha</th>
-                        <th style="width: 110px;">Edificio</th>
+                        <th style="width: 110px;">Fecha</th>
+                        <th style="width: 120px;">Edificio</th>
                         <th style="width: 100px;">Nivel</th>
                         <th>Observaciones</th>
-                        <th class="text-center" style="width: 200px;">Acciones</th>
+                        <th class="text-center" style="width: 210px;">Acciones</th>
                     </tr>
                 `;
             } else if (layoutActual === "micro") {
@@ -543,171 +573,195 @@
                     <tr>
                         <th style="width: 120px;">Fecha</th>
                         <th>Tipo</th>
-                        <th class="text-center" style="width: 200px;">Acciones</th>
+                        <th class="text-center" style="width: 210px;">Acciones</th>
+                    </tr>
+                `;
+            } else if (layoutActual === "liberacion") {
+                tabla.classList.add('table-liberacion');
+                header.innerHTML = `
+                    <tr>
+                        <th class="col-fecha">Fecha</th>
+                        <th class="col-edificio">Edificio</th>
+                        <th class="col-nivel">Nivel</th>
+                        <th class="col-ubicacion">Ubicación</th>
+                        <th class="col-numero">Número</th>
+                        <th class="col-acciones">Acciones</th>
                     </tr>
                 `;
             } else {
                 header.innerHTML = `
                     <tr>
-                        <th style="width: 100px;">Fecha</th>
+                        <th style="width: 110px;">Fecha</th>
                         <th>Descripción</th>
-                        <th class="text-center" style="width: 200px;">Acciones</th>
+                        <th class="text-center" style="width: 210px;">Acciones</th>
                     </tr>
                 `;
             }
         }
 
-function filtrarTablaLocal() {
-    const texto = document.getElementById('filtroTabla').value.toLowerCase().trim();
-    if (!texto) {
-        renderizarTabla(datosTablaGlobal);
-        return;
-    }
+        function filtrarTablaLocal() {
+            const texto = document.getElementById('filtroTabla').value.toLowerCase().trim();
+            if (!texto) {
+                renderizarTabla(datosTablaGlobal);
+                return;
+            }
 
-    const filtrados = datosTablaGlobal.filter(item => {
-        const fechaDMY = formatearFechaDMY(item.fecha).toLowerCase();
-        if (fechaDMY.includes(texto)) return true;
-        if (item.fecha.toLowerCase().includes(texto)) return true;
-        if (layoutActual === "shampu") {
-            return (
-                (item.edificio || "").toLowerCase().includes(texto) ||
-                (item.nivel || "").toLowerCase().includes(texto) ||
-                (item.observaciones || "").toLowerCase().includes(texto)
-            );
-        } else if (layoutActual === "micro") {
-            return "prueba microbiológica".includes(texto) || "prueba microbiologica".includes(texto);
-        } else {
-            return (item.descripcion || "").toLowerCase().includes(texto);
+            const filtrados = datosTablaGlobal.filter(item => {
+                const fechaDMY = formatearFechaDMY(item.fecha).toLowerCase();
+                if (fechaDMY.includes(texto)) return true;
+                if (item.fecha.toLowerCase().includes(texto)) return true;
+                if (layoutActual === "shampu") {
+                    return (
+                        (item.edificio || "").toLowerCase().includes(texto) ||
+                        (item.nivel || "").toLowerCase().includes(texto) ||
+                        (item.observaciones || "").toLowerCase().includes(texto)
+                    );
+                } else if (layoutActual === "micro") {
+                    return "prueba microbiológica".includes(texto) || "prueba microbiologica".includes(texto);
+                } else if (layoutActual === "liberacion") {
+                    return (
+                        (item.edificio || "").toLowerCase().includes(texto) ||
+                        (item.nivel || "").toLowerCase().includes(texto) ||
+                        (item.ubicacion || "").toLowerCase().includes(texto) ||
+                        (item.numeroOficina || "").toLowerCase().includes(texto)
+                    );
+                } else {
+                    return (item.descripcion || "").toLowerCase().includes(texto);
+                }
+            });
+            renderizarTabla(filtrados);
         }
-    });
-    renderizarTabla(filtrados);
-}
 
+        function formatearFechaDMY(fechaStr) {
+            if (!fechaStr) return '';
+            const s = String(fechaStr).trim();
 
-// Convierte cualquier fecha que venga del servidor a formato "dd/mm/aaaa"
-function formatearFechaDMY(fechaStr) {
-    if (!fechaStr) return '';
+            let m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+            if (m) {
+                return `${String(m[1]).padStart(2, '0')}/${String(m[2]).padStart(2, '0')}/${m[3]}`;
+            }
+            m = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+            if (m) {
+                return `${String(m[3]).padStart(2, '0')}/${String(m[2]).padStart(2, '0')}/${m[1]}`;
+            }
+            const d = new Date(s);
+            if (!isNaN(d.getTime())) {
+                return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+            }
+            return s;
+        }
 
-    const s = String(fechaStr).trim();
+        function renderizarTabla(lista) {
+            const tbody = document.getElementById('tablaCuerpo');
+            const aviso = document.getElementById('sinResultadosFiltro');
+            tbody.innerHTML = '';
 
-    let m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
-    if (m) {
-        const d = String(m[1]).padStart(2, '0');
-        const mo = String(m[2]).padStart(2, '0');
-        return `${d}/${mo}/${m[3]}`;
-    }
+            if (lista.length === 0) {
+                aviso.style.display = 'block';
+                return;
+            }
+            aviso.style.display = 'none';
 
-    m = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
-    if (m) {
-        const d = String(m[3]).padStart(2, '0');
-        const mo = String(m[2]).padStart(2, '0');
-        return `${d}/${mo}/${m[1]}`;
-    }
+            lista.forEach((item) => {
+                const botones = construirBotones(item);
+                const tr = document.createElement('tr');
+                const fechaDMY = formatearFechaDMY(item.fecha);
 
-    const d = new Date(s);
-    if (!isNaN(d.getTime())) {
-        const dd = String(d.getDate()).padStart(2, '0');
-        const mm = String(d.getMonth() + 1).padStart(2, '0');
-        const yyyy = d.getFullYear();
-        return `${dd}/${mm}/${yyyy}`;
-    }
+                if (layoutActual === "shampu") {
+                    const obs = item.observaciones || '';
+                    const obsCorta = obs.length > 60 ? obs.substring(0, 60) + '...' : obs;
+                    const obsHTML = obs
+                        ? `<div class="observaciones-cell" title="${escapeHtml(obs)}">${escapeHtml(obsCorta)}</div>`
+                        : '<span class="text-muted small">-</span>';
 
-    return s;
-}
+                    tr.innerHTML = `
+                        <td>${fechaDMY}</td>
+                        <td>${escapeHtml(item.edificio || '')}</td>
+                        <td>${escapeHtml(item.nivel || '')}</td>
+                        <td>${obsHTML}</td>
+                        <td class="text-center">${botones}</td>
+                    `;
+                } else if (layoutActual === "micro") {
+                    tr.innerHTML = `
+                        <td>${fechaDMY}</td>
+                        <td><span class="fw-semibold">Prueba Microbiológica</span></td>
+                        <td class="text-center">${botones}</td>
+                    `;
+                } else if (layoutActual === "liberacion") {
+                    const edificio = item.edificio || '';
+                    const nivel = item.nivel || '';
+                    const ubicacion = item.ubicacion || '';
+                    const numero = item.numeroOficina || '';
 
+                    const edificioHTML = edificio
+                        ? `<span class="badge-edificio">${escapeHtml(edificio)}</span>`
+                        : '<span class="text-muted small">-</span>';
 
+                    const nivelHTML = nivel
+                        ? `<span class="badge-nivel">Nivel ${escapeHtml(nivel)}</span>`
+                        : '<span class="text-muted small">-</span>';
 
-function renderizarTabla(lista) {
-    const tbody = document.getElementById('tablaCuerpo');
-    const aviso = document.getElementById('sinResultadosFiltro');
-    tbody.innerHTML = '';
+                    const ubicacionHTML = ubicacion
+                        ? escapeHtml(ubicacion)
+                        : '<span class="text-muted small">-</span>';
 
-    if (lista.length === 0) {
-        aviso.style.display = 'block';
-        return;
-    }
-    aviso.style.display = 'none';
+                    const numeroHTML = numero
+                        ? `<span class="fw-semibold">${escapeHtml(numero)}</span>`
+                        : '<span class="text-muted small">-</span>';
 
-    lista.forEach((item) => {
-        const botones = construirBotones(item);
-        const tr = document.createElement('tr');
-        const fechaDMY = formatearFechaDMY(item.fecha);
+                    tr.innerHTML = `
+                        <td class="col-fecha">${fechaDMY}</td>
+                        <td class="col-edificio">${edificioHTML}</td>
+                        <td class="col-nivel">${nivelHTML}</td>
+                        <td class="col-ubicacion">${ubicacionHTML}</td>
+                        <td class="col-numero">${numeroHTML}</td>
+                        <td class="col-acciones">${botones}</td>
+                    `;
+                } else {
+                    const desc = item.descripcion || '';
+                    const descCorta = desc.length > 60 ? desc.substring(0, 60) + '...' : desc;
+                    const descHTML = desc
+                        ? `<div class="descripcion-cell" title="${escapeHtml(desc)}">${escapeHtml(descCorta)}</div>`
+                        : '<span class="text-muted small">-</span>';
 
-        if (layoutActual === "shampu") {
-            const obs = item.observaciones || '';
-            const obsCorta = obs.length > 60 ? obs.substring(0, 60) + '...' : obs;
-            const obsHTML = obs
-                ? `<div class="observaciones-cell" title="${escapeHtml(obs)}">${escapeHtml(obsCorta)}</div>`
-                : '<span class="text-muted small">-</span>';
+                    tr.innerHTML = `
+                        <td>${fechaDMY}</td>
+                        <td>${descHTML}</td>
+                        <td class="text-center">${botones}</td>
+                    `;
+                }
+                tbody.appendChild(tr);
+            });
+        }
 
-            tr.innerHTML = `
-                <td>${fechaDMY}</td>
-                <td>${escapeHtml(item.edificio || '')}</td>
-                <td>${escapeHtml(item.nivel || '')}</td>
-                <td>${obsHTML}</td>
-                <td class="text-center">${botones}</td>
-            `;
-        } else if (layoutActual === "micro") {
-            tr.innerHTML = `
-                <td>${fechaDMY}</td>
-                <td><span class="fw-semibold">Prueba Microbiológica</span></td>
-                <td class="text-center">${botones}</td>
-            `;
-        } else {
-            const desc = item.descripcion || '';
-            const descCorta = desc.length > 60 ? desc.substring(0, 60) + '...' : desc;
-            const descHTML = desc
-                ? `<div class="descripcion-cell" title="${escapeHtml(desc)}">${escapeHtml(descCorta)}</div>`
-                : '<span class="text-muted small">-</span>';
+        function construirBotones(item) {
+            const fechaDMY = formatearFechaDMY(item.fecha);
 
-            tr.innerHTML = `
-                <td>${fechaDMY}</td>
-                <td>${descHTML}</td>
-                <td class="text-center">${botones}</td>
+            if (item.url && item.url.includes('http')) {
+                const urlSafe = item.url.replace(/'/g, "\\'");
+                return `
+                    <button class="btn btn-action btn-pdf" onclick="verPDF('${urlSafe}')" title="Ver Reporte"><i class="fas fa-eye"></i></button>
+                    <button class="btn btn-action btn-share" onclick="compartirPDF('${urlSafe}')" title="Compartir"><i class="fas fa-share-alt"></i></button>
+                    <button class="btn btn-action btn-download" onclick="descargarPDF('${urlSafe}')" title="Descargar"><i class="fas fa-download"></i></button>
+                    <button class="btn btn-action btn-delete" onclick="confirmarEliminar('${escapeHtml(item.reporteId)}', '${urlSafe}', '${fechaDMY}')" title="Eliminar"><i class="fas fa-trash-alt"></i></button>
+                `;
+            }
+            return `
+                <button class="btn btn-action btn-delete" onclick="confirmarEliminar('${escapeHtml(item.reporteId)}', '', '${fechaDMY}')" title="Eliminar"><i class="fas fa-trash-alt"></i></button>
             `;
         }
-        tbody.appendChild(tr);
-    });
-}
-
-
-function construirBotones(item) {
-    const fechaDMY = formatearFechaDMY(item.fecha);
-
-    if (item.url && item.url.includes('http')) {
-        const urlSafe = item.url.replace(/'/g, "\\'");
-        return `
-            <button class="btn btn-action btn-pdf" onclick="verPDF('${urlSafe}')" title="Ver Reporte"><i class="fas fa-eye"></i></button>
-            <button class="btn btn-action btn-share" onclick="compartirPDF('${urlSafe}')" title="Compartir"><i class="fas fa-share-alt"></i></button>
-            <button class="btn btn-action btn-download" onclick="descargarPDF('${urlSafe}')" title="Descargar"><i class="fas fa-download"></i></button>
-            <button class="btn btn-action btn-delete" onclick="confirmarEliminar('${escapeHtml(item.reporteId)}', '${urlSafe}', '${fechaDMY}')" title="Eliminar"><i class="fas fa-trash-alt"></i></button>
-        `;
-    }
-    return `
-        <button class="btn btn-action btn-delete" onclick="confirmarEliminar('${escapeHtml(item.reporteId)}', '', '${fechaDMY}')" title="Eliminar"><i class="fas fa-trash-alt"></i></button>
-    `;
-}
-
 
         function escapeHtml(texto) {
             if (texto === null || texto === undefined) return '';
             return String(texto)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#39;');
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         }
 
-        // =====================================================================
-        // ACCIONES DE PDF
-        // =====================================================================
         function verPDF(url) {
             if (!url) return;
             let previewUrl = url;
-            if (url.includes('/view')) {
-                previewUrl = url.replace(/\/view.*/, '/preview');
-            }
+            if (url.includes('/view')) previewUrl = url.replace(/\/view.*/, '/preview');
             document.getElementById('iframePDF').src = previewUrl;
             modalPDF.show();
         }
@@ -733,33 +787,18 @@ function construirBotones(item) {
             if (!url) return;
             if (navigator.share) {
                 try {
-                    await navigator.share({
-                        title: 'Reporte de Actividad',
-                        text: 'Reporte de actividad',
-                        url: url
-                    });
-                } catch (err) {
-                    console.log('Error compartiendo:', err);
-                }
+                    await navigator.share({ title: 'Reporte de Actividad', text: 'Reporte de actividad', url: url });
+                } catch (err) { console.log('Error compartiendo:', err); }
             } else {
                 try {
                     await navigator.clipboard.writeText(url);
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Enlace copiado',
-                        text: 'El enlace se ha copiado al portapapeles.',
-                        timer: 2000,
-                        showConfirmButton: false
-                    });
+                    Swal.fire({ icon: 'success', title: 'Enlace copiado', text: 'El enlace se ha copiado al portapapeles.', timer: 2000, showConfirmButton: false });
                 } catch (e) {
                     Swal.fire('Error', 'No se pudo copiar el enlace.', 'error');
                 }
             }
         }
 
-        // =====================================================================
-        // ELIMINAR
-        // =====================================================================
         function confirmarEliminar(reporteId, fileUrl, fechaReporte) {
             if (!reporteId) {
                 Swal.fire('Error', 'No se pudo identificar el reporte.', 'error');
@@ -789,54 +828,47 @@ function construirBotones(item) {
                     return true;
                 }
             }).then((result) => {
-                if (result.isConfirmed) {
-                    ejecutarEliminacion(reporteId, fileUrl, fechaReporte);
-                }
+                if (result.isConfirmed) ejecutarEliminacion(reporteId, fileUrl, fechaReporte);
             });
         }
 
-function ejecutarEliminacion(reporteId, fileUrl, fechaReporte) {
-    const anio = document.getElementById('filtroAnio').value;
-    let mesDelReporte = periodoActual.mes;
+        function ejecutarEliminacion(reporteId, fileUrl, fechaReporte) {
+            const anio = document.getElementById('filtroAnio').value;
+            let mesDelReporte = periodoActual.mes;
 
-    if (periodoActual.esTodoElAnio && fechaReporte) {
-        const partes = fechaReporte.split('/');
-        if (partes.length === 3) {
-            mesDelReporte = partes[1].padStart(2, '0');
+            if (periodoActual.esTodoElAnio && fechaReporte) {
+                const partes = fechaReporte.split('/');
+                if (partes.length === 3) mesDelReporte = partes[1].padStart(2, '0');
+            }
+
+            showLoading("Eliminando reporte...", "Por favor espera");
+
+            fetch(URL_SCRIPT_GOOGLE, {
+                method: 'POST',
+                body: JSON.stringify({
+                    action: "eliminarReporte",
+                    tipoActividad: tipoActual,
+                    mes: mesDelReporte,
+                    anio: anio,
+                    reporteId: reporteId,
+                    fileUrl: fileUrl
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                hideLoading();
+                if (data.status === "success") {
+                    Swal.fire("Eliminado", data.data.message, "success").then(() => consultarDatos());
+                } else {
+                    Swal.fire("Error", data.message, "error");
+                }
+            })
+            .catch(err => {
+                hideLoading();
+                console.error("Error:", err);
+                Swal.fire("Error", "No se pudo conectar con el servidor.", "error");
+            });
         }
-    }
-
-    showLoading("Eliminando reporte...", "Por favor espera");
-
-    fetch(URL_SCRIPT_GOOGLE, {
-        method: 'POST',
-        body: JSON.stringify({
-            action: "eliminarReporte",
-            tipoActividad: tipoActual,
-            mes: mesDelReporte,
-            anio: anio,
-            reporteId: reporteId,
-            fileUrl: fileUrl
-        })
-    })
-    .then(res => res.json())
-    .then(data => {
-        hideLoading();
-        if (data.status === "success") {
-            Swal.fire("Eliminado", data.data.message, "success")
-                .then(() => consultarDatos());
-        } else {
-            Swal.fire("Error", data.message, "error");
-        }
-    })
-    .catch(err => {
-        hideLoading();
-        console.error("Error:", err);
-        Swal.fire("Error", "No se pudo conectar con el servidor.", "error");
-    });
-}
-
-
     </script>
 </body>
 </html>

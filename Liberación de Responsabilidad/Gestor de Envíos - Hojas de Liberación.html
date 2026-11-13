@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
 
 <style>
     :root {
@@ -182,7 +183,6 @@
         border-left: 4px solid var(--warning-color);
     }
 
-    /* Alertas de validación dentro del item */
     .item-alertas {
         width: 100%;
         margin-top: 8px;
@@ -207,7 +207,6 @@
     }
     .item-alertas .alerta-titulo i { color: var(--accent-color); }
 
-    /* Datos extraídos */
     .item-datos {
         width: 100%;
         margin-top: 8px;
@@ -275,6 +274,8 @@
     .btn-secondary { background: linear-gradient(45deg, var(--dark-color), var(--primary-color)); }
     .btn-outline-danger { background: transparent; color: var(--accent-color) !important; border: 1px solid var(--accent-color); box-shadow: none; }
     .btn-outline-danger:hover { background: var(--accent-color); color: white !important; }
+    .btn-outline-primary { background: transparent; color: var(--secondary-color) !important; border: 1px solid var(--secondary-color); box-shadow: none; }
+    .btn-outline-primary:hover { background: var(--secondary-color); color: white !important; }
 
     .btn-primary:hover, .btn-success:hover, .btn-danger:hover, .btn-secondary:hover {
         transform: translateY(-2px);
@@ -409,6 +410,56 @@
     .edit-helper-text.error {
         color: var(--accent-color);
         font-weight: 600;
+    }
+
+    /* ========================================================== */
+    /* MODAL VISOR PDF - Layout controlado                        */
+    /* ========================================================== */
+    .modal-pdf-body {
+        position: relative;
+        height: calc(100vh - 56px);
+        padding: 0;
+        overflow: hidden;
+        background-color: #525659;
+    }
+
+    #pdfLoading {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: #ffffff;
+        background-color: #525659;
+        z-index: 2;
+    }
+
+    #pdfRenderContainer {
+        position: absolute;
+        inset: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 15px 10px 20px;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        background-color: #525659;
+    }
+
+    #pdfRenderContainer::-webkit-scrollbar { width: 10px; }
+    #pdfRenderContainer::-webkit-scrollbar-track { background: #3a3d40; }
+    #pdfRenderContainer::-webkit-scrollbar-thumb { background: #6c757d; border-radius: 5px; }
+    #pdfRenderContainer::-webkit-scrollbar-thumb:hover { background: #8a9199; }
+
+    #pdfRenderContainer canvas {
+        display: block;
+        max-width: 100%;
+        height: auto !important;
+        margin-bottom: 15px;
+        background: #ffffff;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+        border-radius: 4px;
     }
 
     @media (max-width: 600px) {
@@ -589,6 +640,25 @@
         </div>
     </div>
 
+    <!-- MODAL VISOR PDF -->
+    <div class="modal fade" id="modalPDF" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-fullscreen">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-file-pdf"></i> <span id="pdfViewerTitulo">Visualizador de PDF</span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body modal-pdf-body">
+                    <div id="pdfLoading">
+                        <div class="spinner-border text-light mb-3" role="status" style="width:3rem; height:3rem;"></div>
+                        <span>Cargando PDF...</span>
+                    </div>
+                    <div id="pdfRenderContainer"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="overlay">
         <div class="spinner"></div>
         <div id="loadingMessage">
@@ -623,6 +693,9 @@
     let isSyncing = false;
     let editandoId = null;
 
+    // Configuración de PDF.js
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
     // =========================================================================
     // ID ÚNICO DE REPORTE
     // =========================================================================
@@ -634,14 +707,10 @@
 
     // =========================================================================
     // LIMPIAR SUFIJO "(contenido)" DEL NOMBRE
-    // Ej: "15-03-2026 - CBA - Nivel 3 - Oficina Privada - 204 (1).pdf"
-    //     → "15-03-2026 - CBA - Nivel 3 - Oficina Privada - 204"
     // =========================================================================
     function limpiarNombreArchivo(nombreArchivo) {
         let nombre = nombreArchivo.replace(/\.pdf$/i, '').trim();
 
-        // Eliminar "(...)" del final, con o sin espacio antes
-        // Múltiples por si quedan "(1) (2)" u otros
         let anterior;
         do {
             anterior = nombre;
@@ -652,8 +721,7 @@
     }
 
     // =========================================================================
-    // PARSEAR NOMBRE (tolera y limpia "(contenido)")
-    // Devuelve: { valido, datos, problemas, nombreLimpio }
+    // PARSEAR NOMBRE
     // =========================================================================
     function parsearNombreArchivo(nombreArchivo) {
         const nombre = limpiarNombreArchivo(nombreArchivo);
@@ -668,7 +736,6 @@
             nombreOriginal: nombreArchivo
         };
 
-        // ---- Validar fecha ----
         const fechaMatch = nombre.match(/^(\d{2})-(\d{2})-(\d{4})(?:\s|$)/);
         if (!fechaMatch) {
             problemas.push('Falta la fecha al inicio (formato: DD-MM-AAAA)');
@@ -684,10 +751,8 @@
             }
         }
 
-        // ---- Separar por " - " ----
         const partes = nombre.split(' - ').map(p => p.trim());
 
-        // ---- Edificio ----
         if (partes.length < 2 || !partes[1]) {
             problemas.push('Falta el edificio (CBA, CBB, CBC, Torre #1, Torre #2, Otro)');
         } else if (!EDIFICIOS_VALIDOS.includes(partes[1])) {
@@ -696,7 +761,6 @@
             datos.edificio = partes[1];
         }
 
-        // ---- Caso "Otro" ----
         if (datos.edificio === 'Otro') {
             if (partes.length < 3 || !partes[2]) {
                 problemas.push('Cuando el edificio es "Otro", falta el texto descriptivo');
@@ -706,7 +770,6 @@
             return { valido: problemas.length === 0, datos, problemas, nombreLimpio: nombre };
         }
 
-        // ---- Edificios normales: Nivel ----
         if (datos.edificio && datos.edificio !== 'Otro') {
             if (partes.length < 3 || !partes[2]) {
                 problemas.push('Falta el nivel (formato: "Nivel N")');
@@ -719,7 +782,6 @@
                 }
             }
 
-            // ---- Ubicación ----
             if (partes.length < 4 || !partes[3]) {
                 problemas.push('Falta la ubicación (Baños Públicos, Comedor, Espacio Abierto, Oficina Privada, Sala de Juntas)');
             } else {
@@ -732,7 +794,6 @@
                 }
             }
 
-            // ---- Número (solo si aplica) ----
             if (UBICACIONES_CON_NUMERO.includes(datos.ubicacion)) {
                 if (partes.length >= 5 && partes[4]) {
                     datos.numeroOficina = partes[4];
@@ -752,7 +813,7 @@
     // =========================================================================
     function construirNombreDesdeCampos(campos) {
         const partes = [];
-        partes.push(campos.fecha); // ya en formato DD-MM-AAAA
+        partes.push(campos.fecha);
         partes.push(campos.edificio);
 
         if (campos.edificio === 'Otro') {
@@ -865,7 +926,7 @@
                             <i class="fas fa-exclamation-triangle"></i> ${conProblemas} con datos a revisar
                         </div>
                         <div style="margin-top:8px;font-size:0.82rem;color:#6c757d;">
-                            Revisa la lista y edita los que tienen el badge <b>rojo</b>.
+                            Usa el botón <b>ojo</b> para ver el PDF y el botón <b>lápiz</b> para corregir los datos.
                         </div>
                        </div>`
                     : `${agregados} archivo(s) agregado(s) correctamente.`,
@@ -929,7 +990,7 @@
                            ${a.problemas.map(p => `<li>${p}</li>`).join('')}
                        </ul>
                        <div style="margin-top:6px;color:#6c757d;font-size:0.75rem;">
-                           Toca el botón <i class="fas fa-edit text-primary"></i> para corregir los datos.
+                           Toca <i class="fas fa-eye text-info"></i> para ver el PDF y <i class="fas fa-edit text-primary"></i> para corregir.
                        </div>
                    </div>`
                 : '';
@@ -960,6 +1021,9 @@
                     </div>
                     <div class="action-buttons">
                         ${badgeHtml}
+                        <button class="btn btn-sm btn-outline-primary btn-ver-pdf-pendiente" data-id="${a.id}" title="Ver PDF">
+                            <i class="fas fa-eye"></i>
+                        </button>
                         <button class="btn btn-sm btn-outline-primary btn-editar-pendiente" data-id="${a.id}" title="Editar datos">
                             <i class="fas fa-edit"></i>
                         </button>
@@ -1009,6 +1073,9 @@
                         <span class="status-badge bg-success">
                             <i class="fas fa-check me-1"></i>Subido
                         </span>
+                        <button class="btn btn-sm btn-outline-primary btn-ver-pdf-subido" data-id="${a.id}" title="Ver PDF">
+                            <i class="fas fa-eye"></i>
+                        </button>
                         <button class="btn btn-sm btn-outline-danger btn-eliminar-subido" data-id="${a.id}" title="Eliminar">
                             <i class="fas fa-trash"></i>
                         </button>
@@ -1038,6 +1105,71 @@
     }
 
     // =========================================================================
+    // VISOR PDF (con PDF.js)
+    // =========================================================================
+    async function abrirVisorPDF(base64, nombre) {
+        const base64Limpio = base64.includes(',') ? base64.split(',')[1] : base64;
+
+        // Preparar modal
+        $('#pdfViewerTitulo').text(`Visualizador — ${nombre}`);
+        $('#pdfRenderContainer').empty().hide();
+        $('#pdfLoading').show();
+
+        const modalEl = document.getElementById('modalPDF');
+        const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+        modal.show();
+
+        try {
+            const pdfData = atob(base64Limpio);
+            const loadingTask = pdfjsLib.getDocument({ data: pdfData });
+            const pdf = await loadingTask.promise;
+
+            const container = document.getElementById('pdfRenderContainer');
+            container.innerHTML = '';
+
+            // Ancho disponible del contenedor (aún oculto = usar viewport)
+            const anchoDisponible = Math.min(
+                window.innerWidth - 40,
+                document.querySelector('.modal-pdf-body').clientWidth - 20 || window.innerWidth - 40
+            );
+
+            const pixelRatio = (window.devicePixelRatio || 1) * 1.5;
+
+            for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                const page = await pdf.getPage(pageNum);
+                const vpO = page.getViewport({ scale: 1 });
+
+                const visualScale = anchoDisponible / vpO.width;
+                const viewport = page.getViewport({ scale: visualScale * pixelRatio });
+
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                canvas.style.width = '100%';
+                canvas.style.maxWidth = `${anchoDisponible}px`;
+
+                container.appendChild(canvas);
+                await page.render({ canvasContext: context, viewport }).promise;
+            }
+
+            // Mostrar render y ocultar loading
+            $('#pdfLoading').hide();
+            container.style.display = 'flex';
+            container.scrollTop = 0;
+
+        } catch (error) {
+            console.error('Error al renderizar PDF:', error);
+            $('#pdfLoading').html(`
+                <div class="text-white text-center px-3">
+                    <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
+                    <p class="mb-0">No se pudo mostrar el PDF.</p>
+                </div>
+            `);
+        }
+    }
+
+    // =========================================================================
     // MODAL DE EDICIÓN
     // =========================================================================
     function abrirEditor(id) {
@@ -1046,7 +1178,6 @@
 
         editandoId = id;
 
-        // Cargar datos en el modal
         $('#editFecha').val(fechaAInput(archivo.fecha || ''));
         $('#editEdificio').val(archivo.edificio || '');
         $('#editOtro').val(archivo.edificio === 'Otro' ? (archivo.ubicacion || '') : '');
@@ -1148,7 +1279,6 @@
         const ubicacion = edificio === 'Otro' ? $('#editOtro').val().trim() : $('#editUbicacion').val();
         const numero = $('#editNumero').val().trim();
 
-        // Validar campos mínimos
         if (!fechaDDMM) {
             Swal.fire('Falta la fecha', 'Debes seleccionar una fecha.', 'warning');
             return;
@@ -1173,7 +1303,6 @@
             }
         }
 
-        // Actualizar campos
         archivo.fecha = fechaDDMM;
         archivo.edificio = edificio;
         archivo.nivel = edificio === 'Otro' ? '' : nivel;
@@ -1182,7 +1311,6 @@
             ? (numero || 'Sin número')
             : '';
 
-        // Reconstruir nombre limpio (sin "(contenido)")
         archivo.nombreLimpio = construirNombreDesdeCampos({
             fecha: archivo.fecha,
             edificio: archivo.edificio,
@@ -1191,12 +1319,10 @@
             numeroOficina: archivo.numeroOficina
         });
 
-        // Revalidar
         const parseo = parsearNombreArchivo(archivo.nombreLimpio);
         archivo.valido = parseo.valido;
         archivo.problemas = parseo.problemas;
 
-        // Cerrar modal y refrescar
         const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditar'));
         if (modal) modal.hide();
 
@@ -1221,7 +1347,6 @@
         if (ids.length === 0) return;
         if (isSyncing) return;
 
-        // Verificación: no subir si alguno tiene problemas
         const conProblemas = archivosPendientes.filter(a => ids.includes(a.id) && a.valido === false);
         if (conProblemas.length > 0) {
             Swal.fire({
@@ -1473,6 +1598,31 @@
             if (ids.length > 0) eliminarArchivos(ids, 'subidos');
         });
 
+        // --- Ver PDF pendientes ---
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.btn-ver-pdf-pendiente')) {
+                const btn = e.target.closest('.btn-ver-pdf-pendiente');
+                const id = parseFloat(btn.dataset.id);
+                const archivo = archivosPendientes.find(a => a.id === id);
+                if (archivo && archivo.base64) {
+                    abrirVisorPDF(archivo.base64, archivo.nombreOriginal);
+                }
+            }
+        });
+
+        // --- Ver PDF subidos ---
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.btn-ver-pdf-subido')) {
+                const btn = e.target.closest('.btn-ver-pdf-subido');
+                const id = parseFloat(btn.dataset.id);
+                const archivo = archivosSubidos.find(a => a.id === id);
+                if (archivo && archivo.base64) {
+                    abrirVisorPDF(archivo.base64, archivo.nombreOriginal);
+                }
+            }
+        });
+
+        // --- Editar ---
         document.addEventListener('click', function(e) {
             if (e.target.closest('.btn-editar-pendiente')) {
                 const btn = e.target.closest('.btn-editar-pendiente');
@@ -1481,6 +1631,7 @@
             }
         });
 
+        // --- Eliminar individual ---
         document.addEventListener('click', function(e) {
             if (e.target.closest('.btn-eliminar-pendiente')) {
                 const btn = e.target.closest('.btn-eliminar-pendiente');
@@ -1515,6 +1666,16 @@
         });
 
         $('#btnGuardarEdicion').on('click', guardarEdicion);
+
+        // --- Reset del visor al cerrar ---
+        $('#modalPDF').on('hidden.bs.modal', function() {
+            $('#pdfRenderContainer').empty().hide();
+            $('#pdfLoading').show().html(`
+                <div class="spinner-border text-light mb-3" role="status" style="width:3rem; height:3rem;"></div>
+                <span>Cargando PDF...</span>
+            `);
+            $('#pdfViewerTitulo').text('Visualizador de PDF');
+        });
     });
 
 </script>

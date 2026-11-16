@@ -687,31 +687,41 @@
             return s;
         }
 
-        // ⬇ Normaliza horas que vienen en cualquier formato a "HH:MM"
+        // Normaliza horas que vienen en cualquier formato a "HH:MM"
         function formatearHoraHHMM(horaRaw) {
             if (horaRaw === null || horaRaw === undefined || horaRaw === '') return '';
             const s = String(horaRaw).trim();
             if (!s) return '';
 
-            // Ya está en formato "HH:MM" o "H:MM" o "HH:MM:SS"
             let m = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
             if (m) {
                 return `${String(m[1]).padStart(2, '0')}:${m[2]}`;
             }
 
-            // Formato tipo "Sat Dec 30 1899 10:58:00 GMT-0548 ..."
             m = s.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
             if (m) {
                 return `${String(m[1]).padStart(2, '0')}:${m[2]}`;
             }
 
-            // Es un Date serializado (por si acaso llega como objeto Date string)
             const d = new Date(s);
             if (!isNaN(d.getTime())) {
                 return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
             }
 
             return s;
+        }
+
+        // Normaliza el nivel para que no salga "Nivel Nivel X" en el badge
+        function formatearNivelBadge(nivelRaw) {
+            if (nivelRaw === null || nivelRaw === undefined) return '';
+            const s = String(nivelRaw).trim();
+            if (!s) return '';
+
+            if (/^nivel\s*/i.test(s)) {
+                return escapeHtml(s);
+            }
+
+            return `Nivel ${escapeHtml(s)}`;
         }
 
         function renderizarTabla(lista) {
@@ -761,7 +771,7 @@
                         : '<span class="text-muted small">-</span>';
 
                     const nivelHTML = nivel
-                        ? `<span class="badge-nivel">Nivel ${escapeHtml(nivel)}</span>`
+                        ? `<span class="badge-nivel">${formatearNivelBadge(nivel)}</span>`
                         : '<span class="text-muted small">-</span>';
 
                     const ubicacionHTML = ubicacion
@@ -792,7 +802,7 @@
                         : '<span class="text-muted small">-</span>';
 
                     const nivelHTML = nivel
-                        ? `<span class="badge-nivel">Nivel ${escapeHtml(nivel)}</span>`
+                        ? `<span class="badge-nivel">${formatearNivelBadge(nivel)}</span>`
                         : '<span class="text-muted small">-</span>';
 
                     const tipoTicketHTML = tipoTicket

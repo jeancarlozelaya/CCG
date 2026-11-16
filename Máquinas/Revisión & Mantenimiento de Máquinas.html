@@ -67,7 +67,6 @@
             padding: 0 15px;
         }
 
-        /* TABS estilo Gestión */
         .tabs-container {
             background: white;
             border-radius: 12px;
@@ -509,7 +508,6 @@
         }
         .badge-na { color: #bbb; font-size: 0.75rem; }
 
-        /* Fallas - tabla con fila clickeable */
         .fallas-descripcion {
             max-width: 280px;
             font-size: 0.78rem;
@@ -544,7 +542,6 @@
             background: #e8f4fd !important;
         }
 
-        /* Modal visor de fotos */
         .photo-viewer-modal .modal-dialog {
             max-width: 100vw;
             width: 100vw;
@@ -870,6 +867,46 @@
         }
         .galeria-titulo i { color: var(--secondary-color); }
 
+        /* NUEVO: preview de fotos en formulario mantenimiento */
+        .imgs-preview {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+        .img-preview-item {
+            position: relative;
+            width: 80px; height: 80px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid #e0e0e0;
+            background: #f8f9fa;
+        }
+        .img-preview-item img { width: 100%; height: 100%; object-fit: cover; }
+        .img-preview-item .remove-img {
+            position: absolute; top: 2px; right: 2px;
+            background: var(--accent-color); color: white;
+            border: none; border-radius: 50%;
+            width: 20px; height: 20px; font-size: 10px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            padding: 0;
+        }
+        .btn-add-foto {
+            background: #f0f8ff;
+            border: 2px dashed var(--secondary-color);
+            color: var(--secondary-color);
+            padding: 11px 18px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            transition: var(--transition);
+        }
+        .btn-add-foto:hover { background: #e6f3ff; }
+
         @media (max-width: 768px) {
             .header { font-size: 1.15rem; padding: 12px; }
             .tab-button { font-size: 0.8rem; padding: 12px 8px; min-width: 100px; }
@@ -986,6 +1023,15 @@
                         <div class="col-md-12">
                             <label class="form-label fw-bold">Observaciones</label>
                             <textarea class="form-control" id="mant-observaciones" rows="3" placeholder="Observaciones adicionales..."></textarea>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label fw-bold">Fotos (máximo 5)</label>
+                            <button type="button" class="btn-add-foto" id="btn-add-foto-mant">
+                                <i class="fas fa-camera"></i> Añadir foto
+                            </button>
+                            <input type="file" id="mant-imagen-input" accept="image/*" capture="environment" style="display:none;" multiple>
+                            <div class="imgs-preview" id="mant-imgs-preview"></div>
+                            <small class="text-muted d-block mt-1">Se subirán a Drive al sincronizar (misma carpeta que Fallas).</small>
                         </div>
                     </div>
                     <div class="mt-4 d-flex gap-2">
@@ -1211,7 +1257,7 @@
     </div>
 </div>
 
-<!-- MODAL: Visor de fotos de fallas -->
+<!-- MODAL: Visor de fotos -->
 <div class="modal fade photo-viewer-modal" id="photoViewerModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -1261,6 +1307,9 @@ const DB_VERSION = 4;
 const STORE_PENDING = "pending_changes";
 const STORE_INVENTARIO = "inventario_batch";
 
+// Máximo de fotos por mantenimiento (igual que Fallas)
+const MAX_FOTOS_MANT = 5;
+
 const IMAGENES_DEFECTO = [
     "https://lh3.googleusercontent.com/rd-d/ALs6j_FcovGElIUs4i6raudQlkCOCGtGrFSwW4WuMDGt3RswEnGRJUJlfNN5VaTiUnPpIAhIYYMtGhVy2eMaeY11DfDTbL44zItICkIQsiDv9lpXd4FFp892yPjICw8V0w7YVwDWk2TqTIwh7oPYksDaIMivyA24OWgfpbvq65xo81bVn1kYTlZqQWng2LHbhL85TLvFQC7JlTgaoZfjuu3xrq181iLosNsVtWOIFXd8j75a5KtMtvDWu_tTBSjCQzQePtpE1tcxY-HYv0Jqyyg5aTWfUsi1tF6HUoI0WDvY3MTRSG9pqbwdLKYevV4J-4Q07uKEXxRKaUfcqqS45UyQCHqb4rRN6oBFGE_lQ8Lq2xH4f77JCTHfm5QSuMoIhbCsNDg0EFtvr8sWvEoVK1iJoMX-oyYu82GoBWCLTxLyAujE0iN_8nOTokyUroeOW8LNGa2zk23VHY4qsly1F0MnutwipQBy4WPzm6gHFAf5ZcrOseEOwGRZ3C6br2LKpEpjKdtSPesB7_LG0wWfQTOFu4JFkuoA6bNpjpLwdjpxjFPEuxP1hKSX9ueN8HaPvusO8OX3yk4hS8RlBfC__K6a1SQJl6zSmwjj8cQHQ9Ya3D6mTCXyOnJ9V0Cki6FtkuzQlfYoCv0qMzKFBiobq9OR_glkTg7wwK36zTskYERoLtFWXs9epyn8H_6Y_T-oELB2vfPibeMMCLgLIeaCTvmlOI1nNwqqwxl8HcQOeeEqU7qCnMrGbPAzuMmA8azDWwGqnixsGi96u1h-kSIouclfHGZLBYs0aIelhTZ4zgZK1gnYvCM5JSBaEF1xspGjdarERME2lWOSFg5pm3eECfmoQlkIe99zT4P0vTcYAVL8cMtAoHRLQL5YABIku8m0gkuMLE1NO71l3cxSI0CWZGNSKAM46j5u1H-WH6PUYwiFL3rYrjBM49hsMgGm5ZaVzS1ojg8hTBzim1kARu0n4QYSDloXUeZSy_ZFFCCk5bykrHTe5NTgAPaf2hCuBTiAtOL8S9OJ4N4Rho9pBSjQ2e6QY2_JbPKpzkUYjL1U5Yhy2XP4l7AI76X0xQlc-X0fbaoiLa8F2wFzYZTGAyYYymzPIfmgKjks-RQfMr0dZtFOPHOVQWvXJU0vMGEvsBkLKZ6nQuecUB7UoHgE=w1920-h912",
     "https://lh3.googleusercontent.com/rd-d/ALs6j_G9tfD_6YcP8h2KZhKIUsu1f5YKMALHj1LXsPu2jsP4XvUpMfHC4_Jj9AnI_HxMuys0ZCVxuonvsWMJArf3w0Ov2MzeY_Jb21nNGhRYg89gkpYwH6LLicY4rEPQQVj-5AxSZGLXDn9IRuOFVi257Ut9a2GpVAR0aZmQPjQhyIa3DvZtU6ufzxfRBSs6XuSxOiSqhh0Cb1LsUCkmmH9lFO-rSxv6OM0HpCoNuR-am3qglGCBopxap8Qxg4QQFqTzCr_Lr80MwR6fTpQGRdfiQxLWOXKFsEVNLWk0LH46uWDHdUyEXFUrBv9kgPrG2dj1VhZ_74--QSeb7WD87UFvHgfAGXOFh-aYTAs0C0wf1-cPDeGE0IApAp7sfgbp9wMC-H6DTO0iBALPUCh23Cmp6518tgaPWy2fylzbCoYqsAwB517Sr34GYJcFN3epm_hkYlFM2mTFdOE6HdBDguRoerWjyw7jAF_NjsIolQwT5rzPSC8z6O95cgvolEl4Dm-ZSdQKmL_2nvqeDz-sKhBh11ZhbhoSlrldfNu1RCnx3d2JDdT0pj-0i5iEoaABsYWynnd_vkpu-SaMLzHNsxCv3EoXnBkdj90BAZ0DrrNIA9keK6Bt6YCwjO2YQdde6zEJCVKWQgILBRbdV3amzZfWGaZj2w959a92qW8J74zUCgCgbIZI-mnEnVyufNRJeQ8Y2VScpHBKYmZPOJwH-oZstwS1jJ8SQyusCSJhVxgXd_s5jI02L83B47JCz7eSMIQhbP08alQd6ddhclGoyQLMTzm7Yc9yoO7_r_6D5ReN9ZUORpQVOJF9l7maEZ_tEQLCbhbm9kRkOhKyBuw6m3l9wo0O-bn4Y99bGPQPzjdIJZyCPHj9mAO0DOT4-tA8JT0Gwmvq2QYj4AzfESo73Mg5CeODpp0N5WT5ZZYzFaK35DEgggVpPU9fbtExwYWkJ80YyW4qrq05ocP7sbeYj0xKUf73LesU7p8z4KXoRFRfmaRoJY_J13BlUOFb8J3YIP_VHYkkawUV6pR8d8e1tz3EsVkqy3EAUxuwo_bRZAAv92XSZVLR-gldq2Ml4E5jAcwX6qfzl1LhxVAUZu0IaDxxm36RJpIqrNhBXKWhjpmfWqJQE1tTf6IlrDA-1LSCX3D_WOg2GWqz_uR9ww=w1606-h912",
@@ -1278,6 +1327,9 @@ let historialActual = [];
 let fallasActuales = [];
 let imagenLocalPendiente = null;
 
+// Fotos pendientes del formulario de mantenimiento (base64 comprimidos)
+let fotosMantPendientes = [];
+
 // Visor de fotos
 let visorFotos = { urls: [], index: 0 };
 
@@ -1291,10 +1343,6 @@ const dragState = {
 // =========================================================================
 // NORMALIZACIÓN DE URLS DE GOOGLE DRIVE
 // =========================================================================
-// Convierte cualquier link de Drive al formato que SÍ devuelve la imagen
-// (/file/d/{ID}/view, /open?id=, /uc?id=, /uc?export=view&id=)
-// hacia https://drive.google.com/thumbnail?id={ID}&sz=w1000
-// Otras URLs (no Drive) se devuelven tal cual.
 
 function normalizarUrlImagen(url) {
     if (!url) return '';
@@ -1302,32 +1350,37 @@ function normalizarUrlImagen(url) {
     if (u === '') return '';
     if (u === '(local)') return '';
 
-    // Ya es thumbnail de Drive: la dejamos así, pero forzamos tamaño si no lo tiene
     let m = u.match(/^https?:\/\/drive\.google\.com\/thumbnail\?[^#]*?\bid=([\w-]+)/);
     if (m) {
         return 'https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w1000';
     }
 
-    // /file/d/{ID}/view
     m = u.match(/^https?:\/\/drive\.google\.com\/file\/d\/([\w-]+)/);
     if (m) {
         return 'https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w1000';
     }
 
-    // /open?id={ID}
     m = u.match(/^https?:\/\/drive\.google\.com\/open\?[^#]*?\bid=([\w-]+)/);
     if (m) {
         return 'https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w1000';
     }
 
-    // /uc?id={ID}  o  /uc?export=view&id={ID}
     m = u.match(/^https?:\/\/drive\.google\.com\/uc\?[^#]*?\bid=([\w-]+)/);
     if (m) {
         return 'https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w1000';
     }
 
-    // Cualquier otra URL: la dejamos igual
     return u;
+}
+
+// =========================================================================
+// GENERADOR DE IDs ÚNICOS (anti-duplicado)
+// =========================================================================
+
+function generarIDMantenimiento() {
+    const ts = Date.now();
+    const r = Math.random().toString(36).substring(2, 8);
+    return "MNT-" + ts + "-" + r;
 }
 
 // =========================================================================
@@ -1384,18 +1437,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     const filtroCategoriaFallas = document.getElementById('filtroCategoriaFallas');
     if (filtroCategoriaFallas) filtroCategoriaFallas.addEventListener('change', aplicarFiltrosFallas);
 
-    // Navegación del visor de fotos
     document.getElementById('photoViewerPrev').addEventListener('click', () => moverVisorFoto(-1));
     document.getElementById('photoViewerNext').addEventListener('click', () => moverVisorFoto(1));
     document.getElementById('photoViewerDownload').addEventListener('click', descargarFotoActual);
 
-    // Teclado para el visor
     document.addEventListener('keydown', function(e) {
         const modalVisor = document.getElementById('photoViewerModal');
         if (!modalVisor.classList.contains('show')) return;
         if (e.key === 'ArrowLeft') { e.preventDefault(); moverVisorFoto(-1); }
         else if (e.key === 'ArrowRight') { e.preventDefault(); moverVisorFoto(1); }
     });
+
+    // Fotos mantenimiento
+    document.getElementById('btn-add-foto-mant').addEventListener('click', () => {
+        document.getElementById('mant-imagen-input').click();
+    });
+    document.getElementById('mant-imagen-input').addEventListener('change', cargarFotosMantenimiento);
 
     document.addEventListener('dragend', () => {
         if (dragState.active) limpiarIndicadoresDrag();
@@ -2335,6 +2392,57 @@ function irANuevoMantenimiento(nombreMaquina) {
     }, 100);
 }
 
+// ------ FOTOS EN FORMULARIO DE MANTENIMIENTO ------
+
+async function cargarFotosMantenimiento(event) {
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+
+    const espacio = MAX_FOTOS_MANT - fotosMantPendientes.length;
+    if (espacio <= 0) {
+        Swal.fire('Límite alcanzado', `Máximo ${MAX_FOTOS_MANT} fotos por mantenimiento.`, 'info');
+        event.target.value = '';
+        return;
+    }
+
+    const aCargar = files.slice(0, espacio);
+    if (files.length > espacio) {
+        Swal.fire('Aviso', `Solo se agregarán ${espacio} foto(s) (límite ${MAX_FOTOS_MANT}).`, 'info');
+    }
+
+    for (const file of aCargar) {
+        try {
+            const base64 = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+            const comprimido = await comprimirImagen(base64, 1280, 0.6);
+            fotosMantPendientes.push({ dataUrl: comprimido });
+        } catch (e) {
+            console.error('Error procesando foto:', e);
+        }
+    }
+    event.target.value = '';
+    renderImgsPreviewMant();
+}
+
+function renderImgsPreviewMant() {
+    const cont = document.getElementById('mant-imgs-preview');
+    cont.innerHTML = fotosMantPendientes.map((img, i) =>
+        `<div class="img-preview-item">
+            <img src="${img.dataUrl}" alt="">
+            <button type="button" class="remove-img" onclick="eliminarFotoMant(${i})"><i class="fas fa-times"></i></button>
+        </div>`
+    ).join('');
+}
+
+function eliminarFotoMant(idx) {
+    fotosMantPendientes.splice(idx, 1);
+    renderImgsPreviewMant();
+}
+
 async function guardarMantenimiento() {
     const fecha = document.getElementById('mant-fecha').value;
     const responsable = document.getElementById('mant-responsable').value.trim();
@@ -2356,9 +2464,18 @@ async function guardarMantenimiento() {
     const preventivo = tipo === 'preventivo' ? 'X' : '';
     const correctivo = tipo === 'correctivo' ? 'X' : '';
 
+    // Fotos en base64 puro (sin encabezado data:)
+    const fotosBase64 = fotosMantPendientes.map(f => f.dataUrl);
+
+    const idMant = generarIDMantenimiento();
     const cambio = {
         action: 'addMaintenance',
-        payload: { fecha, hora, responsable, maquina, preventivo, correctivo, observaciones },
+        payload: {
+            id: idMant,
+            fecha, hora, responsable, maquina,
+            preventivo, correctivo, observaciones,
+            imagenesBase64: fotosBase64
+        },
         descripcion: `Mantenimiento: ${maquina} (${fecha})`,
         creadoEn: Date.now()
     };
@@ -2366,6 +2483,7 @@ async function guardarMantenimiento() {
     pendingMaintenances.push({ id, ...cambio });
     actualizarBadgePendientes();
 
+    fotosMantPendientes = [];
     limpiarFormMantenimiento();
     Swal.fire({icon:'success', title:'Cambio registrado localmente', toast:true, position:'top-end', showConfirmButton:false, timer:1800});
 }
@@ -2379,6 +2497,8 @@ function limpiarFormMantenimiento() {
     const hoy = new Date();
     document.getElementById('mant-fecha').value =
         hoy.getFullYear() + '-' + String(hoy.getMonth()+1).padStart(2,'0') + '-' + String(hoy.getDate()).padStart(2,'0');
+    fotosMantPendientes = [];
+    renderImgsPreviewMant();
 }
 
 // =========================================================================
@@ -2468,18 +2588,39 @@ function aplicarFiltrosHistorial() {
         return;
     }
 
-    filtrados.forEach(h => {
+    window._historialFiltrado = filtrados;
+
+    filtrados.forEach((h, idxFila) => {
         const prev = h.preventivo ? '<span class="badge-prev">SÍ</span>' : '<span class="badge-na">—</span>';
         const corr = h.correctivo ? '<span class="badge-corr">SÍ</span>' : '<span class="badge-na">—</span>';
+
+        const tieneFotos = h.imagenesUrls && h.imagenesUrls.length > 0;
+        const badgeFotos = tieneFotos
+            ? `<span class="badge-fotos-count"><i class="fas fa-camera"></i> ${h.imagenesUrls.length}</span>`
+            : '';
+        const dataIndexAttr = tieneFotos ? `data-hist-index="${idxFila}"` : '';
+
+        // La máquina se vuelve clickeable si hay fotos; mostramos la observación con badge al lado
         tbody.innerHTML += `
-            <tr>
+            <tr ${dataIndexAttr} class="${tieneFotos ? 'falla-fila-clickeable' : ''}">
                 <td>${escapeHTML(h.fecha || '-')}</td>
                 <td>${escapeHTML(h.responsable || '-')}</td>
-                <td style="font-weight:bold;">${escapeHTML(h.maquina || '-')}</td>
+                <td style="font-weight:bold;">${escapeHTML(h.maquina || '-')}${badgeFotos}</td>
                 <td>${prev}</td>
                 <td>${corr}</td>
                 <td style="text-align:left;font-size:0.8rem;">${escapeHTML(h.observaciones || '-')}</td>
             </tr>`;
+    });
+
+    // Clic para abrir visor si hay fotos
+    tbody.querySelectorAll('tr.falla-fila-clickeable').forEach(tr => {
+        tr.addEventListener('click', function() {
+            const idx = parseInt(this.getAttribute('data-hist-index'), 10);
+            const h = window._historialFiltrado[idx];
+            if (h && h.imagenesUrls && h.imagenesUrls.length > 0) {
+                abrirVisorFotos(h.imagenesUrls, 0);
+            }
+        });
     });
 
     document.getElementById('totalRegistrosHist').textContent = filtrados.length;
@@ -2626,7 +2767,6 @@ function irAFallasDeMaquina(nombre) {
 
 function abrirVisorFotos(urls, startIndex) {
     if (!Array.isArray(urls) || urls.length === 0) return;
-    // Normalizar todas las URLs al abrir
     visorFotos.urls = urls.map(normalizarUrlImagen);
     visorFotos.index = startIndex || 0;
 
@@ -2732,7 +2872,7 @@ async function descargarFotoActual() {
         const objectUrl = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = objectUrl;
-        link.download = 'foto_falla_' + (visorFotos.index + 1) + '.jpg';
+        link.download = 'foto_' + (visorFotos.index + 1) + '.jpg';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -2811,12 +2951,14 @@ function renderizarModalSync() {
 
     pendingMaintenances.forEach(p => {
         const fecha = new Date(p.creadoEn).toLocaleString();
+        const conFotos = p.payload && Array.isArray(p.payload.imagenesBase64) && p.payload.imagenesBase64.length > 0;
+        const fotosInfo = conFotos ? ` <span class="badge bg-info" style="font-size:0.6rem;">📷 ${p.payload.imagenesBase64.length}</span>` : '';
         list.innerHTML += `
             <div class="list-group-item d-flex align-items-center" id="row-pend-${p.id}">
                 <input class="form-check-input check-pendiente me-2" type="checkbox" value="mant-${p.id}" checked>
                 <div class="flex-grow-1">
                     <div class="fw-bold text-dark">
-                        <i class="fas fa-wrench me-2 text-warning"></i>${escapeHTML(p.descripcion)}
+                        <i class="fas fa-wrench me-2 text-warning"></i>${escapeHTML(p.descripcion)}${fotosInfo}
                     </div>
                     <small class="text-muted">${fecha}</small>
                 </div>
@@ -2852,6 +2994,7 @@ async function sincronizarCambios(ids) {
     modal.querySelectorAll('.check-pendiente').forEach(c => c.disabled = true);
 
     try {
+        // Imágenes de inventario
         if (ids.includes('inv-batch') && pendingInventarioChanges.length > 0) {
             for (const cambio of pendingInventarioChanges) {
                 if (cambio.payload && cambio.payload.imagenLocal) {

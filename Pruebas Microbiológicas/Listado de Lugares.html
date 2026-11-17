@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pisos Brillantes · Subir Listado</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --success-color: #2ecc71;
+            --dark-color: #34495e;
+            --text-color: #333;
+            --border-color: #e0e0e0;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            color: var(--text-color);
+            line-height: 1.6;
+            padding: 0 0 40px 0;
+            min-height: 100vh;
+        }
+        .header {
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+            color: white;
+            text-align: center;
+            padding: 14px 20px;
+            font-size: 1.35rem;
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .header-title { flex: 1; text-align: center; font-size: 1.25rem; }
+        .header-buttons {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            position: absolute;
+            right: 15px;
+        }
+        .header-btn {
+            background: rgba(255,255,255,0.15);
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+        .header-btn:hover { background: rgba(255,255,255,0.3); transform: scale(1.05); }
+        .header-btn i { font-size: 0.95rem; }
+
+        .main-container {
+            width: 96%;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 30px 25px;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .section-title {
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 22px;
+            font-size: 1.3rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            padding-bottom: 10px;
+        }
+        .section-title:after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 3px;
+            background-color: var(--secondary-color);
+        }
+        .info-box {
+            background: #e8f4fd;
+            border-left: 5px solid var(--secondary-color);
+            border-radius: 8px;
+            padding: 14px 18px;
+            font-size: 0.88rem;
+            color: var(--dark-color);
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+        .info-box strong { color: var(--primary-color); }
+        label {
+            display: block;
+            font-weight: 600;
+            color: var(--dark-color);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        textarea {
+            width: 100%;
+            min-height: 340px;
+            padding: 14px;
+            border: 1px solid #ced4da;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: 'Consolas', 'Courier New', monospace;
+            line-height: 1.5;
+            resize: vertical;
+            background-color: #fdfdfd;
+            color: #2c3e50;
+            transition: all 0.2s ease;
+            outline: none;
+        }
+        textarea:focus {
+            border-color: var(--secondary-color);
+            background-color: #fff;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+        .contador {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 8px;
+            font-size: 0.82rem;
+            color: #7f8c8d;
+        }
+        .contador .num {
+            font-weight: 700;
+            color: var(--secondary-color);
+        }
+        .button-container {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 25px;
+            justify-content: center;
+        }
+        .btn {
+            border: none;
+            border-radius: 8px;
+            padding: 14px 28px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            justify-content: center;
+        }
+        .btn-enviar {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            color: white;
+            box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3);
+        }
+        .btn-enviar:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(46, 204, 113, 0.5);
+        }
+        .btn-enviar:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        #overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(255, 255, 255, 0.95);
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            flex-direction: column;
+            text-align: center;
+        }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(52, 152, 219, 0.2);
+            border-radius: 50%;
+            border-top-color: var(--secondary-color);
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .status-msg {
+            margin-top: 20px;
+            padding: 12px 18px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            display: none;
+        }
+        .status-msg.ok {
+            background: #d4edda;
+            color: #155724;
+            border-left: 5px solid var(--success-color);
+            display: block;
+        }
+        .status-msg.err {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 5px solid var(--accent-color);
+            display: block;
+        }
+        .save-indicator {
+            font-size: 0.75rem;
+            color: #95a5a6;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .save-indicator.visible { opacity: 1; }
+        .save-indicator.saving { color: var(--secondary-color); }
+        @media (max-width: 600px) {
+            .main-container { padding: 20px 15px; }
+            textarea { min-height: 280px; font-size: 0.95rem; }
+            .btn { width: 100%; }
+            .header { padding: 12px 15px; font-size: 1.1rem; }
+            .header-title { font-size: 1.05rem; }
+            .header-buttons { right: 8px; gap: 4px; }
+            .header-btn { padding: 6px 10px; font-size: 0.85rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-title">Pisos Brillantes</div>
+        <div class="header-buttons">
+            <button class="header-btn" id="btnLimpiar" title="Limpiar campo">
+                <i class="fas fa-eraser"></i>
+            </button>
+            <button class="header-btn" id="btnRecargar" title="Ver listado actual">
+                <i class="fas fa-list-ul"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <h1 class="section-title">Listado de Lugares</h1>
+
+        <div class="info-box">
+            <strong>📌 Instrucciones:</strong><br>
+            Pega el listado con un lugar por línea. Es importante separar cada lugar por línea.<br>
+            Los espacios extra al inicio/final se eliminarán automáticamente y las líneas vacías se ignorarán.
+        </div>
+
+        <label for="txtListado"><i class="fas fa-list"></i> Listado de lugares</label>
+        <textarea id="txtListado" placeholder="Escribe o pega aquí tu listado"></textarea>
+
+        <div class="contador">
+            <span>Lugares detectados: <span class="num" id="contadorLugares">0</span></span>
+            <span class="save-indicator" id="saveIndicator">
+                <i class="fas fa-check-circle"></i> Guardado
+            </span>
+            <span id="contadorLineas">0 líneas</span>
+        </div>
+
+        <div class="button-container">
+            <button class="btn btn-enviar" id="btnEnviar">
+                <i class="fas fa-paper-plane"></i> Enviar Listado
+            </button>
+        </div>
+
+        <div class="status-msg" id="statusMsg"></div>
+    </div>
+
+    <div id="overlay">
+        <div class="spinner"></div>
+        <h4 style="color:var(--primary-color);">Procesando, por favor espera...</h4>
+    </div>
+
+    <script>
+        // ============================================================
+        // CONFIGURACIÓN
+        // ============================================================
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwnmBB4MuNAgTDEERGii40Xb-PvjVF2oREqOU7bNhTX1xgO6Y0-LQp3aRvtppzhjeHzUg/exec';
+
+        // ============================================================
+        // INDEXEDDB (Dexie) para guardar el borrador del textarea
+        // ============================================================
+        const db = new Dexie('ListadoDB');
+        db.version(1).stores({
+            borrador: 'id'
+        });
+
+        async function guardarBorrador(texto) {
+            try {
+                await db.borrador.put({ id: 'actual', texto: texto, timestamp: Date.now() });
+            } catch (e) { console.warn('Error guardando borrador:', e); }
+        }
+
+        async function cargarBorrador() {
+            try {
+                const item = await db.borrador.get('actual');
+                return item ? item.texto : '';
+            } catch (e) {
+                console.warn('Error cargando borrador:', e);
+                return '';
+            }
+        }
+
+        async function borrarBorrador() {
+            try { await db.borrador.delete('actual'); } catch (e) { console.warn(e); }
+        }
+
+        // ============================================================
+        // DOM
+        // ============================================================
+        const txt = document.getElementById('txtListado');
+        const contadorLugares = document.getElementById('contadorLugares');
+        const contadorLineas = document.getElementById('contadorLineas');
+        const btnEnviar = document.getElementById('btnEnviar');
+        const btnLimpiar = document.getElementById('btnLimpiar');
+        const btnRecargar = document.getElementById('btnRecargar');
+        const statusMsg = document.getElementById('statusMsg');
+        const overlay = document.getElementById('overlay');
+        const saveIndicator = document.getElementById('saveIndicator');
+
+        function mostrarOverlay(show) {
+            overlay.style.display = show ? 'flex' : 'none';
+        }
+
+        function mostrarStatus(tipo, mensaje) {
+            statusMsg.className = 'status-msg ' + tipo;
+            statusMsg.innerHTML = mensaje;
+        }
+
+        function limpiarStatus() {
+            statusMsg.className = 'status-msg';
+            statusMsg.innerHTML = '';
+        }
+
+        function parsearListado(texto) {
+            return texto
+                .split(/\r?\n/)
+                .map(l => l.trim())
+                .filter(l => l.length > 0);
+        }
+
+        function actualizarContador() {
+            const lineas = txt.value.split(/\r?\n/);
+            const lugares = parsearListado(txt.value);
+            contadorLugares.textContent = lugares.length;
+            contadorLineas.textContent = lineas.length + (lineas.length === 1 ? ' línea' : ' líneas');
+        }
+
+        // ============================================================
+        // AUTO-GUARDADO con debounce
+        // ============================================================
+        let saveTimer = null;
+        let indicatorTimer = null;
+
+        function programarGuardado() {
+            saveIndicator.classList.add('visible');
+            saveIndicator.classList.add('saving');
+            saveIndicator.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+
+            clearTimeout(saveTimer);
+            saveTimer = setTimeout(async () => {
+                await guardarBorrador(txt.value);
+                saveIndicator.classList.remove('saving');
+                saveIndicator.innerHTML = '<i class="fas fa-check-circle"></i> Guardado';
+                clearTimeout(indicatorTimer);
+                indicatorTimer = setTimeout(() => {
+                    saveIndicator.classList.remove('visible');
+                }, 1500);
+            }, 300);
+        }
+
+        txt.addEventListener('input', function() {
+            actualizarContador();
+            programarGuardado();
+        });
+
+        // ============================================================
+        // ENVIAR LISTADO
+        // ============================================================
+        btnEnviar.addEventListener('click', async function () {
+            const lugares = parsearListado(txt.value);
+
+            if (lugares.length === 0) {
+                Swal.fire('Sin datos', 'Pega al menos un lugar en el listado antes de enviar.', 'warning');
+                return;
+            }
+
+            const vistos = new Set();
+            const duplicados = [];
+            lugares.forEach(l => {
+                const key = l.toLowerCase();
+                if (vistos.has(key)) duplicados.push(l);
+                else vistos.add(key);
+            });
+
+            let htmlConfirm = `Se enviarán <strong>${lugares.length}</strong> lugares a la hoja "Listado".<br><br>
+                               <em style="color:#7f8c8d;font-size:0.85rem;">Esto reemplazará el listado actual.</em>`;
+            if (duplicados.length > 0) {
+                htmlConfirm += `<br><br><span style="color:#e74c3c;font-size:0.85rem;">
+                    ⚠️ <strong>${duplicados.length}</strong> lugar(es) duplicado(s) detectado(s).</span>`;
+            }
+
+            const confirm = await Swal.fire({
+                title: '¿Enviar listado?',
+                html: htmlConfirm,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: '<i class="fas fa-paper-plane"></i> Sí, enviar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#2ecc71'
+            });
+
+            if (!confirm.isConfirmed) return;
+
+            mostrarOverlay(true);
+            limpiarStatus();
+
+            try {
+                await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ lugares: lugares })
+                });
+
+                mostrarOverlay(false);
+                mostrarStatus('ok', `<i class="fas fa-check-circle"></i> Listado enviado. Verificando...`);
+
+                await new Promise(r => setTimeout(r, 1500));
+
+                try {
+                    const verify = await fetch(SCRIPT_URL + '?verify=' + Date.now());
+                    const data = await verify.json();
+                    if (data && Array.isArray(data.lugares)) {
+                        mostrarStatus('ok', `<i class="fas fa-check-circle"></i> ¡Éxito! La hoja ahora tiene <strong>${data.lugares.length}</strong> lugares.`);
+                        Swal.fire('✅ Listado enviado', `La hoja "Listado" ahora contiene ${data.lugares.length} lugares.`, 'success');
+                        txt.value = '';
+                        actualizarContador();
+                        await borrarBorrador();
+                    } else {
+                        mostrarStatus('err', `<i class="fas fa-exclamation-triangle"></i> Enviado, pero no se pudo verificar.`);
+                        Swal.fire('Enviado', 'El listado se envió, pero no se pudo verificar la hoja.', 'info');
+                    }
+                } catch (ve) {
+                    mostrarStatus('ok', `<i class="fas fa-check-circle"></i> Listado enviado correctamente.`);
+                    Swal.fire('✅ Enviado', 'El listado se envió correctamente.', 'success');
+                    txt.value = '';
+                    actualizarContador();
+                    await borrarBorrador();
+                }
+
+            } catch (e) {
+                console.error(e);
+                mostrarOverlay(false);
+                mostrarStatus('err', `<i class="fas fa-times-circle"></i> Error al enviar: ${e.message}`);
+                Swal.fire('Error', 'No se pudo enviar el listado. Revisa tu conexión.', 'error');
+            }
+        });
+
+        // ============================================================
+        // LIMPIAR (botón del encabezado)
+        // ============================================================
+        btnLimpiar.addEventListener('click', async function () {
+            if (!txt.value.trim()) return;
+            const c = await Swal.fire({
+                title: '¿Limpiar texto?',
+                text: 'Se borrará el contenido del campo y el borrador guardado.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, limpiar',
+                cancelButtonText: 'Cancelar'
+            });
+            if (c.isConfirmed) {
+                txt.value = '';
+                actualizarContador();
+                limpiarStatus();
+                await borrarBorrador();
+                saveIndicator.classList.remove('visible');
+            }
+        });
+
+        // ============================================================
+        // VER LISTADO ACTUAL (botón del encabezado)
+        // ============================================================
+        btnRecargar.addEventListener('click', async function () {
+            mostrarOverlay(true);
+            limpiarStatus();
+            try {
+                const resp = await fetch(SCRIPT_URL + '?t=' + Date.now());
+                const data = await resp.json();
+                mostrarOverlay(false);
+
+                if (!data || !Array.isArray(data.lugares)) {
+                    Swal.fire('Respuesta inválida', 'El servidor no devolvió un listado válido.', 'warning');
+                    return;
+                }
+
+                if (data.lugares.length === 0) {
+                    Swal.fire('Listado vacío', 'La hoja "Listado" está vacía actualmente.', 'info');
+                    return;
+                }
+
+                const confirm = await Swal.fire({
+                    title: '📋 Listado actual',
+                    html: `<div style="text-align:left;font-size:0.85rem;max-height:50vh;overflow-y:auto;
+                                    background:#f8fafc;padding:12px;border-radius:6px;line-height:1.7;">
+                            <strong>${data.lugares.length} lugares</strong> en la hoja.<br><br>
+                            ${data.lugares.map((l, i) => `${i + 1}. ${l}`).join('<br>')}
+                           </div>`,
+                    width: '600px',
+                    showCancelButton: true,
+                    confirmButtonText: '<i class="fas fa-copy"></i> Cargar en el campo',
+                    cancelButtonText: 'Cerrar',
+                    confirmButtonColor: '#3498db'
+                });
+
+                if (confirm.isConfirmed) {
+                    txt.value = data.lugares.join('\n');
+                    actualizarContador();
+                    programarGuardado();
+                    mostrarStatus('ok', `<i class="fas fa-check-circle"></i> Listado cargado en el campo.`);
+                }
+            } catch (e) {
+                mostrarOverlay(false);
+                console.error(e);
+                Swal.fire('Error', 'No se pudo obtener el listado actual.', 'error');
+            }
+        });
+
+        // ============================================================
+        // INIT: restaurar borrador
+        // ============================================================
+        (async function init() {
+            const borrador = await cargarBorrador();
+            if (borrador) {
+                txt.value = borrador;
+                actualizarContador();
+                if (borrador.trim().length > 0) {
+                    mostrarStatus('ok', '<i class="fas fa-history"></i> Se restauró tu borrador guardado automáticamente.');
+                }
+            } else {
+                actualizarContador();
+            }
+            txt.focus();
+        })();
+    </script>
+</body>
+</html>

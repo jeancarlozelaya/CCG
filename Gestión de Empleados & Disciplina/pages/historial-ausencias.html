@@ -88,7 +88,7 @@
                                 <th>Motivo</th>
                                 <th>Días</th>
                                 <th>Observaciones</th>
-                                <th>Acciones</th>
+                                <th class="col-acciones-ausencias">Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="tabla-ausencias" class="no-hover"></tbody>
@@ -159,6 +159,7 @@
             $('#btn-resumen-ausencias').on('click', mostrarResumenAusencias);
 
             $(document).on('click', '.btn-edit-ausencia', function() {
+                if (!isAdminMode()) return;
                 const identidad = $(this).data('identidad');
                 const fecha = $(this).data('fecha');
                 const ausenciaOriginal = ausencias.find(a => a.identidad === identidad && a.fecha === fecha);
@@ -168,11 +169,20 @@
 
             $(document).on('click', '.btn-delete-ausencia', function(e) {
                 e.stopPropagation();
+                if (!isAdminMode()) return;
                 eliminarAusenciaOffline($(this).data('identidad'), $(this).data('fecha'));
             });
 
             if (syncChannel) syncChannel.onmessage = () => cargarYRenderizar(false);
         });
+
+        function aplicarEstadoAdmin() {
+            if (isAdminMode()) {
+                $('.col-acciones-ausencias').show();
+            } else {
+                $('.col-acciones-ausencias').hide();
+            }
+        }
 
         async function cargarYRenderizar(initFiltros = false) {
             datos = await PB_DB.obtenerDatosPrincipales();
@@ -180,6 +190,7 @@
             colaboradoresEgresos = datos.egresos || [];
             ausencias = datos.ausencias || [];
 
+            aplicarEstadoAdmin();
             if (initFiltros) popularFiltrosGrafico();
 
             calcularEstadisticasAusencias();
@@ -364,14 +375,22 @@
         }
 
         function mostrarAusencias(lista) {
+            const esAdmin = isAdminMode();
             const datosAMostrar = lista || ausencias;
             const tablaAusencias = $('#tabla-ausencias').empty();
             if (datosAMostrar.length === 0) {
-                tablaAusencias.append('<tr><td colspan="8" class="text-center">No hay ausencias para el filtro seleccionado.</td></tr>');
+                tablaAusencias.append(`<tr><td colspan="${esAdmin ? 8 : 7}" class="text-center">No hay ausencias para el filtro seleccionado.</td></tr>`);
                 return;
             }
             [...datosAMostrar].sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).forEach(a => {
-                const pendBadge = a._pendienteSync ? ' <span class="badge-offline-pending">Pendiente</span>' : '';
+                const pendBadge = (esAdmin && a._pendienteSync) ? ' <span class="badge-offline-pending">Pendiente</span>' : '';
+                const tdAcciones = esAdmin
+                    ? `<td style="white-space: nowrap;">
+                            <button class="btn btn-warning btn-sm btn-action btn-edit-ausencia" data-identidad="${a.identidad}" data-fecha="${a.fecha}" title="Editar Ausencia"><i class="fas fa-edit"></i></button>
+                            <button class="btn btn-danger btn-sm btn-action btn-delete-ausencia" data-identidad="${a.identidad}" data-fecha="${a.fecha}" title="Eliminar Ausencia"><i class="fas fa-trash"></i></button>
+                       </td>`
+                    : '';
+
                 tablaAusencias.append(`
                     <tr class="no-hover">
                         <td>${formatearFecha(a.fecha)}</td>
@@ -381,10 +400,7 @@
                         <td>${a.motivo}</td>
                         <td>${a.diasIncapacidad || 1}</td>
                         <td>${a.observaciones || ''}</td>
-                        <td style="white-space: nowrap;">
-                            <button class="btn btn-warning btn-sm btn-action btn-edit-ausencia" data-identidad="${a.identidad}" data-fecha="${a.fecha}" title="Editar Ausencia"><i class="fas fa-edit"></i></button>
-                            <button class="btn btn-danger btn-sm btn-action btn-delete-ausencia" data-identidad="${a.identidad}" data-fecha="${a.fecha}" title="Eliminar Ausencia"><i class="fas fa-trash"></i></button>
-                        </td>
+                        ${tdAcciones}
                     </tr>`);
             });
             filtrarAusencias();
@@ -423,6 +439,11 @@
 
         // ==================== MODAL EDITAR AUSENCIA (DISEÑO ORIGINAL + OFFLINE) ====================
         function abrirModalEditarAusencia(ausenciaOriginal) {
+            if (!isAdminMode()) {
+                Swal.fire('Acceso restringido', 'Active el Modo Administrador para editar ausencias.', 'warning');
+                return;
+            }
+
             let opcionesColaboradores = '';
             [...colaboradoresActivos].sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(col => {
                 opcionesColaboradores += `<option value="${col.identidad}" ${col.identidad === ausenciaOriginal.identidad ? 'selected' : ''}>${col.nombre}</option>`;
@@ -628,6 +649,11 @@
         }
 
         function eliminarAusenciaOffline(identidad, fecha) {
+            if (!isAdminMode()) {
+                Swal.fire('Acceso restringido', 'Active el Modo Administrador para eliminar ausencias.', 'warning');
+                return;
+            }
+
             Swal.fire({
                 title: '¿Está seguro?',
                 html: `¿Desea eliminar este registro de ausencia del <strong>${formatearFecha(fecha)}</strong>?`,

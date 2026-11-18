@@ -61,10 +61,12 @@
             });
             $(document).on('click', '.btn-edit', function(e) {
                 e.stopPropagation();
+                if (!isAdminMode()) return;
                 editarColaborador($(this).data('identidad'));
             });
             $(document).on('click', '.btn-delete', function(e) {
                 e.stopPropagation();
+                if (!isAdminMode()) return;
                 eliminarColaborador($(this).data('identidad'));
             });
 
@@ -89,6 +91,7 @@
         function mostrarColaboradoresActivos() {
             const gridActivosContainer = $('#grid-activos').empty();
             const colaboradoresOrdenados = [...colaboradoresActivos].sort((a, b) => a.nombre.localeCompare(b.nombre));
+            const esAdmin = isAdminMode();
             $('#conteo-activos').text(colaboradoresOrdenados.length);
 
             if (colaboradoresOrdenados.length === 0) {
@@ -110,8 +113,13 @@
                     ? `<img src="${col.fotoUrl}" alt="${col.nombre}" style="cursor: pointer;" onerror="this.parentElement.innerHTML = '<i class=\\'fas fa-user-circle\\' style=\\'cursor: pointer;\\'></i>';">`
                     : `<i class="fas fa-user-circle" style="cursor: pointer;"></i>`;
 
-                const badgePend = col._pendienteSync
+                const badgePend = (esAdmin && col._pendienteSync)
                     ? `<div class="mb-1"><span class="badge-offline-pending"><i class="fas fa-clock me-1"></i>Pendiente Sync</span></div>`
+                    : '';
+
+                const botonesAdmin = esAdmin
+                    ? `<button class="btn btn-warning btn-sm btn-action btn-edit" data-identidad="${col.identidad}" title="Editar"><i class="fas fa-edit"></i></button>
+                       <button class="btn btn-danger btn-sm btn-action btn-delete" data-identidad="${col.identidad}" title="Eliminar"><i class="fas fa-trash"></i></button>`
                     : '';
 
                 gridActivosContainer.append(`
@@ -133,8 +141,7 @@
                                         ${botonContactoDisabled}>
                                     <i class="fas fa-phone-alt"></i>
                                 </button>
-                                <button class="btn btn-warning btn-sm btn-action btn-edit" data-identidad="${col.identidad}" title="Editar"><i class="fas fa-edit"></i></button>
-                                <button class="btn btn-danger btn-sm btn-action btn-delete" data-identidad="${col.identidad}" title="Eliminar"><i class="fas fa-trash"></i></button>
+                                ${botonesAdmin}
                             </div>
                         </div>
                     </div>`);
@@ -334,7 +341,7 @@
 
             const historialAusencias = ausencias.filter(d => d.identidad === identidad).sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
             const historialDisciplina = disciplina.filter(d => d.identidad === identidad).sort((a,b) => new Date(b.fechaFalta) - new Date(a.fechaFalta));
-            const historialEvaluaciones = evaluaciones.filter(d => d.identidad === identidad).sort((a,b) => new Date(a.fechaEvaluacion) - new Date(b.fechaEvaluacion));
+            const historialEvaluaciones = evaluaciones.filter(d => d.identidad === identidad).sort((a,b) => new Date(a.fechaEvaluacion) - new Date(a.fechaEvaluacion));
             const historialIncidentes = incidentes.filter(d => d.identidad === identidad).sort((a,b) => new Date(b.fechaIncidente) - new Date(a.fechaIncidente));
 
             const estadoColor = esEgresado ? '#e74c3c' : '#2ecc71';
@@ -853,6 +860,11 @@
         }
 
         function editarColaborador(identidad) {
+            if (!isAdminMode()) {
+                Swal.fire('Acceso restringido', 'Active el Modo Administrador para editar colaboradores.', 'warning');
+                return;
+            }
+
             const colaborador = colaboradoresActivos.find(col => col.identidad === identidad);
             if (!colaborador) {
                 Swal.fire('Error', 'No se encontró el colaborador.', 'error');
@@ -1157,6 +1169,11 @@
 
         // ==================== EGRESAR COLABORADOR (OFFLINE) ====================
         function eliminarColaborador(identidad) {
+            if (!isAdminMode()) {
+                Swal.fire('Acceso restringido', 'Active el Modo Administrador para egresar colaboradores.', 'warning');
+                return;
+            }
+
             const colaborador = colaboradoresActivos.find(c => c.identidad === identidad);
             if (!colaborador) return;
 

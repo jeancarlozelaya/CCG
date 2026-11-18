@@ -56,15 +56,19 @@
                 <i class="fas fa-clock me-2"></i>Registro de Horas Extras - Quincena Seleccionada
             </div>
             <div class="card-body">
-                <form id="form-registrar-horas-extras">
-                    <div id="contenedor-formularios-horas-extras"></div>
-                    <div class="form-actions">
-                        <button type="button" class="btn btn-success" id="btn-agregar-hora-extra"><i class="fas fa-plus me-2"></i>Agregar</button>
-                        <button type="button" class="btn btn-primary" id="btn-registrar-horas-extras"><i class="fas fa-save me-2"></i>Guardar Horas Extras Offline</button>
-                    </div>
-                </form>
+                <!-- FORMULARIO SOLO VISIBLE EN MODO ADMINISTRADOR -->
+                <div id="bloque-agregar-horas-extras" class="mb-4" style="display: none;">
+                    <h5 class="mb-3"><i class="fas fa-plus-circle me-2"></i>Agregar Horas Extras</h5>
+                    <form id="form-registrar-horas-extras">
+                        <div id="contenedor-formularios-horas-extras"></div>
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-success" id="btn-agregar-hora-extra"><i class="fas fa-plus me-2"></i>Agregar</button>
+                            <button type="button" class="btn btn-primary" id="btn-registrar-horas-extras"><i class="fas fa-save me-2"></i>Registrar Horas Extras</button>
+                        </div>
+                    </form>
+                </div>
 
-                <div id="historial-horas-extras-quincena" class="mt-4"></div>
+                <div id="historial-horas-extras-quincena"></div>
             </div>
         </div>
     </div>
@@ -93,7 +97,6 @@
             $('#btn-registrar-horas-extras').on('click', registrarHorasExtrasOffline);
             $(document).on('click', '.btn-quitar-item-hora-extra', function() { $(this).closest('.formulario-item').remove(); });
 
-            // Autocomplete colaboradores
             $(document).on('input', '.colaborador-hora-extra', function() {
                 const input = $(this), val = input.val().toLowerCase(), list = input.next('.autocomplete-list');
                 if (!val) return list.hide();
@@ -102,8 +105,7 @@
                 matches.forEach(m => list.append(`<div class="autocomplete-item">${m}</div>`));
             });
             $(document).on('click', '.autocomplete-item', function() {
-                const container = $(this).closest('.autocomplete-container');
-                container.find('.colaborador-hora-extra').val($(this).text());
+                $(this).closest('.autocomplete-container').find('.colaborador-hora-extra').val($(this).text());
                 $(this).closest('.autocomplete-list').hide();
             });
             $(document).on('click', e => {
@@ -111,9 +113,11 @@
             });
 
             $(document).on('click', '.btn-edit-hora-extra', function() {
+                if (!isAdminMode()) return;
                 editarHoraExtra($(this).data('identidad'), $(this).data('fecha'));
             });
             $(document).on('click', '.btn-delete-hora-extra', function() {
+                if (!isAdminMode()) return;
                 eliminarHoraExtra($(this).data('identidad'), $(this).data('fecha'));
             });
 
@@ -121,6 +125,7 @@
         });
 
         async function cargarYGenerar() {
+            $('#bloque-agregar-horas-extras').toggle(isAdminMode());
             datos = await PB_DB.obtenerDatosPrincipales();
             nombresActivos = (datos.activos || []).map(c => c.nombre);
             generarPlanilla($('#planilla-date-picker').val());
@@ -249,6 +254,7 @@
         }
 
         async function registrarHorasExtrasOffline() {
+            if (!isAdminMode()) return;
             const lista = [];
             let valido = true;
 
@@ -260,16 +266,11 @@
                 const observaciones = item.find('.observaciones-hora-extra').val().trim();
 
                 const col = datos.activos.find(c => c.nombre.toLowerCase() === nombre.toLowerCase());
-                if (!fecha || !col || isNaN(cantidadHoras) || cantidadHoras < 0.5) {
-                    valido = false;
-                } else {
-                    lista.push({ fecha, nombre: col.nombre, identidad: col.identidad, cantidadHoras, observaciones });
-                }
+                if (!fecha || !col || isNaN(cantidadHoras) || cantidadHoras < 0.5) valido = false;
+                else lista.push({ fecha, nombre: col.nombre, identidad: col.identidad, cantidadHoras, observaciones });
             });
 
-            if (!valido || lista.length === 0) {
-                return Swal.fire('Datos inválidos', 'Verifica fecha, colaborador activo y horas (mínimo 0.5).', 'warning');
-            }
+            if (!valido || lista.length === 0) return Swal.fire('Datos inválidos', 'Verifica fecha, colaborador activo y horas (mínimo 0.5).', 'warning');
 
             await PB_DB.agregarPendiente({
                 titulo: `Registrar ${lista.length} Hora(s) Extra(s)`,
@@ -291,6 +292,7 @@
         }
 
         function mostrarHorasExtrasQuincena(inicio, fin) {
+            const admin = isAdminMode();
             const cont = $('#historial-horas-extras-quincena').empty();
             const lista = (datos.horasExtras || []).filter(he => {
                 const f = parsearFechaUTC(he.fecha);
@@ -302,100 +304,73 @@
                 return;
             }
 
-            const rows = lista.map(he => `
-                <tr>
-                    <td>${formatearFecha(he.fecha)}</td>
-                    <td>${he.nombre}${he._pendienteSync ? ' <span class="badge-offline-pending">Pendiente</span>' : ''}</td>
-                    <td>${he.identidad}</td>
-                    <td>${he.cantidadHoras}</td>
-                    <td>${he.observaciones || ''}</td>
-                    <td style="white-space:nowrap;">
-                        <button class="btn btn-warning btn-sm btn-action btn-edit-hora-extra" data-identidad="${he.identidad}" data-fecha="${he.fecha}"><i class="fas fa-edit"></i></button>
-                        <button class="btn btn-danger btn-sm btn-action btn-delete-hora-extra" data-identidad="${he.identidad}" data-fecha="${he.fecha}"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>`).join('');
+            const rows = lista.map(he => {
+                const pend = (admin && he._pendienteSync) ? ' <span class="badge-offline-pending">Pendiente</span>' : '';
+                const tdAcciones = admin
+                    ? `<td style="white-space:nowrap;">
+                           <button class="btn btn-warning btn-sm btn-action btn-edit-hora-extra" data-identidad="${he.identidad}" data-fecha="${he.fecha}"><i class="fas fa-edit"></i></button>
+                           <button class="btn btn-danger btn-sm btn-action btn-delete-hora-extra" data-identidad="${he.identidad}" data-fecha="${he.fecha}"><i class="fas fa-trash"></i></button>
+                       </td>`
+                    : '';
+                return `<tr><td>${formatearFecha(he.fecha)}</td><td>${he.nombre}${pend}</td><td>${he.identidad}</td><td>${he.cantidadHoras}</td><td>${he.observaciones || ''}</td>${tdAcciones}</tr>`;
+            }).join('');
 
             cont.html(`
                 <div class="table-responsive">
                     <table class="table table-striped table-hover">
-                        <thead><tr><th>Fecha</th><th>Nombre</th><th>Identidad</th><th>Horas</th><th>Observaciones</th><th>Acciones</th></tr></thead>
+                        <thead><tr><th>Fecha</th><th>Nombre</th><th>Identidad</th><th>Horas</th><th>Observaciones</th>${admin ? '<th>Acciones</th>' : ''}</tr></thead>
                         <tbody>${rows}</tbody>
                     </table>
                 </div>`);
         }
 
         function editarHoraExtra(identidad, fecha) {
+            if (!isAdminMode()) return;
             const orig = datos.horasExtras.find(h => h.identidad === identidad && h.fecha === fecha);
             if (!orig) return;
 
             Swal.fire({
                 title: 'Editar Hora Extra',
-                html: `
-                    <div class="text-start">
-                        <label class="form-label">Fecha</label>
-                        <input type="date" id="ed-he-fecha" class="form-control mb-2" value="${orig.fecha}">
-                        <label class="form-label">Horas</label>
-                        <input type="number" id="ed-he-horas" class="form-control mb-2" min="0.5" step="0.5" value="${orig.cantidadHoras}">
-                        <label class="form-label">Observaciones</label>
-                        <input type="text" id="ed-he-obs" class="form-control" value="${orig.observaciones || ''}">
-                    </div>`,
-                showCancelButton: true,
-                confirmButtonText: 'Guardar Offline',
-                preConfirm: () => ({
-                    fecha: $('#ed-he-fecha').val(),
-                    cantidadHoras: parseFloat($('#ed-he-horas').val()),
-                    observaciones: $('#ed-he-obs').val()
-                })
+                html: `<div class="text-start">
+                    <label class="form-label">Fecha</label><input type="date" id="ed-he-fecha" class="form-control mb-2" value="${orig.fecha}">
+                    <label class="form-label">Horas</label><input type="number" id="ed-he-horas" class="form-control mb-2" min="0.5" step="0.5" value="${orig.cantidadHoras}">
+                    <label class="form-label">Observaciones</label><input type="text" id="ed-he-obs" class="form-control" value="${orig.observaciones || ''}">
+                </div>`,
+                showCancelButton: true, confirmButtonText: 'Guardar Offline',
+                preConfirm: () => ({ fecha: $('#ed-he-fecha').val(), cantidadHoras: parseFloat($('#ed-he-horas').val()), observaciones: $('#ed-he-obs').val() })
             }).then(async res => {
                 if (!res.isConfirmed) return;
                 const nuevos = { nombre: orig.nombre, identidad: orig.identidad, ...res.value };
-
                 await PB_DB.agregarPendiente({
                     titulo: `Editar Hora Extra: ${orig.nombre}`,
                     detalle: `${formatearFecha(nuevos.fecha)} (${nuevos.cantidadHoras}h)`,
-                    destino: 'principal',
-                    accion: 'editar_hora_extra',
-                    payload: {
-                        horaExtraOriginal: JSON.stringify({ identidad: orig.identidad, fecha: orig.fecha }),
-                        datosNuevos: JSON.stringify(nuevos)
-                    }
+                    destino: 'principal', accion: 'editar_hora_extra',
+                    payload: { horaExtraOriginal: JSON.stringify({ identidad: orig.identidad, fecha: orig.fecha }), datosNuevos: JSON.stringify(nuevos) }
                 });
-
                 await PB_DB.actualizarDatosPrincipales(cache => {
-                    cache.horasExtras = (cache.horasExtras || []).map(h =>
-                        (h.identidad === orig.identidad && h.fecha === orig.fecha) ? { ...nuevos, _pendienteSync: true } : h
-                    );
+                    cache.horasExtras = (cache.horasExtras || []).map(h => (h.identidad === orig.identidad && h.fecha === orig.fecha) ? { ...nuevos, _pendienteSync: true } : h);
                     return cache;
                 });
-
                 await cargarYGenerar();
                 Swal.fire({ icon: 'success', title: 'Guardado offline', timer: 1400, showConfirmButton: false });
             });
         }
 
         function eliminarHoraExtra(identidad, fecha) {
+            if (!isAdminMode()) return;
             Swal.fire({
-                title: '¿Eliminar hora extra?',
-                text: `Se eliminará el registro del ${formatearFecha(fecha)} (offline).`,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonText: 'Sí, eliminar'
+                title: '¿Eliminar hora extra?', text: `Se eliminará el registro del ${formatearFecha(fecha)} (offline).`,
+                icon: 'warning', showCancelButton: true, confirmButtonText: 'Sí, eliminar'
             }).then(async res => {
                 if (!res.isConfirmed) return;
-
                 await PB_DB.agregarPendiente({
-                    titulo: `Eliminar Hora Extra`,
-                    detalle: `ID: ${identidad} - Fecha: ${formatearFecha(fecha)}`,
-                    destino: 'principal',
-                    accion: 'eliminar_hora_extra',
-                    payload: { identidad, fecha }
+                    titulo: 'Eliminar Hora Extra', detalle: `ID: ${identidad} - Fecha: ${formatearFecha(fecha)}`,
+                    destino: 'principal', accion: 'eliminar_hora_extra', payload: { identidad, fecha }
                 });
-
                 await PB_DB.actualizarDatosPrincipales(cache => {
                     cache.horasExtras = (cache.horasExtras || []).filter(h => !(h.identidad === identidad && h.fecha === fecha));
                     return cache;
                 });
-
                 await cargarYGenerar();
                 Swal.fire({ icon: 'success', title: 'Eliminado offline', timer: 1400, showConfirmButton: false });
             });

@@ -92,7 +92,7 @@
                                 <th>Identidad</th>
                                 <th>Faltas Cometidas</th>
                                 <th>Observaciones</th>
-                                <th>Acciones</th>
+                                <th class="col-acciones-disciplina">Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="tabla-disciplina" class="no-hover"></tbody>
@@ -151,17 +151,27 @@
 
             $(document).on('click', '.btn-delete-disciplina', function(e) {
                 e.stopPropagation();
+                if (!isAdminMode()) return;
                 eliminarDisciplinaOffline($(this).data('identidad'), $(this).data('fechafalta'));
             });
 
             if (syncChannel) syncChannel.onmessage = () => cargarYRenderizar(false);
         });
 
+        function aplicarEstadoAdmin() {
+            if (isAdminMode()) {
+                $('.col-acciones-disciplina').show();
+            } else {
+                $('.col-acciones-disciplina').hide();
+            }
+        }
+
         async function cargarYRenderizar(init = false) {
             datos = await PB_DB.obtenerDatosPrincipales();
             colaboradoresActivos = datos.activos || [];
             disciplina = datos.disciplina || [];
 
+            aplicarEstadoAdmin();
             if (init) popularFiltros();
             calcularEstadisticasDisciplina();
             filtrarDisciplinaPersonalizado();
@@ -309,16 +319,28 @@
         }
 
         function mostrarHistorialDisciplina(lista) {
+            const esAdmin = isAdminMode();
             const datosAMostrar = lista || disciplina;
             const tablaDisciplina = $('#tabla-disciplina').empty();
             if (datosAMostrar.length === 0) {
-                tablaDisciplina.append('<tr><td colspan="6" class="text-center">No hay registros de disciplina para el filtro seleccionado.</td></tr>');
+                tablaDisciplina.append(`<tr><td colspan="${esAdmin ? 6 : 5}" class="text-center">No hay registros de disciplina para el filtro seleccionado.</td></tr>`);
                 return;
             }
             const disciplinaOrdenada = [...datosAMostrar].sort((a, b) => new Date(b.fechaFalta) - new Date(a.fechaFalta));
 
             disciplinaOrdenada.forEach((registro) => {
                 const faltasLista = registro.descripcionFaltas.split('; ').map(falta => `<li>${falta}</li>`).join('');
+                const tdAcciones = esAdmin
+                    ? `<td style="white-space: nowrap;">
+                            <button class="btn btn-danger btn-sm btn-action btn-delete-disciplina"
+                                    data-identidad="${registro.identidad}"
+                                    data-fechafalta="${registro.fechaFalta}"
+                                    title="Eliminar Registro de Disciplina">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                       </td>`
+                    : '';
+
                 tablaDisciplina.append(`
                     <tr>
                         <td>${formatearFecha(registro.fechaFalta)}</td>
@@ -326,14 +348,7 @@
                         <td>${registro.identidad}</td>
                         <td><ul>${faltasLista}</ul></td>
                         <td>${registro.observaciones || ''}</td>
-                        <td style="white-space: nowrap;">
-                            <button class="btn btn-danger btn-sm btn-action btn-delete-disciplina"
-                                    data-identidad="${registro.identidad}"
-                                    data-fechafalta="${registro.fechaFalta}"
-                                    title="Eliminar Registro de Disciplina">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </td>
+                        ${tdAcciones}
                     </tr>`);
             });
             filtrarDisciplina();
@@ -365,6 +380,11 @@
         }
 
         function eliminarDisciplinaOffline(identidad, fechaFalta) {
+            if (!isAdminMode()) {
+                Swal.fire('Acceso restringido', 'Active el Modo Administrador para eliminar registros de disciplina.', 'warning');
+                return;
+            }
+
             Swal.fire({
                 title: '¿Está seguro?',
                 html: `¿Desea eliminar este registro de disciplina del <strong>${formatearFecha(fechaFalta)}</strong>?`,

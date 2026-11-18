@@ -134,7 +134,7 @@
                                 <th>Nombre</th>
                                 <th>Identidad</th>
                                 <th>Nota Final</th>
-                                <th>Acciones</th>
+                                <th class="col-acciones-evaluaciones">Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="tabla-evaluaciones" class="no-hover"></tbody>
@@ -170,6 +170,7 @@
 
             $(document).on('click', '.btn-delete-evaluacion', function(e) {
                 e.stopPropagation();
+                if (!isAdminMode()) return;
                 eliminarEvaluacionOffline($(this).data('identidad'), $(this).data('fechaevaluacion'));
             });
 
@@ -181,11 +182,20 @@
             if (syncChannel) syncChannel.onmessage = () => cargarYRenderizar(false);
         });
 
+        function aplicarEstadoAdmin() {
+            if (isAdminMode()) {
+                $('.col-acciones-evaluaciones').show();
+            } else {
+                $('.col-acciones-evaluaciones').hide();
+            }
+        }
+
         async function cargarYRenderizar(init = false) {
             datos = await PB_DB.obtenerDatosPrincipales();
             colaboradoresActivos = datos.activos || [];
             evaluaciones = datos.evaluaciones || [];
 
+            aplicarEstadoAdmin();
             if (init) popularFiltroAno();
             calcularEstadisticasEvaluaciones();
             crearGraficoEvaluacionesAnual(parseInt($('#filtro-ano-evaluaciones-grafico').val(), 10));
@@ -367,27 +377,32 @@
         }
 
         function mostrarHistorialEvaluaciones(lista) {
+            const esAdmin = isAdminMode();
             const datosAMostrar = lista || evaluaciones;
             const tabla = $('#tabla-evaluaciones').empty();
             if (datosAMostrar.length === 0) {
-                tabla.append('<tr><td colspan="5" class="text-center">No hay evaluaciones para el filtro seleccionado.</td></tr>');
+                tabla.append(`<tr><td colspan="${esAdmin ? 5 : 4}" class="text-center">No hay evaluaciones para el filtro seleccionado.</td></tr>`);
                 return;
             }
             [...datosAMostrar].sort((a, b) => new Date(b.fechaEvaluacion) - new Date(a.fechaEvaluacion)).forEach(e => {
-                tabla.append(`
-                    <tr>
-                        <td>${formatearFecha(e.fechaEvaluacion)}</td>
-                        <td>${e.nombre}</td>
-                        <td>${e.identidad}</td>
-                        <td>${e.notaFinal}</td>
-                        <td style="white-space: nowrap;">
+                const tdAcciones = esAdmin
+                    ? `<td style="white-space: nowrap;">
                             <button class="btn btn-danger btn-sm btn-action btn-delete-evaluacion"
                                     data-identidad="${e.identidad}"
                                     data-fechaevaluacion="${e.fechaEvaluacion}"
                                     title="Eliminar Evaluación">
                                 <i class="fas fa-trash"></i>
                             </button>
-                        </td>
+                       </td>`
+                    : '';
+
+                tabla.append(`
+                    <tr>
+                        <td>${formatearFecha(e.fechaEvaluacion)}</td>
+                        <td>${e.nombre}</td>
+                        <td>${e.identidad}</td>
+                        <td>${e.notaFinal}</td>
+                        ${tdAcciones}
                     </tr>`);
             });
             filtrarEvaluaciones();
@@ -416,6 +431,11 @@
         }
 
         function eliminarEvaluacionOffline(identidad, fechaEvaluacion) {
+            if (!isAdminMode()) {
+                Swal.fire('Acceso restringido', 'Active el Modo Administrador para eliminar evaluaciones.', 'warning');
+                return;
+            }
+
             Swal.fire({
                 title: '¿Está seguro?',
                 html: `¿Desea eliminar la evaluación del <strong>${formatearFecha(fechaEvaluacion)}</strong>?`,

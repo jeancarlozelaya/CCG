@@ -21,10 +21,10 @@
                     <div class="card-body">
                         <div class="row align-items-center">
                             <div class="col-md-8">
-                                <h5 class="card-title mb-2">
+                                <h5 class="card-title mb-2" id="titulo-asistencia-card">
                                     <i class="fas fa-calendar-check me-2 text-primary"></i>Registrar Asistencia del Mes
                                 </h5>
-                                <p class="card-text text-muted small mb-0">
+                                <p class="card-text text-muted small mb-0" id="desc-asistencia-card">
                                     Calcula automáticamente la asistencia de cada día del mes actual (del día 1 hasta hoy) sin duplicar días ya registrados.
                                     Se guardará offline en caché y quedará pendiente de sincronizar con el servidor.
                                 </p>
@@ -101,7 +101,7 @@
                                 <th>Ingresos</th>
                                 <th>Presentes</th>
                                 <th>% Asistencia</th>
-                                <th>Acciones</th>
+                                <th class="col-acciones-asistencia">Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="tabla-asistencia"></tbody>
@@ -141,18 +141,38 @@
                 });
             });
 
-            $('#btn-registrar-asistencia-mes').on('click', registrarAsistenciaMesOffline);
+            $('#btn-registrar-asistencia-mes').on('click', function() {
+                if (!isAdminMode()) return;
+                registrarAsistenciaMesOffline();
+            });
             $('#btn-descargar-pdf-asistencia').on('click', descargarPDFAsistencia);
 
             $(document).on('click', '.btn-delete-asistencia', function() {
+                if (!isAdminMode()) return;
                 eliminarAsistenciaOffline($(this).data('fecha'));
             });
 
             if (syncChannel) syncChannel.onmessage = () => cargarYRenderizar(false);
         });
 
+        function aplicarEstadoAdmin() {
+            const esAdmin = isAdminMode();
+            if (esAdmin) {
+                $('#btn-registrar-asistencia-mes').show();
+                $('#titulo-asistencia-card').html('<i class="fas fa-calendar-check me-2 text-primary"></i>Registrar Asistencia del Mes');
+                $('#desc-asistencia-card').text('Calcula automáticamente la asistencia de cada día del mes actual (del día 1 hasta hoy) sin duplicar días ya registrados. Se guardará offline en caché y quedará pendiente de sincronizar con el servidor.');
+                $('.col-acciones-asistencia').show();
+            } else {
+                $('#btn-registrar-asistencia-mes').hide();
+                $('#titulo-asistencia-card').html('<i class="fas fa-file-pdf me-2 text-success"></i>Reporte de Asistencia');
+                $('#desc-asistencia-card').text('Consulta las estadísticas del mes seleccionado y descarga el reporte de asistencia en formato PDF.');
+                $('.col-acciones-asistencia').hide();
+            }
+        }
+
         async function cargarYRenderizar(inicializarFiltros = false) {
             datos = await PB_DB.obtenerDatosPrincipales();
+            aplicarEstadoAdmin();
             if (inicializarFiltros) popularFiltrosAsistencia();
             const mes = parseInt($('#filtro-mes-asistencia').val(), 10);
             const ano = parseInt($('#filtro-ano-asistencia').val(), 10);
@@ -176,6 +196,7 @@
         }
 
         function mostrarHistorialAsistencia(mes, ano) {
+            const esAdmin = isAdminMode();
             const lista = (datos.asistencia || []).filter(reg => {
                 const f = new Date(reg.fecha + 'T00:00:00');
                 return f.getMonth() === mes && f.getFullYear() === ano;
@@ -183,7 +204,7 @@
 
             const tabla = $('#tabla-asistencia').empty();
             if (lista.length === 0) {
-                tabla.append(`<tr><td colspan="8" class="text-center">No hay registros de asistencia para este mes.</td></tr>`);
+                tabla.append(`<tr><td colspan="${esAdmin ? 8 : 7}" class="text-center">No hay registros de asistencia para este mes.</td></tr>`);
             } else {
                 lista.forEach(reg => {
                     const pct = Math.min(100, (reg.presentes / META_ASISTENCIA) * 100).toFixed(1);
@@ -192,7 +213,14 @@
                     if (pct < 90) badgeColor = 'danger';
                     const faltan = Math.max(0, META_ASISTENCIA - reg.presentes);
                     const metaInfo = faltan > 0 ? ` (faltan ${faltan})` : '';
-                    const pendBadge = reg._pendienteSync ? ' <span class="badge-offline-pending">Pendiente</span>' : '';
+                    const pendBadge = (esAdmin && reg._pendienteSync) ? ' <span class="badge-offline-pending">Pendiente</span>' : '';
+                    const tdAccion = esAdmin
+                        ? `<td>
+                                <button class="btn btn-danger btn-sm btn-action btn-delete-asistencia" data-fecha="${reg.fecha}" title="Eliminar día">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                           </td>`
+                        : '';
 
                     tabla.append(`
                         <tr>
@@ -203,11 +231,7 @@
                             <td>${reg.ingresos || 0}</td>
                             <td>${reg.presentes}</td>
                             <td><span class="badge bg-${badgeColor}">${pct}%${metaInfo}</span></td>
-                            <td>
-                                <button class="btn btn-danger btn-sm btn-action btn-delete-asistencia" data-fecha="${reg.fecha}" title="Eliminar día">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </td>
+                            ${tdAccion}
                         </tr>`);
                 });
             }
@@ -287,6 +311,11 @@
         }
 
         async function registrarAsistenciaMesOffline() {
+            if (!isAdminMode()) {
+                Swal.fire('Acceso restringido', 'Active el Modo Administrador para registrar asistencia.', 'warning');
+                return;
+            }
+
             const conf = await Swal.fire({
                 title: '¿Registrar asistencia del mes?',
                 html: 'Se calcularán los días faltantes del mes actual hasta hoy y se guardarán offline pendientes de sincronizar.',
@@ -359,6 +388,11 @@
         }
 
         function eliminarAsistenciaOffline(fecha) {
+            if (!isAdminMode()) {
+                Swal.fire('Acceso restringido', 'Active el Modo Administrador para eliminar registros de asistencia.', 'warning');
+                return;
+            }
+
             Swal.fire({
                 title: '¿Eliminar registro?',
                 html: `Se eliminará la asistencia del <strong>${formatearFecha(fecha)}</strong> (offline).`,

@@ -56,6 +56,7 @@
             });
             $(document).on('click', '.btn-reingreso', function(e) {
                 e.stopPropagation();
+                if (!isAdminMode()) return;
                 reingresarColaborador($(this).data('identidad'));
             });
 
@@ -79,6 +80,7 @@
 
         function mostrarColaboradoresEgresados() {
             const gridEgresadosContainer = $('#grid-egresados').empty();
+            const esAdmin = isAdminMode();
             $('#conteo-egresados').text(colaboradoresEgresos.length);
 
             if (colaboradoresEgresos.length === 0) {
@@ -100,8 +102,12 @@
                     ? `<img src="${egreso.fotoUrl}" alt="${egreso.nombre}" style="cursor: pointer;" onerror="this.parentElement.innerHTML = '<i class=\\'fas fa-user-circle\\' style=\\'cursor: pointer;\\'></i>';">`
                     : `<i class="fas fa-user-circle" style="cursor: pointer;"></i>`;
 
-                const badgePend = egreso._pendienteSync
+                const badgePend = (esAdmin && egreso._pendienteSync)
                     ? `<div class="mb-1"><span class="badge-offline-pending"><i class="fas fa-clock me-1"></i>Pendiente Sync</span></div>`
+                    : '';
+
+                const botonReingreso = esAdmin
+                    ? `<button class="btn btn-success btn-sm btn-action btn-reingreso" data-identidad="${egreso.identidad}" title="Reingresar Colaborador"><i class="fas fa-user-plus"></i></button>`
                     : '';
 
                 gridEgresadosContainer.append(`
@@ -128,7 +134,7 @@
                                         ${botonContactoDisabled}>
                                     <i class="fas fa-phone-alt"></i>
                                 </button>
-                                <button class="btn btn-success btn-sm btn-action btn-reingreso" data-identidad="${egreso.identidad}" title="Reingresar Colaborador"><i class="fas fa-user-plus"></i></button>
+                                ${botonReingreso}
                             </div>
                         </div>
                     </div>`);
@@ -328,7 +334,7 @@
 
             const historialAusencias = ausencias.filter(d => d.identidad === identidad).sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
             const historialDisciplina = disciplina.filter(d => d.identidad === identidad).sort((a,b) => new Date(b.fechaFalta) - new Date(a.fechaFalta));
-            const historialEvaluaciones = evaluaciones.filter(d => d.identidad === identidad).sort((a,b) => new Date(a.fechaEvaluacion) - new Date(b.fechaEvaluacion));
+            const historialEvaluaciones = evaluaciones.filter(d => d.identidad === identidad).sort((a,b) => new Date(a.fechaEvaluacion) - new Date(a.fechaEvaluacion));
             const historialIncidentes = incidentes.filter(d => d.identidad === identidad).sort((a,b) => new Date(b.fechaIncidente) - new Date(a.fechaIncidente));
 
             const estadoColor = esEgresado ? '#e74c3c' : '#2ecc71';
@@ -833,6 +839,11 @@
 
         // ==================== 4. REINGRESAR COLABORADOR (OFFLINE) ====================
         function reingresarColaborador(identidad) {
+            if (!isAdminMode()) {
+                Swal.fire('Acceso restringido', 'Active el Modo Administrador para reingresar colaboradores.', 'warning');
+                return;
+            }
+
             const colaborador = colaboradoresEgresos.find(eg => eg.identidad === identidad);
             if (!colaborador) return;
 

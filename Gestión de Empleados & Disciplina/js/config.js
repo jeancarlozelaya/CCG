@@ -6,8 +6,12 @@ const PERMISOS_GESTION_URL = "https://script.google.com/macros/s/AKfycbzyW8BXlcF
 const SCRIPT_URL_EXAMENES = "https://script.google.com/macros/s/AKfycbwvIb0RKAP5ACSKHbYOTh0GkXt91YraOpwooKL2GvE8KJidAJIqTZo7swzwRARFityS3Q/exec";
 const ENCUESTAS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzsP6rcB5bJ646BTfwA8fiJgSxn3cBVy4NrDQyuZnNYvWuni2-Wq-bNJ4r3TsX2YNYv1A/exec";
 
-const APP_PASSWORD = "macdel1";
+const ADMIN_PASSWORD = "pisos2026";
 const META_ASISTENCIA = 87;
+
+function isAdminMode() {
+    return sessionStorage.getItem('pb_modoAdmin') === 'true';
+}
 
 const CRITERIOS_EVALUACION = {
     productividad: [

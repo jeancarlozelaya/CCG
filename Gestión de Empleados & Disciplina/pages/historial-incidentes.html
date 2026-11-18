@@ -196,7 +196,7 @@
                                 <th>Parte Afectada</th>
                                 <th>Causa</th>
                                 <th>Medidas</th>
-                                <th>Acciones</th>
+                                <th class="col-acciones-incidentes">Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="tabla-incidentes" class="no-hover"></tbody>
@@ -240,6 +240,7 @@
             $('#btn-resumen-incidentes').on('click', mostrarResumenIncidentes);
 
             $(document).on('click', '.btn-edit-incidente', function() {
+                if (!isAdminMode()) return;
                 const identidad = $(this).data('identidad');
                 const fecha = $(this).data('fecha');
                 const incidenteOriginal = incidentes.find(i => i.identidad === identidad && i.fechaIncidente === fecha);
@@ -249,17 +250,27 @@
 
             $(document).on('click', '.btn-delete-incidente', function(e) {
                 e.stopPropagation();
+                if (!isAdminMode()) return;
                 eliminarIncidenteOffline($(this).data('identidad'), $(this).data('fecha'));
             });
 
             if (syncChannel) syncChannel.onmessage = () => cargarYRenderizar(false);
         });
 
+        function aplicarEstadoAdmin() {
+            if (isAdminMode()) {
+                $('.col-acciones-incidentes').show();
+            } else {
+                $('.col-acciones-incidentes').hide();
+            }
+        }
+
         async function cargarYRenderizar(init = false) {
             datos = await PB_DB.obtenerDatosPrincipales();
             colaboradoresActivos = datos.activos || [];
             incidentes = datos.incidentes || [];
 
+            aplicarEstadoAdmin();
             if (init) popularFiltros();
             calcularEstadisticasIncidentes();
             generarSimbologiaIncidentes();
@@ -424,17 +435,24 @@
         }
 
         function mostrarHistorialIncidentes(lista) {
+            const esAdmin = isAdminMode();
             const datosAMostrar = lista || incidentes;
             const tabla = $('#tabla-incidentes').empty();
             if (datosAMostrar.length === 0) {
-                tabla.append('<tr><td colspan="9" class="text-center">No hay incidentes para el filtro seleccionado.</td></tr>');
+                tabla.append(`<tr><td colspan="${esAdmin ? 9 : 8}" class="text-center">No hay incidentes para el filtro seleccionado.</td></tr>`);
                 return;
             }
             [...datosAMostrar].sort((a, b) => new Date(b.fechaIncidente) - new Date(a.fechaIncidente)).forEach(i => {
                 const partesHtml = (i.parteAfectada && i.parteAfectada.length > 0)
                     ? '<ul>' + i.parteAfectada.split('; ').map(p => `<li>${p}</li>`).join('') + '</ul>'
                     : '';
-                const pendBadge = i._pendienteSync ? ' <span class="badge-offline-pending">Pendiente</span>' : '';
+                const pendBadge = (esAdmin && i._pendienteSync) ? ' <span class="badge-offline-pending">Pendiente</span>' : '';
+                const tdAcciones = esAdmin
+                    ? `<td style="white-space: nowrap;">
+                            <button class="btn btn-warning btn-sm btn-action btn-edit-incidente" data-identidad="${i.identidad}" data-fecha="${i.fechaIncidente}" title="Editar Incidente"><i class="fas fa-edit"></i></button>
+                            <button class="btn btn-danger btn-sm btn-action btn-delete-incidente" data-identidad="${i.identidad}" data-fecha="${i.fechaIncidente}" title="Eliminar Incidente"><i class="fas fa-trash"></i></button>
+                       </td>`
+                    : '';
 
                 tabla.append(`
                     <tr class="no-hover">
@@ -446,10 +464,7 @@
                         <td>${partesHtml}</td>
                         <td>${i.causa}</td>
                         <td>${i.medidas || ''}</td>
-                        <td style="white-space: nowrap;">
-                            <button class="btn btn-warning btn-sm btn-action btn-edit-incidente" data-identidad="${i.identidad}" data-fecha="${i.fechaIncidente}" title="Editar Incidente"><i class="fas fa-edit"></i></button>
-                            <button class="btn btn-danger btn-sm btn-action btn-delete-incidente" data-identidad="${i.identidad}" data-fecha="${i.fechaIncidente}" title="Eliminar Incidente"><i class="fas fa-trash"></i></button>
-                        </td>
+                        ${tdAcciones}
                     </tr>`);
             });
             filtrarIncidentesTabla();
@@ -483,6 +498,11 @@
 
         // ==================== MODAL EDITAR INCIDENTE (DISEÑO ORIGINAL + OFFLINE) ====================
         function abrirModalEditarIncidente(incidenteOriginal) {
+            if (!isAdminMode()) {
+                Swal.fire('Acceso restringido', 'Active el Modo Administrador para editar incidentes.', 'warning');
+                return;
+            }
+
             let opcionesColaboradores = '';
             [...colaboradoresActivos].sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(col => {
                 opcionesColaboradores += `<option value="${col.identidad}" ${col.identidad === incidenteOriginal.identidad ? 'selected' : ''}>${col.nombre}</option>`;
@@ -724,6 +744,11 @@
         }
 
         function eliminarIncidenteOffline(identidad, fecha) {
+            if (!isAdminMode()) {
+                Swal.fire('Acceso restringido', 'Active el Modo Administrador para eliminar incidentes.', 'warning');
+                return;
+            }
+
             Swal.fire({
                 title: '¿Está seguro?',
                 html: `¿Desea eliminar este registro de incidente del <strong>${formatearFecha(fecha)}</strong>?`,

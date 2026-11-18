@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historial de Ausencias</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="subpage-body">
+    <div class="container-fluid">
+        <div class="rotacion-periodos">
+            <div class="periodo-card"><h4>Ausentismo Histórico</h4><div class="porcentaje" id="ausentismo-historico">0%</div></div>
+            <div class="periodo-card"><h4>Ausentismo del Mes</h4><div class="porcentaje" id="ausentismo-mes">0%</div></div>
+            <div class="periodo-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);"><h4>Últimos 3 Meses</h4><div class="porcentaje" id="ausentismo-3meses">0%</div></div>
+            <div class="periodo-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);"><h4>Últimos 6 Meses</h4><div class="porcentaje" id="ausentismo-6meses">0%</div></div>
+            <div class="periodo-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);"><h4>Últimos 12 Meses</h4><div class="porcentaje" id="ausentismo-12meses">0%</div></div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-chart-bar me-2"></i>Ausencias</span>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-primary btn-sm" id="btn-ver-mensual-ausencias">Mensual</button>
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="btn-ver-anual-ausencias" style="background: rgba(255,255,255,0.12); color: white; border-color: rgba(255,255,255,0.35);">Anual</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    <select id="filtro-mes-grafico" class="form-select" style="width:auto;"></select>
+                    <select id="filtro-ano-grafico" class="form-select" style="width:auto;"></select>
+                    <button id="btn-filtrar-grafico" class="btn btn-primary btn-sm">Filtrar</button>
+                </div>
+                <div class="chart-container"><canvas id="graficoAusencias"></canvas></div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">Distribución de Ausencias por Motivo</div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4"><div class="chart-container" style="height:350px;"><canvas id="graficoAusenciasMotivoActual"></canvas></div></div>
+                    <div class="col-md-4"><div class="chart-container" style="height:350px;"><canvas id="graficoAusenciasMotivoHistorico"></canvas></div></div>
+                    <div class="col-md-4" id="contenedorGraficoFiltradoAusencias" style="display:none;"><div class="chart-container" style="height:350px;"><canvas id="graficoAusenciasMotivoFiltrado"></canvas></div></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Historial de Ausencias</span>
+                <button class="btn btn-primary btn-sm" id="btn-resumen-ausencias">
+                    <i class="fas fa-user-clock me-2"></i>Ver Resumen por Colaborador
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="date-range-container">
+                    <div class="form-group">
+                        <label for="fecha-inicio-ausencias" class="form-label">Filtrar desde</label>
+                        <input type="date" class="form-control" id="fecha-inicio-ausencias">
+                    </div>
+                    <div class="form-group">
+                        <label for="fecha-fin-ausencias" class="form-label">Filtrar hasta</label>
+                        <input type="date" class="form-control" id="fecha-fin-ausencias">
+                    </div>
+                    <div class="form-group d-flex align-items-end">
+                        <button type="button" class="btn btn-primary btn-sm" id="btn-filtrar-ausencias-personalizado">Filtrar</button>
+                    </div>
+                </div>
+
+                <div class="search-container">
+                    <i class="fas fa-search"></i>
+                    <input type="text" class="form-control" id="buscador-ausencias" placeholder="Buscar por nombre, identidad, motivo...">
+                </div>
+
+                <div class="table-responsive mt-3">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Fecha Inicio</th>
+                                <th>Fecha Fin</th>
+                                <th>Nombre</th>
+                                <th>Identidad</th>
+                                <th>Motivo</th>
+                                <th>Días</th>
+                                <th>Observaciones</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabla-ausencias" class="no-hover"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="overlay">
+        <div class="spinner"></div>
+        <div id="loadingMessage"><h4>Procesando...</h4><p></p></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/db.js"></script>
+    <script>
+        let datos = { activos: [], egresos: [], ausencias: [] };
+        let colaboradoresActivos = [];
+        let colaboradoresEgresos = [];
+        let ausencias = [];
+
+        let vistaAusencias = 'mensual';
+        let graficoAusencias = null;
+        let graficoAusenciasAnual = null;
+        let graficoAusenciasMotivoActual = null;
+        let graficoAusenciasMotivoHistorico = null;
+        let graficoAusenciasMotivoFiltrado = null;
+
+        $(document).ready(async function() {
+            await cargarYRenderizar(true);
+
+            $('#btn-ver-mensual-ausencias').on('click', function() {
+                vistaAusencias = 'mensual';
+                $(this).removeClass('btn-outline-primary').addClass('btn-primary').css({ background: '', color: '', borderColor: '' });
+                $('#btn-ver-anual-ausencias').removeClass('btn-primary').addClass('btn-outline-primary').css({ background: 'rgba(255,255,255,0.12)', color: 'white', borderColor: 'rgba(255,255,255,0.35)' });
+                $('#filtro-mes-grafico').show();
+                const ano = parseInt($('#filtro-ano-grafico').val(), 10);
+                const mes = parseInt($('#filtro-mes-grafico').val(), 10);
+                crearGraficoAusencias(ano, mes);
+            });
+
+            $('#btn-ver-anual-ausencias').on('click', function() {
+                vistaAusencias = 'anual';
+                $(this).removeClass('btn-outline-primary').addClass('btn-primary').css({ background: '', color: '', borderColor: '' });
+                $('#btn-ver-mensual-ausencias').removeClass('btn-primary').addClass('btn-outline-primary').css({ background: 'rgba(255,255,255,0.12)', color: 'white', borderColor: 'rgba(255,255,255,0.35)' });
+                $('#filtro-mes-grafico').hide();
+                const ano = parseInt($('#filtro-ano-grafico').val(), 10);
+                crearGraficoAusenciasAnual(ano);
+            });
+
+            $('#btn-filtrar-grafico').on('click', function() {
+                const ano = parseInt($('#filtro-ano-grafico').val(), 10);
+                if (vistaAusencias === 'mensual') {
+                    const mes = parseInt($('#filtro-mes-grafico').val(), 10);
+                    crearGraficoAusencias(ano, mes);
+                    const mostrarFilt = ano !== new Date().getFullYear() || mes !== new Date().getMonth();
+                    $('#contenedorGraficoFiltradoAusencias').toggle(mostrarFilt);
+                    if (mostrarFilt) crearGraficoAusenciasMotivoFiltrado(ano, mes);
+                } else {
+                    crearGraficoAusenciasAnual(ano);
+                }
+            });
+
+            $('#btn-filtrar-ausencias-personalizado').on('click', filtrarAusenciasPersonalizado);
+            $('#buscador-ausencias').on('input', filtrarAusencias);
+            $('#btn-resumen-ausencias').on('click', mostrarResumenAusencias);
+
+            $(document).on('click', '.btn-edit-ausencia', function() {
+                const identidad = $(this).data('identidad');
+                const fecha = $(this).data('fecha');
+                const ausenciaOriginal = ausencias.find(a => a.identidad === identidad && a.fecha === fecha);
+                if (ausenciaOriginal) abrirModalEditarAusencia(ausenciaOriginal);
+                else Swal.fire('Error', 'No se pudo encontrar el registro de ausencia original.', 'error');
+            });
+
+            $(document).on('click', '.btn-delete-ausencia', function(e) {
+                e.stopPropagation();
+                eliminarAusenciaOffline($(this).data('identidad'), $(this).data('fecha'));
+            });
+
+            if (syncChannel) syncChannel.onmessage = () => cargarYRenderizar(false);
+        });
+
+        async function cargarYRenderizar(initFiltros = false) {
+            datos = await PB_DB.obtenerDatosPrincipales();
+            colaboradoresActivos = datos.activos || [];
+            colaboradoresEgresos = datos.egresos || [];
+            ausencias = datos.ausencias || [];
+
+            if (initFiltros) popularFiltrosGrafico();
+
+            calcularEstadisticasAusencias();
+            filtrarAusenciasPersonalizado();
+
+            const ano = parseInt($('#filtro-ano-grafico').val(), 10);
+            const mes = parseInt($('#filtro-mes-grafico').val(), 10);
+            if (vistaAusencias === 'mensual') crearGraficoAusencias(ano, mes);
+            else crearGraficoAusenciasAnual(ano);
+
+            crearGraficoAusenciasMotivoActual();
+            crearGraficoAusenciasMotivoHistorico();
+        }
+
+        function popularFiltrosGrafico() {
+            const filtroMes = $('#filtro-mes-grafico').empty();
+            const filtroAno = $('#filtro-ano-grafico').empty();
+            const meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+            meses.forEach((m, i) => filtroMes.append(`<option value="${i}">${m}</option>`));
+
+            const anos = [...new Set(ausencias.map(d => d.fecha ? new Date(d.fecha).getFullYear() : null).filter(Boolean))];
+            const anoAct = new Date().getFullYear();
+            if (!anos.includes(anoAct)) anos.push(anoAct);
+            anos.sort((a, b) => b - a).forEach(a => filtroAno.append(`<option value="${a}">${a}</option>`));
+
+            const hoy = new Date();
+            filtroMes.val(hoy.getMonth());
+            filtroAno.val(hoy.getFullYear());
+        }
+
+        function calcularEstadisticasAusencias() {
+            const hoy = new Date();
+            const periodos = [{ id: 'mes', meses: 0 }, { id: '3meses', meses: 3 }, { id: '6meses', meses: 6 }, { id: '12meses', meses: 12 }];
+
+            periodos.forEach(p => {
+                const fechaFinPeriodo = new Date(hoy);
+                const fechaInicioPeriodo = (p.meses === 0)
+                    ? new Date(hoy.getFullYear(), hoy.getMonth(), 1)
+                    : new Date(hoy.getFullYear(), hoy.getMonth() - p.meses + 1, 1);
+
+                let diasAusentePeriodo = 0;
+                let diasLaborablesPosibles = 0;
+
+                colaboradoresActivos.forEach(col => {
+                    const fechaInicio = new Date(col.fechaInicio + 'T00:00:00');
+                    const fechaInicioEfectiva = fechaInicio > fechaInicioPeriodo ? fechaInicio : fechaInicioPeriodo;
+                    if (fechaInicioEfectiva <= fechaFinPeriodo) {
+                        const diffDias = Math.ceil((fechaFinPeriodo - fechaInicioEfectiva) / (1000 * 60 * 60 * 24)) + 1;
+                        const mesesTrabajados = (p.meses === 0) ? 1 : p.meses;
+                        diasLaborablesPosibles += Math.min(diffDias, 22 * mesesTrabajados);
+                    }
+                });
+
+                ausencias.forEach(a => {
+                    const fIni = new Date(a.fecha + 'T00:00:00');
+                    const fFin = new Date((a.fechaFin || a.fecha) + 'T00:00:00');
+                    if (fFin < fechaInicioPeriodo || fIni > fechaFinPeriodo) return;
+                    const ii = fIni < fechaInicioPeriodo ? fechaInicioPeriodo : fIni;
+                    const ff = fFin > fechaFinPeriodo ? fechaFinPeriodo : fFin;
+                    if (ii <= ff) diasAusentePeriodo += Math.ceil((ff - ii) / (1000 * 60 * 60 * 24)) + 1;
+                });
+
+                const porcentaje = diasLaborablesPosibles > 0 ? ((diasAusentePeriodo / diasLaborablesPosibles) * 100).toFixed(2) : '0.00';
+                $(`#ausentismo-${p.id}`).text(porcentaje + '%');
+            });
+
+            let totalDiasAusenciasHistorico = 0;
+            ausencias.forEach(a => { totalDiasAusenciasHistorico += (parseInt(a.diasIncapacidad, 10) || 1); });
+
+            let totalDiasLaborablesPosiblesHistorico = 0;
+            const idsVistos = new Set();
+            [...colaboradoresActivos, ...colaboradoresEgresos].forEach(emp => {
+                if (idsVistos.has(emp.identidad)) return;
+                idsVistos.add(emp.identidad);
+                const fechaInicio = new Date(emp.fechaInicio + 'T00:00:00');
+                let fechaFin = emp.fechaEgreso ? new Date(emp.fechaEgreso + 'T00:00:00') : new Date(hoy);
+                if (fechaFin > hoy) fechaFin = new Date(hoy);
+                if (fechaFin >= fechaInicio) {
+                    const diffDias = Math.ceil((fechaFin - fechaInicio) / (1000 * 60 * 60 * 24)) + 1;
+                    totalDiasLaborablesPosiblesHistorico += Math.round((diffDias / 30.44) * 22);
+                }
+            });
+
+            const porcentajeHistorico = totalDiasLaborablesPosiblesHistorico > 0
+                ? ((totalDiasAusenciasHistorico / totalDiasLaborablesPosiblesHistorico) * 100).toFixed(2)
+                : '0.00';
+            $('#ausentismo-historico').text(porcentajeHistorico + '%');
+        }
+
+        function crearGraficoAusencias(ano, mes) {
+            if (graficoAusencias) { graficoAusencias.destroy(); graficoAusencias = null; }
+            if (graficoAusenciasAnual) { graficoAusenciasAnual.destroy(); graficoAusenciasAnual = null; }
+
+            const ctx = document.getElementById('graficoAusencias').getContext('2d');
+            const diasEnMes = new Date(Date.UTC(ano, mes + 1, 0)).getUTCDate();
+            const labels = Array.from({ length: diasEnMes }, (_, i) => `${i + 1}/${mes + 1}`);
+            const datosAusentes = Array(diasEnMes).fill(0);
+
+            ausencias.forEach(a => {
+                const fIni = new Date(a.fecha + 'T00:00:00Z');
+                const fFin = new Date((a.fechaFin || a.fecha) + 'T00:00:00Z');
+                if (isNaN(fIni.getTime()) || isNaN(fFin.getTime())) return;
+                for (let d = new Date(fIni); d <= fFin; d.setUTCDate(d.getUTCDate() + 1)) {
+                    if (d.getUTCMonth() === mes && d.getUTCFullYear() === ano) {
+                        const idx = d.getUTCDate() - 1;
+                        if (idx >= 0 && idx < diasEnMes) datosAusentes[idx]++;
+                    }
+                }
+            });
+
+            const nombreMes = new Date(Date.UTC(ano, mes)).toLocaleString('es-ES', { month: 'long', timeZone: 'UTC' });
+            graficoAusencias = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{ label: `Ausentes por día en ${nombreMes} ${ano}`, data: datosAusentes, borderColor: '#e74c3c', backgroundColor: 'rgba(231, 76, 60, 0.1)', fill: true, tension: 0.4 }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 }, title: { display: true, text: 'Número de Ausentes' } }, x: { title: { display: true, text: 'Días del Mes' } } }
+                }
+            });
+        }
+
+        function crearGraficoAusenciasAnual(ano) {
+            if (graficoAusenciasAnual) { graficoAusenciasAnual.destroy(); graficoAusenciasAnual = null; }
+            if (graficoAusencias) { graficoAusencias.destroy(); graficoAusencias = null; }
+
+            const ctx = document.getElementById('graficoAusencias').getContext('2d');
+            const labels = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+            const datosMes = Array(12).fill(0);
+
+            ausencias.forEach(a => {
+                const fIni = new Date(a.fecha + 'T00:00:00Z');
+                const fFin = new Date((a.fechaFin || a.fecha) + 'T00:00:00Z');
+                if (isNaN(fIni.getTime()) || isNaN(fFin.getTime())) return;
+                for (let d = new Date(fIni); d <= fFin; d.setUTCDate(d.getUTCDate() + 1)) {
+                    if (d.getUTCFullYear() === ano) datosMes[d.getUTCMonth()]++;
+                }
+            });
+
+            graficoAusenciasAnual = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: `Ausencias por Mes en ${ano}`, data: datosMes, borderColor: '#e74c3c', backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        fill: true, tension: 0.4, pointBackgroundColor: '#e74c3c', pointBorderColor: 'white', pointBorderWidth: 2, pointRadius: 5, pointHoverRadius: 7
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+            });
+        }
+
+        function crearGraficoAusenciasMotivo(canvasId, targetData, titulo) {
+            const conteo = {};
+            targetData.forEach(a => { conteo[a.motivo] = (conteo[a.motivo] || 0) + (parseInt(a.diasIncapacidad, 10) || 1); });
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            const prev = Chart.getChart(canvasId);
+            if (prev) prev.destroy();
+            return new Chart(ctx, {
+                type: 'pie',
+                data: { labels: Object.keys(conteo), datasets: [{ data: Object.values(conteo), backgroundColor: ['#3498db', '#f1c40f', '#e74c3c', '#9b59b6', '#2ecc71'] }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, title: { display: true, text: titulo } } }
+            });
+        }
+
+        function crearGraficoAusenciasMotivoActual() {
+            const hoy = new Date();
+            const datosMes = ausencias.filter(a => { const f = new Date(a.fecha + 'T00:00:00'); return f.getMonth() === hoy.getMonth() && f.getFullYear() === hoy.getFullYear(); });
+            graficoAusenciasMotivoActual = crearGraficoAusenciasMotivo('graficoAusenciasMotivoActual', datosMes, 'Distribución (Mes Actual)');
+        }
+
+        function crearGraficoAusenciasMotivoHistorico() {
+            graficoAusenciasMotivoHistorico = crearGraficoAusenciasMotivo('graficoAusenciasMotivoHistorico', ausencias, 'Distribución (Histórica)');
+        }
+
+        function crearGraficoAusenciasMotivoFiltrado(ano, mes) {
+            const datosFiltrados = ausencias.filter(a => { const f = new Date(a.fecha + 'T00:00:00'); return f.getMonth() === mes && f.getFullYear() === ano; });
+            const nombreMes = new Date(ano, mes).toLocaleString('es-ES', { month: 'long' });
+            graficoAusenciasMotivoFiltrado = crearGraficoAusenciasMotivo('graficoAusenciasMotivoFiltrado', datosFiltrados, `Distribución (${nombreMes} ${ano})`);
+        }
+
+        function mostrarAusencias(lista) {
+            const datosAMostrar = lista || ausencias;
+            const tablaAusencias = $('#tabla-ausencias').empty();
+            if (datosAMostrar.length === 0) {
+                tablaAusencias.append('<tr><td colspan="8" class="text-center">No hay ausencias para el filtro seleccionado.</td></tr>');
+                return;
+            }
+            [...datosAMostrar].sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).forEach(a => {
+                const pendBadge = a._pendienteSync ? ' <span class="badge-offline-pending">Pendiente</span>' : '';
+                tablaAusencias.append(`
+                    <tr class="no-hover">
+                        <td>${formatearFecha(a.fecha)}</td>
+                        <td>${formatearFecha(a.fechaFin || a.fecha)}</td>
+                        <td>${a.nombre}${pendBadge}</td>
+                        <td>${a.identidad}</td>
+                        <td>${a.motivo}</td>
+                        <td>${a.diasIncapacidad || 1}</td>
+                        <td>${a.observaciones || ''}</td>
+                        <td style="white-space: nowrap;">
+                            <button class="btn btn-warning btn-sm btn-action btn-edit-ausencia" data-identidad="${a.identidad}" data-fecha="${a.fecha}" title="Editar Ausencia"><i class="fas fa-edit"></i></button>
+                            <button class="btn btn-danger btn-sm btn-action btn-delete-ausencia" data-identidad="${a.identidad}" data-fecha="${a.fecha}" title="Eliminar Ausencia"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>`);
+            });
+            filtrarAusencias();
+        }
+
+        function filtrarAusencias() {
+            const texto = $('#buscador-ausencias').val().toLowerCase();
+            $('#tabla-ausencias tr').each(function() {
+                if ($(this).find('td').length < 7) return;
+                const nombre = $(this).find('td:eq(2)').text().toLowerCase();
+                const id = $(this).find('td:eq(3)').text().toLowerCase();
+                const motivo = $(this).find('td:eq(4)').text().toLowerCase();
+                const obs = $(this).find('td:eq(6)').text().toLowerCase();
+                $(this).toggle(nombre.includes(texto) || id.includes(texto) || motivo.includes(texto) || obs.includes(texto));
+            });
+        }
+
+        function filtrarAusenciasPersonalizado() {
+            const inicio = $('#fecha-inicio-ausencias').val();
+            const fin = $('#fecha-fin-ausencias').val();
+            if (!inicio && !fin) { mostrarAusencias(ausencias); return; }
+
+            let ausenciasFiltradas = [];
+            if (inicio && fin) {
+                const fIni = new Date(inicio + 'T00:00:00'), fFin = new Date(fin + 'T23:59:59');
+                ausenciasFiltradas = ausencias.filter(a => new Date(a.fecha + 'T00:00:00') <= fFin && new Date((a.fechaFin || a.fecha) + 'T23:59:59') >= fIni);
+            } else if (inicio) {
+                const fIni = new Date(inicio + 'T00:00:00');
+                ausenciasFiltradas = ausencias.filter(a => new Date((a.fechaFin || a.fecha) + 'T23:59:59') >= fIni);
+            } else if (fin) {
+                const fFin = new Date(fin + 'T23:59:59');
+                ausenciasFiltradas = ausencias.filter(a => new Date(a.fecha + 'T00:00:00') <= fFin);
+            }
+            mostrarAusencias(ausenciasFiltradas);
+        }
+
+        // ==================== MODAL EDITAR AUSENCIA (DISEÑO ORIGINAL + OFFLINE) ====================
+        function abrirModalEditarAusencia(ausenciaOriginal) {
+            let opcionesColaboradores = '';
+            [...colaboradoresActivos].sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(col => {
+                opcionesColaboradores += `<option value="${col.identidad}" ${col.identidad === ausenciaOriginal.identidad ? 'selected' : ''}>${col.nombre}</option>`;
+            });
+
+            const isMobile = window.innerWidth < 576;
+            const styleId = 'editar-ausencia-style-' + Date.now();
+
+            const labelStyle = 'font-weight: 600; color: #2c3e50; font-size: 0.85rem; margin-bottom: 5px; display: block; text-align: left;';
+            const inputStyle = 'width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 0.9rem; transition: all 0.3s; background: white; color: #2c3e50;';
+            const selectStyle = inputStyle + ' appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\'%3E%3Cpath fill=\'%23333\' d=\'M6 8L1 3h10z\'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center;';
+
+            const colaboradorInfo = colaboradoresActivos.find(c => c.identidad === ausenciaOriginal.identidad);
+            const nombreMostrar = colaboradorInfo?.nombre || ausenciaOriginal.nombre || 'Editar Ausencia';
+            const fotoSrc = colaboradorInfo?.fotoUrl || `https://ui-avatars.com/api/?name=${nombreMostrar.replace(/\s/g, "+")}&background=3498db&color=fff&size=100`;
+
+            const modalHtml = `
+                <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0;">
+                    <div style="background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460); border-radius: 16px 16px 0 0; padding: ${isMobile ? '16px 20px' : '20px 25px'}; margin: -20px -25px 20px -25px; color: white; position: relative; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+                        <div style="position: absolute; top: -50%; right: -20%; width: 150px; height: 150px; background: radial-gradient(circle, rgba(52, 152, 219, 0.1) 0%, transparent 70%); border-radius: 50%;"></div>
+                        <div style="position: absolute; bottom: -40%; left: -10%; width: 130px; height: 130px; background: radial-gradient(circle, rgba(231, 76, 60, 0.08) 0%, transparent 70%); border-radius: 50%;"></div>
+
+                        <div style="display: flex; align-items: center; gap: ${isMobile ? '12px' : '18px'}; flex-wrap: wrap; position: relative; z-index: 1; justify-content: flex-start;">
+                            <div style="position: relative; flex-shrink: 0;">
+                                <div style="position: absolute; inset: -3px; background: linear-gradient(135deg, #f39c12, #e74c3c); border-radius: 50%; padding: 3px; box-shadow: 0 0 20px rgba(243,156,18,0.25);">
+                                    <div style="width: 100%; height: 100%; border-radius: 50%; background: #1a1a2e;"></div>
+                                </div>
+                                <img src="${fotoSrc}"
+                                     style="width: ${isMobile ? '55px' : '65px'}; height: ${isMobile ? '55px' : '65px'}; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.15); position: relative; z-index: 1;"
+                                     onerror="this.src='https://ui-avatars.com/api/?name=${nombreMostrar.replace(/\s/g, "+")}&background=3498db&color=fff&size=100&font-size=0.5'">
+                                <div style="position: absolute; bottom: 0px; right: 0px; background: #f39c12; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border: 2px solid white; z-index: 2; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">
+                                    <i class="fas fa-edit" style="font-size: 9px; color: white;"></i>
+                                </div>
+                            </div>
+
+                            <div style="flex: 1; min-width: 120px; text-align: left;">
+                                <h3 style="margin: 0; font-weight: 700; font-size: ${isMobile ? '1rem' : '1.2rem'}; letter-spacing: -0.5px; background: linear-gradient(135deg, #fff, #a8d8ea); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; text-align: left;">
+                                    ${nombreMostrar}
+                                </h3>
+                                <div style="margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-start;">
+                                    <span class="badge" style="background: rgba(255,255,255,0.12); padding: 2px 10px; font-size: 0.65rem;">
+                                        <i class="fas fa-id-card me-1"></i>${ausenciaOriginal.identidad}
+                                    </span>
+                                    <span class="badge" style="background: rgba(243, 156, 18, 0.2); color: #f39c12; border: 1px solid #f39c12; padding: 2px 10px; font-size: 0.65rem;">
+                                        <i class="fas fa-clock me-1"></i>Editando Ausencia
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form id="form-editar-ausencia" style="padding: 5px 0;">
+                        <div style="margin-bottom: 12px; text-align: left;">
+                            <label class="form-label" style="${labelStyle}">Colaborador <span style="color: #e74c3c;">*</span></label>
+                            <select class="form-select" id="editar-colaborador-ausencia" required style="${selectStyle}"
+                                    onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                                    onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">
+                                <option value="">Seleccionar...</option>
+                                ${opcionesColaboradores}
+                            </select>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: ${isMobile ? '10px' : '15px'}; margin-bottom: 12px;">
+                            <div style="text-align: left;">
+                                <label class="form-label" style="${labelStyle}">Fecha de Inicio <span style="color: #e74c3c;">*</span></label>
+                                <input type="date" class="form-control" id="editar-fecha-ausencia" value="${ausenciaOriginal.fecha}" required
+                                       style="${inputStyle}" onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                                       onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">
+                            </div>
+                            <div style="text-align: left;">
+                                <label class="form-label" style="${labelStyle}">Días de Ausencia <span style="color: #e74c3c;">*</span></label>
+                                <input type="number" class="form-control" id="editar-dias-ausencia" min="1" value="${ausenciaOriginal.diasIncapacidad || 1}" required
+                                       style="${inputStyle}" onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                                       onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">
+                            </div>
+                        </div>
+
+                        <div style="margin-bottom: 12px; text-align: left;">
+                            <label class="form-label" style="${labelStyle}">Motivo <span style="color: #e74c3c;">*</span></label>
+                            <select class="form-select" id="editar-motivo-ausencia" required style="${selectStyle}"
+                                    onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                                    onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">
+                                <option value="Incapacidad" ${ausenciaOriginal.motivo === 'Incapacidad' ? 'selected' : ''}>Incapacidad</option>
+                                <option value="Permiso" ${ausenciaOriginal.motivo === 'Permiso' ? 'selected' : ''}>Permiso</option>
+                                <option value="Falta Injustificada" ${ausenciaOriginal.motivo === 'Falta Injustificada' ? 'selected' : ''}>Falta Injustificada</option>
+                            </select>
+                        </div>
+
+                        <div style="margin-bottom: 12px; text-align: left;">
+                            <label class="form-label" style="${labelStyle}">Observaciones</label>
+                            <textarea class="form-control" id="editar-obs-ausencia" rows="2"
+                                      style="${inputStyle} resize: vertical; min-height: 60px;"
+                                      onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                                      onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">${ausenciaOriginal.observaciones || ''}</textarea>
+                        </div>
+                    </form>
+                </div>`;
+
+            Swal.fire({
+                title: null,
+                html: modalHtml,
+                width: window.innerWidth < 576 ? '95%' : '600px',
+                showCancelButton: true,
+                confirmButtonText: 'Guardar Cambios',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#2ecc71',
+                cancelButtonColor: '#e74c3c',
+                customClass: {
+                    popup: 'animated fadeInDown',
+                    closeButton: 'btn-close-white',
+                    confirmButton: 'btn-edit-save',
+                    cancelButton: 'btn-edit-cancel'
+                },
+                didOpen: () => {
+                    const style = document.createElement('style');
+                    style.id = styleId;
+                    style.textContent = `
+                        .swal2-popup { border-radius: 16px !important; padding: 20px !important; }
+                        .swal2-close { color: white !important; opacity: 0.6; transition: all 0.3s; background: rgba(255,255,255,0.1); border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 20px; position: absolute !important; top: 15px !important; right: 15px !important; z-index: 10 !important; }
+                        .swal2-close:hover { opacity: 1; background: rgba(255,255,255,0.2); }
+                        .swal2-close:focus { box-shadow: none; }
+                        .btn-edit-save { background: linear-gradient(135deg, #2ecc71, #27ae60) !important; border: none !important; font-weight: 600 !important; padding: 12px 30px !important; border-radius: 50px !important; font-size: 0.95rem !important; box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3) !important; transition: all 0.3s !important; min-width: 140px !important; }
+                        .btn-edit-save:hover { transform: translateY(-2px) !important; box-shadow: 0 6px 20px rgba(46, 204, 113, 0.4) !important; }
+                        .btn-edit-cancel { background: linear-gradient(135deg, #e74c3c, #c0392b) !important; border: none !important; font-weight: 600 !important; padding: 12px 30px !important; border-radius: 50px !important; font-size: 0.95rem !important; box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3) !important; transition: all 0.3s !important; min-width: 140px !important; }
+                        .btn-edit-cancel:hover { transform: translateY(-2px) !important; box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4) !important; }
+                        .swal2-actions { gap: 12px !important; }
+                        @media (max-width: 576px) {
+                            .swal2-popup { padding: 15px !important; margin: 10px !important; }
+                            .swal2-actions { flex-direction: column !important; gap: 8px !important; }
+                            .btn-edit-save, .btn-edit-cancel { width: 100% !important; min-width: unset !important; padding: 12px 20px !important; }
+                        }
+                    `;
+                    document.head.appendChild(style);
+                },
+                preConfirm: () => {
+                    const nuevaIdentidad = $('#editar-colaborador-ausencia').val();
+                    const fecha = $('#editar-fecha-ausencia').val();
+                    const diasIncapacidad = parseInt($('#editar-dias-ausencia').val(), 10);
+                    const motivo = $('#editar-motivo-ausencia').val();
+                    const observaciones = $('#editar-obs-ausencia').val();
+
+                    if (!nuevaIdentidad || !fecha || !diasIncapacidad || diasIncapacidad < 1) {
+                        Swal.showValidationMessage('⚠️ Colaborador, fecha y días (1 o más) son obligatorios.');
+                        return false;
+                    }
+
+                    const nuevoColaboradorInfo = colaboradoresActivos.find(col => col.identidad === nuevaIdentidad);
+                    if (!nuevoColaboradorInfo) {
+                        Swal.showValidationMessage('⚠️ El colaborador seleccionado no es válido.');
+                        return false;
+                    }
+
+                    const fechaInicio = new Date(fecha + 'T00:00:00');
+                    const fechaFin = new Date(fechaInicio);
+                    fechaFin.setDate(fechaFin.getDate() + diasIncapacidad - 1);
+                    const fechaFinStr = fechaFin.toISOString().split('T')[0];
+
+                    return {
+                        datosNuevos: {
+                            nombre: nuevoColaboradorInfo.nombre,
+                            identidad: nuevoColaboradorInfo.identidad,
+                            fechaNacimiento: nuevoColaboradorInfo.fechaNacimiento || '',
+                            sexo: nuevoColaboradorInfo.sexo,
+                            fecha,
+                            diasIncapacidad,
+                            motivo,
+                            observaciones,
+                            fechaFin: fechaFinStr
+                        }
+                    };
+                },
+                willClose: () => {
+                    const el = document.getElementById(styleId);
+                    if (el) el.remove();
+                }
+            }).then(async (result) => {
+                if (!result.isConfirmed) return;
+                const { datosNuevos } = result.value;
+
+                await PB_DB.agregarPendiente({
+                    titulo: `Editar Ausencia: ${datosNuevos.nombre}`,
+                    detalle: `${formatearFecha(datosNuevos.fecha)} (${datosNuevos.motivo}, ${datosNuevos.diasIncapacidad}d)`,
+                    destino: 'principal',
+                    accion: 'editar_ausencia',
+                    payload: {
+                        ausenciaOriginal: JSON.stringify({ identidad: ausenciaOriginal.identidad, fecha: ausenciaOriginal.fecha }),
+                        datosNuevos: JSON.stringify(datosNuevos)
+                    }
+                });
+
+                await PB_DB.actualizarDatosPrincipales(cache => {
+                    cache.ausencias = (cache.ausencias || []).map(a =>
+                        (a.identidad === ausenciaOriginal.identidad && a.fecha === ausenciaOriginal.fecha)
+                            ? { ...datosNuevos, _pendienteSync: true }
+                            : a
+                    );
+                    return cache;
+                });
+
+                await cargarYRenderizar(false);
+                Swal.fire('Guardado Offline', 'Ausencia actualizada localmente y pendiente de sincronizar.', 'success');
+            });
+        }
+
+        function eliminarAusenciaOffline(identidad, fecha) {
+            Swal.fire({
+                title: '¿Está seguro?',
+                html: `¿Desea eliminar este registro de ausencia del <strong>${formatearFecha(fecha)}</strong>?`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'No, cancelar'
+            }).then(async (result) => {
+                if (!result.isConfirmed) return;
+
+                await PB_DB.agregarPendiente({
+                    titulo: 'Eliminar Ausencia',
+                    detalle: `ID: ${identidad} - Fecha: ${formatearFecha(fecha)}`,
+                    destino: 'principal',
+                    accion: 'eliminar_ausencia',
+                    payload: { identidad, fecha }
+                });
+
+                await PB_DB.actualizarDatosPrincipales(cache => {
+                    cache.ausencias = (cache.ausencias || []).filter(a => !(a.identidad === identidad && a.fecha === fecha));
+                    return cache;
+                });
+
+                await cargarYRenderizar(false);
+                Swal.fire('Guardado Offline', 'Eliminación registrada localmente y pendiente de sincronizar.', 'success');
+            });
+        }
+
+        // ==================== RESUMEN Y DETALLE DE AUSENCIAS (DISEÑO ORIGINAL) ====================
+        function mostrarResumenAusencias() {
+            if (ausencias.length === 0) {
+                Swal.fire('Sin Datos', 'No hay ausencias registradas para mostrar un resumen.', 'info');
+                return;
+            }
+
+            const conteo = {};
+            ausencias.forEach(reg => {
+                const colaboradorInfo = colaboradoresActivos.find(c => c.identidad === reg.identidad);
+                if (!colaboradorInfo) return;
+                if (!conteo[reg.identidad]) {
+                    conteo[reg.identidad] = {
+                        nombre: colaboradorInfo.nombre,
+                        identidad: colaboradorInfo.identidad,
+                        fotoUrl: colaboradorInfo.fotoUrl,
+                        totalDias: 0
+                    };
+                }
+                conteo[reg.identidad].totalDias += (parseInt(reg.diasIncapacidad, 10) || 1);
+            });
+
+            const sorted = Object.values(conteo).sort((a, b) => b.totalDias - a.totalDias);
+
+            const modalHtml = `
+                <div class="mb-3 px-2">
+                    <input type="text" id="filtro-resumen-ausencias" class="form-control" placeholder="Buscar por nombre o identidad...">
+                </div>
+                <div id="resumen-lista-colaboradores" style="max-height: 400px; overflow-y: auto; text-align: left;"></div>`;
+
+            function renderResumenList(items) {
+                const container = $('#resumen-lista-colaboradores').empty();
+                if (items.length === 0) {
+                    container.html('<p class="text-center text-muted mt-3">No se encontraron colaboradores activos con ausencias.</p>');
+                    return;
+                }
+                let listHtml = '';
+                items.forEach(item => {
+                    let color = 'danger';
+                    if (item.totalDias <= 2) color = 'info';
+                    else if (item.totalDias <= 5) color = 'warning';
+
+                    const fotoSrc = item.fotoUrl || `https://ui-avatars.com/api/?name=${item.nombre.replace(/\s/g, "+")}&background=random`;
+                    listHtml += `
+                        <div class="resumen-disciplina-item" data-identidad="${item.identidad}">
+                            <img src="${fotoSrc}" class="resumen-disciplina-img" onerror="this.src='https://ui-avatars.com/api/?name=${item.nombre.replace(/\s/g, "+")}&background=random'">
+                            <div class="resumen-disciplina-info">
+                                <h6>${item.nombre}</h6>
+                                <span class="badge bg-${color}">${item.totalDias} día(s) ausente(s)</span>
+                            </div>
+                        </div>`;
+                });
+                container.html(listHtml);
+            }
+
+            Swal.fire({
+                title: 'Resumen de Ausencias por Colaborador Activo',
+                html: modalHtml,
+                width: '700px',
+                showCloseButton: true,
+                showConfirmButton: false,
+                didOpen: () => {
+                    renderResumenList(sorted);
+                    $('#filtro-resumen-ausencias').on('input', function() {
+                        const query = $(this).val().toLowerCase();
+                        const filtered = sorted.filter(item =>
+                            item.nombre.toLowerCase().includes(query) || item.identidad.toLowerCase().includes(query)
+                        );
+                        renderResumenList(filtered);
+                    });
+
+                    $(document).on('click.resumenAus', '#resumen-lista-colaboradores .resumen-disciplina-item', function() {
+                        const identidad = $(this).data('identidad');
+                        mostrarDetalleAusenciasColaborador(identidad);
+                    });
+                },
+                willClose: () => {
+                    $(document).off('click.resumenAus');
+                }
+            });
+        }
+
+        function mostrarDetalleAusenciasColaborador(identidad) {
+            const historial = ausencias.filter(d => d.identidad === identidad).sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+            const colaborador = colaboradoresActivos.find(c => c.identidad === identidad) || { nombre: 'N/A', identidad, fotoUrl: '' };
+            const totalDias = historial.reduce((sum, current) => sum + (parseInt(current.diasIncapacidad, 10) || 1), 0);
+
+            let historialHtml = '<div style="max-height: 300px; overflow-y: auto; text-align: left; padding: 10px; background-color: #f8f9fa; border-radius: 5px;">';
+            if (historial.length > 0) {
+                historial.forEach((reg, index) => {
+                    const fechaFin = reg.fechaFin && reg.fechaFin !== reg.fecha ? ` al ${formatearFecha(reg.fechaFin)}` : '';
+                    historialHtml += `
+                        <div class="mb-2">
+                            <strong>${formatearFecha(reg.fecha)}${fechaFin}:</strong>
+                            <ul class="mb-1 mt-1">
+                                <li>Motivo: ${reg.motivo}</li>
+                                <li>Días: ${reg.diasIncapacidad || 1}</li>
+                            </ul>
+                            ${reg.observaciones ? `<small class="d-block text-muted"><em>Observación: ${reg.observaciones}</em></small>` : ''}
+                        </div>
+                        ${index < historial.length - 1 ? '<hr class="my-2">' : ''}`;
+                });
+            } else {
+                historialHtml += '<p class="text-center text-muted">No se encontraron registros de ausencia.</p>';
+            }
+            historialHtml += '</div>';
+
+            const fotoSrc = colaborador.fotoUrl || `https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=random`;
+            const detailModalHtml = `
+                <div class="d-flex justify-content-start mb-3">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-volver-resumen-ausencias">
+                        <i class="fas fa-arrow-left me-1"></i> Volver al Resumen
+                    </button>
+                </div>
+                <div class="text-center mb-3">
+                    <img src="${fotoSrc}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid #dee2e6;" onerror="this.src='https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=random'">
+                    <h5 class="mt-2 mb-0">${colaborador.nombre}</h5>
+                    <span class="badge bg-secondary">${colaborador.identidad}</span>
+                    <p class="mt-2">Total de días ausente: <strong>${totalDias}</strong></p>
+                </div>
+                ${historialHtml}`;
+
+            Swal.fire({
+                title: 'Detalle de Ausencias',
+                html: detailModalHtml,
+                width: '600px',
+                showCloseButton: true,
+                showConfirmButton: false,
+                didOpen: () => {
+                    const volverBtn = Swal.getPopup().querySelector('#btn-volver-resumen-ausencias');
+                    if (volverBtn) {
+                        volverBtn.addEventListener('click', () => {
+                            Swal.close();
+                            mostrarResumenAusencias();
+                        });
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

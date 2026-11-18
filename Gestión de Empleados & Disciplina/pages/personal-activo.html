@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personal Activo</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="subpage-body">
+    <div class="container-fluid">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <span class="text-muted small"><i class="fas fa-users me-1"></i>Total Activos: <strong id="conteo-activos">0</strong></span>
+            <button class="btn btn-outline-secondary btn-sm" id="btn-refrescar-local">
+                <i class="fas fa-sync-alt me-1"></i>Refrescar vista
+            </button>
+        </div>
+
+        <div class="search-container">
+            <i class="fas fa-search"></i>
+            <input type="text" class="form-control" id="buscador-activos" placeholder="Buscar por nombre o identidad...">
+        </div>
+
+        <div id="grid-activos" class="row g-3"></div>
+    </div>
+
+    <div id="overlay">
+        <div class="spinner"></div>
+        <div id="loadingMessage"><h4>Procesando...</h4><p></p></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/db.js"></script>
+    <script>
+        let datos = { activos: [], ingresos: [], egresos: [], ausencias: [], disciplina: [], evaluaciones: [], incidentes: [] };
+        let colaboradoresActivos = [];
+        let colaboradoresEgresos = [];
+        let ausencias = [];
+        let disciplina = [];
+        let evaluaciones = [];
+        let incidentes = [];
+
+        $(document).ready(async function() {
+            await cargarYRenderizar();
+
+            $('#buscador-activos').on('input', filtrarActivos);
+            $('#btn-refrescar-local').on('click', cargarYRenderizar);
+
+            $(document).on('click', '.btn-contacto', function(e) {
+                e.stopPropagation();
+                mostrarContactos($(this).data('identidad'));
+            });
+            $(document).on('click', '.btn-historial', function(e) {
+                e.stopPropagation();
+                mostrarDetalleColaboradorCompleto($(this).data('identidad'), false);
+            });
+            $(document).on('click', '.btn-edit', function(e) {
+                e.stopPropagation();
+                editarColaborador($(this).data('identidad'));
+            });
+            $(document).on('click', '.btn-delete', function(e) {
+                e.stopPropagation();
+                eliminarColaborador($(this).data('identidad'));
+            });
+
+            if (syncChannel) {
+                syncChannel.onmessage = cargarYRenderizar;
+            }
+        });
+
+        async function cargarYRenderizar() {
+            datos = await PB_DB.obtenerDatosPrincipales();
+            colaboradoresActivos = datos.activos || [];
+            colaboradoresEgresos = datos.egresos || [];
+            ausencias = datos.ausencias || [];
+            disciplina = datos.disciplina || [];
+            evaluaciones = datos.evaluaciones || [];
+            incidentes = datos.incidentes || [];
+
+            mostrarColaboradoresActivos();
+            filtrarActivos();
+        }
+
+        function mostrarColaboradoresActivos() {
+            const gridActivosContainer = $('#grid-activos').empty();
+            const colaboradoresOrdenados = [...colaboradoresActivos].sort((a, b) => a.nombre.localeCompare(b.nombre));
+            $('#conteo-activos').text(colaboradoresOrdenados.length);
+
+            if (colaboradoresOrdenados.length === 0) {
+                gridActivosContainer.html('<div class="col-12 text-center text-muted py-5">No hay colaboradores activos registrados.</div>');
+                return;
+            }
+
+            colaboradoresOrdenados.forEach((col) => {
+                const movil = (col.movil !== undefined && col.movil !== null) ? String(col.movil).trim() : '';
+                const contactoEmergencia = (col.contactoEmergencia !== undefined && col.contactoEmergencia !== null) ? String(col.contactoEmergencia).trim() : '';
+                const movilEmergencia = (col.movilEmergencia !== undefined && col.movilEmergencia !== null) ? String(col.movilEmergencia).trim() : '';
+
+                const tieneContacto = movil !== '' || contactoEmergencia !== '' || movilEmergencia !== '';
+                const botonContactoClase = tieneContacto ? 'btn-primary' : 'btn-secondary';
+                const botonContactoDisabled = tieneContacto ? '' : 'disabled';
+                const botonContactoTitulo = tieneContacto ? 'Ver Contactos' : 'Sin información de contacto';
+
+                const fotoHtml = col.fotoUrl
+                    ? `<img src="${col.fotoUrl}" alt="${col.nombre}" style="cursor: pointer;" onerror="this.parentElement.innerHTML = '<i class=\\'fas fa-user-circle\\' style=\\'cursor: pointer;\\'></i>';">`
+                    : `<i class="fas fa-user-circle" style="cursor: pointer;"></i>`;
+
+                const badgePend = col._pendienteSync
+                    ? `<div class="mb-1"><span class="badge-offline-pending"><i class="fas fa-clock me-1"></i>Pendiente Sync</span></div>`
+                    : '';
+
+                gridActivosContainer.append(`
+                    <div class="col-lg-2 col-md-3 col-sm-4 col-6 empleado-card-grid-item" data-identidad="${col.identidad}">
+                        <div class="empleado-card-mini">
+                            <div class="img-container" style="cursor: pointer;"
+                                 onclick="mostrarFotoPorIdentidad('${col.identidad}')"
+                                 ondblclick="mostrarFotoCompletaPorIdentidad('${col.identidad}')">
+                                ${fotoHtml}
+                            </div>
+                            <h6>${col.nombre}</h6>
+                            <p>${col.identidad}</p>
+                            ${badgePend}
+                            <div class="actions">
+                                <button class="btn btn-secondary btn-sm btn-action btn-historial" data-identidad="${col.identidad}" title="Ver Historial"><i class="fas fa-history"></i></button>
+                                <button class="btn ${botonContactoClase} btn-sm btn-action btn-contacto"
+                                        data-identidad="${col.identidad}"
+                                        title="${botonContactoTitulo}"
+                                        ${botonContactoDisabled}>
+                                    <i class="fas fa-phone-alt"></i>
+                                </button>
+                                <button class="btn btn-warning btn-sm btn-action btn-edit" data-identidad="${col.identidad}" title="Editar"><i class="fas fa-edit"></i></button>
+                                <button class="btn btn-danger btn-sm btn-action btn-delete" data-identidad="${col.identidad}" title="Eliminar"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </div>
+                    </div>`);
+            });
+        }
+
+        function filtrarActivos() {
+            const texto = $('#buscador-activos').val().toLowerCase();
+            if (!texto) {
+                $('#grid-activos .empleado-card-grid-item').show();
+                return;
+            }
+            $('#grid-activos .empleado-card-grid-item').each(function() {
+                const $item = $(this);
+                const nombre = $item.find('h6').text().toLowerCase();
+                const identidad = $item.find('p').text().toLowerCase();
+                $item.toggle(nombre.includes(texto) || identidad.includes(texto));
+            });
+        }
+
+        // ==================== 1. VISTA PREVIA DE FOTO (DISEÑO ORIGINAL) ====================
+        function mostrarFotoPorIdentidad(identidad) {
+            const colaborador = colaboradoresActivos.find(col => col.identidad === identidad);
+            if (colaborador) mostrarFoto(colaborador);
+        }
+
+        function mostrarFotoCompletaPorIdentidad(identidad) {
+            const colaborador = colaboradoresActivos.find(col => col.identidad === identidad);
+            if (colaborador) mostrarFotoCompleta(colaborador);
+        }
+
+        function mostrarFoto(colaborador) {
+            const esEgresado = colaboradoresEgresos.some(c => c.identidad === colaborador.identidad);
+            const tieneFoto = colaborador.fotoUrl && colaborador.fotoUrl.trim() !== '';
+            const isMobile = window.innerWidth < 576;
+
+            const estadoColor = esEgresado ? '#e74c3c' : '#2ecc71';
+            const estadoBg = esEgresado ? 'rgba(231, 76, 60, 0.1)' : 'rgba(46, 204, 113, 0.1)';
+            const estadoIcono = esEgresado ? 'fa-user-slash' : 'fa-user-check';
+
+            let fotoHtml = '';
+            if (tieneFoto) {
+                const nombreEscapado = colaborador.nombre.replace(/'/g, "\\'");
+                const urlEscapada = colaborador.fotoUrl.replace(/'/g, "\\'");
+                fotoHtml = `
+                    <div style="position: relative; display: inline-block; width: 100%; max-width: 500px; margin: 0 auto;">
+                        <img src="${colaborador.fotoUrl}" alt="${colaborador.nombre}"
+                             style="width: 100%; height: auto; max-height: 60vh; border-radius: 16px;
+                                    box-shadow: 0 20px 60px rgba(0,0,0,0.3); border: 4px solid rgba(255,255,255,0.1);
+                                    object-fit: contain; display: block;"
+                             onerror="this.onerror=null; this.style.display='none'; this.parentElement.querySelector('.error-fallback').style.display='flex';">
+                        <button onclick="abrirFotoCompletaSimple('${urlEscapada}', '${nombreEscapado}')"
+                                style="position: absolute; top: 12px; right: 12px;
+                                       background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.2);
+                                       color: white; padding: 8px 10px; border-radius: 50%;
+                                       font-size: 0.9rem; cursor: pointer; transition: all 0.3s;
+                                       display: flex; align-items: center; justify-content: center;
+                                       backdrop-filter: blur(8px); width: 38px; height: 38px;"
+                                onmouseover="this.style.background='rgba(255,255,255,0.2)'; this.style.transform='scale(1.1)';"
+                                onmouseout="this.style.background='rgba(0,0,0,0.6)'; this.style.transform='scale(1)';"
+                                title="Ver en pantalla completa">
+                            <i class="fas fa-expand" style="font-size: 0.9rem;"></i>
+                        </button>
+                        <div class="error-fallback" style="display: none; flex-direction: column; align-items: center; justify-content: center; padding: 40px; background: #f8f9fa; border-radius: 16px; min-height: 250px;">
+                            <i class="fas fa-user-circle" style="font-size: 80px; color: #bdc3c7; margin-bottom: 15px;"></i>
+                            <p style="color: #7f8c8d; font-size: 1.1rem;">No se pudo cargar la imagen</p>
+                        </div>
+                    </div>`;
+            } else {
+                fotoHtml = `
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; background: #f8f9fa; border-radius: 16px; min-height: 200px;">
+                        <i class="fas fa-user-circle" style="font-size: 80px; color: #bdc3c7; margin-bottom: 12px;"></i>
+                        <p style="color: #7f8c8d; font-size: 1rem;">No hay foto disponible</p>
+                        <p style="color: #95a5a6; font-size: 0.8rem; margin-top: 3px;">El colaborador no tiene una foto registrada</p>
+                    </div>`;
+            }
+
+            let edad = '';
+            if (colaborador.fechaNacimiento) {
+                const edadCalculada = calcularEdad(colaborador.fechaNacimiento);
+                if (edadCalculada !== null) edad = edadCalculada;
+            }
+            const fechaInicio = colaborador.fechaInicio ? formatearFecha(colaborador.fechaInicio) : '';
+
+            const modalHtml = `
+                <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0; overflow: hidden; background: #1a1a2e; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.5);">
+                    <div style="background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460); border-radius: 16px 16px 0 0; padding: ${isMobile ? '12px 16px' : '16px 22px'}; color: white; position: relative; overflow: hidden;">
+                        <div style="position: absolute; top: -50%; right: -20%; width: 150px; height: 150px; background: radial-gradient(circle, rgba(52, 152, 219, 0.1) 0%, transparent 70%); border-radius: 50%;"></div>
+                        <div style="position: absolute; bottom: -40%; left: -10%; width: 130px; height: 130px; background: radial-gradient(circle, rgba(46, 204, 113, 0.08) 0%, transparent 70%); border-radius: 50%;"></div>
+
+                        <div style="display: flex; align-items: center; gap: ${isMobile ? '10px' : '15px'}; flex-wrap: wrap; position: relative; z-index: 1; justify-content: flex-start;">
+                            <div style="flex-shrink: 0;">
+                                <div style="width: ${isMobile ? '38px' : '44px'}; height: ${isMobile ? '38px' : '44px'}; background: ${estadoBg}; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid ${estadoColor};">
+                                    <i class="fas ${estadoIcono}" style="font-size: ${isMobile ? '16px' : '20px'}; color: ${estadoColor};"></i>
+                                </div>
+                            </div>
+
+                            <div style="flex: 1; min-width: 100px; text-align: left;">
+                                <h3 style="margin: 0; font-weight: 700; font-size: ${isMobile ? '0.95rem' : '1.1rem'}; letter-spacing: -0.5px; background: linear-gradient(135deg, #fff, #a8d8ea); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; text-align: left;">
+                                    ${colaborador.nombre}
+                                </h3>
+                                <div style="margin-top: 3px; display: flex; flex-wrap: wrap; gap: 3px; justify-content: flex-start;">
+                                    <span class="badge" style="background: rgba(255,255,255,0.12); padding: 2px 8px; font-size: 0.6rem;">
+                                        <i class="fas fa-id-card me-1"></i>${colaborador.identidad}
+                                    </span>
+                                    ${fechaInicio ? `<span class="badge" style="background: rgba(46, 204, 113, 0.15); color: #2ecc71; border: 1px solid #2ecc71; padding: 2px 8px; font-size: 0.6rem;">
+                                        <i class="fas fa-calendar-plus me-1"></i>${fechaInicio}
+                                    </span>` : ''}
+                                    ${esEgresado && colaborador.fechaEgreso ? `<span class="badge" style="background: rgba(231, 76, 60, 0.15); color: #e74c3c; border: 1px solid #e74c3c; padding: 2px 8px; font-size: 0.55rem;">
+                                        <i class="fas fa-arrow-right me-1"></i>${formatearFecha(colaborador.fechaEgreso)}
+                                    </span>` : ''}
+                                    ${edad ? `<span class="badge" style="background: rgba(241, 196, 15, 0.2); padding: 2px 8px; font-size: 0.6rem;">
+                                        <i class="fas fa-birthday-cake me-1"></i>${edad} años
+                                    </span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="padding: ${isMobile ? '5px 0' : '10px 0'}; text-align: center; background: #0a0a0a; border-radius: 0 0 16px 16px; overflow: hidden;">
+                        ${fotoHtml}
+                    </div>
+                </div>`;
+
+            Swal.fire({
+                title: null,
+                html: modalHtml,
+                width: window.innerWidth < 576 ? '95%' : '550px',
+                showCloseButton: true,
+                showConfirmButton: false,
+                background: 'transparent',
+                backdrop: 'rgba(0, 0, 0, 0.8)',
+                customClass: {
+                    popup: 'animated fadeInDown',
+                    closeButton: 'btn-close-white'
+                },
+                didOpen: () => {
+                    window.abrirFotoCompletaSimple = function(url, nombre) {
+                        Swal.fire({
+                            title: nombre,
+                            html: `
+                                <div style="display: flex; align-items: center; justify-content: center; background: #0a0a0a; border-radius: 12px; padding: 10px;">
+                                    <img src="${url}"
+                                         style="max-width: 100%; max-height: 80vh; border-radius: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.5);"
+                                         onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=${nombre.replace(/\s/g, '+')}&background=3498db&color=fff&size=500';">
+                                </div>`,
+                            width: '95%',
+                            showCloseButton: true,
+                            showConfirmButton: false,
+                            background: 'transparent',
+                            backdrop: 'rgba(0, 0, 0, 0.9)',
+                            customClass: {
+                                popup: 'animated fadeInDown',
+                                closeButton: 'btn-close-white'
+                            }
+                        });
+                    };
+                },
+                willClose: () => {
+                    delete window.abrirFotoCompletaSimple;
+                }
+            });
+        }
+
+        function mostrarFotoCompleta(colaborador) {
+            if (!colaborador.fotoUrl || colaborador.fotoUrl.trim() === '') {
+                mostrarFoto(colaborador);
+                return;
+            }
+            Swal.fire({
+                title: colaborador.nombre,
+                html: `
+                    <div style="display: flex; align-items: center; justify-content: center; background: #0a0a0a; border-radius: 12px; padding: 10px;">
+                        <img src="${colaborador.fotoUrl}" alt="${colaborador.nombre}"
+                             style="max-width: 100%; max-height: 80vh; border-radius: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.5);"
+                             onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, '+')}&background=3498db&color=fff&size=500';">
+                    </div>`,
+                width: '95%',
+                showCloseButton: true,
+                showConfirmButton: false,
+                background: 'transparent',
+                backdrop: 'rgba(0, 0, 0, 0.9)',
+                customClass: {
+                    popup: 'animated fadeInDown',
+                    closeButton: 'btn-close-white'
+                }
+            });
+        }
+
+        // ==================== 2. HISTORIAL COMPLETO (DISEÑO ORIGINAL) ====================
+        function mostrarDetalleColaboradorCompleto(identidad, esEgresado = false) {
+            const colaborador = esEgresado
+                ? colaboradoresEgresos.find(c => c.identidad === identidad)
+                : colaboradoresActivos.find(c => c.identidad === identidad);
+
+            if (!colaborador) return;
+
+            const historialAusencias = ausencias.filter(d => d.identidad === identidad).sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
+            const historialDisciplina = disciplina.filter(d => d.identidad === identidad).sort((a,b) => new Date(b.fechaFalta) - new Date(a.fechaFalta));
+            const historialEvaluaciones = evaluaciones.filter(d => d.identidad === identidad).sort((a,b) => new Date(a.fechaEvaluacion) - new Date(b.fechaEvaluacion));
+            const historialIncidentes = incidentes.filter(d => d.identidad === identidad).sort((a,b) => new Date(b.fechaIncidente) - new Date(a.fechaIncidente));
+
+            const estadoColor = esEgresado ? '#e74c3c' : '#2ecc71';
+            const estadoIcono = esEgresado ? 'fa-user-slash' : 'fa-user-check';
+            const fotoSrc = colaborador.fotoUrl || `https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=3498db&color=fff&size=200&font-size=0.5`;
+
+            let edad = '';
+            if (colaborador.fechaNacimiento) {
+                const edadCalculada = calcularEdad(colaborador.fechaNacimiento);
+                if (edadCalculada !== null) edad = edadCalculada;
+            }
+
+            function generarContenidoAusencias() {
+                if (historialAusencias.length === 0) {
+                    return `
+                        <div class="text-center py-5">
+                            <div style="width: 60px; height: 60px; background: rgba(46, 204, 113, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;">
+                                <i class="fas fa-calendar-check" style="font-size: 28px; color: #2ecc71;"></i>
+                            </div>
+                            <h6 style="color: #2c3e50; font-weight: 600; margin: 0; font-size: 0.95rem;">Sin Ausencias</h6>
+                            <p style="color: #95a5a6; font-size: 0.8rem; margin: 4px 0 0;">No hay ausencias registradas</p>
+                        </div>`;
+                }
+                let html = '<div style="max-height: 350px; overflow-y: auto; padding-right: 5px; text-align: left;">';
+                historialAusencias.forEach((a, index) => {
+                    const fechaFin = a.fechaFin && a.fechaFin !== a.fecha ? ` → ${formatearFecha(a.fechaFin)}` : '';
+                    let badgeColor = 'secondary';
+                    if (a.motivo === 'Incapacidad') badgeColor = 'warning';
+                    else if (a.motivo === 'Falta Injustificada') badgeColor = 'danger';
+                    else if (a.motivo === 'Permiso') badgeColor = 'info';
+
+                    html += `
+                        <div style="background: ${index % 2 === 0 ? '#f8f9fa' : 'white'}; border-radius: 8px; padding: 10px 12px; margin-bottom: 5px; border-left: 4px solid var(--bs-${badgeColor});">
+                            <div>
+                                <span class="badge bg-${badgeColor} me-1" style="font-size: 0.7rem;">${a.motivo}</span>
+                                <span style="font-weight: 600; color: #2c3e50; font-size: 0.85rem;">${formatearFecha(a.fecha)}${fechaFin}</span>
+                                <span class="badge bg-secondary ms-1" style="font-size: 0.65rem;">${a.diasIncapacidad || 1} día(s)</span>
+                                ${a.observaciones ? `<div style="margin-top: 4px; font-size: 0.8rem; color: #7f8c8d;"><i class="fas fa-comment me-1"></i>${a.observaciones}</div>` : ''}
+                            </div>
+                        </div>`;
+                });
+                html += '</div>';
+                return html;
+            }
+
+            function generarContenidoDisciplina() {
+                if (historialDisciplina.length === 0) {
+                    return `
+                        <div class="text-center py-5">
+                            <div style="width: 60px; height: 60px; background: rgba(46, 204, 113, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;">
+                                <i class="fas fa-check-circle" style="font-size: 28px; color: #2ecc71;"></i>
+                            </div>
+                            <h6 style="color: #2c3e50; font-weight: 600; margin: 0; font-size: 0.95rem;">Sin Disciplina</h6>
+                            <p style="color: #95a5a6; font-size: 0.8rem; margin: 4px 0 0;">No hay acciones disciplinarias</p>
+                        </div>`;
+                }
+                let html = '<div style="max-height: 350px; overflow-y: auto; padding-right: 5px; text-align: left;">';
+                historialDisciplina.forEach((d, index) => {
+                    const faltasLista = d.descripcionFaltas.split('; ').map(f => `<li style="font-size: 0.8rem;">${f}</li>`).join('');
+                    html += `
+                        <div style="background: ${index % 2 === 0 ? '#f8f9fa' : 'white'}; border-radius: 8px; padding: 10px 12px; margin-bottom: 5px; border-left: 4px solid #e74c3c;">
+                            <div>
+                                <span class="badge bg-danger me-1" style="font-size: 0.7rem;">${formatearFecha(d.fechaFalta)}</span>
+                                <ul style="margin: 4px 0 0 0; padding-left: 18px;">${faltasLista}</ul>
+                                ${d.observaciones ? `<div style="margin-top: 4px; font-size: 0.8rem; color: #7f8c8d;"><i class="fas fa-comment me-1"></i>${d.observaciones}</div>` : ''}
+                            </div>
+                        </div>`;
+                });
+                html += '</div>';
+                return html;
+            }
+
+            function generarContenidoEvaluaciones() {
+                if (historialEvaluaciones.length === 0) {
+                    return `
+                        <div class="text-center py-5">
+                            <div style="width: 60px; height: 60px; background: rgba(46, 204, 113, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;">
+                                <i class="fas fa-chart-line" style="font-size: 28px; color: #2ecc71;"></i>
+                            </div>
+                            <h6 style="color: #2c3e50; font-weight: 600; margin: 0; font-size: 0.95rem;">Sin Evaluaciones</h6>
+                            <p style="color: #95a5a6; font-size: 0.8rem; margin: 4px 0 0;">No hay evaluaciones registradas</p>
+                        </div>`;
+                }
+                let html = `
+                    <div style="background: #f8f9fa; border-radius: 10px; padding: 12px; margin-bottom: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="font-weight: 600; color: #2c3e50; font-size: 0.85rem;"><i class="fas fa-chart-area me-2" style="color: #3498db;"></i>Progreso de Notas</span>
+                            <span class="badge bg-primary" style="font-size: 0.7rem;">${historialEvaluaciones.length} evaluación(es)</span>
+                        </div>
+                        <div class="chart-container" style="height: 140px; margin-bottom: 0;"><canvas id="graficoProgresoCompleto"></canvas></div>
+                    </div>
+                    <div style="max-height: 180px; overflow-y: auto; padding-right: 5px; text-align: left;">`;
+                historialEvaluaciones.forEach((e, index) => {
+                    const nota = parseFloat(e.notaFinal);
+                    let badgeColor = 'success', icono = 'fa-crown';
+                    if (nota < 60) { badgeColor = 'danger'; icono = 'fa-times-circle'; }
+                    else if (nota < 70) { badgeColor = 'warning'; icono = 'fa-exclamation-triangle'; }
+                    else if (nota < 80) { badgeColor = 'info'; icono = 'fa-info-circle'; }
+                    else if (nota < 90) { badgeColor = 'primary'; icono = 'fa-thumbs-up'; }
+
+                    html += `
+                        <div style="background: ${index % 2 === 0 ? '#f8f9fa' : 'white'}; border-radius: 8px; padding: 8px 12px; margin-bottom: 4px; border-left: 4px solid var(--bs-${badgeColor});">
+                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                                <span style="font-size: 0.8rem; color: #7f8c8d;">${formatearFecha(e.fechaEvaluacion)}</span>
+                                <span class="badge bg-${badgeColor}" style="font-size: 0.8rem; padding: 3px 10px;">
+                                    <i class="fas ${icono} me-1"></i>${e.notaFinal}
+                                </span>
+                            </div>
+                            ${e.observaciones ? `<div style="margin-top: 3px; font-size: 0.75rem; color: #7f8c8d;"><i class="fas fa-comment me-1"></i>${e.observaciones}</div>` : ''}
+                        </div>`;
+                });
+                html += '</div>';
+                return html;
+            }
+
+            function generarContenidoIncidentes() {
+                if (historialIncidentes.length === 0) {
+                    return `
+                        <div class="text-center py-5">
+                            <div style="width: 60px; height: 60px; background: rgba(46, 204, 113, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;">
+                                <i class="fas fa-shield-alt" style="font-size: 28px; color: #2ecc71;"></i>
+                            </div>
+                            <h6 style="color: #2c3e50; font-weight: 600; margin: 0; font-size: 0.95rem;">Sin Incidentes</h6>
+                            <p style="color: #95a5a6; font-size: 0.8rem; margin: 4px 0 0;">No hay incidentes registrados</p>
+                        </div>`;
+                }
+                let html = '<div style="max-height: 350px; overflow-y: auto; padding-right: 5px; text-align: left;">';
+                historialIncidentes.forEach((inc, index) => {
+                    let badgeColor = 'secondary';
+                    if (inc.categoriaSiso === 'FAT' || inc.categoriaSiso === 'LWC') badgeColor = 'danger';
+                    else if (inc.categoriaSiso === 'MTC') badgeColor = 'warning';
+                    else if (inc.categoriaSiso === 'FAC') badgeColor = 'info';
+                    else if (inc.categoriaSiso === 'N-M') badgeColor = 'success';
+
+                    html += `
+                        <div style="background: ${index % 2 === 0 ? '#f8f9fa' : 'white'}; border-radius: 8px; padding: 10px 12px; margin-bottom: 5px; border-left: 4px solid var(--bs-${badgeColor});">
+                            <div>
+                                <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px;">
+                                    <span class="badge bg-secondary" style="font-size: 0.65rem;">${formatearFecha(inc.fechaIncidente)}</span>
+                                    <span class="badge bg-${badgeColor}" style="font-size: 0.65rem;">${inc.categoriaSiso}</span>
+                                    ${inc.parteAfectada ? `<span class="badge bg-primary" style="font-size: 0.65rem;">${inc.parteAfectada}</span>` : ''}
+                                </div>
+                                <div style="font-size: 0.8rem; color: #2c3e50;">
+                                    <div><span style="font-weight: 600;">Causa:</span> ${inc.causa}</div>
+                                    <div><span style="font-weight: 600;">Descripción:</span> ${inc.descripcion}</div>
+                                    ${inc.medidas ? `<div style="margin-top: 3px;"><span style="font-weight: 600;">Medidas:</span> <span style="color: #27ae60;">${inc.medidas}</span></div>` : ''}
+                                </div>
+                            </div>
+                        </div>`;
+                });
+                html += '</div>';
+                return html;
+            }
+
+            const totalAusencias = historialAusencias.length;
+            const totalDisciplina = historialDisciplina.length;
+            const totalEvaluaciones = historialEvaluaciones.length;
+            const totalIncidentes = historialIncidentes.length;
+
+            const isMobile = window.innerWidth < 576;
+            const headerPadding = isMobile ? '15px 20px' : '25px 30px';
+            const fotoSize = isMobile ? '70px' : '100px';
+            const nombreSize = isMobile ? '1.2rem' : '1.5rem';
+
+            const modalHtml = `
+                <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0;">
+                    <div style="background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460); border-radius: 16px; padding: ${headerPadding}; margin: -20px -25px 20px -25px; color: white; position: relative; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+                        <div style="position: absolute; top: -50%; right: -20%; width: 200px; height: 200px; background: radial-gradient(circle, rgba(52, 152, 219, 0.1) 0%, transparent 70%); border-radius: 50%;"></div>
+                        <div style="position: absolute; bottom: -40%; left: -10%; width: 180px; height: 180px; background: radial-gradient(circle, rgba(46, 204, 113, 0.08) 0%, transparent 70%); border-radius: 50%;"></div>
+
+                        <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap; position: relative; z-index: 1; justify-content: flex-start;">
+                            <div style="position: relative; flex-shrink: 0;">
+                                <div style="position: absolute; inset: -3px; background: linear-gradient(135deg, ${estadoColor}, #3498db); border-radius: 50%; padding: 3px; box-shadow: 0 0 20px rgba(52,152,219,0.25);">
+                                    <div style="width: 100%; height: 100%; border-radius: 50%; background: #1a1a2e;"></div>
+                                </div>
+                                <img src="${fotoSrc}"
+                                     style="width: ${fotoSize}; height: ${fotoSize}; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.15); position: relative; z-index: 1;"
+                                     onerror="this.src='https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=3498db&color=fff&size=150&font-size=0.5'">
+                                <div style="position: absolute; bottom: 0px; right: 0px; background: ${estadoColor}; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border: 2px solid white; z-index: 2; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">
+                                    <i class="fas ${estadoIcono}" style="font-size: 10px; color: white;"></i>
+                                </div>
+                            </div>
+
+                            <div style="flex: 1; min-width: 150px; text-align: left;">
+                                <h3 style="margin: 0; font-weight: 700; font-size: ${nombreSize}; letter-spacing: -0.5px; background: linear-gradient(135deg, #fff, #a8d8ea); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; text-align: left;">
+                                    ${colaborador.nombre}
+                                </h3>
+                                <div style="margin-top: 5px; display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-start;">
+                                    <span class="badge" style="background: rgba(255,255,255,0.12); padding: 3px 10px; font-size: 0.7rem;">
+                                        <i class="fas fa-id-card me-1"></i>${colaborador.identidad}
+                                    </span>
+                                    ${colaborador.sexo ? `<span class="badge" style="background: ${colaborador.sexo === 'Masculino' ? 'rgba(52, 152, 219, 0.25)' : 'rgba(231, 76, 60, 0.25)'}; padding: 3px 10px; font-size: 0.7rem;">
+                                        <i class="fas ${colaborador.sexo === 'Masculino' ? 'fa-mars' : 'fa-venus'} me-1"></i>${colaborador.sexo}
+                                    </span>` : ''}
+                                    ${edad ? `<span class="badge" style="background: rgba(241, 196, 15, 0.2); padding: 3px 10px; font-size: 0.7rem;">
+                                        <i class="fas fa-birthday-cake me-1"></i>${edad} años
+                                    </span>` : ''}
+                                    <span class="badge" style="background: rgba(46, 204, 113, 0.15); color: #2ecc71; border: 1px solid #2ecc71; padding: 3px 10px; font-size: 0.65rem;">
+                                        <i class="fas fa-calendar-plus me-1"></i>${formatearFecha(colaborador.fechaInicio)}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <ul class="nav nav-tabs" id="historialTabs" role="tablist" style="border-bottom: none; margin-bottom: 15px; gap: 3px; background: #f8f9fa; border-radius: 10px; padding: 3px; overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; justify-content: flex-start;">
+                        <li class="nav-item" role="presentation" style="flex: 0 0 auto;">
+                            <button class="nav-link active" id="tab-ausencias" data-bs-toggle="tab" data-bs-target="#content-ausencias" type="button" role="tab"
+                                    style="border: none; border-radius: 6px; padding: 6px 12px; font-weight: 600; font-size: 0.75rem; transition: all 0.3s; white-space: nowrap;">
+                                <i class="fas fa-clock me-1"></i>Ausencias
+                                <span class="badge ${totalAusencias > 0 ? 'bg-danger' : 'bg-secondary'}" style="margin-left: 3px; font-size: 0.6rem;">${totalAusencias}</span>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation" style="flex: 0 0 auto;">
+                            <button class="nav-link" id="tab-disciplina" data-bs-toggle="tab" data-bs-target="#content-disciplina" type="button" role="tab"
+                                    style="border: none; border-radius: 6px; padding: 6px 12px; font-weight: 600; font-size: 0.75rem; transition: all 0.3s; white-space: nowrap;">
+                                <i class="fas fa-gavel me-1"></i>Disciplina
+                                <span class="badge ${totalDisciplina > 0 ? 'bg-danger' : 'bg-secondary'}" style="margin-left: 3px; font-size: 0.6rem;">${totalDisciplina}</span>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation" style="flex: 0 0 auto;">
+                            <button class="nav-link" id="tab-evaluaciones" data-bs-toggle="tab" data-bs-target="#content-evaluaciones" type="button" role="tab"
+                                    style="border: none; border-radius: 6px; padding: 6px 12px; font-weight: 600; font-size: 0.75rem; transition: all 0.3s; white-space: nowrap;">
+                                <i class="fas fa-chart-bar me-1"></i>Evaluaciones
+                                <span class="badge ${totalEvaluaciones > 0 ? 'bg-danger' : 'bg-secondary'}" style="margin-left: 3px; font-size: 0.6rem;">${totalEvaluaciones}</span>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation" style="flex: 0 0 auto;">
+                            <button class="nav-link" id="tab-incidentes" data-bs-toggle="tab" data-bs-target="#content-incidentes" type="button" role="tab"
+                                    style="border: none; border-radius: 6px; padding: 6px 12px; font-weight: 600; font-size: 0.75rem; transition: all 0.3s; white-space: nowrap;">
+                                <i class="fas fa-exclamation-triangle me-1"></i>Incidentes
+                                <span class="badge ${totalIncidentes > 0 ? 'bg-danger' : 'bg-secondary'}" style="margin-left: 3px; font-size: 0.6rem;">${totalIncidentes}</span>
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" style="background: white; border-radius: 10px; padding: 5px;">
+                        <div class="tab-pane fade show active" id="content-ausencias" role="tabpanel">${generarContenidoAusencias()}</div>
+                        <div class="tab-pane fade" id="content-disciplina" role="tabpanel">${generarContenidoDisciplina()}</div>
+                        <div class="tab-pane fade" id="content-evaluaciones" role="tabpanel">${generarContenidoEvaluaciones()}</div>
+                        <div class="tab-pane fade" id="content-incidentes" role="tabpanel">${generarContenidoIncidentes()}</div>
+                    </div>
+                </div>`;
+
+            const styleId = 'historial-modal-style-' + Date.now();
+
+            Swal.fire({
+                title: null,
+                html: modalHtml,
+                width: window.innerWidth < 576 ? '95%' : '900px',
+                showCloseButton: true,
+                showConfirmButton: false,
+                customClass: {
+                    popup: 'animated fadeInDown',
+                    closeButton: 'btn-close-white'
+                },
+                didOpen: () => {
+                    if (historialEvaluaciones.length > 0) {
+                        const ctx = document.getElementById('graficoProgresoCompleto').getContext('2d');
+                        const ordenadas = [...historialEvaluaciones].sort((a,b) => new Date(a.fechaEvaluacion) - new Date(b.fechaEvaluacion));
+                        new Chart(ctx, {
+                            type: 'line',
+                            data: {
+                                labels: ordenadas.map(e => formatearFecha(e.fechaEvaluacion)),
+                                datasets: [{
+                                    label: 'Nota Final',
+                                    data: ordenadas.map(e => parseFloat(e.notaFinal)),
+                                    borderColor: '#3498db',
+                                    backgroundColor: 'rgba(52, 152, 219, 0.15)',
+                                    fill: true,
+                                    tension: 0.4,
+                                    pointBackgroundColor: '#3498db',
+                                    pointBorderColor: 'white',
+                                    pointBorderWidth: 2,
+                                    pointRadius: 4,
+                                    pointHoverRadius: 6
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: { display: false },
+                                    tooltip: { callbacks: { label: (ctx) => 'Nota: ' + ctx.parsed.y } }
+                                },
+                                scales: {
+                                    y: { beginAtZero: true, max: 100, ticks: { stepSize: 20, font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.05)' } },
+                                    x: { grid: { display: false }, ticks: { font: { size: 9 } } }
+                                }
+                            }
+                        });
+                    }
+
+                    const style = document.createElement('style');
+                    style.id = styleId;
+                    style.textContent = `
+                        #historialTabs .nav-link { color: #7f8c8d; background: transparent; }
+                        #historialTabs .nav-link:hover { color: #2c3e50; background: rgba(52, 152, 219, 0.05); }
+                        #historialTabs .nav-link.active { color: #2c3e50; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-bottom: none; }
+                        .swal2-popup { border-radius: 16px !important; padding: 20px !important; }
+                        .swal2-close { color: white !important; opacity: 0.6; transition: all 0.3s; background: rgba(255,255,255,0.1); border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+                        .swal2-close:hover { opacity: 1; background: rgba(255,255,255,0.2); }
+                        .swal2-close:focus { box-shadow: none; }
+                        @media (max-width: 576px) {
+                            .swal2-popup { padding: 15px !important; margin: 10px !important; }
+                            #historialTabs .nav-link { font-size: 0.65rem !important; padding: 4px 8px !important; }
+                        }
+                    `;
+                    document.head.appendChild(style);
+                },
+                willClose: () => {
+                    const el = document.getElementById(styleId);
+                    if (el) el.remove();
+                }
+            });
+        }
+
+        // ==================== 3. CONTACTOS (DISEÑO ORIGINAL) ====================
+        function mostrarContactos(identidad) {
+            const colaborador = colaboradoresActivos.find(col => col.identidad === identidad);
+            if (!colaborador) {
+                Swal.fire('Error', 'No se encontró el colaborador.', 'error');
+                return;
+            }
+
+            const movil = (colaborador.movil !== undefined && colaborador.movil !== null) ? String(colaborador.movil).trim() : '';
+            const contactoEmergencia = (colaborador.contactoEmergencia !== undefined && colaborador.contactoEmergencia !== null) ? String(colaborador.contactoEmergencia).trim() : '';
+            const movilEmergencia = (colaborador.movilEmergencia !== undefined && colaborador.movilEmergencia !== null) ? String(colaborador.movilEmergencia).trim() : '';
+
+            const limpiarNumero = (num) => (!num ? '' : num.replace(/[\s-]/g, ''));
+            const movilLimpio = limpiarNumero(movil);
+            const movilEmergenciaLimpio = limpiarNumero(movilEmergencia);
+            const generarEnlaceWhatsApp = (num, msg) => (!num ? '#' : `https://wa.me/504${num}?text=${encodeURIComponent(msg)}`);
+
+            const fotoSrc = colaborador.fotoUrl || `https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=3498db&color=fff&size=200`;
+            const isMobile = window.innerWidth < 576;
+            const fotoSize = isMobile ? '80px' : '100px';
+            const nombreSize = isMobile ? '1.2rem' : '1.5rem';
+
+            let contenidoHtml = `
+                <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0;">
+                    <div style="background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460); border-radius: 16px; padding: ${isMobile ? '20px' : '25px 30px'}; margin: -20px -25px 20px -25px; color: white; position: relative; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+                        <div style="position: absolute; top: -50%; right: -20%; width: 200px; height: 200px; background: radial-gradient(circle, rgba(52, 152, 219, 0.1) 0%, transparent 70%); border-radius: 50%;"></div>
+                        <div style="position: absolute; bottom: -40%; left: -10%; width: 180px; height: 180px; background: radial-gradient(circle, rgba(46, 204, 113, 0.08) 0%, transparent 70%); border-radius: 50%;"></div>
+
+                        <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap; position: relative; z-index: 1; justify-content: flex-start;">
+                            <div style="position: relative; flex-shrink: 0;">
+                                <div style="position: absolute; inset: -3px; background: linear-gradient(135deg, #3498db, #2ecc71); border-radius: 50%; padding: 3px; box-shadow: 0 0 25px rgba(52,152,219,0.3);">
+                                    <div style="width: 100%; height: 100%; border-radius: 50%; background: #1a1a2e;"></div>
+                                </div>
+                                <img src="${fotoSrc}"
+                                     style="width: ${fotoSize}; height: ${fotoSize}; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.15); position: relative; z-index: 1;"
+                                     onerror="this.src='https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=3498db&color=fff&size=200&font-size=0.5'">
+                                <div style="position: absolute; bottom: 0px; right: 0px; background: #2ecc71; border-radius: 50%; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; border: 2px solid white; z-index: 2; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">
+                                    <i class="fas fa-phone" style="font-size: 11px; color: white;"></i>
+                                </div>
+                            </div>
+
+                            <div style="flex: 1; min-width: 150px; text-align: left;">
+                                <h3 style="margin: 0; font-weight: 700; font-size: ${nombreSize}; letter-spacing: -0.5px; background: linear-gradient(135deg, #fff, #a8d8ea); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; text-align: left;">
+                                    ${colaborador.nombre}
+                                </h3>
+                                <div style="margin-top: 5px; display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-start;">
+                                    <span class="badge" style="background: rgba(255,255,255,0.12); padding: 3px 12px; font-size: 0.7rem;">
+                                        <i class="fas fa-id-card me-1"></i>${colaborador.identidad}
+                                    </span>
+                                    ${colaborador.sexo ? `<span class="badge" style="background: ${colaborador.sexo === 'Masculino' ? 'rgba(52, 152, 219, 0.25)' : 'rgba(231, 76, 60, 0.25)'}; padding: 3px 12px; font-size: 0.7rem;">
+                                        <i class="fas ${colaborador.sexo === 'Masculino' ? 'fa-mars' : 'fa-venus'} me-1"></i>${colaborador.sexo}
+                                    </span>` : ''}
+                                    <span class="badge" style="background: rgba(46, 204, 113, 0.15); color: #2ecc71; border: 1px solid #2ecc71; padding: 3px 12px; font-size: 0.7rem;">
+                                        <i class="fas fa-user-check me-1"></i>Activo
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="padding: 5px 0;">
+                        <div style="margin-bottom: 16px; text-align: left;">`;
+
+            if (movil !== '') {
+                contenidoHtml += `
+                    <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #f8f9fa; border-radius: 12px; border-left: 4px solid #3498db; transition: all 0.2s;">
+                        <div style="width: 40px; height: 40px; background: rgba(52, 152, 219, 0.12); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <i class="fas fa-mobile-alt" style="font-size: 18px; color: #3498db;"></i>
+                        </div>
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Móvil Personal</div>
+                            <div style="font-weight: 600; font-size: 1rem; color: #2c3e50;">${movil}</div>
+                        </div>
+                        <div style="display: flex; gap: 6px; flex-shrink: 0;">
+                            <a href="tel:${movilLimpio}" class="btn btn-sm" style="background: #2ecc71; color: white; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; padding: 0; transition: all 0.2s; text-decoration: none;"
+                               onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                                <i class="fas fa-phone-alt" style="font-size: 14px;"></i>
+                            </a>
+                            <a href="${generarEnlaceWhatsApp(movilLimpio, `Hola ${colaborador.nombre}, te escribo desde la gestión de empleados.`)}"
+                               class="btn btn-sm" style="background: #25D366; color: white; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; padding: 0; transition: all 0.2s; text-decoration: none;"
+                               target="_blank"
+                               onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                                <i class="fab fa-whatsapp" style="font-size: 16px;"></i>
+                            </a>
+                        </div>
+                    </div>`;
+            } else {
+                contenidoHtml += `
+                    <div style="padding: 12px 16px; background: #f8f9fa; border-radius: 12px; border-left: 4px solid #bdc3c7; display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 40px; height: 40px; background: rgba(189, 195, 199, 0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <i class="fas fa-mobile-alt" style="font-size: 18px; color: #bdc3c7;"></i>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Móvil Personal</div>
+                            <div style="color: #95a5a6; font-style: italic; font-size: 0.9rem;">No registrado</div>
+                        </div>
+                    </div>`;
+            }
+            contenidoHtml += `</div><div style="margin-bottom: 16px; text-align: left;">`;
+
+            if (contactoEmergencia !== '' || movilEmergencia !== '') {
+                contenidoHtml += `
+                    <div style="padding: 12px 16px; background: #f8f9fa; border-radius: 12px; border-left: 4px solid #e74c3c;">
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: ${contactoEmergencia !== '' ? '8px' : '0'};">
+                            <div style="width: 40px; height: 40px; background: rgba(231, 76, 60, 0.12); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                <i class="fas fa-shield-alt" style="font-size: 18px; color: #e74c3c;"></i>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Contacto de Emergencia</div>
+                                ${contactoEmergencia !== '' ? `<div style="font-weight: 600; font-size: 1rem; color: #2c3e50;">${contactoEmergencia}</div>` : ''}
+                            </div>
+                        </div>
+                        ${movilEmergencia !== '' ? `
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding-left: 52px; flex-wrap: wrap; gap: 8px;">
+                            <div style="font-weight: 500; font-size: 0.95rem; color: #2c3e50;">
+                                <i class="fas fa-phone me-2" style="color: #e74c3c;"></i>${movilEmergencia}
+                            </div>
+                            <div style="display: flex; gap: 6px;">
+                                <a href="tel:${movilEmergenciaLimpio}" class="btn btn-sm" style="background: #e74c3c; color: white; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; padding: 0; transition: all 0.2s; text-decoration: none;"
+                                   onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                                    <i class="fas fa-phone-alt" style="font-size: 13px;"></i>
+                                </a>
+                                <a href="${generarEnlaceWhatsApp(movilEmergenciaLimpio, `Hola, es una emergencia relacionada con ${colaborador.nombre}.`)}"
+                                   class="btn btn-sm" style="background: #25D366; color: white; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; padding: 0; transition: all 0.2s; text-decoration: none;"
+                                   target="_blank"
+                                   onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                                    <i class="fab fa-whatsapp" style="font-size: 14px;"></i>
+                                </a>
+                            </div>
+                        </div>` : ''}
+                    </div>`;
+            } else {
+                contenidoHtml += `
+                    <div style="padding: 12px 16px; background: #f8f9fa; border-radius: 12px; border-left: 4px solid #bdc3c7; display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 40px; height: 40px; background: rgba(189, 195, 199, 0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <i class="fas fa-shield-alt" style="font-size: 18px; color: #bdc3c7;"></i>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Contacto de Emergencia</div>
+                            <div style="color: #95a5a6; font-style: italic; font-size: 0.9rem;">No registrado</div>
+                        </div>
+                    </div>`;
+            }
+            contenidoHtml += `</div></div></div>`;
+
+            const styleId = 'contact-style-' + Date.now();
+
+            Swal.fire({
+                title: null,
+                html: contenidoHtml,
+                width: window.innerWidth < 576 ? '95%' : '550px',
+                showCloseButton: true,
+                showConfirmButton: false,
+                customClass: {
+                    popup: 'animated fadeInDown',
+                    closeButton: 'btn-close-white'
+                },
+                didOpen: () => {
+                    const style = document.createElement('style');
+                    style.id = styleId;
+                    style.textContent = `
+                        .swal2-popup { border-radius: 16px !important; padding: 20px !important; }
+                        .swal2-close { color: white !important; opacity: 0.6; transition: all 0.3s; background: rgba(255,255,255,0.1); border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+                        .swal2-close:hover { opacity: 1; background: rgba(255,255,255,0.2); }
+                        .swal2-close:focus { box-shadow: none; }
+                        @media (max-width: 576px) { .swal2-popup { padding: 15px !important; margin: 10px !important; } }
+                    `;
+                    document.head.appendChild(style);
+                },
+                willClose: () => {
+                    const el = document.getElementById(styleId);
+                    if (el) el.remove();
+                }
+            });
+        }
+
+        // ==================== 4. EDITAR COLABORADOR (DISEÑO ORIGINAL + OFFLINE) ====================
+        function mostrarVistaPreviaEdicion(input) {
+            const container = $('#vista-previa-edicion-container').empty();
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    container.html(`
+                        <div style="position: relative; display: inline-block;">
+                            <img src="${e.target.result}" style="width: 60px; height: 60px; border-radius: 8px; object-fit: cover; border: 2px solid #e9ecef;">
+                            <button type="button" class="btn btn-danger btn-sm" onclick="quitarVistaPreviaEdicion(this)"
+                                    style="position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; border-radius: 50%; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; background: #e74c3c; border: 2px solid white; color: white;">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>`);
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function quitarVistaPreviaEdicion() {
+            $('#editar-foto').val('');
+            $('#vista-previa-edicion-container').empty();
+        }
+
+        function editarColaborador(identidad) {
+            const colaborador = colaboradoresActivos.find(col => col.identidad === identidad);
+            if (!colaborador) {
+                Swal.fire('Error', 'No se encontró el colaborador.', 'error');
+                return;
+            }
+
+            const movil = (colaborador.movil !== undefined && colaborador.movil !== null) ? String(colaborador.movil) : '';
+            const contactoEmergencia = (colaborador.contactoEmergencia !== undefined && colaborador.contactoEmergencia !== null) ? String(colaborador.contactoEmergencia) : '';
+            const movilEmergencia = (colaborador.movilEmergencia !== undefined && colaborador.movilEmergencia !== null) ? String(colaborador.movilEmergencia) : '';
+
+            const fotoSrc = colaborador.fotoUrl || `https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=3498db&color=fff&size=150`;
+            const isMobile = window.innerWidth < 576;
+
+            const labelStyle = 'font-weight: 600; color: #2c3e50; font-size: 0.85rem; margin-bottom: 5px; display: block; text-align: left;';
+            const inputStyle = 'width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 0.9rem; transition: all 0.3s; background: white; color: #2c3e50;';
+            const selectStyle = inputStyle + ' appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\'%3E%3Cpath fill=\'%23333\' d=\'M6 8L1 3h10z\'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center;';
+
+            const modalHtml = `
+                <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0;">
+                    <div style="background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460); border-radius: 16px; padding: ${isMobile ? '20px' : '25px 30px'}; margin: -20px -25px 25px -25px; color: white; position: relative; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+                        <div style="position: absolute; top: -50%; right: -20%; width: 200px; height: 200px; background: radial-gradient(circle, rgba(52, 152, 219, 0.1) 0%, transparent 70%); border-radius: 50%;"></div>
+                        <div style="position: absolute; bottom: -40%; left: -10%; width: 180px; height: 180px; background: radial-gradient(circle, rgba(46, 204, 113, 0.08) 0%, transparent 70%); border-radius: 50%;"></div>
+
+                        <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap; position: relative; z-index: 1; justify-content: flex-start;">
+                            <div style="position: relative; flex-shrink: 0;">
+                                <div style="position: absolute; inset: -3px; background: linear-gradient(135deg, #f39c12, #3498db); border-radius: 50%; padding: 3px; box-shadow: 0 0 25px rgba(52,152,219,0.25);">
+                                    <div style="width: 100%; height: 100%; border-radius: 50%; background: #1a1a2e;"></div>
+                                </div>
+                                <img src="${fotoSrc}"
+                                     style="width: ${isMobile ? '70px' : '85px'}; height: ${isMobile ? '70px' : '85px'}; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.15); position: relative; z-index: 1;"
+                                     onerror="this.src='https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=3498db&color=fff&size=150&font-size=0.5'">
+                                <div style="position: absolute; bottom: 0px; right: 0px; background: #f39c12; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border: 2px solid white; z-index: 2; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">
+                                    <i class="fas fa-edit" style="font-size: 10px; color: white;"></i>
+                                </div>
+                            </div>
+
+                            <div style="flex: 1; min-width: 150px; text-align: left;">
+                                <h3 style="margin: 0; font-weight: 700; font-size: ${isMobile ? '1.2rem' : '1.4rem'}; letter-spacing: -0.5px; background: linear-gradient(135deg, #fff, #a8d8ea); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; text-align: left;">
+                                    ${colaborador.nombre}
+                                </h3>
+                                <div style="margin-top: 5px; display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-start;">
+                                    <span class="badge" style="background: rgba(255,255,255,0.12); padding: 3px 12px; font-size: 0.7rem;">
+                                        <i class="fas fa-id-card me-1"></i>${colaborador.identidad}
+                                    </span>
+                                    <span class="badge" style="background: rgba(46, 204, 113, 0.15); color: #2ecc71; border: 1px solid #2ecc71; padding: 3px 12px; font-size: 0.7rem;">
+                                        <i class="fas fa-user-check me-1"></i>Activo
+                                    </span>
+                                    <span class="badge" style="background: rgba(255,255,255,0.08); padding: 3px 12px; font-size: 0.65rem;">
+                                        <i class="fas fa-calendar-plus me-1"></i>${formatearFecha(colaborador.fechaInicio)}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form id="form-editar-colaborador" style="padding: 5px 0;">
+                        <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: ${isMobile ? '10px' : '15px'}; margin-bottom: 12px;">
+                            <div style="text-align: left;">
+                                <label class="form-label" style="${labelStyle}">Fecha de Inicio <span style="color: #e74c3c;">*</span></label>
+                                <input type="date" class="form-control" id="editar-fecha-inicio" value="${colaborador.fechaInicio}" required
+                                       style="${inputStyle}" onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                                       onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">
+                            </div>
+                            <div style="text-align: left;">
+                                <label class="form-label" style="${labelStyle}">Nombre Completo <span style="color: #e74c3c;">*</span></label>
+                                <input type="text" class="form-control" id="editar-nombre" value="${colaborador.nombre}" style="text-transform: uppercase; ${inputStyle}" required
+                                       onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                                       onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';"
+                                       oninput="this.value = this.value.toUpperCase();">
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: ${isMobile ? '10px' : '15px'}; margin-bottom: 12px;">
+                            <div style="text-align: left;">
+                                <label class="form-label" style="${labelStyle}">Identidad <span style="color: #e74c3c;">*</span></label>
+                                <input type="text" class="form-control" id="editar-identidad" value="${colaborador.identidad}" pattern="\\d{4}-\\d{4}-\\d{5}" required
+                                       style="${inputStyle}" onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                                       onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';"
+                                       oninput="formatearIdentidad(this);">
+                            </div>
+                            <div style="text-align: left;">
+                                <label class="form-label" style="${labelStyle}">Fecha de Nacimiento</label>
+                                <input type="date" class="form-control" id="editar-fecha-nacimiento" value="${colaborador.fechaNacimiento || ''}"
+                                       style="${inputStyle}" onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                                       onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: ${isMobile ? '10px' : '15px'}; margin-bottom: 12px;">
+                            <div style="text-align: left;">
+                                <label class="form-label" style="${labelStyle}">Sexo <span style="color: #e74c3c;">*</span></label>
+                                <select class="form-select" id="editar-sexo" required style="${selectStyle}"
+                                        onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                                        onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">
+                                    <option value="Masculino" ${colaborador.sexo === 'Masculino' ? 'selected' : ''}>Masculino</option>
+                                    <option value="Femenino" ${colaborador.sexo === 'Femenino' ? 'selected' : ''}>Femenino</option>
+                                </select>
+                            </div>
+                            <div style="text-align: left;">
+                                <label class="form-label" style="${labelStyle}">Foto</label>
+                                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                                    <div style="flex: 1; min-width: 120px;">
+                                        <input type="file" class="form-control" id="editar-foto" accept="image/*" onchange="mostrarVistaPreviaEdicion(this)" capture="environment"
+                                               style="${inputStyle} padding: 8px 12px; font-size: 0.8rem;"
+                                               onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                                               onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">
+                                        <div style="font-size: 0.7rem; color: #95a5a6; margin-top: 3px;">JPG, PNG. Máx 5MB</div>
+                                    </div>
+                                    <div id="vista-previa-edicion-container" style="flex-shrink: 0; text-align: center;">
+                                        ${colaborador.fotoUrl ? `<div style="position: relative; display: inline-block;">
+                                            <img src="${colaborador.fotoUrl}" style="width: 60px; height: 60px; border-radius: 8px; object-fit: cover; border: 2px solid #e9ecef;">
+                                            <button type="button" class="btn btn-danger btn-sm" onclick="quitarVistaPreviaEdicion(this)"
+                                                    style="position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; border-radius: 50%; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; background: #e74c3c; border: 2px solid white; color: white;">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="margin: 16px 0 12px 0; border-top: 2px solid #e9ecef; position: relative;">
+                            <span style="position: absolute; top: -11px; left: 16px; background: white; padding: 0 12px; font-size: 0.75rem; font-weight: 600; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px;">
+                                <i class="fas fa-phone-alt me-1"></i>Datos de Contacto
+                            </span>
+                        </div>
+
+                        <div style="margin-bottom: 12px; text-align: left;">
+                            <label class="form-label" style="${labelStyle}">Móvil</label>
+                            <input type="tel" class="form-control" id="editar-movil" value="${movil}" placeholder="0000-0000" pattern="\\d{4}-\\d{4}" maxlength="9"
+                                   style="${inputStyle}" onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                                   onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';"
+                                   oninput="formatearTelefono(this);">
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: ${isMobile ? '10px' : '15px'}; margin-bottom: 12px;">
+                            <div style="text-align: left;">
+                                <label class="form-label" style="${labelStyle}">Contacto de Emergencia</label>
+                                <input type="text" class="form-control" id="editar-contacto-emergencia" value="${contactoEmergencia}" placeholder="Nombre completo"
+                                       style="text-transform: uppercase; ${inputStyle}" onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                                       onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';"
+                                       oninput="this.value = this.value.toUpperCase();">
+                            </div>
+                            <div style="text-align: left;">
+                                <label class="form-label" style="${labelStyle}">Móvil de Emergencia</label>
+                                <input type="tel" class="form-control" id="editar-movil-emergencia" value="${movilEmergencia}" placeholder="0000-0000" pattern="\\d{4}-\\d{4}" maxlength="9"
+                                       style="${inputStyle}" onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                                       onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';"
+                                       oninput="formatearTelefono(this);">
+                            </div>
+                        </div>
+                    </form>
+                </div>`;
+
+            const styleId = 'edit-colaborador-style-' + Date.now();
+
+            Swal.fire({
+                title: null,
+                html: modalHtml,
+                width: window.innerWidth < 576 ? '95%' : '650px',
+                showCancelButton: true,
+                confirmButtonText: 'Guardar Cambios',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#2ecc71',
+                cancelButtonColor: '#e74c3c',
+                customClass: {
+                    popup: 'animated fadeInDown',
+                    closeButton: 'btn-close-white',
+                    confirmButton: 'btn-edit-save',
+                    cancelButton: 'btn-edit-cancel'
+                },
+                didOpen: () => {
+                    const style = document.createElement('style');
+                    style.id = styleId;
+                    style.textContent = `
+                        .swal2-popup { border-radius: 16px !important; padding: 20px !important; }
+                        .swal2-close { color: white !important; opacity: 0.6; transition: all 0.3s; background: rgba(255,255,255,0.1); border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+                        .swal2-close:hover { opacity: 1; background: rgba(255,255,255,0.2); }
+                        .swal2-close:focus { box-shadow: none; }
+                        .btn-edit-save { background: linear-gradient(135deg, #2ecc71, #27ae60) !important; border: none !important; font-weight: 600 !important; padding: 12px 30px !important; border-radius: 50px !important; font-size: 0.95rem !important; box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3) !important; transition: all 0.3s !important; min-width: 140px !important; }
+                        .btn-edit-save:hover { transform: translateY(-2px) !important; box-shadow: 0 6px 20px rgba(46, 204, 113, 0.4) !important; }
+                        .btn-edit-cancel { background: linear-gradient(135deg, #e74c3c, #c0392b) !important; border: none !important; font-weight: 600 !important; padding: 12px 30px !important; border-radius: 50px !important; font-size: 0.95rem !important; box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3) !important; transition: all 0.3s !important; min-width: 140px !important; }
+                        .btn-edit-cancel:hover { transform: translateY(-2px) !important; box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4) !important; }
+                        .swal2-actions { gap: 12px !important; }
+                        @media (max-width: 576px) {
+                            .swal2-popup { padding: 15px !important; margin: 10px !important; }
+                            .swal2-actions { flex-direction: column !important; gap: 8px !important; }
+                            .btn-edit-save, .btn-edit-cancel { width: 100% !important; min-width: unset !important; padding: 12px 20px !important; }
+                        }
+                    `;
+                    document.head.appendChild(style);
+
+                    $('#editar-identidad').on('input', function() {
+                        const regex = /^\d{4}-\d{4}-\d{5}$/;
+                        if (regex.test(this.value)) {
+                            this.style.borderColor = '#2ecc71';
+                            this.style.boxShadow = '0 0 0 3px rgba(46, 204, 113, 0.15)';
+                        } else if (this.value.length > 0) {
+                            this.style.borderColor = '#e74c3c';
+                            this.style.boxShadow = '0 0 0 3px rgba(231, 76, 60, 0.15)';
+                        }
+                    });
+
+                    $('#editar-movil, #editar-movil-emergencia').on('input', function() {
+                        const regex = /^\d{4}-\d{4}$/;
+                        if (regex.test(this.value) || this.value === '') {
+                            this.style.borderColor = '#2ecc71';
+                            this.style.boxShadow = '0 0 0 3px rgba(46, 204, 113, 0.15)';
+                        } else if (this.value.length > 0) {
+                            this.style.borderColor = '#e74c3c';
+                            this.style.boxShadow = '0 0 0 3px rgba(231, 76, 60, 0.15)';
+                        }
+                    });
+                },
+                preConfirm: () => {
+                    const datosEdit = {
+                        fechaInicio: $('#editar-fecha-inicio').val(),
+                        nombre: $('#editar-nombre').val().toUpperCase(),
+                        identidad: $('#editar-identidad').val(),
+                        fechaNacimiento: $('#editar-fecha-nacimiento').val() || '',
+                        sexo: $('#editar-sexo').val(),
+                        movil: $('#editar-movil').val() || '',
+                        contactoEmergencia: ($('#editar-contacto-emergencia').val() || '').toUpperCase(),
+                        movilEmergencia: $('#editar-movil-emergencia').val() || '',
+                        foto: $('#editar-foto')[0].files[0]
+                    };
+
+                    if (!datosEdit.fechaInicio || !datosEdit.nombre || !datosEdit.identidad || !datosEdit.sexo) {
+                        Swal.showValidationMessage('⚠️ Complete todos los campos obligatorios');
+                        return false;
+                    }
+                    if (!/^\d{4}-\d{4}-\d{5}$/.test(datosEdit.identidad)) {
+                        Swal.showValidationMessage('⚠️ Formato de identidad incorrecto. Use: 0000-0000-00000');
+                        return false;
+                    }
+                    if (datosEdit.movil && !/^\d{4}-\d{4}$/.test(datosEdit.movil)) {
+                        Swal.showValidationMessage('⚠️ Formato de móvil incorrecto. Use: 0000-0000');
+                        return false;
+                    }
+                    if (datosEdit.movilEmergencia && !/^\d{4}-\d{4}$/.test(datosEdit.movilEmergencia)) {
+                        Swal.showValidationMessage('⚠️ Formato de móvil de emergencia incorrecto. Use: 0000-0000');
+                        return false;
+                    }
+                    return datosEdit;
+                },
+                willClose: () => {
+                    const el = document.getElementById(styleId);
+                    if (el) el.remove();
+                }
+            }).then(async (result) => {
+                if (!result.isConfirmed) return;
+                $('#overlay').css('display', 'flex');
+
+                try {
+                    const { foto, ...datosNuevos } = result.value;
+                    const { _pendienteSync, ...colOriginalLimpio } = colaborador;
+                    const fotos = [];
+                    let nuevaFotoUrl = colaborador.fotoUrl || '';
+
+                    if (foto) {
+                        const base64 = await archivoABase64(foto);
+                        nuevaFotoUrl = `data:${foto.type || 'image/jpeg'};base64,${base64}`;
+                        fotos.push({
+                            colaborador: JSON.stringify(datosNuevos),
+                            archivoBase64: base64,
+                            esEdicion: true
+                        });
+                    }
+
+                    await PB_DB.agregarPendiente({
+                        titulo: `Editar Colaborador: ${datosNuevos.nombre}`,
+                        detalle: `Identidad: ${datosNuevos.identidad}`,
+                        destino: 'principal',
+                        accion: 'editar_colaborador',
+                        payload: {
+                            colaboradorOriginal: JSON.stringify(colOriginalLimpio),
+                            datosNuevos: JSON.stringify(datosNuevos)
+                        },
+                        fotos
+                    });
+
+                    await PB_DB.actualizarDatosPrincipales(cache => {
+                        const actualizarLista = (lista) => (lista || []).map(item =>
+                            item.identidad === colaborador.identidad && item.nombre === colaborador.nombre
+                                ? { ...item, ...datosNuevos, fotoUrl: nuevaFotoUrl, _pendienteSync: true }
+                                : item
+                        );
+                        cache.activos = actualizarLista(cache.activos);
+                        cache.ingresos = actualizarLista(cache.ingresos);
+                        return cache;
+                    });
+
+                    $('#overlay').hide();
+                    await cargarYRenderizar();
+                    Swal.fire('Guardado Offline', 'Colaborador actualizado localmente y pendiente de sincronizar.', 'success');
+                } catch (err) {
+                    $('#overlay').hide();
+                    Swal.fire('Error', err.message, 'error');
+                }
+            });
+        }
+
+        // ==================== EGRESAR COLABORADOR (OFFLINE) ====================
+        function eliminarColaborador(identidad) {
+            const colaborador = colaboradoresActivos.find(c => c.identidad === identidad);
+            if (!colaborador) return;
+
+            Swal.fire({
+                title: '¿Está seguro?',
+                text: `¿Desea eliminar a ${colaborador.nombre}?`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'No, cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'Fecha y Razón de Egreso',
+                        html: `<input type="date" class="form-control mb-3" id="fecha-egreso" value="${getHoyStr()}" required>
+                            <select id="razon-egreso" class="form-select">
+                                <option value="" selected disabled>Seleccione motivo...</option>
+                                <option>Fin de Contrato</option>
+                                <option>Denegación de Período de Prueba</option>
+                                <option>Abandono</option>
+                                <option>Renuncia</option>
+                                <option>Despido</option>
+                            </select>`,
+                        showCancelButton: true,
+                        confirmButtonText: 'Confirmar Egreso',
+                        preConfirm: () => {
+                            const fechaEgreso = $('#fecha-egreso').val();
+                            const razon = $('#razon-egreso').val();
+                            if (!fechaEgreso || !razon) {
+                                Swal.showValidationMessage('Complete todos los campos');
+                                return false;
+                            }
+                            return { fechaEgreso, razon };
+                        }
+                    }).then(async (egresoResult) => {
+                        if (!egresoResult.isConfirmed) return;
+                        const { fechaEgreso, razon } = egresoResult.value;
+                        const { _pendienteSync, ...colLimpio } = colaborador;
+
+                        await PB_DB.agregarPendiente({
+                            titulo: `Egresar Colaborador: ${colaborador.nombre}`,
+                            detalle: `${formatearFecha(fechaEgreso)} - ${razon}`,
+                            destino: 'principal',
+                            accion: 'eliminar_colaborador',
+                            payload: {
+                                colaborador: JSON.stringify(colLimpio),
+                                fechaEgreso,
+                                razon
+                            }
+                        });
+
+                        await PB_DB.actualizarDatosPrincipales(cache => {
+                            cache.activos = (cache.activos || []).filter(c => !(c.identidad === colaborador.identidad && c.nombre === colaborador.nombre));
+                            cache.egresos = [...(cache.egresos || []), {
+                                ...colLimpio,
+                                fechaEgreso,
+                                razon,
+                                _pendienteSync: true
+                            }];
+                            return cache;
+                        });
+
+                        await cargarYRenderizar();
+                        Swal.fire('Guardado Offline', 'Egreso registrado localmente y pendiente de sincronizar.', 'success');
+                    });
+                }
+            });
+        }
+    </script>
+</body>
+</html>

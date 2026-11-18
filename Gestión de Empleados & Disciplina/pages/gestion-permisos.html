@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Permisos</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        .btn-pendiente { background: #f39c12; color: white; border: none; border-radius: 20px; padding: 4px 12px; font-size: 0.7rem; font-weight: 600; transition: all 0.3s ease; }
+        .btn-pendiente:hover { background: #d68910; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(243, 156, 18, 0.3); color: white; }
+        .btn-aprobado { background: #2ecc71; color: white; border: none; border-radius: 20px; padding: 4px 12px; font-size: 0.7rem; font-weight: 600; transition: all 0.3s ease; }
+        .btn-aprobado:hover { background: #1e8449; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(46, 204, 113, 0.3); color: white; }
+        .btn-rechazado { background: #e74c3c; color: white; border: none; border-radius: 20px; padding: 4px 12px; font-size: 0.7rem; font-weight: 600; transition: all 0.3s ease; }
+        .btn-rechazado:hover { background: #922b21; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(231, 76, 60, 0.3); color: white; }
+
+        .permiso-acciones { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+        .permiso-acciones-label { font-size: 0.6rem; color: #7f8c8d; margin-right: 2px; }
+        .permiso-acciones .btn-sm { padding: 3px 10px; font-size: 0.7rem; border-radius: 20px; font-weight: 600; }
+
+        .permiso-card-modern { border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); transition: all 0.3s ease; margin-bottom: 15px; background: white; border: 1px solid #e9ecef; overflow: hidden; }
+        .permiso-card-modern:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.1); }
+        .permiso-card-modern .card-header-modern { padding: 15px 20px; background: linear-gradient(135deg, #f8f9fa, #e9ecef); border-bottom: 1px solid #dee2e6; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .permiso-card-modern .card-body-modern { padding: 20px; }
+        .permiso-card-modern .badge-estado { font-size: 0.75rem; padding: 5px 15px; border-radius: 20px; font-weight: 600; }
+
+        .permiso-avatar { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 3px solid #dee2e6; flex-shrink: 0; cursor: pointer; }
+        .permiso-avatar-placeholder { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 22px; color: white; flex-shrink: 0; cursor: pointer; }
+        .permiso-foto-evidencia { width: 60px; height: 60px; object-fit: cover; border-radius: 8px; cursor: pointer; border: 2px solid #e9ecef; transition: all 0.3s ease; }
+        .permiso-foto-evidencia:hover { transform: scale(1.05); border-color: #3498db; box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3); }
+
+        .permiso-detalle-item { background: #f8f9fa; border-radius: 8px; padding: 6px 12px; display: inline-block; font-size: 0.8rem; color: #495057; margin-right: 5px; margin-top: 4px; }
+        .permiso-detalle-item i { margin-right: 5px; color: #6c757d; }
+        .permiso-motivo-box { background: #f8f9fa; border-radius: 8px; padding: 12px 16px; border-left: 4px solid #3498db; margin-top: 10px; }
+        .permiso-evidencias { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
+        .estado-pendiente-bg { background: #fff3cd; color: #856404; border-color: #ffc107; }
+        .estado-aprobado-bg { background: #d4edda; color: #155724; border-color: #28a745; }
+        .estado-rechazado-bg { background: #f8d7da; color: #721c24; border-color: #dc3545; }
+
+        .permiso-pdf-format { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 750px; margin: 0 auto; padding: 25px 30px; background: white; color: #2c3e50; font-size: 12px; line-height: 1.6; }
+        .permiso-pdf-format .firma-box { text-align: center; min-width: 200px; }
+        .permiso-pdf-format .firma-box .label { font-size: 10px; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
+        .permiso-pdf-format .firma-box .firma-img { max-width: 200px; max-height: 60px; border: 1px solid #ddd; border-radius: 6px; padding: 5px; background: white; }
+        .permiso-pdf-format .firma-box .linea-firma { width: 180px; border-bottom: 2px solid #2c3e50; margin: 30px auto 5px auto; }
+        .permiso-pdf-format .firma-box .nombre-firma { font-weight: 600; color: #2c3e50; font-size: 11px; }
+        .permiso-pdf-format .firma-box .cargo-firma { font-size: 10px; color: #7f8c8d; }
+    </style>
+</head>
+<body class="subpage-body">
+    <div class="container-fluid">
+        <ul class="nav nav-pills mb-4" id="permisosTabs" role="tablist" style="gap: 8px; justify-content: center; flex-wrap: wrap;">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="tab-todos" data-filter="todos" onclick="cambiarFiltroPermisos('todos')"
+                        style="border-radius: 30px; padding: 8px 24px; font-weight: 600; background: #2c3e50; color: white; border: none; transition: all 0.3s;">
+                    <i class="fas fa-list me-2"></i>Todos
+                    <span class="badge bg-light text-dark ms-1" id="count-todos">0</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-pendiente" data-filter="Pendiente" onclick="cambiarFiltroPermisos('Pendiente')"
+                        style="border-radius: 30px; padding: 8px 24px; font-weight: 600; background: #f39c12; color: white; border: none; transition: all 0.3s;">
+                    <i class="fas fa-clock me-2"></i>Pendiente
+                    <span class="badge bg-light text-dark ms-1" id="count-pendiente">0</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-aprobado" data-filter="Aprobado" onclick="cambiarFiltroPermisos('Aprobado')"
+                        style="border-radius: 30px; padding: 8px 24px; font-weight: 600; background: #2ecc71; color: white; border: none; transition: all 0.3s;">
+                    <i class="fas fa-check-circle me-2"></i>Aprobado
+                    <span class="badge bg-light text-dark ms-1" id="count-aprobado">0</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-rechazado" data-filter="Rechazado" onclick="cambiarFiltroPermisos('Rechazado')"
+                        style="border-radius: 30px; padding: 8px 24px; font-weight: 600; background: #e74c3c; color: white; border: none; transition: all 0.3s;">
+                    <i class="fas fa-times-circle me-2"></i>Rechazado
+                    <span class="badge bg-light text-dark ms-1" id="count-rechazado">0</span>
+                </button>
+            </li>
+        </ul>
+
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card mb-0">
+                    <div class="card-body">
+                        <div class="d-flex flex-wrap gap-3 align-items-center">
+                            <div class="flex-grow-1">
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                    <input type="text" class="form-control" id="buscador-permisos" placeholder="Buscar por colaborador, código o motivo...">
+                                </div>
+                            </div>
+                            <button class="btn btn-primary" id="btn-refrescar-permisos" style="border-radius: 30px; padding: 8px 20px;">
+                                <i class="fas fa-sync-alt me-2"></i>Refrescar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header" style="background: linear-gradient(135deg, #2c3e50, #34495e); color: white; border-radius: 12px 12px 0 0;">
+                <i class="fas fa-list me-2"></i>Solicitudes de Permiso
+            </div>
+            <div class="card-body">
+                <div id="contenedor-permisos"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="overlay">
+        <div class="spinner"></div>
+        <div id="loadingMessage"><h4>Por favor espera...</h4><p></p></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/db.js"></script>
+    <script>
+        let datos = { activos: [], egresos: [], ausencias: [], disciplina: [], evaluaciones: [], incidentes: [] };
+        let colaboradoresActivos = [];
+        let colaboradoresEgresos = [];
+        let ausencias = [];
+        let disciplina = [];
+        let evaluaciones = [];
+        let incidentes = [];
+        let solicitudesPermisos = [];
+
+        $(document).ready(async function() {
+            await cargarDatosBase();
+            await cargarPermisos(false);
+
+            $('#buscador-permisos').on('input', filtrarYMostrarPermisos);
+            $('#btn-refrescar-permisos').on('click', () => cargarPermisos(true));
+
+            if (syncChannel) {
+                syncChannel.onmessage = async () => {
+                    await cargarDatosBase();
+                    await cargarPermisos(false);
+                };
+            }
+        });
+
+        async function cargarDatosBase() {
+            datos = await PB_DB.obtenerDatosPrincipales();
+            colaboradoresActivos = datos.activos || [];
+            colaboradoresEgresos = datos.egresos || [];
+            ausencias = datos.ausencias || [];
+            disciplina = datos.disciplina || [];
+            evaluaciones = datos.evaluaciones || [];
+            incidentes = datos.incidentes || [];
+        }
+
+        async function cargarPermisos(forzarRed = false) {
+            const container = $('#contenedor-permisos');
+            const cached = await PB_DB.obtenerCache('permisos');
+
+            if (cached && cached.datos && !forzarRed) {
+                solicitudesPermisos = cached.datos;
+                actualizarContadoresPermisos();
+                filtrarYMostrarPermisos();
+            } else {
+                container.html('<div class="text-center p-4"><div class="spinner-border text-primary" role="status"></div><p class="mt-2">Cargando solicitudes...</p></div>');
+            }
+
+            const pend = (await PB_DB.obtenerPendientes()).filter(x => x.destino === 'permisos');
+            if (navigator.onLine && pend.length === 0 && (forzarRed || !cached)) {
+                try {
+                    const res = await fetch(PERMISOS_GESTION_URL + "?accion=listar&t=" + Date.now());
+                    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                    const text = await res.text();
+                    const data = JSON.parse(text);
+                    if (!data.success) throw new Error(data.error || 'Error al cargar los permisos');
+
+                    solicitudesPermisos = data.solicitudes || [];
+                    await PB_DB.guardarCache('permisos', solicitudesPermisos);
+                    PB_DB.notificarCambio('permisos_actualizado');
+                    actualizarContadoresPermisos();
+                    filtrarYMostrarPermisos();
+                } catch (error) {
+                    console.error('Error cargando permisos:', error);
+                    if (!cached) {
+                        container.html(`
+                            <div class="alert alert-danger text-center">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                Error al cargar las solicitudes: ${error.message}
+                                <br><button class="btn btn-primary btn-sm mt-2" onclick="cargarPermisos(true)">
+                                    <i class="fas fa-sync-alt me-2"></i>Reintentar
+                                </button>
+                            </div>`);
+                    }
+                }
+            } else if (pend.length > 0 && forzarRed) {
+                Swal.fire('Cambios pendientes', 'Tienes cambios de estado de permisos pendientes de sincronizar. Sincroniza desde la pantalla principal antes de descargar nuevos datos del servidor.', 'info');
+                actualizarContadoresPermisos();
+                filtrarYMostrarPermisos();
+            }
+        }
+
+        function cambiarFiltroPermisos(estado) {
+            $('#permisosTabs .nav-link').removeClass('active');
+            if (estado === 'todos') $('#tab-todos').addClass('active');
+            else if (estado === 'Pendiente') $('#tab-pendiente').addClass('active');
+            else if (estado === 'Aprobado') $('#tab-aprobado').addClass('active');
+            else if (estado === 'Rechazado') $('#tab-rechazado').addClass('active');
+            filtrarYMostrarPermisos();
+        }
+
+        function actualizarContadoresPermisos() {
+            $('#count-todos').text(solicitudesPermisos.length);
+            $('#count-pendiente').text(solicitudesPermisos.filter(p => p.estado === 'Pendiente').length);
+            $('#count-aprobado').text(solicitudesPermisos.filter(p => p.estado === 'Aprobado').length);
+            $('#count-rechazado').text(solicitudesPermisos.filter(p => p.estado === 'Rechazado').length);
+        }
+
+        function filtrarYMostrarPermisos() {
+            const textoBusqueda = $('#buscador-permisos').val().toLowerCase().trim();
+            const estadoFiltro = $('#permisosTabs .nav-link.active').data('filter') || 'todos';
+
+            let filtrados = solicitudesPermisos;
+            if (estadoFiltro !== 'todos') {
+                filtrados = filtrados.filter(p => p.estado === estadoFiltro);
+            }
+            if (textoBusqueda) {
+                filtrados = filtrados.filter(p =>
+                    (p.colaborador && p.colaborador.toLowerCase().includes(textoBusqueda)) ||
+                    (p.codigo && p.codigo.toLowerCase().includes(textoBusqueda)) ||
+                    (p.motivo && p.motivo.toLowerCase().includes(textoBusqueda))
+                );
+            }
+            mostrarPermisosFiltrados(filtrados);
+        }
+
+        function mostrarPermisosFiltrados(permisos) {
+            const container = $('#contenedor-permisos');
+            if (!permisos || permisos.length === 0) {
+                container.html(`
+                    <div class="text-center p-5">
+                        <i class="fas fa-inbox" style="font-size: 4rem; color: #bdc3c7; display: block; margin-bottom: 15px;"></i>
+                        <h5 class="text-muted">No hay solicitudes que coincidan con el filtro</h5>
+                        <p class="text-muted small">Intenta ajustar los filtros de búsqueda.</p>
+                    </div>`);
+                return;
+            }
+
+            const ordenados = [...permisos].sort((a, b) => {
+                if (a.estado === 'Pendiente' && b.estado !== 'Pendiente') return -1;
+                if (a.estado !== 'Pendiente' && b.estado === 'Pendiente') return 1;
+                return new Date(b.fechaSolicitud) - new Date(a.fechaSolicitud);
+            });
+
+            let html = `<div style="max-height: 600px; overflow-y: auto; padding-right: 5px;">`;
+
+            ordenados.forEach((permiso) => {
+                let estadoClass = 'estado-rechazado-bg', estadoColor = '#e74c3c';
+                if (permiso.estado === 'Pendiente') { estadoClass = 'estado-pendiente-bg'; estadoColor = '#f39c12'; }
+                else if (permiso.estado === 'Aprobado') { estadoClass = 'estado-aprobado-bg'; estadoColor = '#2ecc71'; }
+
+                let fotoUrl = '';
+                const iniciales = (permiso.colaborador || 'U').split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
+                let col = colaboradoresActivos.find(c => c.identidad === permiso.identidad) || colaboradoresEgresos.find(c => c.identidad === permiso.identidad);
+                if (col && col.fotoUrl) fotoUrl = col.fotoUrl;
+
+                const fechaSolicitud = formatearFecha(permiso.fechaSolicitud);
+                const fechaPermiso = formatearFecha(permiso.fechaPermiso);
+
+                const detallePermiso = permiso.tipoPermiso === 'dias'
+                    ? `<span class="permiso-detalle-item"><i class="fas fa-calendar-week"></i>Días: ${permiso.cantidadDias}</span>`
+                    : `<span class="permiso-detalle-item"><i class="fas fa-clock"></i>Horario: ${permiso.horasPermiso}</span>`;
+
+                let fotosHtml = '';
+                if (permiso.fotos && permiso.fotos.trim()) {
+                    const fotosArray = permiso.fotos.split(';').filter(f => f.trim());
+                    if (fotosArray.length > 0) {
+                        fotosHtml = `<div class="permiso-evidencias">${fotosArray.map(f => `<img src="${f}" class="permiso-foto-evidencia" onclick="verFotoEvidencia('${f}')" onerror="this.style.display='none'" alt="Evidencia">`).join('')}</div>`;
+                    }
+                }
+
+                const identidadEscapada = permiso.identidad ? permiso.identidad.replace(/'/g, "\\'") : '';
+                const fotoHtml = fotoUrl
+                    ? `<img src="${fotoUrl}" class="permiso-avatar" alt="${permiso.colaborador}" onclick="abrirHistorialColaborador('${identidadEscapada}')" onerror="this.style.display='none'; this.parentElement.innerHTML = '<div class=\\'permiso-avatar-placeholder\\' style=\\'background: ${estadoColor}; cursor: pointer;\\' onclick=\\'abrirHistorialColaborador(\\'${identidadEscapada}\\')\\'>${iniciales}</div>'">`
+                    : `<div class="permiso-avatar-placeholder" style="background: ${estadoColor};" onclick="abrirHistorialColaborador('${identidadEscapada}')">${iniciales}</div>`;
+
+                const botonPDF = `
+                    <button class="btn btn-danger btn-sm" onclick="descargarPermisoPDF('${permiso.codigo}')"
+                            style="border-radius: 30px; padding: 5px 14px; font-weight: 600; font-size: 0.7rem; background: #dc3545; border: none; color: white; margin-left: 8px;">
+                        <i class="fas fa-file-pdf me-1"></i>Descargar Solicitud
+                    </button>`;
+
+                const badgePendSync = permiso._pendienteSync
+                    ? `<span class="badge-offline-pending"><i class="fas fa-clock me-1"></i>Pendiente Sync</span>`
+                    : '';
+
+                html += `
+                    <div class="permiso-card-modern">
+                        <div class="card-header-modern">
+                            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                                <span class="badge-estado ${estadoClass}">
+                                    <i class="fas ${permiso.estado === 'Pendiente' ? 'fa-clock' : (permiso.estado === 'Aprobado' ? 'fa-check-circle' : 'fa-times-circle')} me-1"></i>
+                                    ${permiso.estado}
+                                </span>
+                                <span class="badge bg-secondary" style="font-size: 0.7rem; padding: 3px 12px; border-radius: 20px;">
+                                    <i class="fas fa-hashtag me-1"></i>${permiso.codigo}
+                                </span>
+                                <span style="font-size: 0.8rem; color: #6c757d;">
+                                    <i class="fas fa-calendar-alt me-1"></i>${fechaSolicitud}
+                                </span>
+                                ${badgePendSync}
+                                ${botonPDF}
+                            </div>
+                            <div class="permiso-acciones">
+                                <span class="permiso-acciones-label">Cambiar estado a:</span>
+                                <button class="btn btn-pendiente btn-sm" onclick="actualizarEstadoPermiso('${permiso.codigo}', 'Pendiente')"><i class="fas fa-clock me-1"></i>Pendiente</button>
+                                <button class="btn btn-aprobado btn-sm" onclick="actualizarEstadoPermiso('${permiso.codigo}', 'Aprobado')"><i class="fas fa-check me-1"></i>Aprobado</button>
+                                <button class="btn btn-rechazado btn-sm" onclick="actualizarEstadoPermiso('${permiso.codigo}', 'Rechazado')"><i class="fas fa-times me-1"></i>Rechazado</button>
+                            </div>
+                        </div>
+                        <div class="card-body-modern">
+                            <div style="display: flex; gap: 18px; align-items: flex-start;">
+                                ${fotoHtml}
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 15px; flex-wrap: wrap;">
+                                        <div style="flex: 1; min-width: 150px;">
+                                            <h5 style="font-weight: 700; color: #2c3e50; margin: 0 0 4px 0; font-size: 1.05rem;">${permiso.colaborador}</h5>
+                                            <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px;">
+                                                <span class="permiso-detalle-item"><i class="fas fa-phone"></i>Teléfono: ${permiso.telefono}</span>
+                                                ${detallePermiso}
+                                                <span class="permiso-detalle-item"><i class="fas fa-calendar-check"></i>Fecha del permiso: ${fechaPermiso}</span>
+                                            </div>
+                                        </div>
+                                        ${permiso.firma && permiso.firma.trim() ? `
+                                            <div style="flex-shrink: 0; text-align: center; background: #f0f8ff; padding: 6px 12px; border-radius: 8px; border: 1px solid #d4edda; min-width: 100px;">
+                                                <div style="font-size: 0.65rem; color: #28a745; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px;">
+                                                    <i class="fas fa-signature me-1"></i>Firma
+                                                </div>
+                                                <img src="${permiso.firma}"
+                                                     style="max-width: 120px; max-height: 50px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; background: white; padding: 2px;"
+                                                     onclick="verFotoEvidencia('${permiso.firma}')"
+                                                     onerror="this.style.display='none'; this.parentElement.innerHTML += '<span style=\\'color: #999; font-size: 0.7rem;\\'>No disponible</span>'">
+                                            </div>` : ''}
+                                    </div>
+                                    <div class="permiso-motivo-box" style="margin-top: 10px;">
+                                        <strong style="font-size: 0.85rem; color: #2c3e50;">Motivo:</strong>
+                                        <p class="mb-0" style="font-size: 0.9rem; color: #495057; margin-top: 4px;">${permiso.motivo}</p>
+                                    </div>
+                                    ${fotosHtml}
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+            });
+
+            html += `</div><div class="text-muted small text-center mt-3">Mostrando <strong>${permisos.length}</strong> de <strong>${solicitudesPermisos.length}</strong> solicitudes</div>`;
+            container.html(html);
+        }
+
+        // ==================== CAMBIO DE ESTADO OFFLINE ====================
+        function actualizarEstadoPermiso(codigo, nuevoEstado) {
+            const nombresEstados = { 'Pendiente': 'Pendiente', 'Aprobado': 'Aprobado', 'Rechazado': 'Rechazado' };
+            const iconosEstados = { 'Pendiente': 'fa-clock', 'Aprobado': 'fa-check-circle', 'Rechazado': 'fa-times-circle' };
+            const coloresEstados = { 'Pendiente': '#f39c12', 'Aprobado': '#2ecc71', 'Rechazado': '#e74c3c' };
+
+            const solicitud = solicitudesPermisos.find(p => p.codigo === codigo);
+            const nombreColaborador = solicitud ? solicitud.colaborador : 'el colaborador';
+            const estadoActual = solicitud ? solicitud.estado : 'desconocido';
+
+            Swal.fire({
+                title: 'Cambiar estado de solicitud',
+                html: `
+                    <div style="text-align: left; padding: 5px 0;">
+                        <p><strong>Solicitud:</strong> ${codigo}</p>
+                        <p><strong>Colaborador:</strong> ${nombreColaborador}</p>
+                        <p><strong>Estado actual:</strong> <span class="badge bg-${estadoActual === 'Pendiente' ? 'warning' : (estadoActual === 'Aprobado' ? 'success' : 'danger')}">${estadoActual}</span></p>
+                        <p><strong>Nuevo estado:</strong> <span class="badge" style="background: ${coloresEstados[nuevoEstado]}; color: white;">${nombresEstados[nuevoEstado]}</span></p>
+                        <p style="font-size: 0.85rem; color: #7f8c8d; margin-top: 8px;">Se guardará localmente y quedará pendiente de sincronizar desde la pantalla principal.</p>
+                    </div>`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: `Sí, cambiar a ${nombresEstados[nuevoEstado]}`,
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: coloresEstados[nuevoEstado]
+            }).then(async (result) => {
+                if (!result.isConfirmed) return;
+
+                await PB_DB.agregarPendiente({
+                    titulo: `Permiso #${codigo} → ${nuevoEstado}`,
+                    detalle: nombreColaborador,
+                    destino: 'permisos',
+                    accion: 'actualizarEstado',
+                    payload: { codigo, estado: nuevoEstado }
+                });
+
+                solicitudesPermisos = solicitudesPermisos.map(p =>
+                    p.codigo === codigo ? { ...p, estado: nuevoEstado, _pendienteSync: true } : p
+                );
+                await PB_DB.guardarCache('permisos', solicitudesPermisos);
+                PB_DB.notificarCambio('permisos_actualizado');
+
+                actualizarContadoresPermisos();
+                filtrarYMostrarPermisos();
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Estado guardado offline',
+                    html: `<p>La solicitud <strong>${codigo}</strong> cambió localmente a:</p>
+                           <span class="badge" style="background:${coloresEstados[nuevoEstado]};color:#fff;font-size:1.1rem;padding:8px 18px;">
+                               <i class="fas ${iconosEstados[nuevoEstado]} me-2"></i>${nombresEstados[nuevoEstado]}
+                           </span>`,
+                    timer: 2000
+                });
+            });
+        }
+
+        // ==================== VISOR DE EVIDENCIAS Y PDF ORIGINAL ====================
+        function verFotoEvidencia(url) {
+            if (!url) return;
+            Swal.fire({
+                title: 'Evidencia del Permiso',
+                html: `
+                    <div style="display: flex; align-items: center; justify-content: center; background: #0a0a0a; border-radius: 12px; padding: 10px;">
+                        <img src="${url}"
+                             style="max-width: 100%; max-height: 70vh; border-radius: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.5);"
+                             onerror="this.onerror=null; this.parentElement.innerHTML = '<div style=\\'padding: 40px; color: white; text-align: center;\\'><i class=\\'fas fa-image\\' style=\\'font-size: 48px; display: block; margin-bottom: 10px;\\'></i>No se pudo cargar la imagen</div>'">
+                    </div>`,
+                width: '95%',
+                maxWidth: '800px',
+                showCloseButton: true,
+                showConfirmButton: false,
+                background: 'transparent',
+                backdrop: 'rgba(0, 0, 0, 0.85)',
+                customClass: { popup: 'animated fadeInDown', closeButton: 'btn-close-white' }
+            });
+        }
+
+        function descargarPermisoPDF(codigo) {
+            const permiso = solicitudesPermisos.find(p => p.codigo === codigo);
+            if (!permiso) {
+                Swal.fire('Error', 'No se encontró la solicitud de permiso.', 'error');
+                return;
+            }
+
+            $('#overlay').css('display', 'flex');
+            const fechaSolicitud = formatearFecha(permiso.fechaSolicitud);
+            const fechaPermiso = formatearFecha(permiso.fechaPermiso);
+            const detallePermiso = permiso.tipoPermiso === 'dias' ? `${permiso.cantidadDias} día(s)` : `${permiso.horasPermiso}`;
+
+            let firmaHtml = '';
+            if (permiso.firma && permiso.firma.trim()) {
+                firmaHtml = `
+                    <div class="firma-box">
+                        <div class="label">Firma del Solicitante</div>
+                        <img src="${permiso.firma}" class="firma-img" onerror="this.style.display='none'; this.parentElement.innerHTML += '<p style=\\'font-size: 11px; color: #999;\\'>No disponible</p>'">
+                    </div>`;
+            } else {
+                firmaHtml = `
+                    <div class="firma-box">
+                        <div class="label">Firma del Solicitante</div>
+                        <div class="linea-firma"></div>
+                        <div class="nombre-firma">${permiso.colaborador}</div>
+                        <div class="cargo-firma">Colaborador</div>
+                    </div>`;
+            }
+
+            const htmlPDF = `
+                <div class="permiso-pdf-format" id="permiso-pdf-content">
+                    <div style="text-align: center; border-bottom: 3px solid #2c3e50; padding-bottom: 12px; margin-bottom: 18px;">
+                        <h1 style="font-size: 20px; font-weight: 700; color: #2c3e50; margin: 0; letter-spacing: 2px;">SOLICITUD DE PERMISO</h1>
+                    </div>
+
+                    <div style="margin-bottom: 15px;">
+                        <div style="display: flex; padding: 5px 0; border-bottom: 1px solid #ecf0f1;">
+                            <span style="font-weight: 600; color: #2c3e50; min-width: 140px; font-size: 11px;">Colaborador:</span>
+                            <span style="flex: 1; color: #34495e; font-size: 12px;">${permiso.colaborador}</span>
+                        </div>
+                        <div style="display: flex; padding: 5px 0; border-bottom: 1px solid #ecf0f1;">
+                            <span style="font-weight: 600; color: #2c3e50; min-width: 140px; font-size: 11px;">Identidad:</span>
+                            <span style="flex: 1; color: #34495e; font-size: 12px;">${permiso.identidad || 'N/A'}</span>
+                        </div>
+                        <div style="display: flex; padding: 5px 0; border-bottom: 1px solid #ecf0f1;">
+                            <span style="font-weight: 600; color: #2c3e50; min-width: 140px; font-size: 11px;">Puesto:</span>
+                            <span style="flex: 1; color: #34495e; font-size: 12px;">Auxiliar de Higiene</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 15px;">
+                        <div style="display: flex; padding: 5px 0; border-bottom: 1px solid #ecf0f1;">
+                            <span style="font-weight: 600; color: #2c3e50; min-width: 140px; font-size: 11px;">Fecha de Solicitud:</span>
+                            <span style="flex: 1; color: #34495e; font-size: 12px;">${fechaSolicitud}</span>
+                        </div>
+                        <div style="display: flex; padding: 5px 0; border-bottom: 1px solid #ecf0f1;">
+                            <span style="font-weight: 600; color: #2c3e50; min-width: 140px; font-size: 11px;">Fecha del Permiso:</span>
+                            <span style="flex: 1; color: #34495e; font-size: 12px;">${fechaPermiso}</span>
+                        </div>
+                        <div style="display: flex; padding: 5px 0; border-bottom: 1px solid #ecf0f1;">
+                            <span style="font-weight: 600; color: #2c3e50; min-width: 140px; font-size: 11px;">Tipo / Duración:</span>
+                            <span style="flex: 1; color: #34495e; font-size: 12px;">${detallePermiso}</span>
+                        </div>
+                    </div>
+
+                    <div style="margin: 15px 0; padding: 12px 16px; background: #f0f8ff; border-radius: 8px; border: 1px solid #d4edda;">
+                        <div style="font-weight: 700; color: #2c3e50; font-size: 12px; margin-bottom: 6px;">
+                            <i class="fas fa-check-circle me-1" style="color: #28a745;"></i>Tipo de Falta:
+                        </div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 12px 25px; font-size: 11px; padding-left: 10px; align-items: center;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-weight: 600; color: #2c3e50;">Justificada:</span>
+                                <span style="display: flex; align-items: center; gap: 6px;">
+                                    <span style="display: flex; align-items: center; gap: 3px;">SI <span style="display: inline-block; width: 16px; height: 16px; border: 2px solid #333; border-radius: 3px;"></span></span>
+                                    <span style="display: flex; align-items: center; gap: 3px;">NO <span style="display: inline-block; width: 16px; height: 16px; border: 2px solid #333; border-radius: 3px;"></span></span>
+                                </span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="display: flex; align-items: center; gap: 6px;">
+                                    <span style="display: flex; align-items: center; gap: 3px;">Con goce salario <span style="display: inline-block; width: 16px; height: 16px; border: 2px solid #333; border-radius: 3px;"></span></span>
+                                    <span style="display: flex; align-items: center; gap: 3px;">Sin goce salario <span style="display: inline-block; width: 16px; height: 16px; border: 2px solid #333; border-radius: 3px;"></span></span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin: 15px 0; padding: 12px 16px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #3498db;">
+                        <div style="font-weight: 600; color: #2c3e50; font-size: 11px; margin-bottom: 5px;">
+                            <i class="fas fa-comment me-1" style="color: #3498db;"></i>Motivo del Permiso:
+                        </div>
+                        <div style="font-size: 12px; color: #34495e; line-height: 1.6;">${permiso.motivo}</div>
+                    </div>
+
+                    <div style="margin-top: 25px; padding-top: 18px; border-top: 2px solid #ecf0f1; display: flex; justify-content: space-around; flex-wrap: wrap; gap: 20px;">
+                        ${firmaHtml}
+                        <div style="text-align: center; min-width: 200px;">
+                            <div style="font-size: 10px; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;">Firma de Autorización</div>
+                            <div style="width: 180px; border-bottom: 2px solid #2c3e50; margin: 30px auto 5px auto;"></div>
+                            <div style="font-weight: 600; color: #2c3e50; font-size: 11px;">_________________________</div>
+                            <div style="font-size: 10px; color: #7f8c8d;">Coordinador / Supervisor</div>
+                        </div>
+                    </div>
+                </div>`;
+
+            const contenedor = document.createElement('div');
+            contenedor.style.cssText = 'position: fixed; left: -9999px; top: 0; width: 750px; background-color: white; z-index: -1;';
+            contenedor.innerHTML = htmlPDF;
+            document.body.appendChild(contenedor);
+
+            setTimeout(function() {
+                const elemento = document.getElementById('permiso-pdf-content');
+                html2canvas(elemento, {
+                    scale: 2,
+                    useCORS: true,
+                    logging: false,
+                    backgroundColor: '#ffffff',
+                    width: 750,
+                    height: elemento.scrollHeight
+                }).then(function(canvas) {
+                    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF('p', 'mm', 'a4');
+                    const pdfWidth = pdf.internal.pageSize.getWidth();
+                    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+                    pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+                    pdf.save(`Permiso_${permiso.codigo}_${permiso.colaborador.replace(/\s/g, '_')}.pdf`);
+                    document.body.removeChild(contenedor);
+                    $('#overlay').hide();
+                    Swal.fire({ icon: 'success', title: 'PDF Generado', text: `El permiso ${permiso.codigo} se ha descargado correctamente.`, timer: 2000 });
+                }).catch(function(error) {
+                    console.error('Error al generar PDF:', error);
+                    document.body.removeChild(contenedor);
+                    $('#overlay').hide();
+                    Swal.fire('Error', 'No se pudo generar el PDF. Intenta de nuevo.', 'error');
+                });
+            }, 500);
+        }
+
+        // ==================== HISTORIAL COMPLETO AL HACER CLIC EN AVATAR ====================
+        function abrirHistorialColaborador(identidad) {
+            if (!identidad) return Swal.fire('Error', 'No se pudo identificar al colaborador.', 'error');
+            let colaborador = colaboradoresActivos.find(c => c.identidad === identidad);
+            let esEgresado = false;
+            if (!colaborador) {
+                colaborador = colaboradoresEgresos.find(c => c.identidad === identidad);
+                esEgresado = true;
+            }
+            if (!colaborador) return Swal.fire('Error', 'No se encontró información del colaborador.', 'error');
+
+            const historialAusencias = ausencias.filter(d => d.identidad === identidad).sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
+            const historialDisciplina = disciplina.filter(d => d.identidad === identidad).sort((a,b) => new Date(b.fechaFalta) - new Date(a.fechaFalta));
+            const historialEvaluaciones = evaluaciones.filter(d => d.identidad === identidad).sort((a,b) => new Date(a.fechaEvaluacion) - new Date(b.fechaEvaluacion));
+            const historialIncidentes = incidentes.filter(d => d.identidad === identidad).sort((a,b) => new Date(b.fechaIncidente) - new Date(a.fechaIncidente));
+
+            const estadoColor = esEgresado ? '#e74c3c' : '#2ecc71';
+            const estadoIcono = esEgresado ? 'fa-user-slash' : 'fa-user-check';
+            const fotoSrc = colaborador.fotoUrl || `https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=3498db&color=fff&size=200&font-size=0.5`;
+            const edad = colaborador.fechaNacimiento ? calcularEdad(colaborador.fechaNacimiento) : null;
+
+            const genAus = () => !historialAusencias.length
+                ? `<div class="text-center py-5"><i class="fas fa-calendar-check fa-2x text-success mb-2"></i><h6>Sin Ausencias</h6></div>`
+                : '<div style="max-height:350px;overflow-y:auto;text-align:left;">' + historialAusencias.map(a => `<div class="p-2 mb-1 bg-light rounded border-start border-4 border-warning"><span class="badge bg-warning text-dark me-1">${a.motivo}</span><strong>${formatearFecha(a.fecha)}</strong> (${a.diasIncapacidad || 1}d) ${a.observaciones ? `<div class="small text-muted">${a.observaciones}</div>` : ''}</div>`).join('') + '</div>';
+            const genDisc = () => !historialDisciplina.length
+                ? `<div class="text-center py-5"><i class="fas fa-check-circle fa-2x text-success mb-2"></i><h6>Sin Disciplina</h6></div>`
+                : '<div style="max-height:350px;overflow-y:auto;text-align:left;">' + historialDisciplina.map(d => `<div class="p-2 mb-1 bg-light rounded border-start border-4 border-danger"><span class="badge bg-danger me-1">${formatearFecha(d.fechaFalta)}</span><div class="small mt-1">${d.descripcionFaltas}</div></div>`).join('') + '</div>';
+            const genEval = () => !historialEvaluaciones.length
+                ? `<div class="text-center py-5"><i class="fas fa-chart-line fa-2x text-success mb-2"></i><h6>Sin Evaluaciones</h6></div>`
+                : `<div class="chart-container" style="height:140px;"><canvas id="graficoProgresoCompleto"></canvas></div>` + historialEvaluaciones.map(e => `<div class="p-2 mb-1 bg-light rounded d-flex justify-content-between small"><span>${formatearFecha(e.fechaEvaluacion)}</span><strong>${e.notaFinal}</strong></div>`).join('');
+            const genInc = () => !historialIncidentes.length
+                ? `<div class="text-center py-5"><i class="fas fa-shield-alt fa-2x text-success mb-2"></i><h6>Sin Incidentes</h6></div>`
+                : '<div style="max-height:350px;overflow-y:auto;text-align:left;">' + historialIncidentes.map(inc => `<div class="p-2 mb-1 bg-light rounded border-start border-4 border-danger"><span class="badge bg-secondary me-1">${formatearFecha(inc.fechaIncidente)}</span><span class="badge bg-danger">${inc.categoriaSiso}</span><div class="small mt-1">${inc.descripcion}</div></div>`).join('') + '</div>';
+
+            const isMobile = window.innerWidth < 576;
+            const styleId = 'hist-perm-style-' + Date.now();
+
+            Swal.fire({
+                title: null,
+                width: isMobile ? '95%' : '900px',
+                showCloseButton: true,
+                showConfirmButton: false,
+                customClass: { popup: 'animated fadeInDown', closeButton: 'btn-close-white' },
+                html: `
+                    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+                        <div style="background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460); border-radius: 16px; padding: ${isMobile ? '15px 20px' : '25px 30px'}; margin: -20px -25px 20px -25px; color: white;">
+                            <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                                <div style="position: relative; flex-shrink: 0;">
+                                    <img src="${fotoSrc}" style="width: ${isMobile ? '70px' : '90px'}; height: ${isMobile ? '70px' : '90px'}; border-radius: 50%; object-fit: cover; border: 3px solid ${estadoColor};">
+                                    <div style="position: absolute; bottom: 0; right: 0; background: ${estadoColor}; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border: 2px solid white;"><i class="fas ${estadoIcono}" style="font-size: 9px; color: white;"></i></div>
+                                </div>
+                                <div style="flex: 1; text-align: left;">
+                                    <h3 style="margin: 0; font-weight: 700; color: white;">${colaborador.nombre}</h3>
+                                    <div style="margin-top: 5px; display: flex; flex-wrap: wrap; gap: 4px;">
+                                        <span class="badge" style="background: rgba(255,255,255,0.12);">${colaborador.identidad}</span>
+                                        ${edad !== null ? `<span class="badge" style="background: rgba(241,196,15,0.2);">${edad} años</span>` : ''}
+                                        ${colaborador.fechaInicio ? `<span class="badge" style="background: rgba(46,204,113,0.2); color: #2ecc71;">${formatearFecha(colaborador.fechaInicio)}</span>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <ul class="nav nav-tabs mb-3" id="historialTabs" role="tablist">
+                            <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#content-ausencias" type="button">Ausencias (${historialAusencias.length})</button></li>
+                            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#content-disciplina" type="button">Disciplina (${historialDisciplina.length})</button></li>
+                            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#content-evaluaciones" type="button">Evaluaciones (${historialEvaluaciones.length})</button></li>
+                            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#content-incidentes" type="button">Incidentes (${historialIncidentes.length})</button></li>
+                        </ul>
+                        <div class="tab-content">
+                            <div class="tab-pane fade show active" id="content-ausencias">${genAus()}</div>
+                            <div class="tab-pane fade" id="content-disciplina">${genDisc()}</div>
+                            <div class="tab-pane fade" id="content-evaluaciones">${genEval()}</div>
+                            <div class="tab-pane fade" id="content-incidentes">${genInc()}</div>
+                        </div>
+                    </div>`,
+                didOpen: () => {
+                    if (historialEvaluaciones.length > 0) {
+                        const ctx = document.getElementById('graficoProgresoCompleto').getContext('2d');
+                        const ord = [...historialEvaluaciones].sort((a,b) => new Date(a.fechaEvaluacion) - new Date(b.fechaEvaluacion));
+                        new Chart(ctx, {
+                            type: 'line',
+                            data: { labels: ord.map(e => formatearFecha(e.fechaEvaluacion)), datasets: [{ label: 'Nota Final', data: ord.map(e => parseFloat(e.notaFinal)), borderColor: '#3498db', fill: true, backgroundColor: 'rgba(52,152,219,0.15)' }] },
+                            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 100 } } }
+                        });
+                    }
+                    const s = document.createElement('style');
+                    s.id = styleId;
+                    s.textContent = `.swal2-popup{border-radius:16px!important;padding:20px!important;} .swal2-close{color:white!important;}`;
+                    document.head.appendChild(s);
+                },
+                willClose: () => {
+                    const el = document.getElementById(styleId);
+                    if (el) el.remove();
+                }
+            });
+        }
+    </script>
+</body>
+</html>

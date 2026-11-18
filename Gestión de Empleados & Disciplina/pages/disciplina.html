@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historial de Disciplina</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="subpage-body">
+    <div class="container-fluid">
+        <div class="rotacion-periodos">
+            <div class="periodo-card">
+                <h4>% de Acciones Disciplinarias Histórico</h4>
+                <div class="porcentaje" id="disciplina-historico">0%</div>
+            </div>
+            <div class="periodo-card">
+                <h4>% de Acciones Disciplinarias del Mes</h4>
+                <div class="porcentaje" id="disciplina-mes">0%</div>
+            </div>
+            <div class="periodo-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <h4>% de Acciones Disciplinarias 3 Meses</h4>
+                <div class="porcentaje" id="disciplina-3meses">0%</div>
+            </div>
+            <div class="periodo-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                <h4>% de Acciones Disciplinarias 6 Meses</h4>
+                <div class="porcentaje" id="disciplina-6meses">0%</div>
+            </div>
+            <div class="periodo-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                <h4>% de Acciones Disciplinarias 12 Meses</h4>
+                <div class="porcentaje" id="disciplina-12meses">0%</div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-chart-bar me-2"></i>Acciones Disciplinarias</span>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-primary btn-sm" id="btn-ver-mensual-disciplina">Mensual</button>
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="btn-ver-anual-disciplina" style="background: rgba(255,255,255,0.12); color: white; border-color: rgba(255,255,255,0.35);">Anual</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    <select id="filtro-mes-disciplina" class="form-select" style="width: auto;"></select>
+                    <select id="filtro-ano-disciplina" class="form-select" style="width: auto;"></select>
+                    <button id="btn-filtrar-disciplina-grafico" class="btn btn-primary btn-sm">Filtrar</button>
+                </div>
+                <div class="chart-container">
+                    <canvas id="graficoDisciplina"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Historial de Acciones Disciplinarias</span>
+                <button class="btn btn-primary btn-sm" id="btn-resumen-disciplina">
+                    <i class="fas fa-users-cog me-2"></i>Ver Resumen por Colaborador
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="date-range-container">
+                    <div class="form-group">
+                        <label for="fecha-inicio-disciplina" class="form-label">Filtrar desde</label>
+                        <input type="date" class="form-control" id="fecha-inicio-disciplina">
+                    </div>
+                    <div class="form-group">
+                        <label for="fecha-fin-disciplina" class="form-label">Filtrar hasta</label>
+                        <input type="date" class="form-control" id="fecha-fin-disciplina">
+                    </div>
+                    <div class="form-group d-flex align-items-end">
+                        <button type="button" class="btn btn-primary btn-sm" id="btn-filtrar-disciplina-personalizado">Filtrar</button>
+                    </div>
+                </div>
+
+                <div class="search-container">
+                    <i class="fas fa-search"></i>
+                    <input type="text" class="form-control" id="buscador-disciplina" placeholder="Buscar por nombre o identidad...">
+                </div>
+
+                <div class="table-responsive mt-3">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Fecha de la Falta</th>
+                                <th>Nombre</th>
+                                <th>Identidad</th>
+                                <th>Faltas Cometidas</th>
+                                <th>Observaciones</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabla-disciplina" class="no-hover"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/db.js"></script>
+    <script>
+        let datos = { activos: [], disciplina: [] };
+        let colaboradoresActivos = [];
+        let disciplina = [];
+        let vistaDisciplina = 'mensual';
+        let graficoDisciplina = null;
+        let graficoDisciplinaAnual = null;
+
+        $(document).ready(async function() {
+            await cargarYRenderizar(true);
+
+            $('#btn-ver-mensual-disciplina').on('click', function() {
+                vistaDisciplina = 'mensual';
+                $(this).removeClass('btn-outline-primary').addClass('btn-primary').css({ background: '', color: '', borderColor: '' });
+                $('#btn-ver-anual-disciplina').removeClass('btn-primary').addClass('btn-outline-primary').css({ background: 'rgba(255,255,255,0.12)', color: 'white', borderColor: 'rgba(255,255,255,0.35)' });
+                $('#filtro-mes-disciplina').show();
+                const ano = parseInt($('#filtro-ano-disciplina').val(), 10);
+                const mes = parseInt($('#filtro-mes-disciplina').val(), 10);
+                crearGraficoDisciplinaPorDia(ano, mes);
+            });
+
+            $('#btn-ver-anual-disciplina').on('click', function() {
+                vistaDisciplina = 'anual';
+                $(this).removeClass('btn-outline-primary').addClass('btn-primary').css({ background: '', color: '', borderColor: '' });
+                $('#btn-ver-mensual-disciplina').removeClass('btn-primary').addClass('btn-outline-primary').css({ background: 'rgba(255,255,255,0.12)', color: 'white', borderColor: 'rgba(255,255,255,0.35)' });
+                $('#filtro-mes-disciplina').hide();
+                const ano = parseInt($('#filtro-ano-disciplina').val(), 10);
+                crearGraficoDisciplinaAnual(ano);
+            });
+
+            $('#btn-filtrar-disciplina-grafico').on('click', function() {
+                const ano = parseInt($('#filtro-ano-disciplina').val(), 10);
+                if (vistaDisciplina === 'mensual') {
+                    const mes = parseInt($('#filtro-mes-disciplina').val(), 10);
+                    crearGraficoDisciplinaPorDia(ano, mes);
+                } else {
+                    crearGraficoDisciplinaAnual(ano);
+                }
+            });
+
+            $('#btn-filtrar-disciplina-personalizado').on('click', filtrarDisciplinaPersonalizado);
+            $('#buscador-disciplina').on('input', filtrarDisciplina);
+            $('#btn-resumen-disciplina').on('click', mostrarResumenDisciplina);
+
+            $(document).on('click', '.btn-delete-disciplina', function(e) {
+                e.stopPropagation();
+                eliminarDisciplinaOffline($(this).data('identidad'), $(this).data('fechafalta'));
+            });
+
+            if (syncChannel) syncChannel.onmessage = () => cargarYRenderizar(false);
+        });
+
+        async function cargarYRenderizar(init = false) {
+            datos = await PB_DB.obtenerDatosPrincipales();
+            colaboradoresActivos = datos.activos || [];
+            disciplina = datos.disciplina || [];
+
+            if (init) popularFiltros();
+            calcularEstadisticasDisciplina();
+            filtrarDisciplinaPersonalizado();
+
+            const ano = parseInt($('#filtro-ano-disciplina').val(), 10);
+            const mes = parseInt($('#filtro-mes-disciplina').val(), 10);
+            if (vistaDisciplina === 'mensual') crearGraficoDisciplinaPorDia(ano, mes);
+            else crearGraficoDisciplinaAnual(ano);
+        }
+
+        function popularFiltros() {
+            const fMes = $('#filtro-mes-disciplina').empty();
+            const fAno = $('#filtro-ano-disciplina').empty();
+            const meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+            meses.forEach((m, i) => fMes.append(`<option value="${i}">${m}</option>`));
+
+            const anos = [...new Set(disciplina.map(d => d.fechaFalta ? new Date(d.fechaFalta).getFullYear() : null).filter(Boolean))];
+            const act = new Date().getFullYear();
+            if (!anos.includes(act)) anos.push(act);
+            anos.sort((a, b) => b - a).forEach(a => fAno.append(`<option value="${a}">${a}</option>`));
+
+            const hoy = new Date();
+            fMes.val(hoy.getMonth());
+            fAno.val(hoy.getFullYear());
+        }
+
+        function calcularEstadisticasDisciplina() {
+            const totalActivos = colaboradoresActivos.length;
+            if (totalActivos === 0 && disciplina.length === 0) {
+                $('.rotacion-periodos .porcentaje').text('0%');
+                return;
+            }
+            const hoy = new Date();
+            const periodos = [{ id: 'mes', meses: 0 }, { id: '3meses', meses: 3 }, { id: '6meses', meses: 6 }, { id: '12meses', meses: 12 }];
+            periodos.forEach(p => {
+                const fechaInicio = p.meses === 0 ? new Date(hoy.getFullYear(), hoy.getMonth(), 1) : new Date(hoy.getFullYear(), hoy.getMonth() - p.meses, 1);
+                const accionesPeriodo = disciplina.filter(d => new Date(d.fechaFalta) >= fechaInicio).length;
+                const porcentaje = totalActivos > 0 ? ((accionesPeriodo / totalActivos) * 100).toFixed(2) : '0.00';
+                $(`#disciplina-${p.id}`).text(porcentaje + '%');
+            });
+
+            const porcentajeHistorico = totalActivos > 0 ? ((disciplina.length / totalActivos) * 100).toFixed(2) : '0.00';
+            $('#disciplina-historico').text(porcentajeHistorico + '%');
+        }
+
+        function crearGraficoDisciplinaPorDia(ano, mes) {
+            if (graficoDisciplina) { graficoDisciplina.destroy(); graficoDisciplina = null; }
+            if (graficoDisciplinaAnual) { graficoDisciplinaAnual.destroy(); graficoDisciplinaAnual = null; }
+
+            const ctx = document.getElementById('graficoDisciplina').getContext('2d');
+            const diasEnMes = new Date(ano, mes + 1, 0).getDate();
+            const labels = Array.from({ length: diasEnMes }, (_, i) => `${i + 1}/${mes + 1}`);
+            const datosMes = Array(diasEnMes).fill(0);
+
+            disciplina.forEach(d => {
+                const fechaFalta = new Date(d.fechaFalta + 'T00:00:00');
+                if (fechaFalta.getMonth() === mes && fechaFalta.getFullYear() === ano) {
+                    datosMes[fechaFalta.getDate() - 1]++;
+                }
+            });
+
+            const nombreMes = new Date(ano, mes).toLocaleString('es-ES', { month: 'long' });
+            graficoDisciplina = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: `Acciones por día en ${nombreMes} ${ano}`,
+                        data: datosMes,
+                        borderColor: '#c0392b',
+                        backgroundColor: 'rgba(192, 57, 43, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, ticks: { stepSize: 1 }, title: { display: true, text: 'Número de Acciones' } },
+                        x: { title: { display: true, text: 'Días del Mes' } }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Acciones: ${context.parsed.y}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function crearGraficoDisciplinaAnual(ano) {
+            if (graficoDisciplinaAnual) { graficoDisciplinaAnual.destroy(); graficoDisciplinaAnual = null; }
+            if (graficoDisciplina) { graficoDisciplina.destroy(); graficoDisciplina = null; }
+
+            const ctx = document.getElementById('graficoDisciplina').getContext('2d');
+            const labels = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+            const datosMes = Array(12).fill(0);
+
+            disciplina.forEach(d => {
+                const fechaFalta = new Date(d.fechaFalta + 'T00:00:00');
+                if (fechaFalta.getFullYear() === ano) datosMes[fechaFalta.getMonth()]++;
+            });
+
+            graficoDisciplinaAnual = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: `Acciones Disciplinarias por Mes en ${ano}`,
+                        data: datosMes,
+                        borderColor: '#c0392b',
+                        backgroundColor: 'rgba(192, 57, 43, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#c0392b',
+                        pointBorderColor: 'white',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, ticks: { stepSize: 1 }, title: { display: true, text: 'Número de Acciones' } },
+                        x: { title: { display: true, text: 'Mes' } }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Acciones: ${context.parsed.y}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function mostrarHistorialDisciplina(lista) {
+            const datosAMostrar = lista || disciplina;
+            const tablaDisciplina = $('#tabla-disciplina').empty();
+            if (datosAMostrar.length === 0) {
+                tablaDisciplina.append('<tr><td colspan="6" class="text-center">No hay registros de disciplina para el filtro seleccionado.</td></tr>');
+                return;
+            }
+            const disciplinaOrdenada = [...datosAMostrar].sort((a, b) => new Date(b.fechaFalta) - new Date(a.fechaFalta));
+
+            disciplinaOrdenada.forEach((registro) => {
+                const faltasLista = registro.descripcionFaltas.split('; ').map(falta => `<li>${falta}</li>`).join('');
+                tablaDisciplina.append(`
+                    <tr>
+                        <td>${formatearFecha(registro.fechaFalta)}</td>
+                        <td>${registro.nombre}</td>
+                        <td>${registro.identidad}</td>
+                        <td><ul>${faltasLista}</ul></td>
+                        <td>${registro.observaciones || ''}</td>
+                        <td style="white-space: nowrap;">
+                            <button class="btn btn-danger btn-sm btn-action btn-delete-disciplina"
+                                    data-identidad="${registro.identidad}"
+                                    data-fechafalta="${registro.fechaFalta}"
+                                    title="Eliminar Registro de Disciplina">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>`);
+            });
+            filtrarDisciplina();
+        }
+
+        function filtrarDisciplina() {
+            const texto = $('#buscador-disciplina').val().toLowerCase();
+            $('#tabla-disciplina tr').each(function() {
+                if ($(this).find('td').length < 3) return;
+                const nombre = $(this).find('td:eq(1)').text().toLowerCase();
+                const identidad = $(this).find('td:eq(2)').text().toLowerCase();
+                $(this).toggle(nombre.includes(texto) || identidad.includes(texto));
+            });
+        }
+
+        function filtrarDisciplinaPersonalizado() {
+            const inicio = $('#fecha-inicio-disciplina').val();
+            const fin = $('#fecha-fin-disciplina').val();
+            let disciplinaFiltrada = disciplina;
+
+            if (inicio && fin) {
+                disciplinaFiltrada = disciplina.filter(d => d.fechaFalta >= inicio && d.fechaFalta <= fin);
+            } else if (inicio) {
+                disciplinaFiltrada = disciplina.filter(d => d.fechaFalta >= inicio);
+            } else if (fin) {
+                disciplinaFiltrada = disciplina.filter(d => d.fechaFalta <= fin);
+            }
+            mostrarHistorialDisciplina(disciplinaFiltrada);
+        }
+
+        function eliminarDisciplinaOffline(identidad, fechaFalta) {
+            Swal.fire({
+                title: '¿Está seguro?',
+                html: `¿Desea eliminar este registro de disciplina del <strong>${formatearFecha(fechaFalta)}</strong>?`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'No, cancelar'
+            }).then(async (result) => {
+                if (!result.isConfirmed) return;
+
+                await PB_DB.agregarPendiente({
+                    titulo: 'Eliminar Disciplina',
+                    detalle: `ID: ${identidad} - Fecha: ${formatearFecha(fechaFalta)}`,
+                    destino: 'principal',
+                    accion: 'eliminar_disciplina',
+                    payload: { identidad, fechaFalta, fecha: fechaFalta }
+                });
+
+                await PB_DB.actualizarDatosPrincipales(cache => {
+                    cache.disciplina = (cache.disciplina || []).filter(d => !(d.identidad === identidad && d.fechaFalta === fechaFalta));
+                    return cache;
+                });
+
+                await cargarYRenderizar(false);
+                Swal.fire('Guardado Offline', 'Registro eliminado localmente y pendiente de sincronizar.', 'success');
+            });
+        }
+
+        // ==================== RESUMEN Y DETALLE DE DISCIPLINA (DISEÑO ORIGINAL) ====================
+        function mostrarResumenDisciplina() {
+            if (disciplina.length === 0) {
+                Swal.fire('Sin Datos', 'No hay acciones disciplinarias registradas para mostrar un resumen.', 'info');
+                return;
+            }
+
+            const conteo = {};
+            disciplina.forEach(reg => {
+                const colaboradorInfo = colaboradoresActivos.find(c => c.identidad === reg.identidad);
+                if (!colaboradorInfo) return;
+                if (!conteo[reg.identidad]) {
+                    conteo[reg.identidad] = {
+                        nombre: colaboradorInfo.nombre,
+                        identidad: colaboradorInfo.identidad,
+                        fotoUrl: colaboradorInfo.fotoUrl,
+                        count: 0
+                    };
+                }
+                conteo[reg.identidad].count++;
+            });
+
+            const sorted = Object.values(conteo).sort((a, b) => b.count - a.count);
+
+            const modalHtml = `
+                <div class="mb-3 px-2">
+                    <input type="text" id="filtro-resumen-disciplina" class="form-control" placeholder="Buscar por nombre o identidad...">
+                </div>
+                <div id="resumen-lista-colaboradores" style="max-height: 400px; overflow-y: auto; text-align: left;"></div>`;
+
+            function renderResumenList(items) {
+                const container = $('#resumen-lista-colaboradores').empty();
+                if (items.length === 0) {
+                    container.html('<p class="text-center text-muted mt-3">No se encontraron colaboradores activos con acciones disciplinarias.</p>');
+                    return;
+                }
+                let listHtml = '';
+                items.forEach(item => {
+                    let color = 'danger';
+                    if (item.count === 1) color = 'info';
+                    else if (item.count === 2) color = 'warning';
+
+                    const fotoSrc = item.fotoUrl || `https://ui-avatars.com/api/?name=${item.nombre.replace(/\s/g, "+")}&background=random`;
+                    listHtml += `
+                        <div class="resumen-disciplina-item" data-identidad="${item.identidad}">
+                            <img src="${fotoSrc}" class="resumen-disciplina-img" onerror="this.src='https://ui-avatars.com/api/?name=${item.nombre.replace(/\s/g, "+")}&background=random'">
+                            <div class="resumen-disciplina-info">
+                                <h6>${item.nombre}</h6>
+                                <span class="badge bg-${color}">${item.count} Acción(es)</span>
+                            </div>
+                        </div>`;
+                });
+                container.html(listHtml);
+            }
+
+            Swal.fire({
+                title: 'Resumen por Colaborador Activo',
+                html: modalHtml,
+                width: '700px',
+                showCloseButton: true,
+                showConfirmButton: false,
+                didOpen: () => {
+                    renderResumenList(sorted);
+                    $('#filtro-resumen-disciplina').on('input', function() {
+                        const query = $(this).val().toLowerCase();
+                        const filtered = sorted.filter(item =>
+                            item.nombre.toLowerCase().includes(query) || item.identidad.toLowerCase().includes(query)
+                        );
+                        renderResumenList(filtered);
+                    });
+
+                    $(document).on('click.resumenDisc', '#resumen-lista-colaboradores .resumen-disciplina-item', function() {
+                        const identidad = $(this).data('identidad');
+                        mostrarDetalleDisciplinaColaborador(identidad);
+                    });
+                },
+                willClose: () => {
+                    $(document).off('click.resumenDisc');
+                }
+            });
+        }
+
+        function mostrarDetalleDisciplinaColaborador(identidad) {
+            const historial = disciplina.filter(d => d.identidad === identidad).sort((a, b) => new Date(b.fechaFalta) - new Date(a.fechaFalta));
+            const colaborador = colaboradoresActivos.find(c => c.identidad === identidad) || { nombre: 'N/A', identidad, fotoUrl: '' };
+
+            let historialHtml = '<div style="max-height: 300px; overflow-y: auto; text-align: left; padding: 10px; background-color: #f8f9fa; border-radius: 5px;">';
+            if (historial.length > 0) {
+                historial.forEach((reg, index) => {
+                    historialHtml += `
+                        <div class="mb-2">
+                            <strong>${formatearFecha(reg.fechaFalta)}:</strong>
+                            <ul class="mb-1 mt-1">
+                                ${reg.descripcionFaltas.split('; ').map(f => `<li>${f}</li>`).join('')}
+                            </ul>
+                            ${reg.observaciones ? `<small class="d-block text-muted"><em>Observación: ${reg.observaciones}</em></small>` : ''}
+                        </div>
+                        ${index < historial.length - 1 ? '<hr class="my-2">' : ''}`;
+                });
+            } else {
+                historialHtml += '<p class="text-center text-muted">No se encontraron registros.</p>';
+            }
+            historialHtml += '</div>';
+
+            const fotoSrc = colaborador.fotoUrl || `https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=random`;
+            const detailModalHtml = `
+                <div class="d-flex justify-content-start mb-3">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-volver-resumen">
+                        <i class="fas fa-arrow-left me-1"></i> Volver al Resumen
+                    </button>
+                </div>
+                <div class="text-center mb-3">
+                    <img src="${fotoSrc}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid #dee2e6;" onerror="this.src='https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=random'">
+                    <h5 class="mt-2 mb-0">${colaborador.nombre}</h5>
+                    <span class="badge bg-secondary">${colaborador.identidad}</span>
+                    <p class="mt-2">Total de acciones: <strong>${historial.length}</strong></p>
+                </div>
+                ${historialHtml}`;
+
+            Swal.fire({
+                title: 'Detalle de Faltas',
+                html: detailModalHtml,
+                width: '600px',
+                showCloseButton: true,
+                showConfirmButton: false,
+                didOpen: () => {
+                    const volverBtn = Swal.getPopup().querySelector('#btn-volver-resumen');
+                    if (volverBtn) {
+                        volverBtn.addEventListener('click', () => {
+                            Swal.close();
+                            mostrarResumenDisciplina();
+                        });
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

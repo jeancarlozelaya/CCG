@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buzón de Sugerencias</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .sugerencia-card-modern {
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            transition: all 0.3s ease;
+            margin-bottom: 12px;
+            background: white;
+            border: 1px solid #e9ecef;
+            overflow: hidden;
+        }
+        .sugerencia-card-modern:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+        .sugerencia-card-modern .card-header-modern {
+            padding: 12px 18px;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .sugerencia-card-modern .card-body-modern {
+            padding: 18px;
+        }
+        .sugerencia-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #dee2e6;
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+        .sugerencia-avatar-placeholder {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 18px;
+            color: white;
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+        .sugerencia-mensaje-box {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 12px 16px;
+            border-left: 4px solid #3498db;
+            margin-top: 8px;
+        }
+        .sugerencia-badge {
+            font-size: 0.7rem;
+            padding: 3px 12px;
+            border-radius: 20px;
+            background: #e9ecef;
+            color: #495057;
+        }
+    </style>
+</head>
+<body class="subpage-body">
+    <div class="container-fluid">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-info-circle me-2"></i>Sugerencias de los Colaboradores</span>
+                <div class="d-flex align-items-center gap-2">
+                    <small class="text-white-50" id="estado-cache-sugerencias"></small>
+                    <button class="btn btn-light btn-sm" id="btn-refrescar-sugerencias">
+                        <i class="fas fa-sync-alt me-1"></i>Actualizar
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="contenedor-sugerencias"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/db.js"></script>
+    <script>
+        let datos = { activos: [], egresos: [], ausencias: [], disciplina: [], evaluaciones: [], incidentes: [] };
+        let colaboradoresActivos = [];
+        let colaboradoresEgresos = [];
+        let ausencias = [];
+        let disciplina = [];
+        let evaluaciones = [];
+        let incidentes = [];
+
+        $(document).ready(async function() {
+            await cargarDatosBase();
+            await cargarSugerencias(false);
+
+            $('#btn-refrescar-sugerencias').on('click', () => cargarSugerencias(true));
+            if (syncChannel) {
+                syncChannel.onmessage = async () => {
+                    await cargarDatosBase();
+                };
+            }
+        });
+
+        async function cargarDatosBase() {
+            datos = await PB_DB.obtenerDatosPrincipales();
+            colaboradoresActivos = datos.activos || [];
+            colaboradoresEgresos = datos.egresos || [];
+            ausencias = datos.ausencias || [];
+            disciplina = datos.disciplina || [];
+            evaluaciones = datos.evaluaciones || [];
+            incidentes = datos.incidentes || [];
+        }
+
+        async function cargarSugerencias(forzarRed = false) {
+            const container = $('#contenedor-sugerencias');
+            const cached = await PB_DB.obtenerCache('sugerencias');
+
+            if (cached && cached.datos && !forzarRed) {
+                renderSugerencias(cached.datos, cached.updatedAt);
+            } else {
+                container.html('<div class="text-center p-4"><div class="spinner-border text-primary" role="status"></div><p class="mt-2">Cargando sugerencias...</p></div>');
+            }
+
+            if (navigator.onLine) {
+                try {
+                    const response = await fetch(BUZON_SCRIPT_URL + "?accion=listar&t=" + Date.now());
+                    const data = await response.json();
+                    if (data.success) {
+                        const lista = data.sugerencias || [];
+                        await PB_DB.guardarCache('sugerencias', lista);
+                        renderSugerencias(lista, new Date().toISOString());
+                    } else if (!cached) {
+                        mostrarVacio(container);
+                    }
+                } catch (error) {
+                    console.error('Error cargando sugerencias:', error);
+                    if (!cached) {
+                        container.html(`
+                            <div class="alert alert-danger text-center">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                Error al cargar las sugerencias. Verifica tu conexión.
+                            </div>`);
+                    }
+                }
+            } else if (!cached) {
+                container.html(`
+                    <div class="alert alert-warning text-center">
+                        <i class="fas fa-plane me-2"></i>
+                        Modo offline: aún no hay sugerencias guardadas en caché local.
+                    </div>`);
+            }
+        }
+
+        function mostrarVacio(container) {
+            container.html(`
+                <div class="text-center p-5">
+                    <i class="fas fa-inbox" style="font-size: 4rem; color: #bdc3c7; display: block; margin-bottom: 15px;"></i>
+                    <h5 class="text-muted">No hay sugerencias registradas</h5>
+                    <p class="text-muted small">Los colaboradores aún no han enviado sugerencias.</p>
+                </div>`);
+        }
+
+        function renderSugerencias(lista, updatedAt) {
+            $('#estado-cache-sugerencias').text(updatedAt ? `Caché: ${new Date(updatedAt).toLocaleString('es-ES')}` : '');
+            const container = $('#contenedor-sugerencias');
+
+            if (!lista || lista.length === 0) {
+                mostrarVacio(container);
+                return;
+            }
+
+            let html = `<div style="max-height: 600px; overflow-y: auto; padding-right: 5px;">`;
+
+            lista.forEach((sug) => {
+                let fotoUrl = '';
+                const iniciales = (sug.nombre || 'U').split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
+                let colorFondo = '#3498db';
+
+                let colaborador = colaboradoresActivos.find(c => c.identidad === sug.identidad);
+                if (!colaborador) {
+                    colaborador = colaboradoresEgresos.find(c => c.identidad === sug.identidad);
+                }
+                if (colaborador && colaborador.fotoUrl) {
+                    fotoUrl = colaborador.fotoUrl;
+                }
+                if (colaborador) {
+                    const colores = ['#3498db', '#2ecc71', '#e74c3c', '#f39c12', '#9b59b6', '#1abc9c', '#e67e22', '#2c3e50'];
+                    colorFondo = colores[sug.nombre.length % colores.length];
+                }
+
+                const fechaFormateada = formatearFecha(sug.fecha);
+                const horaFormateada = formatearHoraDesdeFecha(sug.fecha);
+                const identidadEscapada = sug.identidad ? sug.identidad.replace(/'/g, "\\'") : '';
+
+                const fotoHtml = fotoUrl
+                    ? `<img src="${fotoUrl}" class="sugerencia-avatar" alt="${sug.nombre}" onclick="abrirHistorialColaborador('${identidadEscapada}')" onerror="this.style.display='none'; this.parentElement.innerHTML = '<div class=\\'sugerencia-avatar-placeholder\\' style=\\'background: ${colorFondo}; cursor: pointer;\\' onclick=\\'abrirHistorialColaborador(\\'${identidadEscapada}\\')\\'>${iniciales}</div>'">`
+                    : `<div class="sugerencia-avatar-placeholder" style="background: ${colorFondo};" onclick="abrirHistorialColaborador('${identidadEscapada}')">${iniciales}</div>`;
+
+                html += `
+                    <div class="sugerencia-card-modern">
+                        <div class="card-header-modern">
+                            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                                <span class="sugerencia-badge">
+                                    <i class="fas fa-comment me-1"></i>Sugerencia
+                                </span>
+                                <span style="font-size: 0.75rem; color: #6c757d;">
+                                    <i class="fas fa-calendar-alt me-1"></i>${fechaFormateada}
+                                </span>
+                                ${horaFormateada ? `<span style="font-size: 0.75rem; color: #6c757d;"><i class="fas fa-clock me-1"></i>${horaFormateada}</span>` : ''}
+                            </div>
+                        </div>
+                        <div class="card-body-modern">
+                            <div style="display: flex; gap: 15px; align-items: flex-start;">
+                                ${fotoHtml}
+                                <div style="flex: 1; min-width: 0;">
+                                    <h6 style="font-weight: 700; color: #2c3e50; margin: 0 0 2px 0; font-size: 0.95rem;">
+                                        ${sug.nombre}
+                                    </h6>
+                                    <div class="sugerencia-mensaje-box">
+                                        <p style="margin: 0; font-size: 0.9rem; color: #34495e; line-height: 1.6; word-wrap: break-word;">
+                                            ${sug.mensaje}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+            });
+
+            html += `</div>
+                <div class="text-muted small text-center mt-3">
+                    Total: <strong>${lista.length}</strong> sugerencias
+                </div>`;
+
+            container.html(html);
+        }
+
+        function abrirHistorialColaborador(identidad) {
+            if (!identidad) {
+                Swal.fire('Error', 'No se pudo identificar al colaborador.', 'error');
+                return;
+            }
+            let colaborador = colaboradoresActivos.find(c => c.identidad === identidad);
+            let esEgresado = false;
+            if (!colaborador) {
+                colaborador = colaboradoresEgresos.find(c => c.identidad === identidad);
+                esEgresado = true;
+            }
+            if (!colaborador) {
+                Swal.fire('Error', 'No se encontró información del colaborador.', 'error');
+                return;
+            }
+            mostrarDetalleColaboradorCompleto(identidad, esEgresado);
+        }
+
+        // ==================== MODAL HISTORIAL COMPLETO (DISEÑO ORIGINAL) ====================
+        function mostrarDetalleColaboradorCompleto(identidad, esEgresado = false) {
+            const colaborador = esEgresado
+                ? colaboradoresEgresos.find(c => c.identidad === identidad)
+                : colaboradoresActivos.find(c => c.identidad === identidad);
+            if (!colaborador) return;
+
+            const historialAusencias = ausencias.filter(d => d.identidad === identidad).sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
+            const historialDisciplina = disciplina.filter(d => d.identidad === identidad).sort((a,b) => new Date(b.fechaFalta) - new Date(a.fechaFalta));
+            const historialEvaluaciones = evaluaciones.filter(d => d.identidad === identidad).sort((a,b) => new Date(a.fechaEvaluacion) - new Date(b.fechaEvaluacion));
+            const historialIncidentes = incidentes.filter(d => d.identidad === identidad).sort((a,b) => new Date(b.fechaIncidente) - new Date(a.fechaIncidente));
+
+            const estadoColor = esEgresado ? '#e74c3c' : '#2ecc71';
+            const estadoIcono = esEgresado ? 'fa-user-slash' : 'fa-user-check';
+            const fotoSrc = colaborador.fotoUrl || `https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=3498db&color=fff&size=200&font-size=0.5`;
+
+            let edad = '';
+            if (colaborador.fechaNacimiento) {
+                const e = calcularEdad(colaborador.fechaNacimiento);
+                if (e !== null) edad = e;
+            }
+
+            const genAus = () => !historialAusencias.length
+                ? `<div class="text-center py-5"><div style="width:60px;height:60px;background:rgba(46,204,113,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;"><i class="fas fa-calendar-check" style="font-size:28px;color:#2ecc71;"></i></div><h6 style="color:#2c3e50;font-weight:600;margin:0;font-size:0.95rem;">Sin Ausencias</h6><p style="color:#95a5a6;font-size:0.8rem;margin:4px 0 0;">No hay ausencias registradas</p></div>`
+                : '<div style="max-height:350px;overflow-y:auto;padding-right:5px;text-align:left;">' + historialAusencias.map((a, idx) => {
+                    const ff = a.fechaFin && a.fechaFin !== a.fecha ? ` → ${formatearFecha(a.fechaFin)}` : '';
+                    const bc = a.motivo === 'Incapacidad' ? 'warning' : (a.motivo === 'Falta Injustificada' ? 'danger' : (a.motivo === 'Permiso' ? 'info' : 'secondary'));
+                    return `<div style="background:${idx%2===0?'#f8f9fa':'white'};border-radius:8px;padding:10px 12px;margin-bottom:5px;border-left:4px solid var(--bs-${bc});"><span class="badge bg-${bc} me-1" style="font-size:0.7rem;">${a.motivo}</span><span style="font-weight:600;color:#2c3e50;font-size:0.85rem;">${formatearFecha(a.fecha)}${ff}</span><span class="badge bg-secondary ms-1" style="font-size:0.65rem;">${a.diasIncapacidad || 1} día(s)</span>${a.observaciones ? `<div style="margin-top:4px;font-size:0.8rem;color:#7f8c8d;"><i class="fas fa-comment me-1"></i>${a.observaciones}</div>` : ''}</div>`;
+                }).join('') + '</div>';
+
+            const genDisc = () => !historialDisciplina.length
+                ? `<div class="text-center py-5"><div style="width:60px;height:60px;background:rgba(46,204,113,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;"><i class="fas fa-check-circle" style="font-size:28px;color:#2ecc71;"></i></div><h6 style="color:#2c3e50;font-weight:600;margin:0;font-size:0.95rem;">Sin Disciplina</h6><p style="color:#95a5a6;font-size:0.8rem;margin:4px 0 0;">No hay acciones disciplinarias</p></div>`
+                : '<div style="max-height:350px;overflow-y:auto;padding-right:5px;text-align:left;">' + historialDisciplina.map((d, idx) => {
+                    const fl = d.descripcionFaltas.split('; ').map(f => `<li style="font-size:0.8rem;">${f}</li>`).join('');
+                    return `<div style="background:${idx%2===0?'#f8f9fa':'white'};border-radius:8px;padding:10px 12px;margin-bottom:5px;border-left:4px solid #e74c3c;"><span class="badge bg-danger me-1" style="font-size:0.7rem;">${formatearFecha(d.fechaFalta)}</span><ul style="margin:4px 0 0;padding-left:18px;">${fl}</ul>${d.observaciones ? `<div style="margin-top:4px;font-size:0.8rem;color:#7f8c8d;"><i class="fas fa-comment me-1"></i>${d.observaciones}</div>` : ''}</div>`;
+                }).join('') + '</div>';
+
+            const genEval = () => !historialEvaluaciones.length
+                ? `<div class="text-center py-5"><div style="width:60px;height:60px;background:rgba(46,204,113,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;"><i class="fas fa-chart-line" style="font-size:28px;color:#2ecc71;"></i></div><h6 style="color:#2c3e50;font-weight:600;margin:0;font-size:0.95rem;">Sin Evaluaciones</h6><p style="color:#95a5a6;font-size:0.8rem;margin:4px 0 0;">No hay evaluaciones registradas</p></div>`
+                : `<div style="background:#f8f9fa;border-radius:10px;padding:12px;margin-bottom:12px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><span style="font-weight:600;color:#2c3e50;font-size:0.85rem;"><i class="fas fa-chart-area me-2" style="color:#3498db;"></i>Progreso de Notas</span><span class="badge bg-primary" style="font-size:0.7rem;">${historialEvaluaciones.length} evaluación(es)</span></div><div class="chart-container" style="height:140px;margin-bottom:0;"><canvas id="graficoProgresoCompleto"></canvas></div></div><div style="max-height:180px;overflow-y:auto;padding-right:5px;text-align:left;">` +
+                historialEvaluaciones.map((e, idx) => {
+                    const n = parseFloat(e.notaFinal);
+                    const bc = n < 60 ? 'danger' : (n < 70 ? 'warning' : (n < 80 ? 'info' : (n < 90 ? 'primary' : 'success')));
+                    return `<div style="background:${idx%2===0?'#f8f9fa':'white'};border-radius:8px;padding:8px 12px;margin-bottom:4px;border-left:4px solid var(--bs-${bc});"><div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:0.8rem;color:#7f8c8d;">${formatearFecha(e.fechaEvaluacion)}</span><span class="badge bg-${bc}" style="font-size:0.8rem;padding:3px 10px;">${e.notaFinal}</span></div>${e.observaciones ? `<div style="margin-top:3px;font-size:0.75rem;color:#7f8c8d;">${e.observaciones}</div>` : ''}</div>`;
+                }).join('') + '</div>';
+
+            const genInc = () => !historialIncidentes.length
+                ? `<div class="text-center py-5"><div style="width:60px;height:60px;background:rgba(46,204,113,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;"><i class="fas fa-shield-alt" style="font-size:28px;color:#2ecc71;"></i></div><h6 style="color:#2c3e50;font-weight:600;margin:0;font-size:0.95rem;">Sin Incidentes</h6><p style="color:#95a5a6;font-size:0.8rem;margin:4px 0 0;">No hay incidentes registrados</p></div>`
+                : '<div style="max-height:350px;overflow-y:auto;padding-right:5px;text-align:left;">' + historialIncidentes.map((inc, idx) => {
+                    const bc = (inc.categoriaSiso === 'FAT' || inc.categoriaSiso === 'LWC') ? 'danger' : (inc.categoriaSiso === 'MTC' ? 'warning' : (inc.categoriaSiso === 'FAC' ? 'info' : 'success'));
+                    return `<div style="background:${idx%2===0?'#f8f9fa':'white'};border-radius:8px;padding:10px 12px;margin-bottom:5px;border-left:4px solid var(--bs-${bc});"><div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px;"><span class="badge bg-secondary" style="font-size:0.65rem;">${formatearFecha(inc.fechaIncidente)}</span><span class="badge bg-${bc}" style="font-size:0.65rem;">${inc.categoriaSiso}</span>${inc.parteAfectada ? `<span class="badge bg-primary" style="font-size:0.65rem;">${inc.parteAfectada}</span>` : ''}</div><div style="font-size:0.8rem;color:#2c3e50;"><div><strong>Causa:</strong> ${inc.causa}</div><div><strong>Descripción:</strong> ${inc.descripcion}</div>${inc.medidas ? `<div><strong>Medidas:</strong> <span style="color:#27ae60;">${inc.medidas}</span></div>` : ''}</div></div>`;
+                }).join('') + '</div>';
+
+            const isMobile = window.innerWidth < 576;
+            const styleId = 'hist-sug-style-' + Date.now();
+
+            Swal.fire({
+                title: null,
+                width: isMobile ? '95%' : '900px',
+                showCloseButton: true,
+                showConfirmButton: false,
+                customClass: { popup: 'animated fadeInDown', closeButton: 'btn-close-white' },
+                html: `
+                    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0;">
+                        <div style="background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460); border-radius: 16px; padding: ${isMobile ? '15px 20px' : '25px 30px'}; margin: -20px -25px 20px -25px; color: white; position: relative; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+                            <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap; justify-content: flex-start;">
+                                <div style="position: relative; flex-shrink: 0;">
+                                    <div style="position: absolute; inset: -3px; background: linear-gradient(135deg, ${estadoColor}, #3498db); border-radius: 50%; padding: 3px;"><div style="width:100%;height:100%;border-radius:50%;background:#1a1a2e;"></div></div>
+                                    <img src="${fotoSrc}" style="width: ${isMobile ? '70px' : '100px'}; height: ${isMobile ? '70px' : '100px'}; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.15); position: relative; z-index: 1;">
+                                    <div style="position: absolute; bottom: 0; right: 0; background: ${estadoColor}; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border: 2px solid white; z-index: 2;"><i class="fas ${estadoIcono}" style="font-size: 10px; color: white;"></i></div>
+                                </div>
+                                <div style="flex: 1; min-width: 150px; text-align: left;">
+                                    <h3 style="margin: 0; font-weight: 700; font-size: ${isMobile ? '1.2rem' : '1.5rem'}; color: white;">${colaborador.nombre}</h3>
+                                    <div style="margin-top: 5px; display: flex; flex-wrap: wrap; gap: 4px;">
+                                        <span class="badge" style="background: rgba(255,255,255,0.12); padding: 3px 10px; font-size: 0.7rem;">${colaborador.identidad}</span>
+                                        ${edad ? `<span class="badge" style="background: rgba(241,196,15,0.2); padding: 3px 10px; font-size: 0.7rem;">${edad} años</span>` : ''}
+                                        ${colaborador.fechaInicio ? `<span class="badge" style="background: rgba(46,204,113,0.15); color: #2ecc71; border: 1px solid #2ecc71; padding: 3px 10px; font-size: 0.65rem;">${formatearFecha(colaborador.fechaInicio)}</span>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <ul class="nav nav-tabs" id="historialTabs" role="tablist" style="border-bottom: none; margin-bottom: 15px; gap: 3px; background: #f8f9fa; border-radius: 10px; padding: 3px; overflow-x: auto; flex-wrap: nowrap;">
+                            <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#content-ausencias" type="button" style="border:none;border-radius:6px;padding:6px 12px;font-weight:600;font-size:0.75rem;">Ausencias <span class="badge ${historialAusencias.length?'bg-danger':'bg-secondary'}">${historialAusencias.length}</span></button></li>
+                            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#content-disciplina" type="button" style="border:none;border-radius:6px;padding:6px 12px;font-weight:600;font-size:0.75rem;">Disciplina <span class="badge ${historialDisciplina.length?'bg-danger':'bg-secondary'}">${historialDisciplina.length}</span></button></li>
+                            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#content-evaluaciones" type="button" style="border:none;border-radius:6px;padding:6px 12px;font-weight:600;font-size:0.75rem;">Evaluaciones <span class="badge ${historialEvaluaciones.length?'bg-danger':'bg-secondary'}">${historialEvaluaciones.length}</span></button></li>
+                            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#content-incidentes" type="button" style="border:none;border-radius:6px;padding:6px 12px;font-weight:600;font-size:0.75rem;">Incidentes <span class="badge ${historialIncidentes.length?'bg-danger':'bg-secondary'}">${historialIncidentes.length}</span></button></li>
+                        </ul>
+                        <div class="tab-content" style="background:white;border-radius:10px;padding:5px;">
+                            <div class="tab-pane fade show active" id="content-ausencias">${genAus()}</div>
+                            <div class="tab-pane fade" id="content-disciplina">${genDisc()}</div>
+                            <div class="tab-pane fade" id="content-evaluaciones">${genEval()}</div>
+                            <div class="tab-pane fade" id="content-incidentes">${genInc()}</div>
+                        </div>
+                    </div>`,
+                didOpen: () => {
+                    if (historialEvaluaciones.length > 0) {
+                        const ctx = document.getElementById('graficoProgresoCompleto').getContext('2d');
+                        const ord = [...historialEvaluaciones].sort((a,b) => new Date(a.fechaEvaluacion) - new Date(b.fechaEvaluacion));
+                        new Chart(ctx, {
+                            type: 'line',
+                            data: { labels: ord.map(e => formatearFecha(e.fechaEvaluacion)), datasets: [{ label: 'Nota Final', data: ord.map(e => parseFloat(e.notaFinal)), borderColor: '#3498db', backgroundColor: 'rgba(52,152,219,0.15)', fill: true, tension: 0.4 }] },
+                            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 100 } } }
+                        });
+                    }
+                    const s = document.createElement('style');
+                    s.id = styleId;
+                    s.textContent = `#historialTabs .nav-link.active{background:white;color:#2c3e50;box-shadow:0 2px 8px rgba(0,0,0,0.08);border-bottom:none;} .swal2-popup{border-radius:16px!important;padding:20px!important;} .swal2-close{color:white!important;}`;
+                    document.head.appendChild(s);
+                },
+                willClose: () => {
+                    const el = document.getElementById(styleId);
+                    if (el) el.remove();
+                }
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,1448 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Empleados</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        /* ==================== ENCABEZADO STICKY ==================== */
+        .header {
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+            color: white;
+            padding: 14px 18px;
+            font-size: 1.4rem;
+            font-weight: bold;
+            box-shadow: var(--shadow);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header-title { flex: 1; text-align: center; }
+        .header-actions { display: flex; align-items: center; gap: 8px; }
+        .header-left { display: flex; align-items: center; gap: 8px; min-width: 42px; }
+
+        .header-btn {
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            width: 42px; height: 42px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.05rem;
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+        }
+        .header-btn:hover { background: rgba(255,255,255,0.3); transform: translateY(-2px); }
+        .header-btn .badge-pendientes {
+            position: absolute; top: -3px; right: -3px;
+            font-size: 0.65rem; padding: 0.25em 0.5em;
+            background: var(--accent-color);
+            color: white;
+            border-radius: 50%;
+            min-width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            border: 1px solid rgba(255,255,255,0.5);
+        }
+        .header-btn.asistencia-btn {
+            background: rgba(231, 76, 60, 0.35);
+            border-color: rgba(231, 76, 60, 0.75);
+        }
+        .header-btn.asistencia-btn:hover {
+            background: rgba(231, 76, 60, 0.6);
+        }
+        .header-btn.permisos-btn {
+            background: rgba(243, 156, 18, 0.3);
+            border-color: rgba(243, 156, 18, 0.7);
+        }
+        .header-btn.permisos-btn:hover {
+            background: rgba(243, 156, 18, 0.55);
+        }
+
+        .conexion-indicator {
+            width: 42px; height: 42px;
+            border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        .conexion-indicator.online { background-color: rgba(46, 204, 113, 0.25); color: #fff; }
+        .conexion-indicator.offline {
+            background-color: rgba(231, 76, 60, 0.45);
+            color: #fff;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); }
+        }
+        .conexion-indicator .conexion-tooltip {
+            position: absolute; right: 0; top: 52px;
+            background-color: var(--dark-color);
+            color: white; padding: 6px 10px; border-radius: 6px;
+            font-size: 0.72rem; white-space: nowrap;
+            opacity: 0; pointer-events: none;
+            transition: var(--transition);
+            z-index: 1001;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        .conexion-indicator:hover .conexion-tooltip { opacity: 1; }
+
+        .offline-banner {
+            display: none;
+            background: linear-gradient(to right, #e74c3c, #c0392b);
+            color: white;
+            padding: 10px 18px;
+            text-align: center;
+            font-size: 0.9rem;
+            font-weight: 600;
+            box-shadow: var(--shadow);
+        }
+        .offline-banner.active { display: block; }
+        .offline-banner i { margin-right: 6px; }
+
+        /* ==================== MODAL GESTOR DE PENDIENTES ==================== */
+        .modal-sync-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        }
+        .modal-sync-overlay.active { display: flex; }
+        .modal-sync-content {
+            background: white;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            width: 95%;
+            max-width: 760px;
+            max-height: 85vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .modal-sync-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+            color: white;
+            padding: 18px 22px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-sync-header h2 { margin: 0; font-size: 1.25rem; color: white; display: flex; align-items: center; gap: 10px; }
+        .close-modal-sync {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.6rem;
+            cursor: pointer;
+            line-height: 1;
+        }
+        .close-modal-sync:disabled { opacity: 0.4; cursor: not-allowed; }
+        .modal-sync-body { padding: 18px; overflow: auto; flex-grow: 1; }
+        .modal-sync-footer {
+            padding: 16px 20px;
+            background-color: #f8f9fa;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid var(--border-color);
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .toolbar-lista {
+            background: #f8f9fa;
+            padding: 10px 14px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .lista-scrollable {
+            max-height: 55vh;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 0.5rem;
+            background: white;
+        }
+        .pend-item { border-bottom: 1px solid #eee; transition: background 0.2s; }
+        .pend-item:last-child { border-bottom: none; }
+        .pend-item:hover { background: #f8f9fa; }
+        .pend-item.has-error { border-left: 4px solid var(--accent-color); background: #fff5f5; }
+        .pend-item-header {
+            display: flex;
+            align-items: center;
+            padding: 12px 14px;
+            gap: 10px;
+            cursor: pointer;
+        }
+        .pend-item-header input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; flex-shrink: 0; }
+        .pend-item-info { flex: 1; min-width: 0; }
+        .pend-item-info .titulo {
+            font-weight: 700;
+            color: var(--dark-color);
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .pend-item-info .meta { font-size: 0.8rem; color: #6c757d; margin-top: 3px; }
+        .badge-origen {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .badge-origen.principal { background: #eaf2f8; color: #2874a6; border: 1px solid #aed6f1; }
+        .badge-origen.permisos { background: #fef5e7; color: #b9770e; border: 1px solid #f9e79f; }
+        .pend-expand-icon { color: #999; font-size: 0.85rem; transition: transform 0.2s ease; }
+        .pend-item.expanded .pend-expand-icon { transform: rotate(90deg); }
+        .pend-item-detail {
+            display: none;
+            padding: 8px 14px 14px 42px;
+            background: #fafbfc;
+            font-size: 0.85rem;
+            color: #444;
+            border-top: 1px dashed #eee;
+        }
+        .pend-item.expanded .pend-item-detail { display: block; }
+        .empty-state { text-align: center; padding: 40px 20px; color: #6c757d; }
+        .empty-state i { font-size: 3rem; margin-bottom: 12px; color: #bdc3c7; display: block; }
+
+        .btn-sincronizar {
+            background: linear-gradient(to right, var(--success-color), #27ae60);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 22px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-sincronizar:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
+        .btn-sincronizar:disabled { background: #ccc; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        .btn-delete-sel {
+            background: #fdecea;
+            color: var(--accent-color);
+            border: 1px solid #f5c6cb;
+            border-radius: 6px;
+            padding: 8px 14px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .btn-delete-sel:hover:not(:disabled) { background: var(--accent-color); color: white; }
+        .btn-delete-sel:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .swal2-container { z-index: 20000 !important; }
+
+        @media (max-width: 768px) {
+            .conexion-indicator, .header-btn { width: 38px; height: 38px; font-size: 0.9rem; }
+            .modal-sync-content { max-height: 90vh; }
+            .modal-sync-footer { flex-direction: column; align-items: stretch; }
+        }
+        @media (max-width: 480px) {
+            .conexion-indicator, .header-btn { width: 34px; height: 34px; font-size: 0.82rem; }
+            .header { font-size: 1.1rem; padding: 12px 10px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="main-content" style="display: none;">
+        <!-- ENCABEZADO STICKY -->
+        <div class="header">
+            <div class="header-left">
+                <button id="btn-descargar-servidor" class="header-btn" title="Actualizar datos del sistema">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+            <div class="header-title">Pisos Brillantes</div>
+            <div class="header-actions">
+                <!-- BOTÓN ASISTENCIA PENDIENTE (IZQUIERDA DE PERMISOS) -->
+                <button id="btn-asistencia-header" class="header-btn asistencia-btn" style="display: none;" title="Asistencia pendiente de hoy">
+                    <i class="fas fa-calendar-check"></i>
+                    <span id="badge-asistencia" class="badge-pendientes">1</span>
+                </button>
+
+                <!-- BOTÓN PERMISOS PENDIENTES -->
+                <button id="btn-permisos-header" class="header-btn permisos-btn" style="display: none;" title="Solicitudes de permiso pendientes">
+                    <i class="fas fa-clock"></i>
+                    <span id="badge-permisos" class="badge-pendientes">0</span>
+                </button>
+
+                <!-- INDICADOR WIFI -->
+                <div class="conexion-indicator online" id="conexion-indicator">
+                    <i class="fas fa-wifi" id="conexion-icon"></i>
+                    <div class="conexion-tooltip" id="conexion-tooltip">Conectado a internet</div>
+                </div>
+
+                <!-- BOTÓN PENDIENTES / SINCRONIZAR -->
+                <button id="btn-sync" class="header-btn" title="Revisar y sincronizar pendientes">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <span id="badge-pendientes" class="badge-pendientes" style="display: none;">0</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- BANNER MODO OFFLINE -->
+        <div class="offline-banner" id="offline-banner">
+            <i class="fas fa-plug-circle-xmark"></i> Modo offline: puedes seguir registrando cambios. Se sincronizarán cuando vuelva la conexión.
+        </div>
+
+        <div class="container">
+            <h1>Gestión de Empleados</h1>
+
+            <div class="card">
+                <div class="card-body p-0">
+                    <ul class="nav nav-tabs" id="myTab" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="dashboard-tab" data-bs-toggle="tab" data-bs-target="#dashboard" type="button" role="tab">
+                                <i class="fas fa-home me-2"></i>Dashboard
+                            </button>
+                        </li>
+
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false">
+                                <i class="fas fa-users me-2"></i>Colaboradores
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item open-iframe" data-title="Registrar Colaborador" data-icon="fas fa-user-plus" data-url="pages/registrar-colaborador.html"><i class="fas fa-user-plus me-2"></i>Registrar Colaborador</a></li>
+                                <li><a class="dropdown-item open-iframe" data-title="Personal Activo" data-icon="fas fa-address-book" data-url="pages/personal-activo.html"><i class="fas fa-address-book me-2"></i>Personal Activo</a></li>
+                                <li><a class="dropdown-item open-iframe" data-title="Planilla Quincenal" data-icon="fas fa-calendar-alt" data-url="pages/planilla-quincenal.html"><i class="fas fa-calendar-alt me-2"></i>Planilla Quincenal</a></li>
+                                <li><a class="dropdown-item open-iframe" data-title="Control de Asistencia" data-icon="fas fa-clipboard-list" data-url="pages/control-asistencia.html"><i class="fas fa-clipboard-list me-2"></i>Control de Asistencia</a></li>
+                                <li><a class="dropdown-item open-iframe" data-title="Vencimiento de Contratos" data-icon="fas fa-file-signature" data-url="pages/vencimiento-contratos.html"><i class="fas fa-file-signature me-2"></i>Vencimiento de Contratos</a></li>
+                                <li><a class="dropdown-item open-iframe" data-title="Colaboradores Egresados" data-icon="fas fa-user-slash" data-url="pages/egresados.html"><i class="fas fa-user-slash me-2"></i>Colaboradores Egresados</a></li>
+                                <li><a class="dropdown-item open-iframe" data-title="Tasa de Rotación" data-icon="fas fa-chart-line" data-url="pages/rotacion.html"><i class="fas fa-chart-line me-2"></i>Tasa de Rotación</a></li>
+                            </ul>
+                        </li>
+
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false">
+                                <i class="fas fa-clock me-2"></i>Ausentismo
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item open-iframe" data-title="Registrar Ausencia" data-icon="fas fa-user-clock" data-url="pages/registrar-ausencia.html"><i class="fas fa-user-clock me-2"></i>Registrar Ausencia</a></li>
+                                <li><a class="dropdown-item open-iframe" data-title="Historial de Ausencias" data-icon="fas fa-history" data-url="pages/historial-ausencias.html"><i class="fas fa-history me-2"></i>Historial de Ausencias</a></li>
+                            </ul>
+                        </li>
+
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false">
+                                <i class="fas fa-clipboard-check me-2"></i>Desempeño
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item open-iframe" data-title="Historial de Disciplina" data-icon="fas fa-gavel" data-url="pages/disciplina.html"><i class="fas fa-gavel me-2"></i>Historial de Disciplina</a></li>
+                                <li><a class="dropdown-item open-iframe" data-title="Historial de Evaluaciones" data-icon="fas fa-chart-bar" data-url="pages/evaluaciones.html"><i class="fas fa-chart-bar me-2"></i>Historial de Evaluaciones</a></li>
+                            </ul>
+                        </li>
+
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false">
+                                <i class="fas fa-exclamation-triangle me-2"></i>Incidentes
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item open-iframe" data-title="Registrar Incidente" data-icon="fas fa-edit" data-url="pages/registrar-incidente.html"><i class="fas fa-edit me-2"></i>Registrar Incidente</a></li>
+                                <li><a class="dropdown-item open-iframe" data-title="Historial de Incidentes" data-icon="fas fa-history" data-url="pages/historial-incidentes.html"><i class="fas fa-history me-2"></i>Historial de Incidentes</a></li>
+                            </ul>
+                        </li>
+
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false">
+                                <i class="fas fa-envelope me-2"></i>Mensajería
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item open-iframe" data-title="Buzón de Sugerencias" data-icon="fas fa-comment-dots" data-url="pages/buzon-sugerencias.html"><i class="fas fa-comment-dots me-2"></i>Buzón de Sugerencias</a></li>
+                                <li><a class="dropdown-item open-iframe" data-title="Gestión de Permisos" data-icon="fas fa-file-alt" data-url="pages/gestion-permisos.html"><i class="fas fa-file-alt me-2"></i>Gestión de Permisos</a></li>
+                                <li><a class="dropdown-item open-iframe" data-title="Progreso de Evaluaciones" data-icon="fas fa-graduation-cap" data-url="pages/examenes.html"><i class="fas fa-graduation-cap me-2"></i>Progreso de Evaluaciones</a></li>
+                                <li><a class="dropdown-item open-iframe" data-title="Registro de Encuestas" data-icon="fas fa-clipboard-list" data-url="pages/encuestas.html"><i class="fas fa-clipboard-list me-2"></i>Registro de Encuestas</a></li>
+                            </ul>
+                        </li>
+
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="cumpleaneros-tab" data-bs-toggle="tab" data-bs-target="#cumpleaneros" type="button" role="tab">
+                                <i class="fas fa-birthday-cake me-2"></i>Cumpleañeros
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="myTabContent">
+                        <!-- DASHBOARD -->
+                        <div class="tab-pane fade show active" id="dashboard" role="tabpanel" aria-labelledby="dashboard-tab">
+                            <div class="tab-title">
+                                <h2>Resumen de Colaboradores</h2>
+                            </div>
+
+                            <div class="dashboard-grid">
+                                <div class="stat-card personnel-card">
+                                    <div class="icon text-primary"><i class="fas fa-users"></i></div>
+                                    <p>Personal</p>
+                                    <div class="personnel-content">
+                                        <div class="personnel-item">
+                                            <i class="fas fa-users" style="color:var(--primary-color);"></i>
+                                            <span id="total-activos">0</span>
+                                            <small>Activos</small>
+                                        </div>
+                                        <div class="personnel-item">
+                                            <i class="fas fa-user-check" style="color:var(--success-color);"></i>
+                                            <span id="presentes-hoy">0</span>
+                                            <small>Presentes</small>
+                                        </div>
+                                        <div class="personnel-item">
+                                            <i class="fas fa-user-clock" style="color:#0dcaf0;"></i>
+                                            <span id="ausencias-hoy">0</span>
+                                            <small>Ausentes</small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="stat-card demographics-card">
+                                    <div class="icon text-primary"><i class="fas fa-venus-mars"></i></div>
+                                    <p>Demografía</p>
+                                    <div class="demographics-content">
+                                        <div class="demo-item">
+                                            <i class="fas fa-male" style="color:#3498db;"></i>
+                                            <span id="dash-hombres">0</span>
+                                        </div>
+                                        <div class="demo-item">
+                                            <i class="fas fa-female" style="color:#e91e63;"></i>
+                                            <span id="dash-mujeres">0</span>
+                                        </div>
+                                        <div class="demo-item">
+                                            <i class="fas fa-birthday-cake" style="color:#f39c12;"></i>
+                                            <span id="dash-edad">0</span>
+                                            <small>Años (Prom)</small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="stat-card" style="background-color: #e8f8f5;">
+                                    <div class="icon text-success"><i class="fas fa-shield-alt"></i></div>
+                                    <h3 id="dashboard-dias-sin-incidentes">0</h3>
+                                    <p>Días sin Incidentes</p>
+                                </div>
+
+                                <div class="stat-card" style="background-color: #fff3cd;">
+                                    <div class="icon text-warning"><i class="fas fa-chart-line"></i></div>
+                                    <h3 id="rotacion-mes-dashboard">0%</h3>
+                                    <p>Rotación del Mes</p>
+                                </div>
+
+                                <div class="stat-card" style="background-color: #d4edda;">
+                                    <div class="icon text-success"><i class="fas fa-percent"></i></div>
+                                    <h3 id="asistencia-mes-dashboard">0%</h3>
+                                    <p>% Asistencia del Mes</p>
+                                </div>
+
+                                <div class="stat-card" style="background-color: #d1ecf1;">
+                                    <div class="icon text-info"><i class="fas fa-calendar-day"></i></div>
+                                    <h3 id="ausentismo-mes-dashboard">0%</h3>
+                                    <p>% Ausentismo del Mes</p>
+                                </div>
+
+                                <div class="stat-card" style="background-color: #f8d7da;">
+                                    <div class="icon text-danger"><i class="fas fa-gavel"></i></div>
+                                    <h3 id="disciplina-mes-dashboard">0%</h3>
+                                    <p>% Acciones Disciplinarias (Mes)</p>
+                                </div>
+
+                                <div class="stat-card" style="background-color: #d4edda;">
+                                    <div class="icon text-success"><i class="fas fa-clipboard-check"></i></div>
+                                    <h3 id="evaluacion-mes-dashboard">0%</h3>
+                                    <p>% Aprobación Evaluaciones (Mes)</p>
+                                </div>
+                            </div>
+
+                            <div class="card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <span><i class="fas fa-user-plus me-2"></i>Últimos 5 Ingresos Registrados</span>
+                                    <button class="btn btn-success btn-sm" id="btn-ver-todos-ingresos" title="Ver todos los ingresos">
+                                        <i class="fas fa-list me-1"></i>Ver todos
+                                    </button>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-striped table-hover" id="tabla-ultimos-ingresos">
+                                            <thead>
+                                                <tr>
+                                                    <th>Fecha</th>
+                                                    <th>Nombre</th>
+                                                    <th>Identidad</th>
+                                                    <th>Fecha Nacimiento</th>
+                                                    <th>Sexo</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <span><i class="fas fa-user-minus me-2"></i>Últimos 5 Egresos Registrados</span>
+                                    <button class="btn btn-danger btn-sm" id="btn-ver-todos-egresos" title="Ver todos los egresos">
+                                        <i class="fas fa-list me-1"></i>Ver todos
+                                    </button>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-striped table-hover" id="tabla-ultimos-egresos">
+                                            <thead>
+                                                <tr>
+                                                    <th>Fecha Egreso</th>
+                                                    <th>Nombre</th>
+                                                    <th>Identidad</th>
+                                                    <th>Razón</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- CUMPLEAÑEROS -->
+                        <div class="tab-pane fade" id="cumpleaneros" role="tabpanel" aria-labelledby="cumpleaneros-tab">
+                            <div class="tab-title">
+                                <h2>Cumpleañeros del Mes</h2>
+                            </div>
+                            <div id="contenedor-cumpleaneros" class="row"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL IFRAME PARA SUBPÁGINAS -->
+    <div class="modal fade" id="modalSubpagina" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header d-flex justify-content-between align-items-center">
+                    <h5 class="modal-title m-0" id="modalSubpaginaTitulo">
+                        <i class="fas fa-window-maximize me-2"></i><span>Submódulo</span>
+                    </h5>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-warning text-dark" id="modal-badge-pendientes" style="display:none; cursor:pointer;" title="Abrir gestor de envíos pendientes">
+                            <i class="fas fa-cloud-upload-alt me-1"></i><span id="modal-pendientes-count">0</span> pendiente(s)
+                        </span>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                </div>
+                <div class="modal-body">
+                    <iframe id="iframeSubpagina" src="about:blank"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL SYNC -->
+    <div class="modal-sync-overlay" id="modal-sync">
+        <div class="modal-sync-content">
+            <div class="modal-sync-header">
+                <h2><i class="fas fa-sync-alt"></i> Gestor de Envíos Pendientes</h2>
+                <button class="close-modal-sync" id="close-modal-sync" onclick="cerrarModalSync()">&times;</button>
+            </div>
+            <div class="modal-sync-body">
+                <div class="toolbar-lista">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <input type="checkbox" id="check-all-pendientes" style="width:18px; height:18px; cursor:pointer;">
+                        <label for="check-all-pendientes" style="font-weight:600; font-size:0.9rem; cursor:pointer; margin:0;">Seleccionar Todos</label>
+                    </div>
+                    <button class="btn-delete-sel" id="btn-delete-sel" onclick="eliminarSeleccionados()" disabled>
+                        <i class="fas fa-trash-alt"></i> Eliminar Selección
+                    </button>
+                </div>
+                <div class="lista-scrollable" id="lista-pendientes"></div>
+            </div>
+            <div class="modal-sync-footer">
+                <span id="contador-pendientes" style="font-weight:600; color: var(--dark-color);">0 pendientes</span>
+                <div>
+                    <button class="btn-sincronizar" id="btn-sincronizar-seleccionados" onclick="sincronizarSeleccionados()" disabled>
+                        <i class="fas fa-cloud-upload-alt"></i> Sincronizar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- OVERLAY LOADING -->
+    <div id="overlay">
+        <div class="spinner"></div>
+        <div id="loadingMessage">
+            <h4>Por favor espera un momento...</h4>
+            <p></p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/db.js"></script>
+    <script src="js/sync.js"></script>
+
+    <script>
+        let datosLocales = {
+            activos: [], ingresos: [], egresos: [], ausencias: [],
+            disciplina: [], evaluaciones: [], incidentes: [], horasExtras: [], asistencia: []
+        };
+        let solicitudesPermisos = [];
+        let modalSubpaginaInstance = null;
+        let sincronizando = false;
+        let isOnline = navigator.onLine;
+
+        // Reemplazar mensajes genéricos en PB_SYNC para evitar referencias externas
+        if (typeof PB_SYNC !== 'undefined') {
+            const origDescargar = PB_SYNC.descargarDesdeServidor.bind(PB_SYNC);
+            PB_SYNC.descargarDesdeServidor = async function(mostrarOverlay = true) {
+                const res = await origDescargar(mostrarOverlay);
+                return res;
+            };
+        }
+
+        document.addEventListener('DOMContentLoaded', checkSession);
+
+        function checkSession() {
+            const sessionKey = 'passwordSessionTimestamp';
+            const sessionStart = localStorage.getItem(sessionKey);
+            if (sessionStart && (Date.now() - parseInt(sessionStart, 10) < 24 * 60 * 60 * 1000)) {
+                $('#main-content').show();
+                initializeApp();
+                return;
+            }
+            Swal.fire({
+                title: 'Acceso Restringido',
+                html: 'Por favor, ingrese la contraseña para continuar.',
+                input: 'password',
+                inputPlaceholder: 'Contraseña',
+                confirmButtonText: 'Ingresar',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                backdrop: 'rgba(43, 62, 80, 0.8)',
+                preConfirm: (password) => {
+                    if (password !== APP_PASSWORD) {
+                        Swal.showValidationMessage('Contraseña incorrecta');
+                        return false;
+                    }
+                    return password;
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    localStorage.setItem(sessionKey, Date.now().toString());
+                    $('#main-content').show();
+                    initializeApp();
+                }
+            });
+        }
+
+        async function initializeApp() {
+            modalSubpaginaInstance = new bootstrap.Modal(document.getElementById('modalSubpagina'));
+            configurarEventos();
+            actualizarEstadoConexion();
+
+            await cargarVistaDesdeIndexedDB();
+            await actualizarBadgePendientes();
+
+            const cachePrincipal = await PB_DB.obtenerCache('principal');
+            const pendientes = await PB_DB.contarPendientes();
+
+            if (!cachePrincipal && navigator.onLine) {
+                const ok = await PB_SYNC.descargarDesdeServidor(true);
+                if (ok) await cargarVistaDesdeIndexedDB();
+            } else if (pendientes === 0 && navigator.onLine) {
+                PB_SYNC.descargarDesdeServidor(false).then(ok => {
+                    if (ok) cargarVistaDesdeIndexedDB();
+                });
+            }
+
+            // Verificar permisos cada 5 minutos si hay conexión
+            setInterval(async () => {
+                if (!navigator.onLine) return;
+                const pendPerm = (await PB_DB.obtenerPendientes()).filter(p => p.destino === 'permisos');
+                if (pendPerm.length > 0) return;
+                try {
+                    const resp = await fetch(PERMISOS_GESTION_URL + '?accion=listar&t=' + Date.now());
+                    const data = await resp.json();
+                    if (data && data.success) {
+                        await PB_DB.guardarCache('permisos', data.solicitudes || []);
+                        solicitudesPermisos = data.solicitudes || [];
+                        actualizarBadgePermisos();
+                    }
+                } catch (e) {}
+            }, 300000);
+        }
+
+        async function cargarVistaDesdeIndexedDB() {
+            datosLocales = await PB_DB.obtenerDatosPrincipales();
+            const permCache = await PB_DB.obtenerCache('permisos');
+            solicitudesPermisos = permCache ? (permCache.datos || []) : [];
+
+            actualizarDashboard();
+            mostrarCumpleanerosDelMes();
+            verificarAsistenciaHoy();
+            actualizarBadgePermisos();
+            actualizarEstadoConexion();
+        }
+
+        // ==================== CONEXIÓN Y BADGES EN ENCABEZADO ====================
+        function actualizarEstadoConexion() {
+            isOnline = navigator.onLine;
+            const indicator = document.getElementById('conexion-indicator');
+            const icon = document.getElementById('conexion-icon');
+            const tooltip = document.getElementById('conexion-tooltip');
+            const banner = document.getElementById('offline-banner');
+            const btnSync = document.getElementById('btn-sync');
+
+            if (isOnline) {
+                indicator.className = 'conexion-indicator online';
+                icon.className = 'fas fa-wifi';
+                const fechaAct = datosLocales.updatedAt ? ` (${new Date(datosLocales.updatedAt).toLocaleTimeString('es-ES')})` : '';
+                tooltip.textContent = 'Conectado a internet' + fechaAct;
+                banner.classList.remove('active');
+                btnSync.title = 'Revisar y sincronizar pendientes';
+            } else {
+                indicator.className = 'conexion-indicator offline';
+                icon.className = 'fas fa-plug-circle-xmark';
+                tooltip.textContent = 'Sin conexión - Modo offline';
+                banner.classList.add('active');
+                btnSync.title = 'Sin conexión - No se puede sincronizar';
+            }
+            actualizarBotonesSel();
+        }
+
+        async function actualizarBadgePendientes() {
+            const count = await PB_DB.contarPendientes();
+            const badge = document.getElementById('badge-pendientes');
+            if (count > 0) {
+                badge.textContent = count > 99 ? '99+' : count;
+                badge.style.display = 'flex';
+                $('#modal-pendientes-count').text(count);
+                $('#modal-badge-pendientes').show();
+            } else {
+                badge.style.display = 'none';
+                $('#modal-badge-pendientes').hide();
+            }
+        }
+
+        function configurarEventos() {
+            window.addEventListener('online', actualizarEstadoConexion);
+            window.addEventListener('offline', actualizarEstadoConexion);
+
+            if (syncChannel) {
+                syncChannel.onmessage = async () => {
+                    await cargarVistaDesdeIndexedDB();
+                    await actualizarBadgePendientes();
+                };
+            }
+            window.addEventListener('message', async (event) => {
+                if (event.data && event.data.tipo === 'PB_DB_EVENT') {
+                    await cargarVistaDesdeIndexedDB();
+                    await actualizarBadgePendientes();
+                }
+            });
+
+            // Abrir subpáginas en Modal Iframe
+            $(document).on('click', '.open-iframe', function(e) {
+                e.preventDefault();
+                const url = $(this).data('url');
+                const title = $(this).data('title');
+                const icon = $(this).data('icon');
+
+                $('#modalSubpaginaTitulo').html(`<i class="${icon} me-2"></i><span>${title}</span>`);
+                $('#iframeSubpagina').attr('src', url);
+                modalSubpaginaInstance.show();
+            });
+
+            document.getElementById('modalSubpagina').addEventListener('hidden.bs.modal', async function() {
+                $('#iframeSubpagina').attr('src', 'about:blank');
+                await cargarVistaDesdeIndexedDB();
+                await actualizarBadgePendientes();
+            });
+
+            // Botón actualizar datos del servidor
+            $('#btn-descargar-servidor').on('click', async () => {
+                if (!navigator.onLine) {
+                    return Swal.fire('Sin conexión', 'No hay internet para actualizar los datos desde el servidor.', 'warning');
+                }
+                const pendCount = await PB_DB.contarPendientes();
+                if (pendCount > 0) {
+                    const conf = await Swal.fire({
+                        title: 'Tienes cambios sin sincronizar',
+                        html: `Hay <strong>${pendCount} cambio(s)</strong> pendientes por sincronizar.<br>Sincroniza primero para no sobrescribir la vista local.`,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Abrir Pendientes',
+                        cancelButtonText: 'Cancelar'
+                    });
+                    if (conf.isConfirmed) abrirModalSync();
+                    return;
+                }
+
+                $('#overlay').css('display', 'flex');
+                $('#loadingMessage p').text('Actualizando información desde el servidor...');
+                try {
+                    const resp = await fetch(SCRIPT_URL_OBTENER + '?t=' + Date.now());
+                    const data = await resp.json();
+                    if (data.error) throw new Error(data.mensaje || data.error);
+
+                    await PB_DB.guardarCache('principal', {
+                        activos: (data.activos || []).map(corregirFecha),
+                        ingresos: (data.ingresos || []).map(corregirFecha),
+                        egresos: (data.egresos || []).map(corregirFecha),
+                        ausencias: (data.ausencias || []).map(corregirFecha),
+                        disciplina: (data.disciplina || []).map(corregirFecha),
+                        evaluaciones: (data.evaluaciones || []).map(corregirFecha),
+                        incidentes: (data.incidentes || []).map(corregirFecha),
+                        horasExtras: (data.horasExtras || []).map(corregirFecha),
+                        asistencia: (data.asistencia || []).map(corregirFecha)
+                    });
+
+                    try {
+                        const rPerm = await fetch(PERMISOS_GESTION_URL + '?accion=listar&t=' + Date.now());
+                        const dPerm = await rPerm.json();
+                        if (dPerm && dPerm.success) await PB_DB.guardarCache('permisos', dPerm.solicitudes || []);
+                    } catch (e) {}
+
+                    await cargarVistaDesdeIndexedDB();
+                    await actualizarBadgePendientes();
+                    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Datos actualizados', showConfirmButton: false, timer: 1600 });
+                } catch (err) {
+                    Swal.fire('Error', 'No se pudo actualizar la información: ' + err.message, 'error');
+                } finally {
+                    $('#overlay').hide();
+                    $('#loadingMessage p').text('');
+                }
+            });
+
+            // Gestor de envíos pendientes
+            $('#btn-sync, #modal-badge-pendientes').on('click', abrirModalSync);
+
+            $('#check-all-pendientes').on('change', function() {
+                document.querySelectorAll('.check-pend').forEach(c => c.checked = this.checked);
+                actualizarBotonesSel();
+            });
+            $(document).on('change', '.check-pend', actualizarBotonesSel);
+
+            // Botón de asistencia pendiente en encabezado
+            $('#btn-asistencia-header').on('click', () => {
+                Swal.fire({
+                    title: '⚠️ Registro de Asistencia Pendiente',
+                    html: `
+                        <div style="text-align: left; padding: 5px 0;">
+                            <p style="font-size: 0.95rem; color: #2c3e50; margin-bottom: 12px;">
+                                <i class="fas fa-info-circle text-warning me-2"></i>
+                                <strong>Importante:</strong> La asistencia de hoy <strong>no ha sido registrada</strong>.
+                            </p>
+                            <div style="background: #f8f9fa; border-radius: 10px; padding: 15px; border-left: 4px solid #f39c12;">
+                                <p style="font-size: 0.9rem; color: #2c3e50; margin-bottom: 8px;">
+                                    <i class="fas fa-clock me-2 text-primary"></i>
+                                    <strong>¿Cuándo registrar?</strong>
+                                </p>
+                                <p style="font-size: 0.85rem; color: #7f8c8d; margin: 0;">
+                                    Al <strong>final del día</strong>, desde <strong>Colaboradores → Control de Asistencia</strong>, después de haber actualizado ausencias, ingresos y egresos.
+                                </p>
+                            </div>
+                        </div>`,
+                    icon: 'warning',
+                    showConfirmButton: true,
+                    confirmButtonText: 'Ir a Control de Asistencia',
+                    showCancelButton: true,
+                    cancelButtonText: 'Cerrar',
+                    width: '520px'
+                }).then(res => {
+                    if (res.isConfirmed) {
+                        $('#modalSubpaginaTitulo').html('<i class="fas fa-clipboard-list me-2"></i><span>Control de Asistencia</span>');
+                        $('#iframeSubpagina').attr('src', 'pages/control-asistencia.html');
+                        modalSubpaginaInstance.show();
+                    }
+                });
+            });
+
+            // Botón de permisos pendientes en encabezado
+            $('#btn-permisos-header').on('click', () => {
+                $('#modalSubpaginaTitulo').html('<i class="fas fa-file-alt me-2"></i><span>Gestión de Permisos</span>');
+                $('#iframeSubpagina').attr('src', 'pages/gestion-permisos.html');
+                modalSubpaginaInstance.show();
+            });
+
+            $('#btn-ver-todos-ingresos').on('click', mostrarTodosLosIngresos);
+            $('#btn-ver-todos-egresos').on('click', mostrarTodosLosEgresos);
+        }
+
+        // ==================== MODAL SYNC ====================
+        function escapeHtml(s) {
+            if (s === null || s === undefined) return '';
+            return String(s).replace(/[&<>"']/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[m]));
+        }
+
+        async function abrirModalSync() {
+            const pend = await PB_DB.obtenerPendientes();
+            const lista = document.getElementById('lista-pendientes');
+            const contador = document.getElementById('contador-pendientes');
+            document.getElementById('check-all-pendientes').checked = false;
+
+            contador.textContent = `${pend.length} pendiente${pend.length !== 1 ? 's' : ''}`;
+
+            if (pend.length === 0) {
+                lista.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <h3 style="font-size:1rem;">No hay cambios pendientes</h3>
+                        <p style="font-size:0.85rem;">Los cambios que guardes aparecerán aquí para sincronizar con el servidor.</p>
+                    </div>`;
+                actualizarBotonesSel();
+                document.getElementById('modal-sync').classList.add('active');
+                return;
+            }
+
+            lista.innerHTML = '';
+            pend.forEach((req, idx) => {
+                const fechaStr = new Date(req.timestamp).toLocaleString('es-ES');
+                const item = document.createElement('div');
+                item.className = 'pend-item' + (req.estado === 'error' ? ' has-error' : '');
+                item.dataset.id = req.id;
+
+                const origenTexto = req.destino === 'permisos' ? 'Permisos' : 'General';
+                const origenClase = req.destino === 'permisos' ? 'permisos' : 'principal';
+                const badgeFotos = (req.fotos && req.fotos.length > 0)
+                    ? `<span class="badge bg-info text-dark" style="font-size:0.7rem;"><i class="fas fa-camera me-1"></i>${req.fotos.length} foto(s)</span>`
+                    : '';
+
+                let detailHtml = `<div><strong>Operación:</strong> <code>${escapeHtml(req.accion)}</code></div>`;
+                if (req.detalle) detailHtml += `<div><strong>Detalle:</strong> ${escapeHtml(req.detalle)}</div>`;
+                if (req.estado === 'error' && req.errorMsg) {
+                    detailHtml += `<div class="text-danger mt-1"><strong>Error previo:</strong> ${escapeHtml(req.errorMsg)}</div>`;
+                }
+
+                item.innerHTML = `
+                    <div class="pend-item-header">
+                        <input type="checkbox" class="check-pend" value="${req.id}" checked>
+                        <div class="pend-item-info">
+                            <div class="titulo">
+                                <span class="badge-origen ${origenClase}">${origenTexto}</span>
+                                <span>#${idx + 1} ${escapeHtml(req.titulo)}</span>
+                                ${badgeFotos}
+                            </div>
+                            <div class="meta">
+                                ${req.detalle ? `${escapeHtml(req.detalle)} &nbsp;·&nbsp; ` : ''}
+                                <i class="fas fa-clock"></i> ${fechaStr}
+                            </div>
+                        </div>
+                        <i class="fas fa-chevron-right pend-expand-icon"></i>
+                    </div>
+                    <div class="pend-item-detail">${detailHtml}</div>
+                `;
+
+                const header = item.querySelector('.pend-item-header');
+                const checkbox = item.querySelector('.check-pend');
+                header.addEventListener('click', (e) => {
+                    if (e.target === checkbox) return;
+                    item.classList.toggle('expanded');
+                });
+                lista.appendChild(item);
+            });
+
+            document.getElementById('modal-sync').classList.add('active');
+            actualizarBotonesSel();
+        }
+
+        function cerrarModalSync() {
+            if (sincronizando) return;
+            document.getElementById('modal-sync').classList.remove('active');
+        }
+
+        function actualizarBotonesSel() {
+            const seleccionados = document.querySelectorAll('.check-pend:checked').length;
+            const total = document.querySelectorAll('.check-pend').length;
+            const btnSinc = document.getElementById('btn-sincronizar-seleccionados');
+            const btnDel = document.getElementById('btn-delete-sel');
+            const checkAll = document.getElementById('check-all-pendientes');
+
+            if (btnSinc) {
+                btnSinc.disabled = seleccionados === 0 || sincronizando || !isOnline;
+                btnSinc.title = !isOnline ? 'Sin conexión - No se puede sincronizar' : 'Sincronizar pendientes seleccionados';
+            }
+            if (btnDel) btnDel.disabled = seleccionados === 0 || sincronizando;
+            if (checkAll) {
+                checkAll.checked = total > 0 && seleccionados === total;
+                checkAll.disabled = sincronizando || total === 0;
+            }
+        }
+
+        async function sincronizarSeleccionados() {
+            if (sincronizando) return;
+            if (!navigator.onLine) {
+                Swal.fire({
+                    title: 'Sin conexión',
+                    text: 'No hay conexión a internet. Los cambios siguen guardados localmente.',
+                    icon: 'warning',
+                    confirmButtonColor: '#f39c12'
+                });
+                return;
+            }
+
+            const ids = Array.from(document.querySelectorAll('.check-pend:checked')).map(c => parseInt(c.value, 10));
+            if (ids.length === 0) return;
+
+            const pend = await PB_DB.obtenerPendientes();
+            const aEnviar = pend.filter(r => ids.includes(r.id)).sort((a, b) => a.id - b.id);
+
+            sincronizando = true;
+            const btn = document.getElementById('btn-sincronizar-seleccionados');
+            const btnDel = document.getElementById('btn-delete-sel');
+            const closeBtn = document.getElementById('close-modal-sync');
+            const originalHtml = btn.innerHTML;
+
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sincronizando...';
+            btn.disabled = true;
+            btnDel.disabled = true;
+            closeBtn.disabled = true;
+            document.getElementById('check-all-pendientes').disabled = true;
+            document.querySelectorAll('.check-pend').forEach(c => c.disabled = true);
+
+            let exitosos = 0;
+            let conError = 0;
+
+            for (const item of aEnviar) {
+                try {
+                    await PB_SYNC._procesarItem(item);
+                    await PB_DB.eliminarPendiente(item.id);
+                    exitosos++;
+                } catch (err) {
+                    console.error('Error sincronizando item #' + item.id, err);
+                    await PB_DB.actualizarEstadoPendiente(item.id, 'error', err.message || 'Error desconocido');
+                    conError++;
+                    break;
+                }
+            }
+
+            sincronizando = false;
+            btn.innerHTML = originalHtml;
+            closeBtn.disabled = false;
+            document.getElementById('modal-sync').classList.remove('active');
+
+            if (exitosos > 0) {
+                await PB_SYNC.descargarDesdeServidor(false);
+            }
+            await cargarVistaDesdeIndexedDB();
+            await actualizarBadgePendientes();
+            actualizarEstadoConexion();
+
+            if (conError === 0) {
+                await Swal.fire({
+                    title: 'Sincronización Exitosa',
+                    html: `<p>Se sincronizaron <strong>${exitosos}</strong> cambio(s) correctamente.</p>`,
+                    icon: 'success',
+                    confirmButtonColor: '#28a745'
+                });
+            } else {
+                await Swal.fire({
+                    title: exitosos > 0 ? 'Sincronización Parcial' : 'Error al Sincronizar',
+                    html: `<p>Sincronizados: <strong>${exitosos}</strong> · Con error: <strong>${conError}</strong></p>
+                           <p class="small text-muted">Abre el gestor de pendientes y haz clic sobre el registro en rojo para ver el detalle del error.</p>`,
+                    icon: 'warning',
+                    confirmButtonColor: '#f39c12'
+                });
+            }
+        }
+
+        async function eliminarSeleccionados() {
+            if (sincronizando) return;
+            const ids = Array.from(document.querySelectorAll('.check-pend:checked')).map(c => parseInt(c.value, 10));
+            if (ids.length === 0) return;
+
+            const r = await Swal.fire({
+                title: '¿Descartar cambios?',
+                html: `Se eliminarán <strong>${ids.length}</strong> cambio(s) pendiente(s) sin enviarlos al servidor.<br>
+                       <small class="text-muted">Si deseas revertir también la vista local, presiona luego el botón de actualizar en el encabezado.</small>`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#e74c3c',
+                confirmButtonText: 'Sí, descartar',
+                cancelButtonText: 'Cancelar'
+            });
+            if (!r.isConfirmed) return;
+
+            for (const id of ids) {
+                await PB_DB.eliminarPendiente(id);
+            }
+            await actualizarBadgePendientes();
+            abrirModalSync();
+        }
+
+        // ==================== DASHBOARD Y CUMPLEAÑEROS ====================
+        function actualizarDashboard() {
+            const { activos, ingresos, egresos, ausencias, disciplina, evaluaciones, incidentes, asistencia } = datosLocales;
+            const totalActivos = activos.length;
+            $('#total-activos').text(totalActivos);
+
+            const hombres = activos.filter(c => c.sexo === 'Masculino').length;
+            const mujeres = totalActivos - hombres;
+
+            let sumaEdades = 0, conEdad = 0;
+            activos.forEach(col => {
+                const edad = calcularEdad(col.fechaNacimiento);
+                if (edad !== null) { sumaEdades += edad; conEdad++; }
+            });
+
+            $('#dash-hombres').text(hombres);
+            $('#dash-mujeres').text(mujeres);
+            $('#dash-edad').text(conEdad > 0 ? Math.round(sumaEdades / conEdad) : 0);
+            $('#dashboard-dias-sin-incidentes').text(getDiasSinIncidentes(incidentes));
+
+            const hoy = new Date();
+            const hoyStr = getHoyStr();
+            const ausenciasHoy = ausencias.filter(a => hoyStr >= a.fecha && hoyStr <= (a.fechaFin || a.fecha)).length;
+            $('#ausencias-hoy').text(ausenciasHoy);
+            $('#presentes-hoy').text(Math.max(0, totalActivos - ausenciasHoy));
+
+            const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+            const finMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
+            const rotacionMes = calcularRotacionUnificada(activos, egresos, inicioMes, hoy);
+            $('#rotacion-mes-dashboard').text(rotacionMes.porcentaje + '%');
+
+            const asistenciaMes = asistencia.filter(reg => {
+                const f = new Date(reg.fecha + 'T00:00:00');
+                return f.getMonth() === hoy.getMonth() && f.getFullYear() === hoy.getFullYear();
+            });
+            if (asistenciaMes.length > 0) {
+                const promPresentes = asistenciaMes.reduce((s, r) => s + r.presentes, 0) / asistenciaMes.length;
+                $('#asistencia-mes-dashboard').text(Math.min(100, (promPresentes / META_ASISTENCIA) * 100).toFixed(1) + '%');
+            } else {
+                $('#asistencia-mes-dashboard').text('0%');
+            }
+
+            let diasAusMes = 0;
+            ausencias.forEach(a => {
+                const ini = new Date(a.fecha + 'T00:00:00');
+                const fin = new Date((a.fechaFin || a.fecha) + 'T00:00:00');
+                const interIni = ini < inicioMes ? inicioMes : ini;
+                const interFin = fin > finMes ? finMes : fin;
+                if (interIni <= interFin) diasAusMes += Math.ceil((interFin - interIni) / 86400000) + 1;
+            });
+            let diasHabiles = 0;
+            for (let d = new Date(inicioMes); d <= finMes; d.setDate(d.getDate() + 1)) {
+                if (d.getDay() >= 1 && d.getDay() <= 5) diasHabiles++;
+            }
+            const posibles = totalActivos * diasHabiles;
+            $('#ausentismo-mes-dashboard').text((posibles > 0 ? (diasAusMes / posibles) * 100 : 0).toFixed(2) + '%');
+
+            if (totalActivos > 0) {
+                const accionesMes = disciplina.filter(d => new Date(d.fechaFalta + 'T00:00:00') >= inicioMes).length;
+                $('#disciplina-mes-dashboard').text(((accionesMes / totalActivos) * 100).toFixed(2) + '%');
+
+                const evalsMes = evaluaciones.filter(e => new Date(e.fechaEvaluacion + 'T00:00:00') >= inicioMes);
+                if (evalsMes.length > 0) {
+                    const aprobadas = evalsMes.filter(e => parseFloat(e.notaFinal) >= 70).length;
+                    $('#evaluacion-mes-dashboard').text(((aprobadas / evalsMes.length) * 100).toFixed(2) + '%');
+                } else {
+                    $('#evaluacion-mes-dashboard').text('0.00%');
+                }
+            } else {
+                $('#disciplina-mes-dashboard').text('0.00%');
+                $('#evaluacion-mes-dashboard').text('0.00%');
+            }
+
+            const ultIngresos = [...ingresos].sort((a, b) => new Date(b.fechaInicio) - new Date(a.fechaInicio)).slice(0, 5);
+            const tbodyIng = $('#tabla-ultimos-ingresos tbody').empty();
+            ultIngresos.forEach(ing => {
+                const badgePend = ing._pendienteSync ? ' <span class="badge-offline-pending">Pendiente</span>' : '';
+                tbodyIng.append(`
+                    <tr>
+                        <td>${formatearFecha(ing.fechaInicio)}</td>
+                        <td>${ing.nombre}${badgePend}</td>
+                        <td>${ing.identidad}</td>
+                        <td>${formatearFecha(ing.fechaNacimiento)}</td>
+                        <td>${ing.sexo}</td>
+                    </tr>`);
+            });
+
+            const ultEgresos = [...egresos].sort((a, b) => new Date(b.fechaEgreso) - new Date(a.fechaEgreso)).slice(0, 5);
+            const tbodyEg = $('#tabla-ultimos-egresos tbody').empty();
+            ultEgresos.forEach(eg => {
+                const badgePend = eg._pendienteSync ? ' <span class="badge-offline-pending">Pendiente</span>' : '';
+                tbodyEg.append(`
+                    <tr>
+                        <td>${formatearFecha(eg.fechaEgreso)}</td>
+                        <td>${eg.nombre}${badgePend}</td>
+                        <td>${eg.identidad}</td>
+                        <td>${eg.razon}</td>
+                    </tr>`);
+            });
+        }
+
+        function mostrarCumpleanerosDelMes() {
+            const mesActual = new Date().getMonth();
+            const cumpleaneros = datosLocales.activos
+                .filter(col => col.fechaNacimiento && new Date(col.fechaNacimiento + 'T00:00:00').getMonth() === mesActual)
+                .sort((a, b) => new Date(a.fechaNacimiento + 'T00:00:00').getDate() - new Date(b.fechaNacimiento + 'T00:00:00').getDate());
+
+            const contenedor = $('#contenedor-cumpleaneros').empty();
+            if (cumpleaneros.length === 0) {
+                contenedor.html('<div class="col-12"><p class="text-center text-muted">No hay cumpleaños este mes.</p></div>');
+                return;
+            }
+
+            const nombreMes = new Date(2000, mesActual).toLocaleString('es-ES', { month: 'long' });
+            cumpleaneros.forEach(col => {
+                const dia = new Date(col.fechaNacimiento + 'T00:00:00').getDate();
+                const fotoHtml = col.fotoUrl
+                    ? `<img src="${col.fotoUrl}" class="cumpleanero-img" alt="${col.nombre}">`
+                    : `<i class="fas fa-user-circle cumpleanero-img-icon"></i>`;
+
+                contenedor.append(`
+                    <div class="col-lg-3 col-md-4 col-sm-6 col-6 mb-4 d-flex align-items-stretch">
+                        <div class="cumpleanero-card w-100">
+                            <div class="cumpleanero-img-container">${fotoHtml}</div>
+                            <div class="cumpleanero-info">
+                                <h5>${col.nombre}</h5>
+                                <p><i class="fas fa-birthday-cake"></i> ${dia} de ${nombreMes}</p>
+                            </div>
+                        </div>
+                    </div>`);
+            });
+        }
+
+        // ==================== TODOS LOS INGRESOS / EGRESOS ====================
+        function mostrarTodosLosIngresos() {
+            const ingresosOrdenados = [...datosLocales.ingresos].sort((a, b) => new Date(b.fechaInicio) - new Date(a.fechaInicio));
+            if (ingresosOrdenados.length === 0) return Swal.fire('Sin Datos', 'No hay registros de ingresos.', 'info');
+
+            const isMobile = window.innerWidth < 576;
+            const fotoSize = isMobile ? '45px' : '55px';
+
+            let html = `
+                <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0;">
+                    <div style="margin-bottom: 15px;">
+                        <input type="text" id="filtro-ingresos-modal" class="form-control" placeholder="🔍 Buscar por nombre o identidad..."
+                               style="border-radius: 10px; padding: 10px 15px; border: 2px solid #e9ecef; font-size: 0.9rem;">
+                    </div>
+                    <div id="lista-ingresos-modal" style="max-height: 500px; overflow-y: auto; padding-right: 5px;">`;
+
+            ingresosOrdenados.forEach(ing => {
+                const fotoSrc = ing.fotoUrl || `https://ui-avatars.com/api/?name=${ing.nombre.replace(/\s/g, "+")}&background=3498db&color=fff&size=100`;
+                const edad = ing.fechaNacimiento ? calcularEdad(ing.fechaNacimiento) : null;
+                const edadInfo = edad !== null ? `<span class="badge bg-info" style="font-size: 0.65rem; background: rgba(52, 152, 219, 0.15) !important; color: #2c3e50;"><i class="fas fa-birthday-cake me-1"></i>${edad} años</span>` : '';
+
+                html += `
+                    <div class="resumen-disciplina-item" data-identidad="${ing.identidad}"
+                         style="cursor: pointer; border-bottom: 1px solid #f0f0f0; padding: 12px 15px; display: flex; align-items: center; gap: 15px; border-radius: 8px; margin-bottom: 2px;">
+                        <img src="${fotoSrc}" class="resumen-disciplina-img" style="width:${fotoSize};height:${fotoSize};border-radius:50%;object-fit:cover;border:2px solid #2ecc71;flex-shrink:0;" onerror="this.src='https://ui-avatars.com/api/?name=${ing.nombre.replace(/\s/g, "+")}&background=3498db&color=fff&size=100'">
+                        <div class="resumen-disciplina-info" style="flex: 1; min-width: 0; text-align: left;">
+                            <h6 style="margin: 0; font-weight: 700; color: #2c3e50; font-size: 0.95rem;">${ing.nombre}</h6>
+                            <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; align-items: center;">
+                                <span style="font-size: 0.75rem; color: #7f8c8d;"><i class="fas fa-id-card me-1"></i>${ing.identidad}</span>
+                                <span style="font-size: 0.75rem; color: #7f8c8d;"><i class="fas fa-calendar-plus me-1"></i>${formatearFecha(ing.fechaInicio)}</span>
+                                ${ing.sexo ? `<span style="font-size: 0.75rem; color: #7f8c8d;"><i class="fas ${ing.sexo === 'Masculino' ? 'fa-mars' : 'fa-venus'} me-1"></i>${ing.sexo}</span>` : ''}
+                                ${edadInfo}
+                            </div>
+                        </div>
+                        <span class="badge" style="background: #2ecc71; color: white; padding: 5px 12px; font-size: 0.7rem; border-radius: 20px;"><i class="fas fa-user-plus me-1"></i>Ingreso</span>
+                    </div>`;
+            });
+            html += `</div></div>`;
+
+            Swal.fire({
+                title: '<i class="fas fa-user-plus text-success me-2"></i>Todos los Ingresos Registrados',
+                html,
+                width: isMobile ? '95%' : '700px',
+                showCloseButton: true,
+                showConfirmButton: false,
+                didOpen: () => {
+                    $('#filtro-ingresos-modal').on('input', function() {
+                        const q = $(this).val().toLowerCase();
+                        $('#lista-ingresos-modal .resumen-disciplina-item').each(function() {
+                            $(this).toggle($(this).find('h6').text().toLowerCase().includes(q) || $(this).data('identidad').toLowerCase().includes(q));
+                        });
+                    });
+                    $(document).on('click.ingModal', '#lista-ingresos-modal .resumen-disciplina-item', function() {
+                        const col = datosLocales.ingresos.find(c => c.identidad === $(this).data('identidad'));
+                        if (col) { Swal.close(); mostrarDetalleIngresoCompleto(col); }
+                    });
+                },
+                willClose: () => $(document).off('click.ingModal')
+            });
+        }
+
+        function mostrarDetalleIngresoCompleto(colaborador) {
+            const fotoSrc = colaborador.fotoUrl || `https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=3498db&color=fff&size=200`;
+            const edad = colaborador.fechaNacimiento ? calcularEdad(colaborador.fechaNacimiento) : null;
+            const movil = String(colaborador.movil || '').trim();
+            const ce = String(colaborador.contactoEmergencia || '').trim();
+            const me = String(colaborador.movilEmergencia || '').trim();
+
+            Swal.fire({
+                title: null,
+                width: '550px',
+                showCloseButton: true,
+                showConfirmButton: false,
+                html: `
+                    <div style="text-align: center;">
+                        <div style="position: relative; display: inline-block;">
+                            <img src="${fotoSrc}" style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover; border: 4px solid #2ecc71;">
+                            <div style="position: absolute; bottom: 0; right: 0; background: #2ecc71; color: white; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: 3px solid white;"><i class="fas fa-user-plus"></i></div>
+                        </div>
+                        <h3 style="margin-top: 15px; margin-bottom: 5px; color: #2c3e50; font-weight: 700;">${colaborador.nombre}</h3>
+                        <p style="color: #7f8c8d; margin-bottom: 10px;"><i class="fas fa-id-card me-1"></i>${colaborador.identidad}</p>
+                        <div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
+                            <span class="badge bg-success" style="font-size: 1rem; padding: 8px 20px;"><i class="fas fa-calendar-plus me-2"></i>${formatearFecha(colaborador.fechaInicio)}</span>
+                            ${colaborador.sexo ? `<span class="badge ${colaborador.sexo === 'Masculino' ? 'bg-primary' : 'bg-danger'}" style="font-size: 1rem; padding: 8px 20px;">${colaborador.sexo}</span>` : ''}
+                            ${edad !== null ? `<span class="badge bg-info" style="font-size: 1rem; padding: 8px 20px;">${edad} años</span>` : ''}
+                        </div>
+                        ${(movil || ce || me) ? `<div style="margin-top:15px;padding:15px;background:#f8f9fa;border-radius:12px;">
+                            <h6 class="text-muted">Datos de Contacto</h6>
+                            ${movil ? `<p class="mb-1"><strong>Móvil:</strong> ${movil}</p>` : ''}
+                            ${ce ? `<p class="mb-1"><strong>Contacto Emergencia:</strong> ${ce}</p>` : ''}
+                            ${me ? `<p class="mb-0"><strong>Móvil Emergencia:</strong> ${me}</p>` : ''}
+                        </div>` : ''}
+                    </div>`
+            });
+        }
+
+        function mostrarTodosLosEgresos() {
+            const egresosOrdenados = [...datosLocales.egresos].sort((a, b) => new Date(b.fechaEgreso) - new Date(a.fechaEgreso));
+            if (egresosOrdenados.length === 0) return Swal.fire('Sin Datos', 'No hay registros de egresos.', 'info');
+
+            const isMobile = window.innerWidth < 576;
+            const fotoSize = isMobile ? '45px' : '55px';
+
+            let html = `
+                <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0;">
+                    <div style="margin-bottom: 15px;">
+                        <input type="text" id="filtro-egresos-modal" class="form-control" placeholder="🔍 Buscar por nombre o identidad..."
+                               style="border-radius: 10px; padding: 10px 15px; border: 2px solid #e9ecef; font-size: 0.9rem;">
+                    </div>
+                    <div id="lista-egresos-modal" style="max-height: 500px; overflow-y: auto; padding-right: 5px;">`;
+
+            egresosOrdenados.forEach(eg => {
+                const fotoSrc = eg.fotoUrl || `https://ui-avatars.com/api/?name=${eg.nombre.replace(/\s/g, "+")}&background=e74c3c&color=fff&size=100`;
+                const edad = eg.fechaNacimiento ? calcularEdad(eg.fechaNacimiento) : null;
+                const edadInfo = edad !== null ? `<span class="badge bg-info" style="font-size: 0.65rem; background: rgba(52, 152, 219, 0.15) !important; color: #2c3e50;"><i class="fas fa-birthday-cake me-1"></i>${edad} años</span>` : '';
+
+                let motivoColor = '#e74c3c', motivoIcono = 'fa-user-minus';
+                if (eg.razon === 'Renuncia') { motivoColor = '#f39c12'; motivoIcono = 'fa-hand-peace'; }
+                else if (eg.razon === 'Fin de Contrato') { motivoColor = '#3498db'; motivoIcono = 'fa-file-contract'; }
+                else if (eg.razon === 'Despido') { motivoColor = '#e74c3c'; motivoIcono = 'fa-ban'; }
+                else if (eg.razon === 'Abandono') { motivoColor = '#e67e22'; motivoIcono = 'fa-sign-out-alt'; }
+                else if (eg.razon === 'Denegación de Período de Prueba') { motivoColor = '#9b59b6'; motivoIcono = 'fa-times-circle'; }
+
+                html += `
+                    <div class="resumen-disciplina-item" data-identidad="${eg.identidad}"
+                         style="cursor: pointer; border-bottom: 1px solid #f0f0f0; padding: 12px 15px; display: flex; align-items: center; gap: 15px; border-radius: 8px; margin-bottom: 2px;">
+                        <img src="${fotoSrc}" class="resumen-disciplina-img" style="width:${fotoSize};height:${fotoSize};border-radius:50%;object-fit:cover;border:2px solid ${motivoColor};flex-shrink:0;" onerror="this.src='https://ui-avatars.com/api/?name=${eg.nombre.replace(/\s/g, "+")}&background=e74c3c&color=fff&size=100'">
+                        <div class="resumen-disciplina-info" style="flex: 1; min-width: 0; text-align: left;">
+                            <h6 style="margin: 0; font-weight: 700; color: #2c3e50; font-size: 0.95rem;">${eg.nombre}</h6>
+                            <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; align-items: center;">
+                                <span style="font-size: 0.75rem; color: #7f8c8d;"><i class="fas fa-id-card me-1"></i>${eg.identidad}</span>
+                                <span style="font-size: 0.75rem; color: #7f8c8d;"><i class="fas fa-calendar-times me-1"></i>${formatearFecha(eg.fechaEgreso)}</span>
+                                ${eg.sexo ? `<span style="font-size: 0.75rem; color: #7f8c8d;"><i class="fas ${eg.sexo === 'Masculino' ? 'fa-mars' : 'fa-venus'} me-1"></i>${eg.sexo}</span>` : ''}
+                                ${edadInfo}
+                            </div>
+                        </div>
+                        <span class="badge" style="background: ${motivoColor}; color: white; padding: 5px 12px; font-size: 0.7rem; border-radius: 20px;"><i class="fas ${motivoIcono} me-1"></i>${eg.razon}</span>
+                    </div>`;
+            });
+            html += `</div></div>`;
+
+            Swal.fire({
+                title: '<i class="fas fa-user-minus text-danger me-2"></i>Todos los Egresos Registrados',
+                html,
+                width: isMobile ? '95%' : '700px',
+                showCloseButton: true,
+                showConfirmButton: false,
+                didOpen: () => {
+                    $('#filtro-egresos-modal').on('input', function() {
+                        const q = $(this).val().toLowerCase();
+                        $('#lista-egresos-modal .resumen-disciplina-item').each(function() {
+                            $(this).toggle($(this).find('h6').text().toLowerCase().includes(q) || $(this).data('identidad').toLowerCase().includes(q));
+                        });
+                    });
+                    $(document).on('click.egModal', '#lista-egresos-modal .resumen-disciplina-item', function() {
+                        const col = datosLocales.egresos.find(c => c.identidad === $(this).data('identidad'));
+                        if (col) { Swal.close(); mostrarDetalleEgresoCompleto(col); }
+                    });
+                },
+                willClose: () => $(document).off('click.egModal')
+            });
+        }
+
+        function mostrarDetalleEgresoCompleto(colaborador) {
+            const fotoSrc = colaborador.fotoUrl || `https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=e74c3c&color=fff&size=200`;
+            const edad = colaborador.fechaNacimiento ? calcularEdad(colaborador.fechaNacimiento) : null;
+            const movil = String(colaborador.movil || '').trim();
+            const ce = String(colaborador.contactoEmergencia || '').trim();
+            const me = String(colaborador.movilEmergencia || '').trim();
+
+            Swal.fire({
+                title: null,
+                width: '550px',
+                showCloseButton: true,
+                showConfirmButton: false,
+                html: `
+                    <div style="text-align: center;">
+                        <div style="position: relative; display: inline-block;">
+                            <img src="${fotoSrc}" style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover; border: 4px solid #e74c3c;">
+                            <div style="position: absolute; bottom: 0; right: 0; background: #e74c3c; color: white; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: 3px solid white;"><i class="fas fa-user-minus"></i></div>
+                        </div>
+                        <h3 style="margin-top: 15px; margin-bottom: 5px; color: #2c3e50; font-weight: 700;">${colaborador.nombre}</h3>
+                        <p style="color: #7f8c8d; margin-bottom: 10px;"><i class="fas fa-id-card me-1"></i>${colaborador.identidad}</p>
+                        <div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
+                            <span class="badge bg-danger" style="font-size: 1rem; padding: 8px 20px;"><i class="fas fa-calendar-times me-2"></i>${formatearFecha(colaborador.fechaEgreso)}</span>
+                            <span class="badge bg-warning text-dark" style="font-size: 1rem; padding: 8px 20px;"><i class="fas fa-info-circle me-2"></i>${colaborador.razon}</span>
+                            ${colaborador.sexo ? `<span class="badge ${colaborador.sexo === 'Masculino' ? 'bg-primary' : 'bg-danger'}" style="font-size: 1rem; padding: 8px 20px;">${colaborador.sexo}</span>` : ''}
+                            ${edad !== null ? `<span class="badge bg-info" style="font-size: 1rem; padding: 8px 20px;">${edad} años</span>` : ''}
+                        </div>
+                        ${(movil || ce || me) ? `<div style="margin-top:15px;padding:15px;background:#f8f9fa;border-radius:12px;">
+                            <h6 class="text-muted">Datos de Contacto</h6>
+                            ${movil ? `<p class="mb-1"><strong>Móvil:</strong> ${movil}</p>` : ''}
+                            ${ce ? `<p class="mb-1"><strong>Contacto Emergencia:</strong> ${ce}</p>` : ''}
+                            ${me ? `<p class="mb-0"><strong>Móvil Emergencia:</strong> ${me}</p>` : ''}
+                        </div>` : ''}
+                    </div>`
+            });
+        }
+
+        // ==================== ASISTENCIA Y PERMISOS EN ENCABEZADO ====================
+        function verificarAsistenciaHoy() {
+            const existe = datosLocales.asistencia.some(reg => reg.fecha === getHoyStr());
+            $('#btn-asistencia-header').css('display', existe ? 'none' : 'flex');
+        }
+
+        function actualizarBadgePermisos() {
+            const cantidad = solicitudesPermisos.filter(p => p.estado === 'Pendiente').length;
+            $('#badge-permisos').text(cantidad > 99 ? '99+' : cantidad);
+            $('#btn-permisos-header').css('display', cantidad > 0 ? 'flex' : 'none');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Colaboradores Egresados</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="subpage-body">
+    <div class="container-fluid">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <span class="text-muted small"><i class="fas fa-user-slash me-1"></i>Total Egresados: <strong id="conteo-egresados">0</strong></span>
+            <button class="btn btn-outline-secondary btn-sm" id="btn-refrescar-local">
+                <i class="fas fa-sync-alt me-1"></i>Refrescar vista
+            </button>
+        </div>
+
+        <div class="search-container">
+            <i class="fas fa-search"></i>
+            <input type="text" class="form-control" id="buscador-egresados-tabla" placeholder="Buscar por nombre o identidad...">
+        </div>
+
+        <div id="grid-egresados" class="row g-3"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/db.js"></script>
+    <script>
+        let datos = { activos: [], egresos: [], ausencias: [], disciplina: [], evaluaciones: [], incidentes: [] };
+        let colaboradoresActivos = [];
+        let colaboradoresEgresos = [];
+        let ausencias = [];
+        let disciplina = [];
+        let evaluaciones = [];
+        let incidentes = [];
+
+        $(document).ready(async function() {
+            await cargarYRenderizar();
+
+            $('#buscador-egresados-tabla').on('input', filtrarEgresadosTabla);
+            $('#btn-refrescar-local').on('click', cargarYRenderizar);
+
+            $(document).on('click', '.btn-historial-egresado', function(e) {
+                e.stopPropagation();
+                mostrarDetalleColaboradorCompleto($(this).data('identidad'), true);
+            });
+            $(document).on('click', '.btn-contacto-egresado', function(e) {
+                e.stopPropagation();
+                mostrarContactosEgresado($(this).data('identidad'));
+            });
+            $(document).on('click', '.btn-reingreso', function(e) {
+                e.stopPropagation();
+                reingresarColaborador($(this).data('identidad'));
+            });
+
+            if (syncChannel) {
+                syncChannel.onmessage = cargarYRenderizar;
+            }
+        });
+
+        async function cargarYRenderizar() {
+            datos = await PB_DB.obtenerDatosPrincipales();
+            colaboradoresActivos = datos.activos || [];
+            colaboradoresEgresos = datos.egresos || [];
+            ausencias = datos.ausencias || [];
+            disciplina = datos.disciplina || [];
+            evaluaciones = datos.evaluaciones || [];
+            incidentes = datos.incidentes || [];
+
+            mostrarColaboradoresEgresados();
+            filtrarEgresadosTabla();
+        }
+
+        function mostrarColaboradoresEgresados() {
+            const gridEgresadosContainer = $('#grid-egresados').empty();
+            $('#conteo-egresados').text(colaboradoresEgresos.length);
+
+            if (colaboradoresEgresos.length === 0) {
+                gridEgresadosContainer.html('<div class="col-12"><p class="text-center text-muted py-5">No hay colaboradores egresados.</p></div>');
+                return;
+            }
+
+            [...colaboradoresEgresos].sort((a, b) => new Date(b.fechaEgreso) - new Date(a.fechaEgreso)).forEach(egreso => {
+                const movil = (egreso.movil !== undefined && egreso.movil !== null) ? String(egreso.movil).trim() : '';
+                const contactoEmergencia = (egreso.contactoEmergencia !== undefined && egreso.contactoEmergencia !== null) ? String(egreso.contactoEmergencia).trim() : '';
+                const movilEmergencia = (egreso.movilEmergencia !== undefined && egreso.movilEmergencia !== null) ? String(egreso.movilEmergencia).trim() : '';
+
+                const tieneContacto = movil !== '' || contactoEmergencia !== '' || movilEmergencia !== '';
+                const botonContactoClase = tieneContacto ? 'btn-primary' : 'btn-secondary';
+                const botonContactoDisabled = tieneContacto ? '' : 'disabled';
+                const botonContactoTitulo = tieneContacto ? 'Ver Contactos' : 'Sin información de contacto';
+
+                const fotoHtml = egreso.fotoUrl
+                    ? `<img src="${egreso.fotoUrl}" alt="${egreso.nombre}" style="cursor: pointer;" onerror="this.parentElement.innerHTML = '<i class=\\'fas fa-user-circle\\' style=\\'cursor: pointer;\\'></i>';">`
+                    : `<i class="fas fa-user-circle" style="cursor: pointer;"></i>`;
+
+                const badgePend = egreso._pendienteSync
+                    ? `<div class="mb-1"><span class="badge-offline-pending"><i class="fas fa-clock me-1"></i>Pendiente Sync</span></div>`
+                    : '';
+
+                gridEgresadosContainer.append(`
+                    <div class="col-lg-2 col-md-3 col-sm-4 col-6 empleado-card-grid-item" data-identidad="${egreso.identidad}">
+                        <div class="empleado-card-mini">
+                            <div class="img-container" style="cursor: pointer;"
+                                 onclick="mostrarFotoPorIdentidadEgresado('${egreso.identidad}')"
+                                 ondblclick="mostrarFotoCompletaPorIdentidadEgresado('${egreso.identidad}')">
+                                ${fotoHtml}
+                            </div>
+                            <h6>${egreso.nombre}</h6>
+                            <p>${egreso.identidad}</p>
+                            ${badgePend}
+                            <p class="small text-danger" style="font-weight: 500;">
+                                <i class="fas fa-calendar-times me-1"></i> ${formatearFecha(egreso.fechaEgreso)}
+                                <br>
+                                <i class="fas fa-info-circle me-1"></i> ${egreso.razon}
+                            </p>
+                            <div class="actions">
+                                <button class="btn btn-secondary btn-sm btn-action btn-historial-egresado" data-identidad="${egreso.identidad}" title="Ver Historial"><i class="fas fa-history"></i></button>
+                                <button class="btn ${botonContactoClase} btn-sm btn-action btn-contacto-egresado"
+                                        data-identidad="${egreso.identidad}"
+                                        title="${botonContactoTitulo}"
+                                        ${botonContactoDisabled}>
+                                    <i class="fas fa-phone-alt"></i>
+                                </button>
+                                <button class="btn btn-success btn-sm btn-action btn-reingreso" data-identidad="${egreso.identidad}" title="Reingresar Colaborador"><i class="fas fa-user-plus"></i></button>
+                            </div>
+                        </div>
+                    </div>`);
+            });
+        }
+
+        function filtrarEgresadosTabla() {
+            const texto = $('#buscador-egresados-tabla').val().toLowerCase().trim();
+            if (texto === '') {
+                $('#grid-egresados .empleado-card-grid-item').show();
+                return;
+            }
+            $('#grid-egresados .empleado-card-grid-item').each(function() {
+                const $item = $(this);
+                const nombre = $item.find('h6').text().toLowerCase();
+                const identidad = $item.find('p').first().text().toLowerCase();
+                $item.toggle(nombre.includes(texto) || identidad.includes(texto));
+            });
+        }
+
+        // ==================== 1. VISTA PREVIA DE FOTO (DISEÑO ORIGINAL) ====================
+        function mostrarFotoPorIdentidadEgresado(identidad) {
+            const colaborador = colaboradoresEgresos.find(col => col.identidad === identidad);
+            if (colaborador) mostrarFoto(colaborador);
+        }
+
+        function mostrarFotoCompletaPorIdentidadEgresado(identidad) {
+            const colaborador = colaboradoresEgresos.find(col => col.identidad === identidad);
+            if (colaborador) mostrarFotoCompleta(colaborador);
+        }
+
+        function mostrarFoto(colaborador) {
+            const esEgresado = true;
+            const tieneFoto = colaborador.fotoUrl && colaborador.fotoUrl.trim() !== '';
+            const isMobile = window.innerWidth < 576;
+
+            const estadoColor = '#e74c3c';
+            const estadoBg = 'rgba(231, 76, 60, 0.1)';
+            const estadoIcono = 'fa-user-slash';
+
+            let fotoHtml = '';
+            if (tieneFoto) {
+                const nombreEscapado = colaborador.nombre.replace(/'/g, "\\'");
+                const urlEscapada = colaborador.fotoUrl.replace(/'/g, "\\'");
+                fotoHtml = `
+                    <div style="position: relative; display: inline-block; width: 100%; max-width: 500px; margin: 0 auto;">
+                        <img src="${colaborador.fotoUrl}" alt="${colaborador.nombre}"
+                             style="width: 100%; height: auto; max-height: 60vh; border-radius: 16px;
+                                    box-shadow: 0 20px 60px rgba(0,0,0,0.3); border: 4px solid rgba(255,255,255,0.1);
+                                    object-fit: contain; display: block;"
+                             onerror="this.onerror=null; this.style.display='none'; this.parentElement.querySelector('.error-fallback').style.display='flex';">
+                        <button onclick="abrirFotoCompletaSimple('${urlEscapada}', '${nombreEscapado}')"
+                                style="position: absolute; top: 12px; right: 12px;
+                                       background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.2);
+                                       color: white; padding: 8px 10px; border-radius: 50%;
+                                       font-size: 0.9rem; cursor: pointer; transition: all 0.3s;
+                                       display: flex; align-items: center; justify-content: center;
+                                       backdrop-filter: blur(8px); width: 38px; height: 38px;"
+                                onmouseover="this.style.background='rgba(255,255,255,0.2)'; this.style.transform='scale(1.1)';"
+                                onmouseout="this.style.background='rgba(0,0,0,0.6)'; this.style.transform='scale(1)';"
+                                title="Ver en pantalla completa">
+                            <i class="fas fa-expand" style="font-size: 0.9rem;"></i>
+                        </button>
+                        <div class="error-fallback" style="display: none; flex-direction: column; align-items: center; justify-content: center; padding: 40px; background: #f8f9fa; border-radius: 16px; min-height: 250px;">
+                            <i class="fas fa-user-circle" style="font-size: 80px; color: #bdc3c7; margin-bottom: 15px;"></i>
+                            <p style="color: #7f8c8d; font-size: 1.1rem;">No se pudo cargar la imagen</p>
+                        </div>
+                    </div>`;
+            } else {
+                fotoHtml = `
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; background: #f8f9fa; border-radius: 16px; min-height: 200px;">
+                        <i class="fas fa-user-circle" style="font-size: 80px; color: #bdc3c7; margin-bottom: 12px;"></i>
+                        <p style="color: #7f8c8d; font-size: 1rem;">No hay foto disponible</p>
+                        <p style="color: #95a5a6; font-size: 0.8rem; margin-top: 3px;">El colaborador no tiene una foto registrada</p>
+                    </div>`;
+            }
+
+            let edad = '';
+            if (colaborador.fechaNacimiento) {
+                const edadCalculada = calcularEdad(colaborador.fechaNacimiento);
+                if (edadCalculada !== null) edad = edadCalculada;
+            }
+            const fechaInicio = colaborador.fechaInicio ? formatearFecha(colaborador.fechaInicio) : '';
+
+            const modalHtml = `
+                <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0; overflow: hidden; background: #1a1a2e; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.5);">
+                    <div style="background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460); border-radius: 16px 16px 0 0; padding: ${isMobile ? '12px 16px' : '16px 22px'}; color: white; position: relative; overflow: hidden;">
+                        <div style="position: absolute; top: -50%; right: -20%; width: 150px; height: 150px; background: radial-gradient(circle, rgba(52, 152, 219, 0.1) 0%, transparent 70%); border-radius: 50%;"></div>
+                        <div style="position: absolute; bottom: -40%; left: -10%; width: 130px; height: 130px; background: radial-gradient(circle, rgba(46, 204, 113, 0.08) 0%, transparent 70%); border-radius: 50%;"></div>
+
+                        <div style="display: flex; align-items: center; gap: ${isMobile ? '10px' : '15px'}; flex-wrap: wrap; position: relative; z-index: 1; justify-content: flex-start;">
+                            <div style="flex-shrink: 0;">
+                                <div style="width: ${isMobile ? '38px' : '44px'}; height: ${isMobile ? '38px' : '44px'}; background: ${estadoBg}; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid ${estadoColor};">
+                                    <i class="fas ${estadoIcono}" style="font-size: ${isMobile ? '16px' : '20px'}; color: ${estadoColor};"></i>
+                                </div>
+                            </div>
+
+                            <div style="flex: 1; min-width: 100px; text-align: left;">
+                                <h3 style="margin: 0; font-weight: 700; font-size: ${isMobile ? '0.95rem' : '1.1rem'}; letter-spacing: -0.5px; background: linear-gradient(135deg, #fff, #a8d8ea); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; text-align: left;">
+                                    ${colaborador.nombre}
+                                </h3>
+                                <div style="margin-top: 3px; display: flex; flex-wrap: wrap; gap: 3px; justify-content: flex-start;">
+                                    <span class="badge" style="background: rgba(255,255,255,0.12); padding: 2px 8px; font-size: 0.6rem;">
+                                        <i class="fas fa-id-card me-1"></i>${colaborador.identidad}
+                                    </span>
+                                    ${fechaInicio ? `<span class="badge" style="background: rgba(46, 204, 113, 0.15); color: #2ecc71; border: 1px solid #2ecc71; padding: 2px 8px; font-size: 0.6rem;">
+                                        <i class="fas fa-calendar-plus me-1"></i>${fechaInicio}
+                                    </span>` : ''}
+                                    ${esEgresado && colaborador.fechaEgreso ? `<span class="badge" style="background: rgba(231, 76, 60, 0.15); color: #e74c3c; border: 1px solid #e74c3c; padding: 2px 8px; font-size: 0.55rem;">
+                                        <i class="fas fa-arrow-right me-1"></i>${formatearFecha(colaborador.fechaEgreso)}
+                                    </span>` : ''}
+                                    ${edad ? `<span class="badge" style="background: rgba(241, 196, 15, 0.2); padding: 2px 8px; font-size: 0.6rem;">
+                                        <i class="fas fa-birthday-cake me-1"></i>${edad} años
+                                    </span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="padding: ${isMobile ? '5px 0' : '10px 0'}; text-align: center; background: #0a0a0a; border-radius: 0 0 16px 16px; overflow: hidden;">
+                        ${fotoHtml}
+                    </div>
+                </div>`;
+
+            Swal.fire({
+                title: null,
+                html: modalHtml,
+                width: window.innerWidth < 576 ? '95%' : '550px',
+                showCloseButton: true,
+                showConfirmButton: false,
+                background: 'transparent',
+                backdrop: 'rgba(0, 0, 0, 0.8)',
+                customClass: {
+                    popup: 'animated fadeInDown',
+                    closeButton: 'btn-close-white'
+                },
+                didOpen: () => {
+                    window.abrirFotoCompletaSimple = function(url, nombre) {
+                        Swal.fire({
+                            title: nombre,
+                            html: `
+                                <div style="display: flex; align-items: center; justify-content: center; background: #0a0a0a; border-radius: 12px; padding: 10px;">
+                                    <img src="${url}"
+                                         style="max-width: 100%; max-height: 80vh; border-radius: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.5);"
+                                         onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=${nombre.replace(/\s/g, '+')}&background=e74c3c&color=fff&size=500';">
+                                </div>`,
+                            width: '95%',
+                            showCloseButton: true,
+                            showConfirmButton: false,
+                            background: 'transparent',
+                            backdrop: 'rgba(0, 0, 0, 0.9)',
+                            customClass: {
+                                popup: 'animated fadeInDown',
+                                closeButton: 'btn-close-white'
+                            }
+                        });
+                    };
+                },
+                willClose: () => {
+                    delete window.abrirFotoCompletaSimple;
+                }
+            });
+        }
+
+        function mostrarFotoCompleta(colaborador) {
+            if (!colaborador.fotoUrl || colaborador.fotoUrl.trim() === '') {
+                mostrarFoto(colaborador);
+                return;
+            }
+            Swal.fire({
+                title: colaborador.nombre,
+                html: `
+                    <div style="display: flex; align-items: center; justify-content: center; background: #0a0a0a; border-radius: 12px; padding: 10px;">
+                        <img src="${colaborador.fotoUrl}" alt="${colaborador.nombre}"
+                             style="max-width: 100%; max-height: 80vh; border-radius: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.5);"
+                             onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, '+')}&background=e74c3c&color=fff&size=500';">
+                    </div>`,
+                width: '95%',
+                showCloseButton: true,
+                showConfirmButton: false,
+                background: 'transparent',
+                backdrop: 'rgba(0, 0, 0, 0.9)',
+                customClass: {
+                    popup: 'animated fadeInDown',
+                    closeButton: 'btn-close-white'
+                }
+            });
+        }
+
+        // ==================== 2. HISTORIAL COMPLETO DE EGRESADO (DISEÑO ORIGINAL) ====================
+        function mostrarDetalleColaboradorCompleto(identidad, esEgresado = true) {
+            const colaborador = esEgresado
+                ? colaboradoresEgresos.find(c => c.identidad === identidad)
+                : colaboradoresActivos.find(c => c.identidad === identidad);
+
+            if (!colaborador) return;
+
+            const historialAusencias = ausencias.filter(d => d.identidad === identidad).sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
+            const historialDisciplina = disciplina.filter(d => d.identidad === identidad).sort((a,b) => new Date(b.fechaFalta) - new Date(a.fechaFalta));
+            const historialEvaluaciones = evaluaciones.filter(d => d.identidad === identidad).sort((a,b) => new Date(a.fechaEvaluacion) - new Date(b.fechaEvaluacion));
+            const historialIncidentes = incidentes.filter(d => d.identidad === identidad).sort((a,b) => new Date(b.fechaIncidente) - new Date(a.fechaIncidente));
+
+            const estadoColor = esEgresado ? '#e74c3c' : '#2ecc71';
+            const estadoIcono = esEgresado ? 'fa-user-slash' : 'fa-user-check';
+            const fotoSrc = colaborador.fotoUrl || `https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=3498db&color=fff&size=200&font-size=0.5`;
+
+            let edad = '';
+            if (colaborador.fechaNacimiento) {
+                const edadCalculada = calcularEdad(colaborador.fechaNacimiento);
+                if (edadCalculada !== null) edad = edadCalculada;
+            }
+
+            function generarContenidoAusencias() {
+                if (historialAusencias.length === 0) {
+                    return `
+                        <div class="text-center py-5">
+                            <div style="width: 60px; height: 60px; background: rgba(46, 204, 113, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;">
+                                <i class="fas fa-calendar-check" style="font-size: 28px; color: #2ecc71;"></i>
+                            </div>
+                            <h6 style="color: #2c3e50; font-weight: 600; margin: 0; font-size: 0.95rem;">Sin Ausencias</h6>
+                            <p style="color: #95a5a6; font-size: 0.8rem; margin: 4px 0 0;">No hay ausencias registradas</p>
+                        </div>`;
+                }
+                let html = '<div style="max-height: 350px; overflow-y: auto; padding-right: 5px; text-align: left;">';
+                historialAusencias.forEach((a, index) => {
+                    const fechaFin = a.fechaFin && a.fechaFin !== a.fecha ? ` → ${formatearFecha(a.fechaFin)}` : '';
+                    let badgeColor = 'secondary';
+                    if (a.motivo === 'Incapacidad') badgeColor = 'warning';
+                    else if (a.motivo === 'Falta Injustificada') badgeColor = 'danger';
+                    else if (a.motivo === 'Permiso') badgeColor = 'info';
+
+                    html += `
+                        <div style="background: ${index % 2 === 0 ? '#f8f9fa' : 'white'}; border-radius: 8px; padding: 10px 12px; margin-bottom: 5px; border-left: 4px solid var(--bs-${badgeColor});">
+                            <div>
+                                <span class="badge bg-${badgeColor} me-1" style="font-size: 0.7rem;">${a.motivo}</span>
+                                <span style="font-weight: 600; color: #2c3e50; font-size: 0.85rem;">${formatearFecha(a.fecha)}${fechaFin}</span>
+                                <span class="badge bg-secondary ms-1" style="font-size: 0.65rem;">${a.diasIncapacidad || 1} día(s)</span>
+                                ${a.observaciones ? `<div style="margin-top: 4px; font-size: 0.8rem; color: #7f8c8d;"><i class="fas fa-comment me-1"></i>${a.observaciones}</div>` : ''}
+                            </div>
+                        </div>`;
+                });
+                html += '</div>';
+                return html;
+            }
+
+            function generarContenidoDisciplina() {
+                if (historialDisciplina.length === 0) {
+                    return `
+                        <div class="text-center py-5">
+                            <div style="width: 60px; height: 60px; background: rgba(46, 204, 113, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;">
+                                <i class="fas fa-check-circle" style="font-size: 28px; color: #2ecc71;"></i>
+                            </div>
+                            <h6 style="color: #2c3e50; font-weight: 600; margin: 0; font-size: 0.95rem;">Sin Disciplina</h6>
+                            <p style="color: #95a5a6; font-size: 0.8rem; margin: 4px 0 0;">No hay acciones disciplinarias</p>
+                        </div>`;
+                }
+                let html = '<div style="max-height: 350px; overflow-y: auto; padding-right: 5px; text-align: left;">';
+                historialDisciplina.forEach((d, index) => {
+                    const faltasLista = d.descripcionFaltas.split('; ').map(f => `<li style="font-size: 0.8rem;">${f}</li>`).join('');
+                    html += `
+                        <div style="background: ${index % 2 === 0 ? '#f8f9fa' : 'white'}; border-radius: 8px; padding: 10px 12px; margin-bottom: 5px; border-left: 4px solid #e74c3c;">
+                            <div>
+                                <span class="badge bg-danger me-1" style="font-size: 0.7rem;">${formatearFecha(d.fechaFalta)}</span>
+                                <ul style="margin: 4px 0 0 0; padding-left: 18px;">${faltasLista}</ul>
+                                ${d.observaciones ? `<div style="margin-top: 4px; font-size: 0.8rem; color: #7f8c8d;"><i class="fas fa-comment me-1"></i>${d.observaciones}</div>` : ''}
+                            </div>
+                        </div>`;
+                });
+                html += '</div>';
+                return html;
+            }
+
+            function generarContenidoEvaluaciones() {
+                if (historialEvaluaciones.length === 0) {
+                    return `
+                        <div class="text-center py-5">
+                            <div style="width: 60px; height: 60px; background: rgba(46, 204, 113, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;">
+                                <i class="fas fa-chart-line" style="font-size: 28px; color: #2ecc71;"></i>
+                            </div>
+                            <h6 style="color: #2c3e50; font-weight: 600; margin: 0; font-size: 0.95rem;">Sin Evaluaciones</h6>
+                            <p style="color: #95a5a6; font-size: 0.8rem; margin: 4px 0 0;">No hay evaluaciones registradas</p>
+                        </div>`;
+                }
+                let html = `
+                    <div style="background: #f8f9fa; border-radius: 10px; padding: 12px; margin-bottom: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="font-weight: 600; color: #2c3e50; font-size: 0.85rem;"><i class="fas fa-chart-area me-2" style="color: #3498db;"></i>Progreso de Notas</span>
+                            <span class="badge bg-primary" style="font-size: 0.7rem;">${historialEvaluaciones.length} evaluación(es)</span>
+                        </div>
+                        <div class="chart-container" style="height: 140px; margin-bottom: 0;"><canvas id="graficoProgresoCompleto"></canvas></div>
+                    </div>
+                    <div style="max-height: 180px; overflow-y: auto; padding-right: 5px; text-align: left;">`;
+                historialEvaluaciones.forEach((e, index) => {
+                    const nota = parseFloat(e.notaFinal);
+                    let badgeColor = 'success', icono = 'fa-crown';
+                    if (nota < 60) { badgeColor = 'danger'; icono = 'fa-times-circle'; }
+                    else if (nota < 70) { badgeColor = 'warning'; icono = 'fa-exclamation-triangle'; }
+                    else if (nota < 80) { badgeColor = 'info'; icono = 'fa-info-circle'; }
+                    else if (nota < 90) { badgeColor = 'primary'; icono = 'fa-thumbs-up'; }
+
+                    html += `
+                        <div style="background: ${index % 2 === 0 ? '#f8f9fa' : 'white'}; border-radius: 8px; padding: 8px 12px; margin-bottom: 4px; border-left: 4px solid var(--bs-${badgeColor});">
+                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                                <span style="font-size: 0.8rem; color: #7f8c8d;">${formatearFecha(e.fechaEvaluacion)}</span>
+                                <span class="badge bg-${badgeColor}" style="font-size: 0.8rem; padding: 3px 10px;">
+                                    <i class="fas ${icono} me-1"></i>${e.notaFinal}
+                                </span>
+                            </div>
+                            ${e.observaciones ? `<div style="margin-top: 3px; font-size: 0.75rem; color: #7f8c8d;"><i class="fas fa-comment me-1"></i>${e.observaciones}</div>` : ''}
+                        </div>`;
+                });
+                html += '</div>';
+                return html;
+            }
+
+            function generarContenidoIncidentes() {
+                if (historialIncidentes.length === 0) {
+                    return `
+                        <div class="text-center py-5">
+                            <div style="width: 60px; height: 60px; background: rgba(46, 204, 113, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;">
+                                <i class="fas fa-shield-alt" style="font-size: 28px; color: #2ecc71;"></i>
+                            </div>
+                            <h6 style="color: #2c3e50; font-weight: 600; margin: 0; font-size: 0.95rem;">Sin Incidentes</h6>
+                            <p style="color: #95a5a6; font-size: 0.8rem; margin: 4px 0 0;">No hay incidentes registrados</p>
+                        </div>`;
+                }
+                let html = '<div style="max-height: 350px; overflow-y: auto; padding-right: 5px; text-align: left;">';
+                historialIncidentes.forEach((inc, index) => {
+                    let badgeColor = 'secondary';
+                    if (inc.categoriaSiso === 'FAT' || inc.categoriaSiso === 'LWC') badgeColor = 'danger';
+                    else if (inc.categoriaSiso === 'MTC') badgeColor = 'warning';
+                    else if (inc.categoriaSiso === 'FAC') badgeColor = 'info';
+                    else if (inc.categoriaSiso === 'N-M') badgeColor = 'success';
+
+                    html += `
+                        <div style="background: ${index % 2 === 0 ? '#f8f9fa' : 'white'}; border-radius: 8px; padding: 10px 12px; margin-bottom: 5px; border-left: 4px solid var(--bs-${badgeColor});">
+                            <div>
+                                <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px;">
+                                    <span class="badge bg-secondary" style="font-size: 0.65rem;">${formatearFecha(inc.fechaIncidente)}</span>
+                                    <span class="badge bg-${badgeColor}" style="font-size: 0.65rem;">${inc.categoriaSiso}</span>
+                                    ${inc.parteAfectada ? `<span class="badge bg-primary" style="font-size: 0.65rem;">${inc.parteAfectada}</span>` : ''}
+                                </div>
+                                <div style="font-size: 0.8rem; color: #2c3e50;">
+                                    <div><span style="font-weight: 600;">Causa:</span> ${inc.causa}</div>
+                                    <div><span style="font-weight: 600;">Descripción:</span> ${inc.descripcion}</div>
+                                    ${inc.medidas ? `<div style="margin-top: 3px;"><span style="font-weight: 600;">Medidas:</span> <span style="color: #27ae60;">${inc.medidas}</span></div>` : ''}
+                                </div>
+                            </div>
+                        </div>`;
+                });
+                html += '</div>';
+                return html;
+            }
+
+            const totalAusencias = historialAusencias.length;
+            const totalDisciplina = historialDisciplina.length;
+            const totalEvaluaciones = historialEvaluaciones.length;
+            const totalIncidentes = historialIncidentes.length;
+
+            const isMobile = window.innerWidth < 576;
+            const headerPadding = isMobile ? '15px 20px' : '25px 30px';
+            const fotoSize = isMobile ? '70px' : '100px';
+            const nombreSize = isMobile ? '1.2rem' : '1.5rem';
+
+            const modalHtml = `
+                <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0;">
+                    <div style="background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460); border-radius: 16px; padding: ${headerPadding}; margin: -20px -25px 20px -25px; color: white; position: relative; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+                        <div style="position: absolute; top: -50%; right: -20%; width: 200px; height: 200px; background: radial-gradient(circle, rgba(52, 152, 219, 0.1) 0%, transparent 70%); border-radius: 50%;"></div>
+                        <div style="position: absolute; bottom: -40%; left: -10%; width: 180px; height: 180px; background: radial-gradient(circle, rgba(46, 204, 113, 0.08) 0%, transparent 70%); border-radius: 50%;"></div>
+
+                        <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap; position: relative; z-index: 1; justify-content: flex-start;">
+                            <div style="position: relative; flex-shrink: 0;">
+                                <div style="position: absolute; inset: -3px; background: linear-gradient(135deg, ${estadoColor}, #3498db); border-radius: 50%; padding: 3px; box-shadow: 0 0 20px rgba(52,152,219,0.25);">
+                                    <div style="width: 100%; height: 100%; border-radius: 50%; background: #1a1a2e;"></div>
+                                </div>
+                                <img src="${fotoSrc}"
+                                     style="width: ${fotoSize}; height: ${fotoSize}; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.15); position: relative; z-index: 1;"
+                                     onerror="this.src='https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=3498db&color=fff&size=150&font-size=0.5'">
+                                <div style="position: absolute; bottom: 0px; right: 0px; background: ${estadoColor}; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border: 2px solid white; z-index: 2; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">
+                                    <i class="fas ${estadoIcono}" style="font-size: 10px; color: white;"></i>
+                                </div>
+                            </div>
+
+                            <div style="flex: 1; min-width: 150px; text-align: left;">
+                                <h3 style="margin: 0; font-weight: 700; font-size: ${nombreSize}; letter-spacing: -0.5px; background: linear-gradient(135deg, #fff, #a8d8ea); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; text-align: left;">
+                                    ${colaborador.nombre}
+                                </h3>
+                                <div style="margin-top: 5px; display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-start;">
+                                    <span class="badge" style="background: rgba(255,255,255,0.12); padding: 3px 10px; font-size: 0.7rem;">
+                                        <i class="fas fa-id-card me-1"></i>${colaborador.identidad}
+                                    </span>
+                                    ${colaborador.sexo ? `<span class="badge" style="background: ${colaborador.sexo === 'Masculino' ? 'rgba(52, 152, 219, 0.25)' : 'rgba(231, 76, 60, 0.25)'}; padding: 3px 10px; font-size: 0.7rem;">
+                                        <i class="fas ${colaborador.sexo === 'Masculino' ? 'fa-mars' : 'fa-venus'} me-1"></i>${colaborador.sexo}
+                                    </span>` : ''}
+                                    ${edad ? `<span class="badge" style="background: rgba(241, 196, 15, 0.2); padding: 3px 10px; font-size: 0.7rem;">
+                                        <i class="fas fa-birthday-cake me-1"></i>${edad} años
+                                    </span>` : ''}
+                                    ${colaborador.fechaInicio ? `<span class="badge" style="background: rgba(46, 204, 113, 0.15); color: #2ecc71; border: 1px solid #2ecc71; padding: 3px 10px; font-size: 0.65rem;">
+                                        <i class="fas fa-calendar-plus me-1"></i>${formatearFecha(colaborador.fechaInicio)}
+                                    </span>` : ''}
+                                    ${esEgresado && colaborador.fechaEgreso ? `<span class="badge" style="background: rgba(231, 76, 60, 0.15); color: #e74c3c; border: 1px solid #e74c3c; padding: 3px 10px; font-size: 0.65rem;">
+                                        <i class="fas fa-arrow-right me-1"></i>${formatearFecha(colaborador.fechaEgreso)}
+                                    </span>` : ''}
+                                    ${esEgresado && colaborador.razon ? `<span class="badge" style="background: rgba(243, 156, 18, 0.15); color: #f39c12; border: 1px solid #f39c12; padding: 3px 10px; font-size: 0.65rem;">
+                                        <i class="fas fa-info-circle me-1"></i>${colaborador.razon}
+                                    </span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <ul class="nav nav-tabs" id="historialTabs" role="tablist" style="border-bottom: none; margin-bottom: 15px; gap: 3px; background: #f8f9fa; border-radius: 10px; padding: 3px; overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; justify-content: flex-start;">
+                        <li class="nav-item" role="presentation" style="flex: 0 0 auto;">
+                            <button class="nav-link active" id="tab-ausencias" data-bs-toggle="tab" data-bs-target="#content-ausencias" type="button" role="tab"
+                                    style="border: none; border-radius: 6px; padding: 6px 12px; font-weight: 600; font-size: 0.75rem; transition: all 0.3s; white-space: nowrap;">
+                                <i class="fas fa-clock me-1"></i>Ausencias
+                                <span class="badge ${totalAusencias > 0 ? 'bg-danger' : 'bg-secondary'}" style="margin-left: 3px; font-size: 0.6rem;">${totalAusencias}</span>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation" style="flex: 0 0 auto;">
+                            <button class="nav-link" id="tab-disciplina" data-bs-toggle="tab" data-bs-target="#content-disciplina" type="button" role="tab"
+                                    style="border: none; border-radius: 6px; padding: 6px 12px; font-weight: 600; font-size: 0.75rem; transition: all 0.3s; white-space: nowrap;">
+                                <i class="fas fa-gavel me-1"></i>Disciplina
+                                <span class="badge ${totalDisciplina > 0 ? 'bg-danger' : 'bg-secondary'}" style="margin-left: 3px; font-size: 0.6rem;">${totalDisciplina}</span>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation" style="flex: 0 0 auto;">
+                            <button class="nav-link" id="tab-evaluaciones" data-bs-toggle="tab" data-bs-target="#content-evaluaciones" type="button" role="tab"
+                                    style="border: none; border-radius: 6px; padding: 6px 12px; font-weight: 600; font-size: 0.75rem; transition: all 0.3s; white-space: nowrap;">
+                                <i class="fas fa-chart-bar me-1"></i>Evaluaciones
+                                <span class="badge ${totalEvaluaciones > 0 ? 'bg-danger' : 'bg-secondary'}" style="margin-left: 3px; font-size: 0.6rem;">${totalEvaluaciones}</span>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation" style="flex: 0 0 auto;">
+                            <button class="nav-link" id="tab-incidentes" data-bs-toggle="tab" data-bs-target="#content-incidentes" type="button" role="tab"
+                                    style="border: none; border-radius: 6px; padding: 6px 12px; font-weight: 600; font-size: 0.75rem; transition: all 0.3s; white-space: nowrap;">
+                                <i class="fas fa-exclamation-triangle me-1"></i>Incidentes
+                                <span class="badge ${totalIncidentes > 0 ? 'bg-danger' : 'bg-secondary'}" style="margin-left: 3px; font-size: 0.6rem;">${totalIncidentes}</span>
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" style="background: white; border-radius: 10px; padding: 5px;">
+                        <div class="tab-pane fade show active" id="content-ausencias" role="tabpanel">${generarContenidoAusencias()}</div>
+                        <div class="tab-pane fade" id="content-disciplina" role="tabpanel">${generarContenidoDisciplina()}</div>
+                        <div class="tab-pane fade" id="content-evaluaciones" role="tabpanel">${generarContenidoEvaluaciones()}</div>
+                        <div class="tab-pane fade" id="content-incidentes" role="tabpanel">${generarContenidoIncidentes()}</div>
+                    </div>
+                </div>`;
+
+            const styleId = 'historial-egresado-style-' + Date.now();
+
+            Swal.fire({
+                title: null,
+                html: modalHtml,
+                width: window.innerWidth < 576 ? '95%' : '900px',
+                showCloseButton: true,
+                showConfirmButton: false,
+                customClass: {
+                    popup: 'animated fadeInDown',
+                    closeButton: 'btn-close-white'
+                },
+                didOpen: () => {
+                    if (historialEvaluaciones.length > 0) {
+                        const ctx = document.getElementById('graficoProgresoCompleto').getContext('2d');
+                        const ordenadas = [...historialEvaluaciones].sort((a,b) => new Date(a.fechaEvaluacion) - new Date(b.fechaEvaluacion));
+                        new Chart(ctx, {
+                            type: 'line',
+                            data: {
+                                labels: ordenadas.map(e => formatearFecha(e.fechaEvaluacion)),
+                                datasets: [{
+                                    label: 'Nota Final',
+                                    data: ordenadas.map(e => parseFloat(e.notaFinal)),
+                                    borderColor: '#3498db',
+                                    backgroundColor: 'rgba(52, 152, 219, 0.15)',
+                                    fill: true,
+                                    tension: 0.4,
+                                    pointBackgroundColor: '#3498db',
+                                    pointBorderColor: 'white',
+                                    pointBorderWidth: 2,
+                                    pointRadius: 4,
+                                    pointHoverRadius: 6
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: { display: false },
+                                    tooltip: { callbacks: { label: (ctx) => 'Nota: ' + ctx.parsed.y } }
+                                },
+                                scales: {
+                                    y: { beginAtZero: true, max: 100, ticks: { stepSize: 20, font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.05)' } },
+                                    x: { grid: { display: false }, ticks: { font: { size: 9 } } }
+                                }
+                            }
+                        });
+                    }
+
+                    const style = document.createElement('style');
+                    style.id = styleId;
+                    style.textContent = `
+                        #historialTabs .nav-link { color: #7f8c8d; background: transparent; }
+                        #historialTabs .nav-link:hover { color: #2c3e50; background: rgba(52, 152, 219, 0.05); }
+                        #historialTabs .nav-link.active { color: #2c3e50; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-bottom: none; }
+                        .swal2-popup { border-radius: 16px !important; padding: 20px !important; }
+                        .swal2-close { color: white !important; opacity: 0.6; transition: all 0.3s; background: rgba(255,255,255,0.1); border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+                        .swal2-close:hover { opacity: 1; background: rgba(255,255,255,0.2); }
+                        .swal2-close:focus { box-shadow: none; }
+                        @media (max-width: 576px) {
+                            .swal2-popup { padding: 15px !important; margin: 10px !important; }
+                            #historialTabs .nav-link { font-size: 0.65rem !important; padding: 4px 8px !important; }
+                        }
+                    `;
+                    document.head.appendChild(style);
+                },
+                willClose: () => {
+                    const el = document.getElementById(styleId);
+                    if (el) el.remove();
+                }
+            });
+        }
+
+        // ==================== 3. CONTACTOS DE EGRESADO (DISEÑO ORIGINAL) ====================
+        function mostrarContactosEgresado(identidad) {
+            const colaborador = colaboradoresEgresos.find(col => col.identidad === identidad);
+            if (!colaborador) {
+                Swal.fire('Error', 'No se encontró el colaborador egresado.', 'error');
+                return;
+            }
+
+            const movil = (colaborador.movil !== undefined && colaborador.movil !== null) ? String(colaborador.movil).trim() : '';
+            const contactoEmergencia = (colaborador.contactoEmergencia !== undefined && colaborador.contactoEmergencia !== null) ? String(colaborador.contactoEmergencia).trim() : '';
+            const movilEmergencia = (colaborador.movilEmergencia !== undefined && colaborador.movilEmergencia !== null) ? String(colaborador.movilEmergencia).trim() : '';
+
+            const limpiarNumero = (num) => (!num ? '' : num.replace(/[\s-]/g, ''));
+            const movilLimpio = limpiarNumero(movil);
+            const movilEmergenciaLimpio = limpiarNumero(movilEmergencia);
+            const generarEnlaceWhatsApp = (num, msg) => (!num ? '#' : `https://wa.me/504${num}?text=${encodeURIComponent(msg)}`);
+
+            const fotoSrc = colaborador.fotoUrl || `https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=e74c3c&color=fff&size=200`;
+            const isMobile = window.innerWidth < 576;
+            const fotoSize = isMobile ? '80px' : '100px';
+            const nombreSize = isMobile ? '1.2rem' : '1.5rem';
+
+            let contenidoHtml = `
+                <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0;">
+                    <div style="background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460); border-radius: 16px; padding: ${isMobile ? '20px' : '25px 30px'}; margin: -20px -25px 20px -25px; color: white; position: relative; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+                        <div style="position: absolute; top: -50%; right: -20%; width: 200px; height: 200px; background: radial-gradient(circle, rgba(52, 152, 219, 0.1) 0%, transparent 70%); border-radius: 50%;"></div>
+                        <div style="position: absolute; bottom: -40%; left: -10%; width: 180px; height: 180px; background: radial-gradient(circle, rgba(46, 204, 113, 0.08) 0%, transparent 70%); border-radius: 50%;"></div>
+
+                        <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap; position: relative; z-index: 1; justify-content: flex-start;">
+                            <div style="position: relative; flex-shrink: 0;">
+                                <div style="position: absolute; inset: -3px; background: linear-gradient(135deg, #e74c3c, #f39c12); border-radius: 50%; padding: 3px; box-shadow: 0 0 25px rgba(231,76,60,0.3);">
+                                    <div style="width: 100%; height: 100%; border-radius: 50%; background: #1a1a2e;"></div>
+                                </div>
+                                <img src="${fotoSrc}"
+                                     style="width: ${fotoSize}; height: ${fotoSize}; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.15); position: relative; z-index: 1;"
+                                     onerror="this.src='https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=e74c3c&color=fff&size=200&font-size=0.5'">
+                                <div style="position: absolute; bottom: 0px; right: 0px; background: #e74c3c; border-radius: 50%; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; border: 2px solid white; z-index: 2; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">
+                                    <i class="fas fa-phone" style="font-size: 11px; color: white;"></i>
+                                </div>
+                            </div>
+
+                            <div style="flex: 1; min-width: 150px; text-align: left;">
+                                <h3 style="margin: 0; font-weight: 700; font-size: ${nombreSize}; letter-spacing: -0.5px; background: linear-gradient(135deg, #fff, #a8d8ea); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; text-align: left;">
+                                    ${colaborador.nombre}
+                                </h3>
+                                <div style="margin-top: 5px; display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-start;">
+                                    <span class="badge" style="background: rgba(255,255,255,0.12); padding: 3px 12px; font-size: 0.7rem;">
+                                        <i class="fas fa-id-card me-1"></i>${colaborador.identidad}
+                                    </span>
+                                    ${colaborador.sexo ? `<span class="badge" style="background: ${colaborador.sexo === 'Masculino' ? 'rgba(52, 152, 219, 0.25)' : 'rgba(231, 76, 60, 0.25)'}; padding: 3px 12px; font-size: 0.7rem;">
+                                        <i class="fas ${colaborador.sexo === 'Masculino' ? 'fa-mars' : 'fa-venus'} me-1"></i>${colaborador.sexo}
+                                    </span>` : ''}
+                                    <span class="badge" style="background: rgba(231, 76, 60, 0.15); color: #e74c3c; border: 1px solid #e74c3c; padding: 3px 12px; font-size: 0.7rem;">
+                                        <i class="fas fa-user-slash me-1"></i>Egresado
+                                    </span>
+                                    <span class="badge" style="background: rgba(243, 156, 18, 0.15); color: #f39c12; border: 1px solid #f39c12; padding: 3px 12px; font-size: 0.65rem;">
+                                        <i class="fas fa-calendar-times me-1"></i>${formatearFecha(colaborador.fechaEgreso)}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="padding: 5px 0;">
+                        <div style="margin-bottom: 16px; text-align: left;">`;
+
+            if (movil !== '') {
+                contenidoHtml += `
+                    <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #f8f9fa; border-radius: 12px; border-left: 4px solid #3498db; transition: all 0.2s;">
+                        <div style="width: 40px; height: 40px; background: rgba(52, 152, 219, 0.12); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <i class="fas fa-mobile-alt" style="font-size: 18px; color: #3498db;"></i>
+                        </div>
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Móvil Personal</div>
+                            <div style="font-weight: 600; font-size: 1rem; color: #2c3e50;">${movil}</div>
+                        </div>
+                        <div style="display: flex; gap: 6px; flex-shrink: 0;">
+                            <a href="tel:${movilLimpio}" class="btn btn-sm" style="background: #2ecc71; color: white; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; padding: 0; transition: all 0.2s; text-decoration: none;"
+                               onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                                <i class="fas fa-phone-alt" style="font-size: 14px;"></i>
+                            </a>
+                            <a href="${generarEnlaceWhatsApp(movilLimpio, `Hola ${colaborador.nombre}, te contactamos desde la empresa (egresado).`)}"
+                               class="btn btn-sm" style="background: #25D366; color: white; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; padding: 0; transition: all 0.2s; text-decoration: none;"
+                               target="_blank"
+                               onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                                <i class="fab fa-whatsapp" style="font-size: 16px;"></i>
+                            </a>
+                        </div>
+                    </div>`;
+            } else {
+                contenidoHtml += `
+                    <div style="padding: 12px 16px; background: #f8f9fa; border-radius: 12px; border-left: 4px solid #bdc3c7; display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 40px; height: 40px; background: rgba(189, 195, 199, 0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <i class="fas fa-mobile-alt" style="font-size: 18px; color: #bdc3c7;"></i>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Móvil Personal</div>
+                            <div style="color: #95a5a6; font-style: italic; font-size: 0.9rem;">No registrado</div>
+                        </div>
+                    </div>`;
+            }
+            contenidoHtml += `</div><div style="margin-bottom: 16px; text-align: left;">`;
+
+            if (contactoEmergencia !== '' || movilEmergencia !== '') {
+                contenidoHtml += `
+                    <div style="padding: 12px 16px; background: #f8f9fa; border-radius: 12px; border-left: 4px solid #e74c3c;">
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: ${contactoEmergencia !== '' ? '8px' : '0'};">
+                            <div style="width: 40px; height: 40px; background: rgba(231, 76, 60, 0.12); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                <i class="fas fa-shield-alt" style="font-size: 18px; color: #e74c3c;"></i>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Contacto de Emergencia</div>
+                                ${contactoEmergencia !== '' ? `<div style="font-weight: 600; font-size: 1rem; color: #2c3e50;">${contactoEmergencia}</div>` : ''}
+                            </div>
+                        </div>
+                        ${movilEmergencia !== '' ? `
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding-left: 52px; flex-wrap: wrap; gap: 8px;">
+                            <div style="font-weight: 500; font-size: 0.95rem; color: #2c3e50;">
+                                <i class="fas fa-phone me-2" style="color: #e74c3c;"></i>${movilEmergencia}
+                            </div>
+                            <div style="display: flex; gap: 6px;">
+                                <a href="tel:${movilEmergenciaLimpio}" class="btn btn-sm" style="background: #e74c3c; color: white; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; padding: 0; transition: all 0.2s; text-decoration: none;"
+                                   onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                                    <i class="fas fa-phone-alt" style="font-size: 13px;"></i>
+                                </a>
+                                <a href="${generarEnlaceWhatsApp(movilEmergenciaLimpio, `Hola, es una emergencia relacionada con ${colaborador.nombre} (egresado).`)}"
+                                   class="btn btn-sm" style="background: #25D366; color: white; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; padding: 0; transition: all 0.2s; text-decoration: none;"
+                                   target="_blank"
+                                   onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                                    <i class="fab fa-whatsapp" style="font-size: 14px;"></i>
+                                </a>
+                            </div>
+                        </div>` : ''}
+                    </div>`;
+            } else {
+                contenidoHtml += `
+                    <div style="padding: 12px 16px; background: #f8f9fa; border-radius: 12px; border-left: 4px solid #bdc3c7; display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 40px; height: 40px; background: rgba(189, 195, 199, 0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <i class="fas fa-shield-alt" style="font-size: 18px; color: #bdc3c7;"></i>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Contacto de Emergencia</div>
+                            <div style="color: #95a5a6; font-style: italic; font-size: 0.9rem;">No registrado</div>
+                        </div>
+                    </div>`;
+            }
+            contenidoHtml += `</div></div></div>`;
+
+            const styleId = 'contact-egresado-style-' + Date.now();
+
+            Swal.fire({
+                title: null,
+                html: contenidoHtml,
+                width: window.innerWidth < 576 ? '95%' : '550px',
+                showCloseButton: true,
+                showConfirmButton: false,
+                customClass: {
+                    popup: 'animated fadeInDown',
+                    closeButton: 'btn-close-white'
+                },
+                didOpen: () => {
+                    const style = document.createElement('style');
+                    style.id = styleId;
+                    style.textContent = `
+                        .swal2-popup { border-radius: 16px !important; padding: 20px !important; }
+                        .swal2-close { color: white !important; opacity: 0.6; transition: all 0.3s; background: rgba(255,255,255,0.1); border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+                        .swal2-close:hover { opacity: 1; background: rgba(255,255,255,0.2); }
+                        .swal2-close:focus { box-shadow: none; }
+                        @media (max-width: 576px) { .swal2-popup { padding: 15px !important; margin: 10px !important; } }
+                    `;
+                    document.head.appendChild(style);
+                },
+                willClose: () => {
+                    const el = document.getElementById(styleId);
+                    if (el) el.remove();
+                }
+            });
+        }
+
+        // ==================== 4. REINGRESAR COLABORADOR (OFFLINE) ====================
+        function reingresarColaborador(identidad) {
+            const colaborador = colaboradoresEgresos.find(eg => eg.identidad === identidad);
+            if (!colaborador) return;
+
+            Swal.fire({
+                title: 'Reingresar Colaborador',
+                icon: 'question',
+                html: `<p>Por favor, confirme la nueva fecha de inicio para <strong>${colaborador.nombre}</strong>.</p>
+                       <input type="date" id="fecha-reingreso" class="form-control mt-2" value="${getHoyStr()}">`,
+                showCancelButton: true,
+                confirmButtonText: 'Sí, reingresar',
+                cancelButtonText: 'Cancelar',
+                preConfirm: () => {
+                    const fechaReingreso = document.getElementById('fecha-reingreso').value;
+                    if (!fechaReingreso) {
+                        Swal.showValidationMessage('Por favor, seleccione una fecha de reingreso.');
+                        return false;
+                    }
+                    return fechaReingreso;
+                }
+            }).then(async (result) => {
+                if (!result.isConfirmed) return;
+                const fechaReingreso = result.value;
+                const { _pendienteSync, ...egLimpio } = colaborador;
+
+                await PB_DB.agregarPendiente({
+                    titulo: `Reingresar Colaborador: ${colaborador.nombre}`,
+                    detalle: `Nueva fecha inicio: ${formatearFecha(fechaReingreso)}`,
+                    destino: 'principal',
+                    accion: 'reingresar_colaborador',
+                    payload: {
+                        colaborador: JSON.stringify(egLimpio),
+                        fechaReingreso
+                    }
+                });
+
+                await PB_DB.actualizarDatosPrincipales(cache => {
+                    cache.egresos = (cache.egresos || []).filter(e => e.identidad !== colaborador.identidad);
+                    const nuevoActivo = {
+                        fechaInicio: fechaReingreso,
+                        nombre: colaborador.nombre,
+                        identidad: colaborador.identidad,
+                        fechaNacimiento: colaborador.fechaNacimiento || '',
+                        sexo: colaborador.sexo || '',
+                        fotoUrl: colaborador.fotoUrl || '',
+                        movil: '',
+                        contactoEmergencia: '',
+                        movilEmergencia: '',
+                        _pendienteSync: true
+                    };
+                    cache.activos = [...(cache.activos || []), nuevoActivo];
+                    cache.ingresos = [...(cache.ingresos || []), nuevoActivo];
+                    return cache;
+                });
+
+                await cargarYRenderizar();
+                Swal.fire('Guardado Offline', `${colaborador.nombre} ha sido reingresado localmente y quedó pendiente de sincronizar.`, 'success');
+            });
+        }
+    </script>
+</body>
+</html>

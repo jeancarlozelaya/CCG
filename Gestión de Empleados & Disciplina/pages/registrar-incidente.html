@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registrar Incidente</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body class="subpage-body">
+    <div class="container-fluid">
+        <div class="alert alert-info py-2 mb-3 small">
+            <i class="fas fa-database me-2"></i>Los incidentes se guardan localmente en IndexedDB y quedan pendientes de sincronizar en la pantalla principal.
+        </div>
+
+        <form id="form-registrar-incidente">
+            <div id="contenedor-formularios-incidente"></div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-success" id="btn-agregar-incidente"><i class="fas fa-plus me-2"></i>Agregar</button>
+                <button type="button" class="btn btn-primary" id="btn-registrar-incidente"><i class="fas fa-save me-2"></i>Guardar Incidentes Offline</button>
+            </div>
+        </form>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/db.js"></script>
+    <script>
+        let colaboradoresActivos = [];
+        let nombresActivos = [];
+        const PARTES_CUERPO = [
+            "Cabeza", "Ojos", "Torso", "Brazo Izquierdo", "Brazo Derecho",
+            "Mano Izquierda", "Mano Derecha", "Pierna Izquierda", "Pierna Derecha",
+            "Pie Izquierdo", "Pie Derecho", "Otro"
+        ];
+
+        $(document).ready(async function() {
+            await cargarActivos();
+            agregarFormularioIncidente();
+
+            $('#btn-agregar-incidente').on('click', agregarFormularioIncidente);
+            $('#btn-registrar-incidente').on('click', registrarIncidentesOffline);
+            $(document).on('click', '.btn-quitar-item-incidente', function() {
+                $(this).closest('.formulario-item').remove();
+            });
+
+            $(document).on('input', '.colaborador-incidente', function() {
+                const input = $(this), val = input.val().toLowerCase(), list = input.next('.autocomplete-list');
+                if (!val) return list.hide();
+                const sug = nombresActivos.filter(n => n.toLowerCase().includes(val));
+                list.empty().toggle(sug.length > 0);
+                sug.forEach(s => list.append(`<div class="autocomplete-item">${s}</div>`));
+            });
+
+            $(document).on('click', '.autocomplete-item', function() {
+                const container = $(this).closest('.autocomplete-container');
+                const nombre = $(this).text();
+                const input = container.find('.colaborador-incidente');
+                input.val(nombre);
+                $(this).closest('.autocomplete-list').hide();
+                validarCampo(input[0]);
+                const col = colaboradoresActivos.find(c => c.nombre === nombre);
+                if (col) $(this).closest('.formulario-item').find('.identidad-incidente').val(col.identidad);
+            });
+
+            $(document).on('click', e => {
+                if (!$(e.target).closest('.autocomplete-container').length) $('.autocomplete-list').hide();
+            });
+
+            $(document).on('change input', 'input[required], select[required], textarea[required]', function() {
+                validarCampo(this);
+            });
+
+            if (syncChannel) syncChannel.onmessage = cargarActivos;
+        });
+
+        async function cargarActivos() {
+            const datos = await PB_DB.obtenerDatosPrincipales();
+            colaboradoresActivos = datos.activos || [];
+            nombresActivos = colaboradoresActivos.map(c => c.nombre);
+        }
+
+        function agregarFormularioIncidente() {
+            const idx = $('#contenedor-formularios-incidente .formulario-item').length;
+            const btnQuitar = idx === 0 ? '' : '<button type="button" class="btn btn-danger btn-quitar-item btn-quitar-item-incidente"><i class="fas fa-times"></i></button>';
+
+            const checks = PARTES_CUERPO.map((p, i) => `
+                <div class="form-check">
+                    <input class="form-check-input parte-afectada-check" type="checkbox" value="${p}" id="parte-${idx}-${i}">
+                    <label class="form-check-label" for="parte-${idx}-${i}">${p}</label>
+                </div>`).join('');
+
+            $('#contenedor-formularios-incidente').append(`
+                <div class="formulario-item">
+                    ${btnQuitar}
+                    <input type="hidden" class="identidad-incidente">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Fecha de Incidente</label>
+                            <input type="date" class="form-control fecha-incidente" value="${getHoyStr()}" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Colaborador</label>
+                            <div class="autocomplete-container">
+                                <input type="text" class="form-control colaborador-incidente" placeholder="Escriba el nombre..." required>
+                                <div class="autocomplete-list"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Parte Afectada (Opcional)</label>
+                            <div class="border p-2 rounded" style="max-height:150px; overflow-y:auto;">${checks}</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Categoría SISO</label>
+                            <select class="form-select categoria-siso-incidente" required>
+                                <option value="">Seleccionar...</option>
+                                <option value="FAT">FAT: Fatalidades</option>
+                                <option value="LWC">LWC: Incidentes con pérdida de tiempo</option>
+                                <option value="MTC">MTC: Incidentes de tratamiento médico</option>
+                                <option value="FAC">FAC: Incidentes de primeros auxilios</option>
+                                <option value="N-M">N-M: Casi Incidentes</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3"><label class="form-label">Causa del Incidente</label><textarea class="form-control causa-incidente" rows="2" required></textarea></div>
+                    <div class="mb-3"><label class="form-label">Descripción del Incidente</label><textarea class="form-control descripcion-incidente" rows="2" required></textarea></div>
+                    <div class="mb-2"><label class="form-label">Medidas Implementadas (Opcional)</label><textarea class="form-control medidas-incidente" rows="2"></textarea></div>
+                </div>`);
+        }
+
+        async function registrarIncidentesOffline() {
+            await cargarActivos();
+            const lista = [];
+            let valido = true;
+
+            $('#contenedor-formularios-incidente .formulario-item').each(function(index) {
+                const item = $(this);
+                let ok = true;
+                item.find('input[required], select[required], textarea[required]').each(function() {
+                    validarCampo(this);
+                    if ($(this).hasClass('is-invalid')) ok = false;
+                });
+
+                const fechaIncidente = item.find('.fecha-incidente').val();
+                const nombre = item.find('.colaborador-incidente').val().trim();
+                const col = colaboradoresActivos.find(c => c.nombre.toLowerCase() === nombre.toLowerCase());
+                const categoriaSiso = item.find('.categoria-siso-incidente').val();
+                const causa = item.find('.causa-incidente').val().trim();
+                const descripcion = item.find('.descripcion-incidente').val().trim();
+                const medidas = item.find('.medidas-incidente').val().trim();
+                const partes = [];
+                item.find('.parte-afectada-check:checked').each(function() { partes.push($(this).val()); });
+
+                if (ok && !col) {
+                    item.find('.colaborador-incidente').addClass('is-invalid').removeClass('is-valid');
+                    Swal.fire('Error', `El colaborador '${nombre}' (#${index + 1}) no es válido.`, 'error');
+                    ok = false;
+                }
+
+                if (!ok) valido = false;
+                else {
+                    lista.push({
+                        fechaIncidente, nombre: col.nombre, identidad: col.identidad,
+                        descripcion, parteAfectada: partes.join('; '), causa, medidas, categoriaSiso
+                    });
+                }
+            });
+
+            if (!valido || lista.length === 0) return;
+
+            const conf = await Swal.fire({
+                title: '¿Guardar incidentes offline?',
+                html: `Se guardarán <strong>${lista.length}</strong> incidente(s) pendientes de sincronizar.`,
+                icon: 'question', showCancelButton: true, confirmButtonText: 'Sí, guardar'
+            });
+            if (!conf.isConfirmed) return;
+
+            await PB_DB.agregarPendiente({
+                titulo: `Registrar ${lista.length} Incidente(s)`,
+                detalle: lista.map(i => `${i.nombre} (${i.categoriaSiso})`).join(', '),
+                destino: 'principal',
+                accion: 'registrar_incidentes_masivo',
+                payload: { datos: JSON.stringify(lista) }
+            });
+
+            await PB_DB.actualizarDatosPrincipales(cache => {
+                cache.incidentes = [...(cache.incidentes || []), ...lista.map(i => ({ ...i, _pendienteSync: true }))];
+                return cache;
+            });
+
+            $('#contenedor-formularios-incidente').empty();
+            agregarFormularioIncidente();
+            Swal.fire({ icon: 'success', title: 'Guardado Offline', timer: 1600, showConfirmButton: false });
+        }
+    </script>
+</body>
+</html>

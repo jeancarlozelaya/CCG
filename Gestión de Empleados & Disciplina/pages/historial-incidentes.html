@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historial de Incidentes</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        #incident-card-main {
+            background: linear-gradient(135deg, #2ecc71, #28b463);
+            color: white;
+            border: none;
+            box-shadow: 0 10px 20px rgba(46, 204, 113, 0.3);
+        }
+        #incident-card-main .card-body { padding: 25px; }
+        #incident-card-main .fas { font-size: 2.5rem; margin-bottom: 10px; opacity: 0.8; }
+        #incident-card-main h3 { font-size: 4rem; font-weight: 700; margin-bottom: 0; line-height: 1.1; }
+        #incident-card-main h4 { font-size: 1.3rem; font-weight: 500; margin-bottom: 0; opacity: 0.9; }
+
+        .incidentes-simbologia {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            font-size: 0.85rem;
+            margin-bottom: 25px;
+        }
+        .incidentes-simbologia span { padding: 2px 8px; border-radius: 4px; font-weight: bold; color: white; }
+        .simb-fat { background-color: #e74c3c; }
+        .simb-lwc { background-color: #e67e22; }
+        .simb-mtc { background-color: #f39c12; }
+        .simb-fac { background-color: #3498db; }
+        .simb-nm { background-color: #2ecc71; }
+
+        #body-map-container {
+            position: relative;
+            max-width: 300px;
+            min-height: 450px;
+            margin: 0 auto;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background-color: #f8f9fa;
+        }
+        .body-map-image { max-width: 200px; height: auto; display: block; margin: 0 auto; }
+        .hotspot {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background-color: rgba(231, 76, 60, 0.8);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 0.75rem;
+            border: 2px solid white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            opacity: 0;
+            transform: scale(0.5);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .hotspot.active { opacity: 1; transform: scale(1); }
+        #hotspot-cabeza { top: -1%; left: 47%; }
+        #hotspot-ojos { top: 6%; left: 47%; }
+        #hotspot-torso { top: 30%; left: 47%; }
+        #hotspot-brazo-izquierdo { top: 28%; left: 30%; }
+        #hotspot-brazo-derecho { top: 28%; left: 63%; }
+        #hotspot-mano-izquierda { top: 39%; left: 26%; }
+        #hotspot-mano-derecha { top: 39%; left: 70%; }
+        #hotspot-pierna-izquierda { top: 60%; left: 39%; }
+        #hotspot-pierna-derecha { top: 60%; left: 54%; }
+        #hotspot-pie-izquierdo { top: 80%; left: 36%; }
+        #hotspot-pie-derecho { top: 80%; left: 57%; }
+        #hotspot-otro { top: 5%; left: 5%; width: auto; padding: 0 5px; border-radius: 5px; }
+    </style>
+</head>
+<body class="subpage-body">
+    <div class="container-fluid">
+        <div class="card mb-4" id="incident-card-main">
+            <div class="card-body text-center">
+                <i class="fas fa-shield-alt"></i>
+                <h3 id="dias-sin-incidentes">0</h3>
+                <h4>Días sin Incidentes</h4>
+            </div>
+        </div>
+
+        <div class="rotacion-periodos">
+            <div class="periodo-card"><h4>Total Incidentes</h4><div class="porcentaje" id="incidentes-historico">0</div></div>
+            <div class="periodo-card"><h4>Incidentes del Mes</h4><div class="porcentaje" id="incidentes-mes">0</div></div>
+            <div class="periodo-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);"><h4>Últimos 3 Meses</h4><div class="porcentaje" id="incidentes-3meses">0</div></div>
+            <div class="periodo-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);"><h4>Últimos 6 Meses</h4><div class="porcentaje" id="incidentes-6meses">0</div></div>
+            <div class="periodo-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);"><h4>Últimos 12 Meses</h4><div class="porcentaje" id="incidentes-12meses">0</div></div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">Incidentes por Mes</div>
+            <div class="card-body">
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    <select id="filtro-ano-incidentes" class="form-select" style="width: auto;"></select>
+                    <button id="btn-filtrar-incidentes-grafico" class="btn btn-primary btn-sm">Filtrar</button>
+                </div>
+                <div class="chart-container"><canvas id="graficoIncidentesAnual"></canvas></div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">Partes del Cuerpo Afectadas (Histórico)</div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-5 col-lg-4">
+                        <h6 class="text-center">Mapa de Incidentes</h6>
+                        <div id="body-map-container">
+                            <img src="https://raw.githubusercontent.com/jeancarlozelaya/CCG/refs/heads/main/Im%C3%A1genes/Requisas/Cuerpo.png" alt="Diagrama corporal" class="body-map-image">
+                            <div class="hotspot" id="hotspot-cabeza" title="Cabeza">0</div>
+                            <div class="hotspot" id="hotspot-ojos" title="Ojos">0</div>
+                            <div class="hotspot" id="hotspot-torso" title="Torso">0</div>
+                            <div class="hotspot" id="hotspot-brazo-izquierdo" title="Brazo Izquierdo">0</div>
+                            <div class="hotspot" id="hotspot-brazo-derecho" title="Brazo Derecho">0</div>
+                            <div class="hotspot" id="hotspot-mano-izquierda" title="Mano Izquierda">0</div>
+                            <div class="hotspot" id="hotspot-mano-derecha" title="Mano Derecha">0</div>
+                            <div class="hotspot" id="hotspot-pierna-izquierda" title="Pierna Izquierda">0</div>
+                            <div class="hotspot" id="hotspot-pierna-derecha" title="Pierna Derecha">0</div>
+                            <div class="hotspot" id="hotspot-pie-izquierdo" title="Pie Izquierdo">0</div>
+                            <div class="hotspot" id="hotspot-pie-derecho" title="Pie Derecho">0</div>
+                            <div class="hotspot" id="hotspot-otro" title="Otro">0</div>
+                        </div>
+                    </div>
+                    <div class="col-md-7 col-lg-8">
+                        <h6 class="text-center">Conteo por Parte Afectada</h6>
+                        <div class="chart-container" style="height: 450px;"><canvas id="graficoPartesCuerpo"></canvas></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">Pirámide de Incidentabilidad (Categoría SISO)</div>
+            <div class="card-body">
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    <select id="filtro-mes-incidentes" class="form-select" style="width: auto;"></select>
+                    <select id="filtro-ano-incidentes-pie" class="form-select" style="width: auto;"></select>
+                    <button id="btn-filtrar-incidentes-pie" class="btn btn-primary btn-sm">Filtrar</button>
+                </div>
+                <div class="row">
+                    <div class="col-md-4"><div class="chart-container" style="height: 350px;"><canvas id="graficoIncidentesCategoriaActual"></canvas></div></div>
+                    <div class="col-md-4"><div class="chart-container" style="height: 350px;"><canvas id="graficoIncidentesCategoriaHistorico"></canvas></div></div>
+                    <div class="col-md-4" id="contenedorGraficoFiltradoIncidentes" style="display: none;"><div class="chart-container" style="height: 350px;"><canvas id="graficoIncidentesCategoriaFiltrado"></canvas></div></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="incidentes-simbologia" class="mt-4"></div>
+
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Historial de Incidentes</span>
+                <button class="btn btn-primary btn-sm" id="btn-resumen-incidentes">
+                    <i class="fas fa-users me-2"></i>Ver Resumen por Colaborador
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="date-range-container">
+                    <div class="form-group">
+                        <label for="fecha-inicio-incidentes" class="form-label">Filtrar desde</label>
+                        <input type="date" class="form-control" id="fecha-inicio-incidentes">
+                    </div>
+                    <div class="form-group">
+                        <label for="fecha-fin-incidentes" class="form-label">Filtrar hasta</label>
+                        <input type="date" class="form-control" id="fecha-fin-incidentes">
+                    </div>
+                    <div class="form-group d-flex align-items-end">
+                        <button type="button" class="btn btn-primary btn-sm" id="btn-filtrar-incidentes-personalizado">Filtrar</button>
+                    </div>
+                </div>
+
+                <div class="search-container mt-4">
+                    <i class="fas fa-search"></i>
+                    <input type="text" class="form-control" id="buscador-incidentes" placeholder="Buscar por nombre, identidad, categoría...">
+                </div>
+
+                <div class="table-responsive mt-3">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Nombre</th>
+                                <th>Identidad</th>
+                                <th>Categoría</th>
+                                <th>Descripción</th>
+                                <th>Parte Afectada</th>
+                                <th>Causa</th>
+                                <th>Medidas</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabla-incidentes" class="no-hover"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/db.js"></script>
+    <script>
+        let datos = { activos: [], incidentes: [] };
+        let colaboradoresActivos = [];
+        let incidentes = [];
+
+        let graficoIncidentesAnual = null;
+        let graficoIncidentesCategoriaActual = null;
+        let graficoIncidentesCategoriaHistorico = null;
+        let graficoIncidentesCategoriaFiltrado = null;
+        let graficoPartesCuerpo = null;
+
+        $(document).ready(async function() {
+            await cargarYRenderizar(true);
+
+            $('#btn-filtrar-incidentes-grafico').on('click', () => {
+                crearGraficoIncidentesAnual(parseInt($('#filtro-ano-incidentes').val(), 10));
+            });
+
+            $('#btn-filtrar-incidentes-pie').on('click', () => {
+                const ano = parseInt($('#filtro-ano-incidentes-pie').val(), 10);
+                const mes = parseInt($('#filtro-mes-incidentes').val(), 10);
+                const mostrar = ano !== new Date().getFullYear() || mes !== new Date().getMonth();
+                $('#contenedorGraficoFiltradoIncidentes').toggle(mostrar);
+                if (mostrar) crearGraficoIncidentesCategoriaFiltrado(ano, mes);
+            });
+
+            $('#btn-filtrar-incidentes-personalizado').on('click', filtrarIncidentesPersonalizado);
+            $('#buscador-incidentes').on('input', filtrarIncidentesTabla);
+            $('#btn-resumen-incidentes').on('click', mostrarResumenIncidentes);
+
+            $(document).on('click', '.btn-edit-incidente', function() {
+                const identidad = $(this).data('identidad');
+                const fecha = $(this).data('fecha');
+                const incidenteOriginal = incidentes.find(i => i.identidad === identidad && i.fechaIncidente === fecha);
+                if (incidenteOriginal) abrirModalEditarIncidente(incidenteOriginal);
+                else Swal.fire('Error', 'No se pudo encontrar el registro de incidente original.', 'error');
+            });
+
+            $(document).on('click', '.btn-delete-incidente', function(e) {
+                e.stopPropagation();
+                eliminarIncidenteOffline($(this).data('identidad'), $(this).data('fecha'));
+            });
+
+            if (syncChannel) syncChannel.onmessage = () => cargarYRenderizar(false);
+        });
+
+        async function cargarYRenderizar(init = false) {
+            datos = await PB_DB.obtenerDatosPrincipales();
+            colaboradoresActivos = datos.activos || [];
+            incidentes = datos.incidentes || [];
+
+            if (init) popularFiltros();
+            calcularEstadisticasIncidentes();
+            generarSimbologiaIncidentes();
+            crearGraficoIncidentesAnual(parseInt($('#filtro-ano-incidentes').val(), 10));
+            crearGraficoPartesCuerpo();
+            crearGraficoIncidentesCategoriaActual();
+            crearGraficoIncidentesCategoriaHistorico();
+            filtrarIncidentesPersonalizado();
+        }
+
+        function popularFiltros() {
+            const fMes = $('#filtro-mes-incidentes').empty();
+            const fAnoPie = $('#filtro-ano-incidentes-pie').empty();
+            const fAnoGra = $('#filtro-ano-incidentes').empty();
+            const meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+            meses.forEach((m, i) => fMes.append(`<option value="${i}">${m}</option>`));
+
+            const anos = [...new Set(incidentes.map(d => d.fechaIncidente ? new Date(d.fechaIncidente).getFullYear() : null).filter(Boolean))];
+            const act = new Date().getFullYear();
+            if (!anos.includes(act)) anos.push(act);
+            anos.sort((a, b) => b - a).forEach(a => {
+                fAnoPie.append(`<option value="${a}">${a}</option>`);
+                fAnoGra.append(`<option value="${a}">${a}</option>`);
+            });
+
+            const hoy = new Date();
+            fMes.val(hoy.getMonth());
+            fAnoPie.val(hoy.getFullYear());
+            fAnoGra.val(hoy.getFullYear());
+        }
+
+        function generarSimbologiaIncidentes() {
+            const simbologia = [
+                { clase: 'simb-fat', texto: 'FAT: Fatalidades' },
+                { clase: 'simb-lwc', texto: 'LWC: Pérdida de tiempo' },
+                { clase: 'simb-mtc', texto: 'MTC: Tratamiento médico' },
+                { clase: 'simb-fac', texto: 'FAC: Primeros auxilios' },
+                { clase: 'simb-nm', texto: 'N-M: Casi Incidentes' }
+            ];
+            let html = '<h6 class="text-center">Simbología de Incidentes</h6><div class="incidentes-simbologia">';
+            simbologia.forEach(s => { html += `<span class="${s.clase}">${s.texto}</span>`; });
+            html += '</div>';
+            $('#incidentes-simbologia').html(html);
+        }
+
+        function calcularEstadisticasIncidentes() {
+            $('#incidentes-historico').text(incidentes.length);
+            $('#dias-sin-incidentes').text(getDiasSinIncidentes(incidentes));
+
+            const hoy = new Date();
+            const periodos = [{ id: 'mes', meses: 0 }, { id: '3meses', meses: 3 }, { id: '6meses', meses: 6 }, { id: '12meses', meses: 12 }];
+            periodos.forEach(p => {
+                const fechaInicio = p.meses === 0 ? new Date(hoy.getFullYear(), hoy.getMonth(), 1) : new Date(hoy.getFullYear(), hoy.getMonth() - p.meses + 1, 1);
+                const incidentesPeriodo = incidentes.filter(i => new Date(i.fechaIncidente + 'T00:00:00') >= fechaInicio).length;
+                $(`#incidentes-${p.id}`).text(incidentesPeriodo);
+            });
+        }
+
+        function crearGraficoIncidentesAnual(ano) {
+            if (graficoIncidentesAnual) graficoIncidentesAnual.destroy();
+            const ctx = document.getElementById('graficoIncidentesAnual').getContext('2d');
+            const labels = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+            const datosMes = Array(12).fill(0);
+            incidentes.forEach(i => {
+                const fechaIncidente = new Date(i.fechaIncidente + 'T00:00:00');
+                if (fechaIncidente.getFullYear() === ano) datosMes[fechaIncidente.getMonth()]++;
+            });
+
+            graficoIncidentesAnual = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{ label: `Incidentes por Mes en ${ano}`, data: datosMes, borderColor: '#f39c12', backgroundColor: 'rgba(243, 156, 18, 0.1)', fill: true, tension: 0.4 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+            });
+        }
+
+        function crearGraficoPartesCuerpo() {
+            if (graficoPartesCuerpo) graficoPartesCuerpo.destroy();
+            const conteo = {};
+            incidentes.forEach(inc => {
+                if (inc.parteAfectada && inc.parteAfectada.length > 0) {
+                    inc.parteAfectada.split('; ').forEach(parte => {
+                        const p = parte.trim();
+                        if (p) conteo[p] = (conteo[p] || 0) + 1;
+                    });
+                }
+            });
+
+            const sortedPartes = Object.entries(conteo).sort(([, a], [, b]) => b - a);
+            const ctx = document.getElementById('graficoPartesCuerpo').getContext('2d');
+            graficoPartesCuerpo = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sortedPartes.map(e => e[0]),
+                    datasets: [{ label: 'Conteo de Incidentes', data: sortedPartes.map(e => e[1]), backgroundColor: 'rgba(230, 126, 34, 0.7)', borderColor: 'rgba(211, 84, 0, 1)', borderWidth: 1 }]
+                },
+                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } }, plugins: { legend: { display: false } } }
+            });
+
+            const mapIds = {
+                'Cabeza': '#hotspot-cabeza', 'Ojos': '#hotspot-ojos', 'Torso': '#hotspot-torso',
+                'Brazo Izquierdo': '#hotspot-brazo-izquierdo', 'Brazo Derecho': '#hotspot-brazo-derecho',
+                'Mano Izquierda': '#hotspot-mano-izquierda', 'Mano Derecha': '#hotspot-mano-derecha',
+                'Pierna Izquierda': '#hotspot-pierna-izquierda', 'Pierna Derecha': '#hotspot-pierna-derecha',
+                'Pie Izquierdo': '#hotspot-pie-izquierdo', 'Pie Derecho': '#hotspot-pie-derecho', 'Otro': '#hotspot-otro'
+            };
+            $('.hotspot').removeClass('active').text('0');
+            for (const parte in conteo) {
+                if (mapIds[parte]) {
+                    $(mapIds[parte]).addClass('active').text(conteo[parte]).attr('title', `${parte}: ${conteo[parte]} incidente(s)`);
+                }
+            }
+        }
+
+        function crearGraficoIncidentesCategoria(canvasId, targetData, titulo) {
+            const labelsOrdenados = ["FAT", "LWC", "MTC", "FAC", "N-M"];
+            const ordenCategorias = { "FAT": 0, "LWC": 0, "MTC": 0, "FAC": 0, "N-M": 0 };
+            targetData.forEach(i => { if (ordenCategorias.hasOwnProperty(i.categoriaSiso)) ordenCategorias[i.categoriaSiso]++; });
+
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            const prev = Chart.getChart(canvasId);
+            if (prev) prev.destroy();
+
+            return new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labelsOrdenados,
+                    datasets: [{ data: labelsOrdenados.map(l => ordenCategorias[l]), backgroundColor: ['#e74c3c', '#e67e22', '#f39c12', '#3498db', '#2ecc71'] }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } },
+                    plugins: { legend: { display: false }, title: { display: true, text: titulo } }
+                }
+            });
+        }
+
+        function crearGraficoIncidentesCategoriaActual() {
+            const hoy = new Date();
+            const datosMes = incidentes.filter(i => {
+                const f = new Date(i.fechaIncidente + 'T00:00:00');
+                return f.getMonth() === hoy.getMonth() && f.getFullYear() === hoy.getFullYear();
+            });
+            graficoIncidentesCategoriaActual = crearGraficoIncidentesCategoria('graficoIncidentesCategoriaActual', datosMes, 'Distribución (Mes Actual)');
+        }
+
+        function crearGraficoIncidentesCategoriaHistorico() {
+            graficoIncidentesCategoriaHistorico = crearGraficoIncidentesCategoria('graficoIncidentesCategoriaHistorico', incidentes, 'Distribución (Histórica)');
+        }
+
+        function crearGraficoIncidentesCategoriaFiltrado(ano, mes) {
+            const datosFiltrados = incidentes.filter(i => {
+                const f = new Date(i.fechaIncidente + 'T00:00:00');
+                return f.getMonth() === mes && f.getFullYear() === ano;
+            });
+            const nombreMes = new Date(ano, mes).toLocaleString('es-ES', { month: 'long' });
+            graficoIncidentesCategoriaFiltrado = crearGraficoIncidentesCategoria('graficoIncidentesCategoriaFiltrado', datosFiltrados, `Distribución (${nombreMes} ${ano})`);
+        }
+
+        function mostrarHistorialIncidentes(lista) {
+            const datosAMostrar = lista || incidentes;
+            const tabla = $('#tabla-incidentes').empty();
+            if (datosAMostrar.length === 0) {
+                tabla.append('<tr><td colspan="9" class="text-center">No hay incidentes para el filtro seleccionado.</td></tr>');
+                return;
+            }
+            [...datosAMostrar].sort((a, b) => new Date(b.fechaIncidente) - new Date(a.fechaIncidente)).forEach(i => {
+                const partesHtml = (i.parteAfectada && i.parteAfectada.length > 0)
+                    ? '<ul>' + i.parteAfectada.split('; ').map(p => `<li>${p}</li>`).join('') + '</ul>'
+                    : '';
+                const pendBadge = i._pendienteSync ? ' <span class="badge-offline-pending">Pendiente</span>' : '';
+
+                tabla.append(`
+                    <tr class="no-hover">
+                        <td>${formatearFecha(i.fechaIncidente)}</td>
+                        <td>${i.nombre}${pendBadge}</td>
+                        <td>${i.identidad}</td>
+                        <td>${i.categoriaSiso}</td>
+                        <td>${i.descripcion}</td>
+                        <td>${partesHtml}</td>
+                        <td>${i.causa}</td>
+                        <td>${i.medidas || ''}</td>
+                        <td style="white-space: nowrap;">
+                            <button class="btn btn-warning btn-sm btn-action btn-edit-incidente" data-identidad="${i.identidad}" data-fecha="${i.fechaIncidente}" title="Editar Incidente"><i class="fas fa-edit"></i></button>
+                            <button class="btn btn-danger btn-sm btn-action btn-delete-incidente" data-identidad="${i.identidad}" data-fecha="${i.fechaIncidente}" title="Eliminar Incidente"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>`);
+            });
+            filtrarIncidentesTabla();
+        }
+
+        function filtrarIncidentesTabla() {
+            const texto = $('#buscador-incidentes').val().toLowerCase();
+            $('#tabla-incidentes tr').each(function() {
+                if ($(this).find('td').length < 6) return;
+                const nombre = $(this).find('td:eq(1)').text().toLowerCase();
+                const identidad = $(this).find('td:eq(2)').text().toLowerCase();
+                const categoria = $(this).find('td:eq(3)').text().toLowerCase();
+                const descripcion = $(this).find('td:eq(4)').text().toLowerCase();
+                const parteAfectada = $(this).find('td:eq(5)').text().toLowerCase();
+                $(this).toggle(
+                    nombre.includes(texto) || identidad.includes(texto) || categoria.includes(texto) ||
+                    descripcion.includes(texto) || parteAfectada.includes(texto)
+                );
+            });
+        }
+
+        function filtrarIncidentesPersonalizado() {
+            const inicio = $('#fecha-inicio-incidentes').val();
+            const fin = $('#fecha-fin-incidentes').val();
+            let incidentesFiltrados = incidentes;
+            if (inicio && fin) incidentesFiltrados = incidentes.filter(i => i.fechaIncidente >= inicio && i.fechaIncidente <= fin);
+            else if (inicio) incidentesFiltrados = incidentes.filter(i => i.fechaIncidente >= inicio);
+            else if (fin) incidentesFiltrados = incidentes.filter(i => i.fechaIncidente <= fin);
+            mostrarHistorialIncidentes(incidentesFiltrados);
+        }
+
+        // ==================== MODAL EDITAR INCIDENTE (DISEÑO ORIGINAL + OFFLINE) ====================
+        function abrirModalEditarIncidente(incidenteOriginal) {
+            let opcionesColaboradores = '';
+            [...colaboradoresActivos].sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(col => {
+                opcionesColaboradores += `<option value="${col.identidad}" ${col.identidad === incidenteOriginal.identidad ? 'selected' : ''}>${col.nombre}</option>`;
+            });
+
+            const isMobile = window.innerWidth < 576;
+            const styleId = 'editar-incidente-style-' + Date.now();
+
+            const labelStyle = 'font-weight: 600; color: #2c3e50; font-size: 0.85rem; margin-bottom: 5px; display: block; text-align: left;';
+            const inputStyle = 'width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 0.9rem; transition: all 0.3s; background: white; color: #2c3e50;';
+            const selectStyle = inputStyle + ' appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\'%3E%3Cpath fill=\'%23333\' d=\'M6 8L1 3h10z\'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center;';
+
+            const colaboradorInfo = colaboradoresActivos.find(c => c.identidad === incidenteOriginal.identidad);
+            const nombreMostrar = colaboradorInfo?.nombre || incidenteOriginal.nombre || 'Editar Incidente';
+            const fotoSrc = colaboradorInfo?.fotoUrl || `https://ui-avatars.com/api/?name=${nombreMostrar.replace(/\s/g, "+")}&background=3498db&color=fff&size=100`;
+
+            const partesList = ["Cabeza", "Ojos", "Torso", "Brazo Izquierdo", "Brazo Derecho", "Mano Izquierda", "Mano Derecha", "Pierna Izquierda", "Pierna Derecha", "Pie Izquierdo", "Pie Derecho", "Otro"];
+            const partesSeleccionadas = incidenteOriginal.parteAfectada ? incidenteOriginal.parteAfectada.split('; ').map(p => p.trim()) : [];
+            let partesHtml = '';
+            partesList.forEach(parte => {
+                const checked = partesSeleccionadas.includes(parte) ? 'checked' : '';
+                const id = `parte-edit-${parte.replace(/\s/g, '-')}`;
+                partesHtml += `
+                    <div class="form-check">
+                        <input class="form-check-input parte-afectada-edit" type="checkbox" value="${parte}" id="${id}" ${checked}>
+                        <label class="form-check-label" for="${id}">${parte}</label>
+                    </div>`;
+            });
+
+            const modalHtml = `
+                <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0;">
+                    <div style="background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460); border-radius: 16px 16px 0 0; padding: ${isMobile ? '16px 20px' : '20px 25px'}; margin: -20px -25px 20px -25px; color: white; position: relative; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+                        <div style="position: absolute; top: -50%; right: -20%; width: 150px; height: 150px; background: radial-gradient(circle, rgba(52, 152, 219, 0.1) 0%, transparent 70%); border-radius: 50%;"></div>
+                        <div style="position: absolute; bottom: -40%; left: -10%; width: 130px; height: 130px; background: radial-gradient(circle, rgba(231, 76, 60, 0.08) 0%, transparent 70%); border-radius: 50%;"></div>
+
+                        <div style="display: flex; align-items: center; gap: ${isMobile ? '12px' : '18px'}; flex-wrap: wrap; position: relative; z-index: 1; justify-content: flex-start;">
+                            <div style="position: relative; flex-shrink: 0;">
+                                <div style="position: absolute; inset: -3px; background: linear-gradient(135deg, #f39c12, #e74c3c); border-radius: 50%; padding: 3px; box-shadow: 0 0 20px rgba(243,156,18,0.25);">
+                                    <div style="width: 100%; height: 100%; border-radius: 50%; background: #1a1a2e;"></div>
+                                </div>
+                                <img src="${fotoSrc}"
+                                     style="width: ${isMobile ? '55px' : '65px'}; height: ${isMobile ? '55px' : '65px'}; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.15); position: relative; z-index: 1;"
+                                     onerror="this.src='https://ui-avatars.com/api/?name=${nombreMostrar.replace(/\s/g, "+")}&background=3498db&color=fff&size=100&font-size=0.5'">
+                                <div style="position: absolute; bottom: 0px; right: 0px; background: #f39c12; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border: 2px solid white; z-index: 2; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">
+                                    <i class="fas fa-edit" style="font-size: 9px; color: white;"></i>
+                                </div>
+                            </div>
+
+                            <div style="flex: 1; min-width: 120px; text-align: left;">
+                                <h3 style="margin: 0; font-weight: 700; font-size: ${isMobile ? '1rem' : '1.2rem'}; letter-spacing: -0.5px; background: linear-gradient(135deg, #fff, #a8d8ea); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; text-align: left;">
+                                    ${nombreMostrar}
+                                </h3>
+                                <div style="margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-start;">
+                                    <span class="badge" style="background: rgba(255,255,255,0.12); padding: 2px 10px; font-size: 0.65rem;">
+                                        <i class="fas fa-id-card me-1"></i>${incidenteOriginal.identidad}
+                                    </span>
+                                    <span class="badge" style="background: rgba(243, 156, 18, 0.2); color: #f39c12; border: 1px solid #f39c12; padding: 2px 10px; font-size: 0.65rem;">
+                                        <i class="fas fa-exclamation-triangle me-1"></i>Editando Incidente
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form id="form-editar-incidente" style="padding: 5px 0;">
+                        <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: ${isMobile ? '10px' : '15px'}; margin-bottom: 12px;">
+                            <div style="text-align: left;">
+                                <label class="form-label" style="${labelStyle}">Fecha <span style="color: #e74c3c;">*</span></label>
+                                <input type="date" class="form-control" id="editar-fecha-incidente" value="${incidenteOriginal.fechaIncidente}" required
+                                       style="${inputStyle}" onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                                       onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">
+                            </div>
+                            <div style="text-align: left;">
+                                <label class="form-label" style="${labelStyle}">Colaborador <span style="color: #e74c3c;">*</span></label>
+                                <select class="form-select" id="editar-colaborador-incidente" required style="${selectStyle}"
+                                        onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                                        onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">
+                                    <option value="">Seleccionar...</option>
+                                    ${opcionesColaboradores}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: ${isMobile ? '10px' : '15px'}; margin-bottom: 12px;">
+                            <div style="text-align: left;">
+                                <label class="form-label" style="${labelStyle}">Parte Afectada (Opcional)</label>
+                                <div class="border p-2 rounded" style="max-height: 150px; overflow-y: auto;">
+                                    ${partesHtml}
+                                </div>
+                            </div>
+                            <div style="text-align: left;">
+                                <label class="form-label" style="${labelStyle}">Categoría SISO <span style="color: #e74c3c;">*</span></label>
+                                <select class="form-select" id="editar-categoria-incidente" required style="${selectStyle}"
+                                        onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                                        onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="FAT" ${incidenteOriginal.categoriaSiso === 'FAT' ? 'selected' : ''}>FAT: Fatalidades</option>
+                                    <option value="LWC" ${incidenteOriginal.categoriaSiso === 'LWC' ? 'selected' : ''}>LWC: Incidentes con pérdida de tiempo</option>
+                                    <option value="MTC" ${incidenteOriginal.categoriaSiso === 'MTC' ? 'selected' : ''}>MTC: Incidentes de tratamiento médico</option>
+                                    <option value="FAC" ${incidenteOriginal.categoriaSiso === 'FAC' ? 'selected' : ''}>FAC: Incidentes de primeros auxilios</option>
+                                    <option value="N-M" ${incidenteOriginal.categoriaSiso === 'N-M' ? 'selected' : ''}>N-M: Casi Incidentes</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div style="margin-bottom: 12px; text-align: left;">
+                            <label class="form-label" style="${labelStyle}">Causa <span style="color: #e74c3c;">*</span></label>
+                            <textarea class="form-control" id="editar-causa-incidente" rows="2" required
+                                      style="${inputStyle} resize: vertical; min-height: 60px;"
+                                      onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                                      onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">${incidenteOriginal.causa}</textarea>
+                        </div>
+
+                        <div style="margin-bottom: 12px; text-align: left;">
+                            <label class="form-label" style="${labelStyle}">Descripción <span style="color: #e74c3c;">*</span></label>
+                            <textarea class="form-control" id="editar-descripcion-incidente" rows="2" required
+                                      style="${inputStyle} resize: vertical; min-height: 60px;"
+                                      onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                                      onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">${incidenteOriginal.descripcion}</textarea>
+                        </div>
+
+                        <div style="margin-bottom: 12px; text-align: left;">
+                            <label class="form-label" style="${labelStyle}">Medidas Implementadas</label>
+                            <textarea class="form-control" id="editar-medidas-incidente" rows="2"
+                                      style="${inputStyle} resize: vertical; min-height: 60px;"
+                                      onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                                      onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">${incidenteOriginal.medidas || ''}</textarea>
+                        </div>
+                    </form>
+                </div>`;
+
+            Swal.fire({
+                title: null,
+                html: modalHtml,
+                width: window.innerWidth < 576 ? '95%' : '600px',
+                showCancelButton: true,
+                confirmButtonText: 'Guardar Cambios',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#2ecc71',
+                cancelButtonColor: '#e74c3c',
+                customClass: {
+                    popup: 'animated fadeInDown',
+                    closeButton: 'btn-close-white',
+                    confirmButton: 'btn-edit-save',
+                    cancelButton: 'btn-edit-cancel'
+                },
+                didOpen: () => {
+                    const style = document.createElement('style');
+                    style.id = styleId;
+                    style.textContent = `
+                        .swal2-popup { border-radius: 16px !important; padding: 20px !important; }
+                        .swal2-close { color: white !important; opacity: 0.6; transition: all 0.3s; background: rgba(255,255,255,0.1); border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 20px; position: absolute !important; top: 15px !important; right: 15px !important; z-index: 10 !important; }
+                        .swal2-close:hover { opacity: 1; background: rgba(255,255,255,0.2); }
+                        .swal2-close:focus { box-shadow: none; }
+                        .btn-edit-save { background: linear-gradient(135deg, #2ecc71, #27ae60) !important; border: none !important; font-weight: 600 !important; padding: 12px 30px !important; border-radius: 50px !important; font-size: 0.95rem !important; box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3) !important; transition: all 0.3s !important; min-width: 140px !important; }
+                        .btn-edit-save:hover { transform: translateY(-2px) !important; box-shadow: 0 6px 20px rgba(46, 204, 113, 0.4) !important; }
+                        .btn-edit-cancel { background: linear-gradient(135deg, #e74c3c, #c0392b) !important; border: none !important; font-weight: 600 !important; padding: 12px 30px !important; border-radius: 50px !important; font-size: 0.95rem !important; box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3) !important; transition: all 0.3s !important; min-width: 140px !important; }
+                        .btn-edit-cancel:hover { transform: translateY(-2px) !important; box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4) !important; }
+                        .swal2-actions { gap: 12px !important; }
+                        @media (max-width: 576px) {
+                            .swal2-popup { padding: 15px !important; margin: 10px !important; }
+                            .swal2-actions { flex-direction: column !important; gap: 8px !important; }
+                            .btn-edit-save, .btn-edit-cancel { width: 100% !important; min-width: unset !important; padding: 12px 20px !important; }
+                        }
+                    `;
+                    document.head.appendChild(style);
+                },
+                preConfirm: () => {
+                    const nuevaIdentidad = $('#editar-colaborador-incidente').val();
+                    const fecha = $('#editar-fecha-incidente').val();
+                    const categoria = $('#editar-categoria-incidente').val();
+                    const causa = $('#editar-causa-incidente').val();
+                    const descripcion = $('#editar-descripcion-incidente').val();
+                    const medidas = $('#editar-medidas-incidente').val();
+
+                    const partesSel = [];
+                    $('.parte-afectada-edit:checked').each(function() { partesSel.push($(this).val()); });
+                    const parteAfectada = partesSel.join('; ');
+
+                    if (!nuevaIdentidad || !fecha || !categoria || !causa || !descripcion) {
+                        Swal.showValidationMessage('⚠️ Todos los campos obligatorios deben estar llenos.');
+                        return false;
+                    }
+
+                    const nuevoColaboradorInfo = colaboradoresActivos.find(col => col.identidad === nuevaIdentidad);
+                    if (!nuevoColaboradorInfo) {
+                        Swal.showValidationMessage('⚠️ El colaborador seleccionado no es válido.');
+                        return false;
+                    }
+
+                    return {
+                        datosNuevos: {
+                            nombre: nuevoColaboradorInfo.nombre,
+                            identidad: nuevoColaboradorInfo.identidad,
+                            fechaIncidente: fecha,
+                            categoriaSiso: categoria,
+                            causa,
+                            descripcion,
+                            medidas: medidas || '',
+                            parteAfectada
+                        }
+                    };
+                },
+                willClose: () => {
+                    const el = document.getElementById(styleId);
+                    if (el) el.remove();
+                }
+            }).then(async (result) => {
+                if (!result.isConfirmed) return;
+                const { datosNuevos } = result.value;
+
+                await PB_DB.agregarPendiente({
+                    titulo: `Editar Incidente: ${datosNuevos.nombre}`,
+                    detalle: `${formatearFecha(datosNuevos.fechaIncidente)} (${datosNuevos.categoriaSiso})`,
+                    destino: 'principal',
+                    accion: 'editar_incidente',
+                    payload: {
+                        incidenteOriginal: JSON.stringify({
+                            identidad: incidenteOriginal.identidad,
+                            fechaIncidente: incidenteOriginal.fechaIncidente,
+                            fecha: incidenteOriginal.fechaIncidente
+                        }),
+                        datosNuevos: JSON.stringify(datosNuevos)
+                    }
+                });
+
+                await PB_DB.actualizarDatosPrincipales(cache => {
+                    cache.incidentes = (cache.incidentes || []).map(i =>
+                        (i.identidad === incidenteOriginal.identidad && i.fechaIncidente === incidenteOriginal.fechaIncidente)
+                            ? { ...datosNuevos, _pendienteSync: true }
+                            : i
+                    );
+                    return cache;
+                });
+
+                await cargarYRenderizar(false);
+                Swal.fire('Guardado Offline', 'Incidente actualizado localmente y pendiente de sincronizar.', 'success');
+            });
+        }
+
+        function eliminarIncidenteOffline(identidad, fecha) {
+            Swal.fire({
+                title: '¿Está seguro?',
+                html: `¿Desea eliminar este registro de incidente del <strong>${formatearFecha(fecha)}</strong>?`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'No, cancelar'
+            }).then(async (result) => {
+                if (!result.isConfirmed) return;
+
+                await PB_DB.agregarPendiente({
+                    titulo: 'Eliminar Incidente',
+                    detalle: `ID: ${identidad} - Fecha: ${formatearFecha(fecha)}`,
+                    destino: 'principal',
+                    accion: 'eliminar_incidente',
+                    payload: { identidad, fecha }
+                });
+
+                await PB_DB.actualizarDatosPrincipales(cache => {
+                    cache.incidentes = (cache.incidentes || []).filter(i => !(i.identidad === identidad && i.fechaIncidente === fecha));
+                    return cache;
+                });
+
+                await cargarYRenderizar(false);
+                Swal.fire('Guardado Offline', 'Incidente eliminado localmente y pendiente de sincronizar.', 'success');
+            });
+        }
+
+        // ==================== RESUMEN Y DETALLE DE INCIDENTES (DISEÑO ORIGINAL) ====================
+        function mostrarResumenIncidentes() {
+            if (incidentes.length === 0) {
+                Swal.fire('Sin Datos', 'No hay incidentes registrados para mostrar un resumen.', 'info');
+                return;
+            }
+
+            const conteo = {};
+            incidentes.forEach(reg => {
+                const colaboradorInfo = colaboradoresActivos.find(c => c.identidad === reg.identidad);
+                if (!colaboradorInfo) return;
+                if (!conteo[reg.identidad]) {
+                    conteo[reg.identidad] = {
+                        nombre: colaboradorInfo.nombre,
+                        identidad: colaboradorInfo.identidad,
+                        fotoUrl: colaboradorInfo.fotoUrl,
+                        count: 0,
+                        categorias: {}
+                    };
+                }
+                conteo[reg.identidad].count++;
+                const cat = reg.categoriaSiso;
+                conteo[reg.identidad].categorias[cat] = (conteo[reg.identidad].categorias[cat] || 0) + 1;
+            });
+
+            const sorted = Object.values(conteo).sort((a, b) => b.count - a.count);
+
+            const modalHtml = `
+                <div class="mb-3 px-2">
+                    <input type="text" id="filtro-resumen-incidentes" class="form-control" placeholder="Buscar por nombre o identidad...">
+                </div>
+                <div id="resumen-lista-colaboradores" style="max-height: 400px; overflow-y: auto; text-align: left;"></div>`;
+
+            function renderResumenList(items) {
+                const container = $('#resumen-lista-colaboradores').empty();
+                if (items.length === 0) {
+                    container.html('<p class="text-center text-muted mt-3">No se encontraron colaboradores activos con incidentes registrados.</p>');
+                    return;
+                }
+                let listHtml = '';
+                items.forEach(item => {
+                    let color = 'warning';
+                    if (item.categorias['FAT'] || item.categorias['LWC']) color = 'danger';
+                    else if (item.categorias['MTC']) color = 'warning';
+                    else if (item.categorias['FAC'] || item.categorias['N-M']) color = 'info';
+
+                    const fotoSrc = item.fotoUrl || `https://ui-avatars.com/api/?name=${item.nombre.replace(/\s/g, "+")}&background=random`;
+                    listHtml += `
+                        <div class="resumen-disciplina-item" data-identidad="${item.identidad}">
+                            <img src="${fotoSrc}" class="resumen-disciplina-img" onerror="this.src='https://ui-avatars.com/api/?name=${item.nombre.replace(/\s/g, "+")}&background=random'">
+                            <div class="resumen-disciplina-info">
+                                <h6>${item.nombre}</h6>
+                                <span class="badge bg-${color}">${item.count} Incidente(s)</span>
+                            </div>
+                        </div>`;
+                });
+                container.html(listHtml);
+            }
+
+            Swal.fire({
+                title: 'Resumen de Incidentes por Colaborador Activo',
+                html: modalHtml,
+                width: '700px',
+                showCloseButton: true,
+                showConfirmButton: false,
+                didOpen: () => {
+                    renderResumenList(sorted);
+                    $('#filtro-resumen-incidentes').on('input', function() {
+                        const query = $(this).val().toLowerCase();
+                        const filtered = sorted.filter(item =>
+                            item.nombre.toLowerCase().includes(query) || item.identidad.toLowerCase().includes(query)
+                        );
+                        renderResumenList(filtered);
+                    });
+
+                    $(document).on('click.resumenIncidentes', '#resumen-lista-colaboradores .resumen-disciplina-item', function() {
+                        const identidad = $(this).data('identidad');
+                        mostrarDetalleIncidentesColaborador(identidad);
+                    });
+                },
+                willClose: () => {
+                    $(document).off('click.resumenIncidentes');
+                }
+            });
+        }
+
+        function mostrarDetalleIncidentesColaborador(identidad) {
+            const historial = incidentes.filter(d => d.identidad === identidad).sort((a, b) => new Date(b.fechaIncidente) - new Date(a.fechaIncidente));
+            const colaborador = colaboradoresActivos.find(c => c.identidad === identidad) || { nombre: 'N/A', identidad, fotoUrl: '' };
+
+            let historialHtml = '<div style="max-height: 300px; overflow-y: auto; text-align: left; padding: 10px; background-color: #f8f9fa; border-radius: 5px;">';
+            if (historial.length > 0) {
+                historial.forEach((reg, index) => {
+                    let badgeColor = 'secondary';
+                    if (reg.categoriaSiso === 'FAT' || reg.categoriaSiso === 'LWC') badgeColor = 'danger';
+                    else if (reg.categoriaSiso === 'MTC') badgeColor = 'warning text-dark';
+                    else if (reg.categoriaSiso === 'FAC') badgeColor = 'info';
+                    else if (reg.categoriaSiso === 'N-M') badgeColor = 'success';
+
+                    const partesHtml = (reg.parteAfectada && reg.parteAfectada.length > 0)
+                        ? `<li><strong>Parte(s) Afectada(s):</strong> ${reg.parteAfectada.replace(/; /g, ', ')}</li>`
+                        : '';
+
+                    historialHtml += `
+                        <div class="mb-2">
+                            <strong>${formatearFecha(reg.fechaIncidente)}:</strong> <span class="badge bg-${badgeColor}">${reg.categoriaSiso}</span>
+                            <ul class="mb-1 mt-1" style="font-size: 0.9rem;">
+                                <li><strong>Descripción:</strong> ${reg.descripcion}</li>
+                                <li><strong>Causa:</strong> ${reg.causa}</li>
+                                ${partesHtml}
+                                ${reg.medidas ? `<li><strong>Medidas:</strong> ${reg.medidas}</li>` : ''}
+                            </ul>
+                        </div>
+                        ${index < historial.length - 1 ? '<hr class="my-2">' : ''}`;
+                });
+            } else {
+                historialHtml += '<p class="text-center text-muted">No se encontraron registros de incidentes.</p>';
+            }
+            historialHtml += '</div>';
+
+            const fotoSrc = colaborador.fotoUrl || `https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=random`;
+            const detailModalHtml = `
+                <div class="d-flex justify-content-start mb-3">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-volver-resumen-incidentes">
+                        <i class="fas fa-arrow-left me-1"></i> Volver al Resumen
+                    </button>
+                </div>
+                <div class="text-center mb-3">
+                    <img src="${fotoSrc}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid #dee2e6;" onerror="this.src='https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=random'">
+                    <h5 class="mt-2 mb-0">${colaborador.nombre}</h5>
+                    <span class="badge bg-secondary">${colaborador.identidad}</span>
+                    <p class="mt-2">Total de incidentes: <strong>${historial.length}</strong></p>
+                </div>
+                ${historialHtml}`;
+
+            Swal.fire({
+                title: 'Detalle de Incidentes',
+                html: detailModalHtml,
+                width: '600px',
+                showCloseButton: true,
+                showConfirmButton: false,
+                didOpen: () => {
+                    const volverBtn = Swal.getPopup().querySelector('#btn-volver-resumen-incidentes');
+                    if (volverBtn) {
+                        volverBtn.addEventListener('click', () => {
+                            Swal.close();
+                            mostrarResumenIncidentes();
+                        });
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

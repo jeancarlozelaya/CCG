@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registrar Colaborador</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body class="subpage-body">
+    <div class="container-fluid">
+        <div class="alert alert-info d-flex align-items-center justify-content-between py-2 mb-3">
+            <span class="small mb-0">
+                <i class="fas fa-database me-2"></i>Los registros se guardan localmente y quedarán pendientes de sincronizar en la pantalla principal.
+            </span>
+        </div>
+
+        <form id="form-registrar-colaborador">
+            <div id="contenedor-formularios-colaborador"></div>
+
+            <div class="form-actions">
+                <button type="button" class="btn btn-success" id="btn-agregar-colaborador">
+                    <i class="fas fa-plus me-2"></i>Agregar
+                </button>
+                <button type="button" class="btn btn-primary" id="btn-registrar-colaborador">
+                    <i class="fas fa-save me-2"></i>Guardar Offline
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div id="overlay">
+        <div class="spinner"></div>
+        <div id="loadingMessage"><h4>Guardando localmente...</h4><p></p></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/db.js"></script>
+    <script>
+        let colaboradoresActivos = [];
+
+        $(document).ready(async function() {
+            await cargarActivosLocales();
+            agregarFormularioColaborador();
+
+            $('#btn-agregar-colaborador').on('click', agregarFormularioColaborador);
+            $('#btn-registrar-colaborador').on('click', registrarColaboradorOffline);
+
+            $(document).on('click', '.btn-quitar-item-colaborador', function() {
+                $(this).closest('.formulario-item').remove();
+            });
+
+            $(document).on('input', '.nombre-completo, .contacto-emergencia', function() {
+                this.value = this.value.toUpperCase();
+                validarCampo(this);
+            });
+
+            $(document).on('input', '.identidad', function() {
+                formatearIdentidad(this);
+            });
+
+            $(document).on('input', '.movil, .movil-emergencia', function() {
+                formatearTelefono(this);
+            });
+
+            $(document).on('change input', 'input[required]:not(.identidad):not(.nombre-completo), select[required]', function() {
+                validarCampo(this);
+            });
+
+            if (syncChannel) {
+                syncChannel.onmessage = cargarActivosLocales;
+            }
+        });
+
+        async function cargarActivosLocales() {
+            const datos = await PB_DB.obtenerDatosPrincipales();
+            colaboradoresActivos = datos.activos || [];
+        }
+
+        function agregarFormularioColaborador() {
+            const todayStr = getHoyStr();
+            const esPrimero = $('#contenedor-formularios-colaborador .formulario-item').length === 0;
+            const btnQuitar = esPrimero ? '' : '<button type="button" class="btn btn-danger btn-quitar-item btn-quitar-item-colaborador" title="Quitar registro"><i class="fas fa-times"></i></button>';
+
+            const html = `
+                <div class="formulario-item">
+                    ${btnQuitar}
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Fecha de Inicio</label>
+                            <input type="date" class="form-control fecha-inicio" value="${todayStr}" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Nombre Completo</label>
+                            <input type="text" class="form-control nombre-completo" style="text-transform: uppercase;" required>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Identidad</label>
+                            <input type="text" class="form-control identidad" placeholder="0000-0000-00000" pattern="\\d{4}-\\d{4}-\\d{5}" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Fecha de Nacimiento (Opcional)</label>
+                            <input type="date" class="form-control fecha-nacimiento">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Sexo</label>
+                            <select class="form-select sexo" required>
+                                <option value="">Seleccionar...</option>
+                                <option value="Masculino">Masculino</option>
+                                <option value="Femenino">Femenino</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="row align-items-center">
+                                <div class="col-md-7">
+                                    <label class="form-label">Foto (opcional)</label>
+                                    <input type="file" class="form-control foto-colaborador" accept="image/*" onchange="mostrarVistaPrevia(this)" capture="environment">
+                                    <div class="form-text">JPG, PNG. Máx 5MB</div>
+                                </div>
+                                <div class="col-md-5">
+                                    <div class="vista-previa-container mt-2 mt-md-0 text-center"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6 class="text-muted mb-3"><i class="fas fa-phone-alt me-2"></i>Datos de Contacto (Opcional)</h6>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Móvil</label>
+                            <input type="tel" class="form-control movil" placeholder="0000-0000" pattern="\\d{4}-\\d{4}" maxlength="9">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Contacto de Emergencia</label>
+                            <input type="text" class="form-control contacto-emergencia" placeholder="Nombre completo" style="text-transform: uppercase;">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Móvil de Emergencia</label>
+                            <input type="tel" class="form-control movil-emergencia" placeholder="0000-0000" pattern="\\d{4}-\\d{4}" maxlength="9">
+                        </div>
+                    </div>
+                </div>`;
+            $('#contenedor-formularios-colaborador').append(html);
+        }
+
+        function mostrarVistaPrevia(input) {
+            const container = $(input).closest('.row').find('.vista-previa-container').empty();
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    container.html(`
+                        <div style="position: relative; display: inline-block;">
+                            <img src="${e.target.result}" style="max-width: 90px; max-height: 90px; border-radius: 6px;">
+                            <button type="button" class="btn btn-danger btn-sm" onclick="quitarVistaPrevia(this)"
+                                style="position: absolute; top: -5px; right: -5px; width: 22px; height: 22px; border-radius: 50%; padding: 0;">
+                                <i class="fas fa-times" style="font-size:10px;"></i>
+                            </button>
+                        </div>`);
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function quitarVistaPrevia(btn) {
+            const container = $(btn).closest('.vista-previa-container');
+            container.empty();
+            container.closest('.row').find('.foto-colaborador').val('');
+        }
+
+        async function registrarColaboradorOffline() {
+            await cargarActivosLocales();
+
+            const colaboradoresParaRegistrar = [];
+            let esValido = true;
+            const identidadRegex = /^\d{4}-\d{4}-\d{5}$/;
+            const identidadesEnLote = new Set();
+            const dupsLote = new Set();
+            const dupsActivos = [];
+
+            $('#contenedor-formularios-colaborador .formulario-item').each(function(index) {
+                const item = $(this);
+                let itemValido = true;
+
+                item.find('input[required], select[required]').each(function() {
+                    validarCampo(this);
+                    if ($(this).hasClass('is-invalid')) itemValido = false;
+                });
+
+                item.find('.movil, .movil-emergencia').each(function() {
+                    validarCampoTelefono(this);
+                    if ($(this).hasClass('is-invalid')) itemValido = false;
+                });
+
+                const fechaInicio = item.find('.fecha-inicio').val();
+                const nombre = item.find('.nombre-completo').val().trim().toUpperCase();
+                const identidad = item.find('.identidad').val().trim();
+                const fechaNacimiento = item.find('.fecha-nacimiento').val() || '';
+                const sexo = item.find('.sexo').val();
+                const fotoInput = item.find('.foto-colaborador')[0];
+                const movil = item.find('.movil').val().trim();
+                const contactoEmergencia = item.find('.contacto-emergencia').val().trim().toUpperCase();
+                const movilEmergencia = item.find('.movil-emergencia').val().trim();
+
+                if (itemValido) {
+                    if (!identidadRegex.test(identidad)) {
+                        item.find('.identidad').addClass('is-invalid').removeClass('is-valid');
+                        itemValido = false;
+                    } else {
+                        if (colaboradoresActivos.some(col => col.identidad === identidad)) {
+                            dupsActivos.push({ identidad, nombre, numeroItem: index + 1 });
+                            item.find('.identidad').addClass('is-invalid').removeClass('is-valid');
+                            itemValido = false;
+                        }
+                        if (identidadesEnLote.has(identidad)) {
+                            dupsLote.add(identidad);
+                            item.find('.identidad').addClass('is-invalid').removeClass('is-valid');
+                            itemValido = false;
+                        } else {
+                            identidadesEnLote.add(identidad);
+                        }
+                    }
+                }
+
+                if (!itemValido) esValido = false;
+                else {
+                    colaboradoresParaRegistrar.push({
+                        fechaInicio, nombre, identidad, fechaNacimiento, sexo,
+                        fotoFile: fotoInput.files[0] || null,
+                        movil, contactoEmergencia, movilEmergencia
+                    });
+                }
+            });
+
+            if (!esValido) {
+                let msg = '';
+                if (dupsActivos.length > 0) {
+                    msg += '<strong>Identidades ya activas:</strong><ul>' + dupsActivos.map(d => `<li>#${d.numeroItem}: ${d.identidad} (${d.nombre})</li>`).join('') + '</ul>';
+                }
+                if (dupsLote.size > 0) {
+                    msg += '<strong>Duplicadas en el formulario:</strong><ul>' + [...dupsLote].map(id => `<li>${id}</li>`).join('') + '</ul>';
+                }
+                Swal.fire(msg ? 'Error de Duplicados' : 'Formulario Incompleto', msg || 'Revise los campos marcados en rojo.', msg ? 'error' : 'warning');
+                return;
+            }
+
+            if (colaboradoresParaRegistrar.length === 0) return;
+
+            const conf = await Swal.fire({
+                title: '¿Guardar registro offline?',
+                html: `Se guardarán <strong>${colaboradoresParaRegistrar.length}</strong> colaborador(es) en IndexedDB pendientes de sincronizar.`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, guardar',
+                cancelButtonText: 'Cancelar'
+            });
+
+            if (!conf.isConfirmed) return;
+
+            $('#overlay').css('display', 'flex');
+            try {
+                const sinFoto = [];
+                const fotosParaSubir = [];
+                const nuevosParaCache = [];
+
+                for (const col of colaboradoresParaRegistrar) {
+                    const { fotoFile, ...datosLimpios } = col;
+                    sinFoto.push(datosLimpios);
+
+                    let dataUrl = '';
+                    if (fotoFile) {
+                        const base64 = await archivoABase64(fotoFile);
+                        dataUrl = `data:${fotoFile.type || 'image/jpeg'};base64,${base64}`;
+                        fotosParaSubir.push({
+                            colaborador: JSON.stringify(datosLimpios),
+                            archivoBase64: base64,
+                            esEdicion: false
+                        });
+                    }
+
+                    nuevosParaCache.push({
+                        ...datosLimpios,
+                        fotoUrl: dataUrl,
+                        _pendienteSync: true
+                    });
+                }
+
+                await PB_DB.agregarPendiente({
+                    titulo: `Registrar ${sinFoto.length} Colaborador(es)`,
+                    detalle: sinFoto.map(c => c.nombre).join(', '),
+                    destino: 'principal',
+                    accion: 'registrar_colaboradores_masivo',
+                    payload: { datos: JSON.stringify(sinFoto) },
+                    fotos: fotosParaSubir
+                });
+
+                await PB_DB.actualizarDatosPrincipales(datos => {
+                    datos.activos = [...(datos.activos || []), ...nuevosParaCache];
+                    datos.ingresos = [...(datos.ingresos || []), ...nuevosParaCache];
+                    return datos;
+                });
+
+                $('#overlay').hide();
+                await Swal.fire({
+                    icon: 'success',
+                    title: 'Guardado Offline',
+                    text: 'Colaboradores guardados localmente. Sincroniza desde la pantalla principal cuando estés listo.',
+                    timer: 2200
+                });
+
+                $('#contenedor-formularios-colaborador').empty();
+                agregarFormularioColaborador();
+                await cargarActivosLocales();
+            } catch (err) {
+                $('#overlay').hide();
+                Swal.fire('Error', err.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

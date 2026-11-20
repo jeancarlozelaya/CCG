@@ -26,12 +26,15 @@
                                 </h5>
                                 <p class="card-text text-muted small mb-0" id="desc-asistencia-card">
                                     Calcula automáticamente la asistencia de cada día del mes actual (del día 1 hasta hoy) sin duplicar días ya registrados.
-                                    Se guardará offline en caché y quedará pendiente de sincronizar con el servidor.
+                                    Si se agregaron ausencias tardías, puedes rectificar los días ya registrados del mes seleccionado.
                                 </p>
                             </div>
                             <div class="col-md-4 text-md-end text-center mt-3 mt-md-0">
                                 <button class="btn btn-primary w-100 mb-2" id="btn-registrar-asistencia-mes">
                                     <i class="fas fa-save me-2"></i>Registrar Activos del Mes
+                                </button>
+                                <button class="btn btn-warning w-100 mb-2" id="btn-rectificar-asistencia-mes">
+                                    <i class="fas fa-tools me-2"></i>Rectificar Mes Seleccionado
                                 </button>
                                 <button class="btn btn-success w-100" id="btn-descargar-pdf-asistencia">
                                     <i class="fas fa-file-pdf me-2"></i>Descargar PDF
@@ -145,6 +148,10 @@
                 if (!isAdminMode()) return;
                 registrarAsistenciaMesOffline();
             });
+            $('#btn-rectificar-asistencia-mes').on('click', function() {
+                if (!isAdminMode()) return;
+                rectificarAsistenciaMesOffline();
+            });
             $('#btn-descargar-pdf-asistencia').on('click', descargarPDFAsistencia);
 
             $(document).on('click', '.btn-delete-asistencia', function() {
@@ -159,11 +166,13 @@
             const esAdmin = isAdminMode();
             if (esAdmin) {
                 $('#btn-registrar-asistencia-mes').show();
+                $('#btn-rectificar-asistencia-mes').show();
                 $('#titulo-asistencia-card').html('<i class="fas fa-calendar-check me-2 text-primary"></i>Registrar Asistencia del Mes');
-                $('#desc-asistencia-card').text('Calcula automáticamente la asistencia de cada día del mes actual (del día 1 hasta hoy) sin duplicar días ya registrados. Se guardará offline en caché y quedará pendiente de sincronizar con el servidor.');
+                $('#desc-asistencia-card').text('Calcula automáticamente la asistencia de cada día del mes actual (del día 1 hasta hoy) sin duplicar días ya registrados. Si se agregaron ausencias tardías, puedes rectificar los días ya registrados del mes seleccionado.');
                 $('.col-acciones-asistencia').show();
             } else {
                 $('#btn-registrar-asistencia-mes').hide();
+                $('#btn-rectificar-asistencia-mes').hide();
                 $('#titulo-asistencia-card').html('<i class="fas fa-file-pdf me-2 text-success"></i>Reporte de Asistencia');
                 $('#desc-asistencia-card').text('Consulta las estadísticas del mes seleccionado y descarga el reporte de asistencia en formato PDF.');
                 $('.col-acciones-asistencia').hide();
@@ -257,25 +266,22 @@
                 $('#porcentaje-asistencia-mes').text('0.00%');
             }
 
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
             const inicioMes = new Date(ano, mes, 1);
             const finMes = new Date(ano, mes + 1, 0);
-            let diasAus = 0;
-            (datos.ausencias || []).forEach(a => {
-                const i = new Date(a.fecha + 'T00:00:00');
-                const f = new Date((a.fechaFin || a.fecha) + 'T00:00:00');
-                const interI = i < inicioMes ? inicioMes : i;
-                const interF = f > finMes ? finMes : f;
-                if (interI <= interF) diasAus += Math.ceil((interF - interI) / (1000 * 60 * 60 * 24)) + 1;
-            });
+            const finEfectivo = (ano === hoy.getFullYear() && mes === hoy.getMonth()) ? hoy : finMes;
 
-            let diasLab = 0;
-            for (let d = new Date(inicioMes); d <= finMes; d.setDate(d.getDate() + 1)) {
-                if (d.getDay() >= 1 && d.getDay() <= 5) diasLab++;
-            }
-            const posibles = (datos.activos || []).length * diasLab;
-            $('#porcentaje-ausentismo-mes').text((posibles > 0 ? (diasAus / posibles) * 100 : 0).toFixed(2) + '%');
+            const pctAusentismo = calcularAusentismoUnificado(
+                datos.activos || [],
+                datos.egresos || [],
+                datos.ausencias || [],
+                inicioMes,
+                finEfectivo
+            );
+            $('#porcentaje-ausentismo-mes').text(pctAusentismo + '%');
 
-            const rot = calcularRotacionUnificada(datos.activos || [], datos.egresos || [], inicioMes, finMes);
+            const rot = calcularRotacionUnificada(datos.activos || [], datos.egresos || [], inicioMes, finEfectivo);
             $('#porcentaje-rotacion-mes').text(rot.porcentaje + '%');
         }
 
@@ -343,33 +349,8 @@
                 const fechaStr = `${ano}-${mm}-${dd}`;
                 if (fechasRegistradas.has(fechaStr)) continue;
 
-                const ingresosDespues = (datos.activos || []).filter(c => c.fechaInicio && c.fechaInicio > fechaStr).length;
-                const egresosDespues = (datos.egresos || []).filter(e => e.fechaEgreso && e.fechaEgreso > fechaStr).length;
-                const activosDia = (datos.activos || []).length - ingresosDespues + egresosDespues;
-
-                const egresosDia = (datos.egresos || []).filter(e => e.fechaEgreso === fechaStr).length;
-                const ingresosDia = (datos.activos || []).filter(c => c.fechaInicio === fechaStr).length;
-
-                const identidadesActivas = new Set(
-                    (datos.activos || []).filter(c => c.fechaInicio && c.fechaInicio <= fechaStr).map(c => c.identidad)
-                );
-                let ausentesDia = 0;
-                (datos.ausencias || []).forEach(a => {
-                    const fin = a.fechaFin || a.fecha;
-                    if (fechaStr >= a.fecha && fechaStr <= fin && identidadesActivas.has(a.identidad)) {
-                        ausentesDia++;
-                    }
-                });
-
-                nuevosDias.push({
-                    fecha: fechaStr,
-                    activos: activosDia,
-                    ausentes: ausentesDia,
-                    egresos: egresosDia,
-                    ingresos: ingresosDia,
-                    presentes: activosDia - ausentesDia,
-                    _pendienteSync: true
-                });
+                const diaCalc = calcularDatosAsistenciaDia(datos.activos, datos.egresos, datos.ausencias, fechaStr);
+                nuevosDias.push({ ...diaCalc, _pendienteSync: true });
             }
 
             if (nuevosDias.length === 0) {
@@ -391,6 +372,63 @@
 
             await cargarYRenderizar(false);
             Swal.fire({ icon: 'success', title: `Se registraron ${nuevosDias.length} día(s) offline`, timer: 2000, showConfirmButton: false });
+        }
+
+        async function rectificarAsistenciaMesOffline() {
+            if (!isAdminMode()) {
+                Swal.fire('Acceso restringido', 'Active el Modo Administrador para rectificar la asistencia.', 'warning');
+                return;
+            }
+
+            const mes = parseInt($('#filtro-mes-asistencia').val(), 10);
+            const ano = parseInt($('#filtro-ano-asistencia').val(), 10);
+            const nombreMes = new Date(ano, mes).toLocaleString('es-ES', { month: 'long' });
+
+            const fechasDelMes = (datos.asistencia || [])
+                .filter(r => {
+                    const f = new Date(r.fecha + 'T00:00:00');
+                    return f.getMonth() === mes && f.getFullYear() === ano;
+                })
+                .map(r => r.fecha);
+
+            if (fechasDelMes.length === 0) {
+                return Swal.fire('Sin registros', `No hay días registrados en ${nombreMes} ${ano} para rectificar.`, 'info');
+            }
+
+            const conf = await Swal.fire({
+                title: `¿Rectificar ${nombreMes} ${ano}?`,
+                html: `Se volverán a calcular los <strong>${fechasDelMes.length}</strong> día(s) registrados de ${nombreMes} ${ano} usando las ausencias, ingresos y egresos actuales.`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, rectificar',
+                cancelButtonText: 'Cancelar'
+            });
+            if (!conf.isConfirmed) return;
+
+            let rectificados = 0;
+            await PB_DB.actualizarDatosPrincipales(cache => {
+                rectificados = rectificarAsistenciaEnCache(cache, fechasDelMes);
+                return cache;
+            });
+
+            await PB_DB.agregarPendiente({
+                titulo: `Rectificar Asistencia (${nombreMes} ${ano})`,
+                detalle: `${fechasDelMes.length} día(s) revisados`,
+                destino: 'principal',
+                accion: 'rectificar_asistencia_mes',
+                payload: { mes, ano }
+            });
+
+            await cargarYRenderizar(false);
+            Swal.fire({
+                icon: 'success',
+                title: 'Mes rectificado offline',
+                html: rectificados > 0
+                    ? `Se actualizaron <strong>${rectificados}</strong> día(s) con diferencias. Quedó pendiente de sincronizar.`
+                    : 'Los datos locales ya coincidían; se encoló la verificación para el servidor.',
+                timer: 2500,
+                showConfirmButton: false
+            });
         }
 
         function eliminarAsistenciaOffline(fecha) {

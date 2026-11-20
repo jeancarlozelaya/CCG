@@ -59,13 +59,47 @@ const PB_SYNC = {
 
             // También intentar refrescar permisos silenciosamente
             try {
-                const respPerm = await fetch(PERMISOS_GESTION_URL + '?accion=listar&t=' + Date.now());
+                const respPerm = await fetch(PERMISOS_GESTION_URL + '?accion=listar&t=' + Date.now(), {
+                    credentials: 'omit',
+                    redirect: 'follow',
+                    cache: 'no-store'
+                });
                 const dataPerm = await respPerm.json();
                 if (dataPerm && dataPerm.success) {
                     await PB_DB.guardarCache('permisos', dataPerm.solicitudes || []);
                 }
             } catch (ePerm) {
                 console.warn('No se pudieron refrescar permisos:', ePerm.message);
+            }
+
+            // También intentar refrescar sugerencias del buzón silenciosamente
+            try {
+                const respSug = await fetch(BUZON_SCRIPT_URL + '?accion=listar&t=' + Date.now(), {
+                    credentials: 'omit',
+                    redirect: 'follow',
+                    cache: 'no-store'
+                });
+                const dataSug = await respSug.json();
+                if (dataSug && dataSug.success) {
+                    await PB_DB.guardarCache('sugerencias', dataSug.sugerencias || []);
+                }
+            } catch (eSug) {
+                console.warn('No se pudieron refrescar sugerencias del buzón:', eSug.message);
+            }
+
+            // También intentar refrescar solicitudes de carnet silenciosamente
+            try {
+                const respCarnet = await fetch(CARNETS_SCRIPT_URL + '?accion=listar&t=' + Date.now(), {
+                    credentials: 'omit',
+                    redirect: 'follow',
+                    cache: 'no-store'
+                });
+                const dataCarnet = await respCarnet.json();
+                if (dataCarnet && dataCarnet.success) {
+                    await PB_DB.guardarCache('carnets', dataCarnet.solicitudes || []);
+                }
+            } catch (eCarnet) {
+                console.warn('No se pudieron refrescar solicitudes de carnet:', eCarnet.message);
             }
 
             PB_DB.notificarCambio('servidor_descargado');
@@ -131,6 +165,42 @@ const PB_SYNC = {
             if (!parsed && !text.includes('Éxito') && !text.includes('success')) {
                 throw new Error(text.substring(0, 120));
             }
+            return;
+        }
+
+        if (item.destino === 'buzon') {
+            const body = new URLSearchParams();
+            body.append('accion', item.accion || 'marcar_vista');
+            body.append('items', JSON.stringify(item.payload.items || []));
+
+            const res = await fetch(BUZON_SCRIPT_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+                credentials: 'omit',
+                redirect: 'follow',
+                body: body.toString()
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const json = await res.json();
+            if (!json.success) throw new Error(json.error || 'Error actualizando estado en buzón');
+            return;
+        }
+
+        if (item.destino === 'carnets') {
+            const body = new URLSearchParams();
+            body.append('accion', item.accion || 'marcar_vista');
+            body.append('items', JSON.stringify(item.payload.items || []));
+
+            const res = await fetch(CARNETS_SCRIPT_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+                credentials: 'omit',
+                redirect: 'follow',
+                body: body.toString()
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const json = await res.json();
+            if (!json.success) throw new Error(json.error || 'Error actualizando estado en solicitud de carnet');
             return;
         }
 

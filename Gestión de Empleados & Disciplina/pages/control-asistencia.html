@@ -63,21 +63,21 @@
             <div class="col-md-4">
                 <div class="stat-card" style="background-color: #d4edda;">
                     <div class="icon text-success"><i class="fas fa-percent"></i></div>
-                    <h3 id="porcentaje-asistencia-mes">0%</h3>
+                    <h3 id="porcentaje-asistencia-mes">0.00%</h3>
                     <p>% Asistencia (Mes)</p>
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="stat-card" style="background-color: #f8d7da;">
                     <div class="icon text-danger"><i class="fas fa-user-clock"></i></div>
-                    <h3 id="porcentaje-ausentismo-mes">0%</h3>
+                    <h3 id="porcentaje-ausentismo-mes">0.00%</h3>
                     <p>% Ausentismo (Mes)</p>
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="stat-card" style="background-color: #fff3cd;">
                     <div class="icon text-warning"><i class="fas fa-chart-line"></i></div>
-                    <h3 id="porcentaje-rotacion-mes">0%</h3>
+                    <h3 id="porcentaje-rotacion-mes">0.00%</h3>
                     <p>% Rotación (Mes)</p>
                 </div>
             </div>
@@ -207,11 +207,13 @@
                 tabla.append(`<tr><td colspan="${esAdmin ? 8 : 7}" class="text-center">No hay registros de asistencia para este mes.</td></tr>`);
             } else {
                 lista.forEach(reg => {
-                    const pct = Math.min(100, (reg.presentes / META_ASISTENCIA) * 100).toFixed(1);
+                    const presentes = Number(reg.presentes || 0);
+                    const pctNum = Math.min(100, (presentes / META_ASISTENCIA) * 100);
+                    const pct = pctNum.toFixed(1);
                     let badgeColor = 'success';
-                    if (pct < 100) badgeColor = 'warning';
-                    if (pct < 90) badgeColor = 'danger';
-                    const faltan = Math.max(0, META_ASISTENCIA - reg.presentes);
+                    if (pctNum < 100) badgeColor = 'warning';
+                    if (pctNum < 90) badgeColor = 'danger';
+                    const faltan = Math.max(0, META_ASISTENCIA - presentes);
                     const metaInfo = faltan > 0 ? ` (faltan ${faltan})` : '';
                     const pendBadge = (esAdmin && reg._pendienteSync) ? ' <span class="badge-offline-pending">Pendiente</span>' : '';
                     const tdAccion = esAdmin
@@ -229,7 +231,7 @@
                             <td>${reg.ausentes}</td>
                             <td>${reg.egresos || 0}</td>
                             <td>${reg.ingresos || 0}</td>
-                            <td>${reg.presentes}</td>
+                            <td>${presentes}</td>
                             <td><span class="badge bg-${badgeColor}">${pct}%${metaInfo}</span></td>
                             ${tdAccion}
                         </tr>`);
@@ -245,10 +247,14 @@
             });
 
             if (datosMes.length > 0) {
-                const promPres = datosMes.reduce((s, r) => s + r.presentes, 0) / datosMes.length;
-                $('#porcentaje-asistencia-mes').text(Math.min(100, (promPres / META_ASISTENCIA) * 100).toFixed(1) + '%');
+                const sumaPctDiarios = datosMes.reduce((s, r) => {
+                    const pctDia = Math.min(100, (Number(r.presentes || 0) / META_ASISTENCIA) * 100);
+                    return s + pctDia;
+                }, 0);
+                const promPct = sumaPctDiarios / datosMes.length;
+                $('#porcentaje-asistencia-mes').text(promPct.toFixed(2) + '%');
             } else {
-                $('#porcentaje-asistencia-mes').text('0%');
+                $('#porcentaje-asistencia-mes').text('0.00%');
             }
 
             const inicioMes = new Date(ano, mes, 1);
@@ -295,10 +301,10 @@
                 data: {
                     labels,
                     datasets: [
-                        { label: 'Presentes', data: datosMes.map(r => r.presentes), borderColor: '#2ecc71', backgroundColor: 'rgba(46,204,113,0.1)', fill: true, tension: 0.4 },
-                        { label: 'Ausentes', data: datosMes.map(r => r.ausentes), borderColor: '#e74c3c', backgroundColor: 'rgba(231,76,60,0.1)', fill: true, tension: 0.4 },
-                        { label: 'Egresos', data: datosMes.map(r => r.egresos || 0), borderColor: '#f39c12', backgroundColor: 'rgba(243,156,18,0.1)', fill: true, tension: 0.4 },
-                        { label: 'Ingresos', data: datosMes.map(r => r.ingresos || 0), borderColor: '#3498db', backgroundColor: 'rgba(52,152,219,0.1)', fill: true, tension: 0.4 },
+                        { label: 'Presentes', data: datosMes.map(r => Number(r.presentes || 0)), borderColor: '#2ecc71', backgroundColor: 'rgba(46,204,113,0.1)', fill: true, tension: 0.4 },
+                        { label: 'Ausentes', data: datosMes.map(r => Number(r.ausentes || 0)), borderColor: '#e74c3c', backgroundColor: 'rgba(231,76,60,0.1)', fill: true, tension: 0.4 },
+                        { label: 'Egresos', data: datosMes.map(r => Number(r.egresos || 0)), borderColor: '#f39c12', backgroundColor: 'rgba(243,156,18,0.1)', fill: true, tension: 0.4 },
+                        { label: 'Ingresos', data: datosMes.map(r => Number(r.ingresos || 0)), borderColor: '#3498db', backgroundColor: 'rgba(52,152,219,0.1)', fill: true, tension: 0.4 },
                         { label: `Meta (${META_ASISTENCIA})`, data: Array(labels.length).fill(META_ASISTENCIA), borderColor: '#9b59b6', borderWidth: 3, borderDash: [5,5], fill: false, pointRadius: 0 }
                     ]
                 },
@@ -433,16 +439,18 @@
             $('#overlay').css('display', 'flex');
             const nombreMes = new Date(ano, mes).toLocaleString('es-ES', { month: 'long' });
             const totalDias = datosMes.length;
-            const promPresentes = (datosMes.reduce((s, r) => s + r.presentes, 0) / totalDias).toFixed(1);
-            const pctAsist = Math.min(100, (parseFloat(promPresentes) / META_ASISTENCIA) * 100).toFixed(1);
-            const promAus = (datosMes.reduce((s, r) => s + r.ausentes, 0) / totalDias).toFixed(1);
-            const totEg = datosMes.reduce((s, r) => s + (r.egresos || 0), 0);
-            const totIng = datosMes.reduce((s, r) => s + (r.ingresos || 0), 0);
+            const pctAsist = (datosMes.reduce((s, r) => {
+                return s + Math.min(100, (Number(r.presentes || 0) / META_ASISTENCIA) * 100);
+            }, 0) / totalDias).toFixed(2);
+            const promAus = (datosMes.reduce((s, r) => s + Number(r.ausentes || 0), 0) / totalDias).toFixed(1);
+            const totEg = datosMes.reduce((s, r) => s + Number(r.egresos || 0), 0);
+            const totIng = datosMes.reduce((s, r) => s + Number(r.ingresos || 0), 0);
 
             const genPagina = (lista, primera) => {
                 const filas = lista.map((reg, idx) => {
-                    const pct = Math.min(100, (reg.presentes / META_ASISTENCIA) * 100).toFixed(1);
-                    const ok = reg.presentes >= META_ASISTENCIA;
+                    const presentes = Number(reg.presentes || 0);
+                    const pct = Math.min(100, (presentes / META_ASISTENCIA) * 100).toFixed(1);
+                    const ok = presentes >= META_ASISTENCIA;
                     return `
                         <tr style="background:${idx % 2 === 0 ? '#fff' : '#fafafa'};">
                             <td style="padding:5px;border:1px solid #ddd;text-align:center;">${formatearFecha(reg.fecha)}</td>
@@ -450,7 +458,7 @@
                             <td style="padding:5px;border:1px solid #ddd;text-align:center;">${reg.ausentes}</td>
                             <td style="padding:5px;border:1px solid #ddd;text-align:center;">${reg.egresos || 0}</td>
                             <td style="padding:5px;border:1px solid #ddd;text-align:center;">${reg.ingresos || 0}</td>
-                            <td style="padding:5px;border:1px solid #ddd;text-align:center;font-weight:bold;color:${ok ? '#2c3e50' : '#e74c3c'};">${reg.presentes}</td>
+                            <td style="padding:5px;border:1px solid #ddd;text-align:center;font-weight:bold;color:${ok ? '#2c3e50' : '#e74c3c'};">${presentes}</td>
                             <td style="padding:5px;border:1px solid #ddd;text-align:center;"><span style="background:${ok ? '#2ecc71' : '#e74c3c'};color:#fff;padding:2px 8px;border-radius:8px;">${pct}%</span></td>
                         </tr>`;
                 }).join('');

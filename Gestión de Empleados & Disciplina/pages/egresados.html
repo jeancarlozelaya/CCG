@@ -334,7 +334,7 @@
 
             const historialAusencias = ausencias.filter(d => d.identidad === identidad).sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
             const historialDisciplina = disciplina.filter(d => d.identidad === identidad).sort((a,b) => new Date(b.fechaFalta) - new Date(a.fechaFalta));
-            const historialEvaluaciones = evaluaciones.filter(d => d.identidad === identidad).sort((a,b) => new Date(a.fechaEvaluacion) - new Date(a.fechaEvaluacion));
+            const historialEvaluaciones = evaluaciones.filter(d => d.identidad === identidad).sort((a,b) => new Date(a.fechaEvaluacion) - new Date(b.fechaEvaluacion));
             const historialIncidentes = incidentes.filter(d => d.identidad === identidad).sort((a,b) => new Date(b.fechaIncidente) - new Date(a.fechaIncidente));
 
             const estadoColor = esEgresado ? '#e74c3c' : '#2ecc71';
@@ -850,32 +850,40 @@
             Swal.fire({
                 title: 'Reingresar Colaborador',
                 icon: 'question',
-                html: `<p>Por favor, confirme la nueva fecha de inicio para <strong>${colaborador.nombre}</strong>.</p>
-                       <input type="date" id="fecha-reingreso" class="form-control mt-2" value="${getHoyStr()}">`,
+                html: `<p>Por favor, confirme la nueva fecha de inicio y tiempo de contrato para <strong>${colaborador.nombre}</strong>.</p>
+                       <label class="form-label d-block text-start fw-semibold small mt-2 mb-1">Fecha de Reingreso</label>
+                       <input type="date" id="fecha-reingreso" class="form-control mb-2" value="${getHoyStr()}">
+                       <label class="form-label d-block text-start fw-semibold small mt-2 mb-1">Tiempo de Contrato</label>
+                       <select id="duracion-reingreso" class="form-select">
+                           <option value="6 meses" selected>6 meses</option>
+                           <option value="1 año">1 año</option>
+                       </select>`,
                 showCancelButton: true,
                 confirmButtonText: 'Sí, reingresar',
                 cancelButtonText: 'Cancelar',
                 preConfirm: () => {
                     const fechaReingreso = document.getElementById('fecha-reingreso').value;
+                    const duracionContrato = normalizarDuracionContrato(document.getElementById('duracion-reingreso').value);
                     if (!fechaReingreso) {
                         Swal.showValidationMessage('Por favor, seleccione una fecha de reingreso.');
                         return false;
                     }
-                    return fechaReingreso;
+                    return { fechaReingreso, duracionContrato };
                 }
             }).then(async (result) => {
                 if (!result.isConfirmed) return;
-                const fechaReingreso = result.value;
+                const { fechaReingreso, duracionContrato } = result.value;
                 const { _pendienteSync, ...egLimpio } = colaborador;
 
                 await PB_DB.agregarPendiente({
                     titulo: `Reingresar Colaborador: ${colaborador.nombre}`,
-                    detalle: `Nueva fecha inicio: ${formatearFecha(fechaReingreso)}`,
+                    detalle: `Nueva fecha inicio: ${formatearFecha(fechaReingreso)} (${duracionContrato})`,
                     destino: 'principal',
                     accion: 'reingresar_colaborador',
                     payload: {
                         colaborador: JSON.stringify(egLimpio),
-                        fechaReingreso
+                        fechaReingreso,
+                        duracionContrato
                     }
                 });
 
@@ -883,6 +891,7 @@
                     cache.egresos = (cache.egresos || []).filter(e => e.identidad !== colaborador.identidad);
                     const nuevoActivo = {
                         fechaInicio: fechaReingreso,
+                        duracionContrato,
                         nombre: colaborador.nombre,
                         identidad: colaborador.identidad,
                         fechaNacimiento: colaborador.fechaNacimiento || '',
@@ -899,7 +908,7 @@
                 });
 
                 await cargarYRenderizar();
-                Swal.fire('Guardado Offline', `${colaborador.nombre} ha sido reingresado localmente y quedó pendiente de sincronizar.`, 'success');
+                Swal.fire('Guardado Offline', `${colaborador.nombre} ha sido reingresado localmente (${duracionContrato}) y quedó pendiente de sincronizar.`, 'success');
             });
         }
     </script>

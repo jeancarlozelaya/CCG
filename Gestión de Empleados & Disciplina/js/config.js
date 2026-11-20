@@ -251,3 +251,191 @@ function calcularRotacionUnificada(colaboradoresActivos, colaboradoresEgresos, f
         promedio: promedio.toFixed(2)
     };
 }
+
+// ==================== CÁLCULO UNIFICADO DE AUSENTISMO Y RECTIFICACIÓN ====================
+function calcularAusentismoUnificado(activos, egresos, ausencias, fechaInicio, fechaFin) {
+    const ini = new Date(fechaInicio);
+    ini.setHours(0, 0, 0, 0);
+    const fin = new Date(fechaFin);
+    fin.setHours(0, 0, 0, 0);
+    if (isNaN(ini.getTime()) || isNaN(fin.getTime()) || fin < ini) return '0.00';
+
+    const mapaCols = new Map();
+    (egresos || []).forEach(e => {
+        if (e.identidad) mapaCols.set(e.identidad, e);
+    });
+    (activos || []).forEach(a => {
+        if (a.identidad) mapaCols.set(a.identidad, a);
+    });
+
+    let diasAusente = 0;
+    (ausencias || []).forEach(a => {
+        const aIni = new Date(a.fecha + 'T00:00:00');
+        const aFin = new Date((a.fechaFin || a.fecha) + 'T00:00:00');
+        if (isNaN(aIni.getTime()) || isNaN(aFin.getTime())) return;
+        const interIni = aIni < ini ? ini : aIni;
+        const interFin = aFin > fin ? fin : aFin;
+        if (interIni <= interFin) {
+            diasAusente += Math.round((interFin - interIni) / 86400000) + 1;
+        }
+    });
+
+    let diasLaborablesPosibles = 0;
+    mapaCols.forEach(col => {
+        if (!col.fechaInicio) return;
+        const colIni = new Date(col.fechaInicio + 'T00:00:00');
+        if (isNaN(colIni.getTime())) return;
+        const colFin = col.fechaEgreso ? new Date(col.fechaEgreso + 'T00:00:00') : fin;
+        const efIni = colIni > ini ? colIni : ini;
+        const efFin = colFin < fin ? colFin : fin;
+        if (efIni <= efFin) {
+            for (let d = new Date(efIni); d <= efFin; d.setDate(d.getDate() + 1)) {
+                const diaSem = d.getDay();
+                if (diaSem >= 1 && diaSem <= 5) diasLaborablesPosibles++;
+            }
+        }
+    });
+
+    return diasLaborablesPosibles > 0
+        ? ((diasAusente / diasLaborablesPosibles) * 100).toFixed(2)
+        : '0.00';
+}
+
+function obtenerRangoFechasStr(fechaIniStr, fechaFinStr) {
+    const fechas = [];
+    if (!fechaIniStr) return fechas;
+    const ini = new Date(fechaIniStr + 'T00:00:00');
+    const fin = new Date((fechaFinStr || fechaIniStr) + 'T00:00:00');
+    if (isNaN(ini.getTime()) || isNaN(fin.getTime())) return fechas;
+    for (let d = new Date(ini); d <= fin; d.setDate(d.getDate() + 1)) {
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        fechas.push(`${yyyy}-${mm}-${dd}`);
+    }
+    return fechas;
+}
+
+function calcularDatosAsistenciaDia(activos, egresos, ausencias, fechaStr) {
+    const ingresosDespues = (activos || []).filter(c => c.fechaInicio && c.fechaInicio > fechaStr).length;
+    const egresosDespues = (egresos || []).filter(e => e.fechaEgreso && e.fechaEgreso > fechaStr).length;
+    const activosDia = (activos || []).length - ingresosDespues + egresosDespues;
+
+    const egresosDia = (egresos || []).filter(e => e.fechaEgreso === fechaStr).length;
+    const ingresosUnicos = new Set();
+    (activos || []).forEach(c => { if (c.fechaInicio === fechaStr && c.identidad) ingresosUnicos.add(c.identidad); });
+    (egresos || []).forEach(e => { if (e.fechaInicio === fechaStr && e.identidad) ingresosUnicos.add(e.identidad); });
+    const ingresosDia = ingresosUnicos.size;
+
+    const identidadesActivas = new Set();
+    (activos || []).forEach(c => {
+        if (c.identidad && c.fechaInicio && c.fechaInicio <= fechaStr) {
+            identidadesActivas.add(c.identidad);
+        }
+    });
+    (egresos || []).forEach(e => {
+        if (e.identidad && e.fechaInicio && e.fechaInicio <= fechaStr && e.fechaEgreso && e.fechaEgreso > fechaStr) {
+            identidadesActivas.add(e.identidad);
+        }
+    });
+
+    const ausentesUnicos = new Set();
+    (ausencias || []).forEach(a => {
+        const fin = a.fechaFin || a.fecha;
+        if (fechaStr >= a.fecha && fechaStr <= fin && identidadesActivas.has(a.identidad)) {
+            ausentesUnicos.add(a.identidad);
+        }
+    });
+
+    const ausentesDia = ausentesUnicos.size;
+    return {
+        fecha: fechaStr,
+        activos: activosDia,
+        ausentes: ausentesDia,
+        egresos: egresosDia,
+        ingresos: ingresosDia,
+        presentes: activosDia - ausentesDia
+    };
+}
+
+function calcularRectificacionDiaAsistencia(regActual, activos, egresos, ingresos, ausencias) {
+    const fechaStr = regActual.fecha;
+    const activosGuardados = Number(regActual.activos || 0);
+
+    const egresosDia = (egresos || []).filter(e => e.fechaEgreso === fechaStr).length;
+
+    const ingresosUnicos = new Set();
+    const fuenteIngresos = (ingresos && ingresos.length > 0) ? ingresos : [...(activos || []), ...(egresos || [])];
+    fuenteIngresos.forEach(c => {
+        if (c.fechaInicio === fechaStr && c.identidad) ingresosUnicos.add(c.identidad);
+    });
+    const ingresosDia = ingresosUnicos.size;
+
+    const activosSet = new Set((activos || []).map(c => c.identidad).filter(Boolean));
+    const egresadosAntesSet = new Set();
+    (egresos || []).forEach(e => {
+        if (e.identidad && !activosSet.has(e.identidad) && e.fechaEgreso && e.fechaEgreso <= fechaStr) {
+            egresadosAntesSet.add(e.identidad);
+        }
+    });
+
+    const ausentesUnicos = new Set();
+    (ausencias || []).forEach(a => {
+        const fin = a.fechaFin || a.fecha;
+        if (a.identidad && fechaStr >= a.fecha && fechaStr <= fin && !egresadosAntesSet.has(a.identidad)) {
+            ausentesUnicos.add(a.identidad);
+        }
+    });
+
+    const ausentesDia = ausentesUnicos.size;
+    return {
+        fecha: fechaStr,
+        activos: activosGuardados,
+        ausentes: ausentesDia,
+        egresos: egresosDia,
+        ingresos: ingresosDia,
+        presentes: Math.max(0, activosGuardados - ausentesDia)
+    };
+}
+
+function rectificarAsistenciaEnCache(cache, fechasAfectadas) {
+    const fechasSet = new Set(fechasAfectadas || []);
+    if (!cache.asistencia || cache.asistencia.length === 0 || fechasSet.size === 0) return 0;
+
+    let rectificados = 0;
+    cache.asistencia = cache.asistencia.map(reg => {
+        if (!fechasSet.has(reg.fecha)) return reg;
+        const nuevo = calcularRectificacionDiaAsistencia(reg, cache.activos, cache.egresos, cache.ingresos, cache.ausencias);
+        if (Number(reg.ausentes) !== nuevo.ausentes ||
+            Number(reg.presentes) !== nuevo.presentes ||
+            Number(reg.egresos || 0) !== nuevo.egresos ||
+            Number(reg.ingresos || 0) !== nuevo.ingresos) {
+            rectificados++;
+            return { ...reg, ...nuevo, _pendienteSync: true };
+        }
+        return reg;
+    });
+    return rectificados;
+}
+
+// ==================== DURACIÓN Y VENCIMIENTO DE CONTRATOS ====================
+function normalizarDuracionContrato(duracion) {
+    const d = String(duracion || '').trim().toLowerCase();
+    if (d === '1 año' || d === '1 ano' || d === '12 meses' || d === '12') return '1 año';
+    return '6 meses';
+}
+
+function obtenerMesesContrato(duracion) {
+    return normalizarDuracionContrato(duracion) === '1 año' ? 12 : 6;
+}
+
+function calcularFechaVencimientoContrato(fechaInicioStr, duracion) {
+    if (!fechaInicioStr) return null;
+    const fechaInicio = new Date(fechaInicioStr + 'T00:00:00');
+    if (isNaN(fechaInicio.getTime())) return null;
+    const meses = obtenerMesesContrato(duracion);
+    const fechaVencimiento = new Date(fechaInicio);
+    fechaVencimiento.setMonth(fechaVencimiento.getMonth() + meses);
+    fechaVencimiento.setDate(fechaVencimiento.getDate() - 1);
+    return fechaVencimiento;
+}

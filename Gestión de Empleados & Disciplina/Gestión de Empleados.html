@@ -66,6 +66,16 @@
             border-color: rgba(231, 76, 60, 0.75);
         }
         .header-btn.asistencia-btn:hover { background: rgba(231, 76, 60, 0.6); }
+        .header-btn.sugerencias-btn {
+            background: rgba(52, 152, 219, 0.35);
+            border-color: rgba(52, 152, 219, 0.8);
+        }
+        .header-btn.sugerencias-btn:hover { background: rgba(52, 152, 219, 0.6); }
+        .header-btn.carnets-btn {
+            background: rgba(22, 160, 133, 0.35);
+            border-color: rgba(22, 160, 133, 0.85);
+        }
+        .header-btn.carnets-btn:hover { background: rgba(22, 160, 133, 0.65); }
         .header-btn.permisos-btn {
             background: rgba(243, 156, 18, 0.3);
             border-color: rgba(243, 156, 18, 0.7);
@@ -267,6 +277,8 @@
         .badge-origen { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; }
         .badge-origen.principal { background: #eaf2f8; color: #2874a6; border: 1px solid #aed6f1; }
         .badge-origen.permisos { background: #fef5e7; color: #b9770e; border: 1px solid #f9e79f; }
+        .badge-origen.buzon { background: #e8f8f5; color: #117a65; border: 1px solid #a3e4d7; }
+        .badge-origen.carnets { background: #eafaf1; color: #1e8449; border: 1px solid #a9dfbf; }
         .pend-expand-icon { color: #999; font-size: 0.85rem; transition: transform 0.2s ease; }
         .pend-item.expanded .pend-expand-icon { transform: rotate(90deg); }
         .pend-item-detail { display: none; padding: 8px 14px 14px 42px; background: #fafbfc; font-size: 0.85rem; color: #444; border-top: 1px dashed #eee; }
@@ -316,6 +328,18 @@
                 <button id="btn-asistencia-header" class="header-btn asistencia-btn" style="display: none;" title="Asistencia pendiente de hoy">
                     <i class="fas fa-calendar-check"></i>
                     <span id="badge-asistencia" class="badge-pendientes">1</span>
+                </button>
+
+                <!-- BOTÓN SUGERENCIAS NUEVAS (SOLO ADMIN) -->
+                <button id="btn-sugerencias-header" class="header-btn sugerencias-btn" style="display: none;" title="Sugerencias nuevas sin ver en el buzón">
+                    <i class="fas fa-comment-dots"></i>
+                    <span id="badge-sugerencias" class="badge-pendientes">0</span>
+                </button>
+
+                <!-- BOTÓN SOLICITUDES DE CARNET NUEVAS (SOLO ADMIN) -->
+                <button id="btn-carnets-header" class="header-btn carnets-btn" style="display: none;" title="Solicitudes de carnet nuevas sin ver">
+                    <i class="fas fa-id-badge"></i>
+                    <span id="badge-carnets" class="badge-pendientes">0</span>
                 </button>
 
                 <!-- BOTÓN PERMISOS PENDIENTES (SOLO ADMIN) -->
@@ -415,6 +439,7 @@
                             </a>
                             <ul class="dropdown-menu">
                                 <li><a class="dropdown-item open-iframe" data-title="Buzón de Sugerencias" data-icon="fas fa-comment-dots" data-url="pages/buzon-sugerencias.html"><i class="fas fa-comment-dots me-2"></i>Buzón de Sugerencias</a></li>
+                                <li><a class="dropdown-item open-iframe" data-title="Solicitud de Carnets" data-icon="fas fa-id-badge" data-url="pages/solicitud-carnets.html"><i class="fas fa-id-badge me-2"></i>Solicitud de Carnets</a></li>
                                 <li><a class="dropdown-item open-iframe" data-title="Gestión de Permisos" data-icon="fas fa-file-alt" data-url="pages/gestion-permisos.html"><i class="fas fa-file-alt me-2"></i>Gestión de Permisos</a></li>
                                 <li><a class="dropdown-item open-iframe" data-title="Progreso de Evaluaciones" data-icon="fas fa-graduation-cap" data-url="pages/examenes.html"><i class="fas fa-graduation-cap me-2"></i>Progreso de Evaluaciones</a></li>
                                 <li><a class="dropdown-item open-iframe" data-title="Registro de Encuestas" data-icon="fas fa-clipboard-list" data-url="pages/encuestas.html"><i class="fas fa-clipboard-list me-2"></i>Registro de Encuestas</a></li>
@@ -679,6 +704,8 @@
             disciplina: [], evaluaciones: [], incidentes: [], horasExtras: [], asistencia: []
         };
         let solicitudesPermisos = [];
+        let sugerenciasBuzon = [];
+        let solicitudesCarnets = [];
         let modalSubpaginaInstance = null;
         let sincronizando = false;
         let isOnline = navigator.onLine;
@@ -711,6 +738,85 @@
             initializeApp();
         });
 
+        async function refrescarPermisosSilencioso() {
+            if (!navigator.onLine || !modoAdmin) return;
+            const pendPerm = (await PB_DB.obtenerPendientes()).filter(p => p.destino === 'permisos');
+            if (pendPerm.length > 0) return;
+            try {
+                const resp = await fetch(PERMISOS_GESTION_URL + '?accion=listar&t=' + Date.now(), {
+                    credentials: 'omit',
+                    redirect: 'follow',
+                    cache: 'no-store'
+                });
+                const data = await resp.json();
+                if (data && data.success) {
+                    await PB_DB.guardarCache('permisos', data.solicitudes || []);
+                    solicitudesPermisos = data.solicitudes || [];
+                    actualizarBadgePermisos();
+                }
+            } catch (e) {}
+        }
+
+        async function refrescarBuzonSilencioso() {
+            if (!navigator.onLine || !modoAdmin) return;
+            const pendBuzon = (await PB_DB.obtenerPendientes()).filter(p => p.destino === 'buzon');
+            try {
+                const resp = await fetch(BUZON_SCRIPT_URL + '?accion=listar&t=' + Date.now(), {
+                    credentials: 'omit',
+                    redirect: 'follow',
+                    cache: 'no-store'
+                });
+                const data = await resp.json();
+                if (data && data.success) {
+                    let lista = data.sugerencias || [];
+                    if (pendBuzon.length > 0) {
+                        const filasPend = new Set();
+                        const fechasPend = new Set();
+                        pendBuzon.forEach(p => {
+                            (p.payload.items || []).forEach(it => {
+                                if (it.fila) filasPend.add(Number(it.fila));
+                                if (it.fecha) fechasPend.add(String(it.fecha));
+                            });
+                        });
+                        lista = lista.map(s => (filasPend.has(Number(s.fila)) || (s.fecha && fechasPend.has(String(s.fecha)))) ? { ...s, vista: true } : s);
+                    }
+                    await PB_DB.guardarCache('sugerencias', lista);
+                    sugerenciasBuzon = lista;
+                    actualizarBadgeSugerencias();
+                }
+            } catch (e) {}
+        }
+
+        async function refrescarCarnetsSilencioso() {
+            if (!navigator.onLine || !modoAdmin) return;
+            const pendCarnets = (await PB_DB.obtenerPendientes()).filter(p => p.destino === 'carnets');
+            try {
+                const resp = await fetch(CARNETS_SCRIPT_URL + '?accion=listar&t=' + Date.now(), {
+                    credentials: 'omit',
+                    redirect: 'follow',
+                    cache: 'no-store'
+                });
+                const data = await resp.json();
+                if (data && data.success) {
+                    let lista = data.solicitudes || [];
+                    if (pendCarnets.length > 0) {
+                        const filasPend = new Set();
+                        const fechasPend = new Set();
+                        pendCarnets.forEach(p => {
+                            (p.payload.items || []).forEach(it => {
+                                if (it.fila) filasPend.add(Number(it.fila));
+                                if (it.fechaSolicitud) fechasPend.add(String(it.fechaSolicitud));
+                            });
+                        });
+                        lista = lista.map(s => (filasPend.has(Number(s.fila)) || (s.fechaSolicitud && fechasPend.has(String(s.fechaSolicitud)))) ? { ...s, vista: true } : s);
+                    }
+                    await PB_DB.guardarCache('carnets', lista);
+                    solicitudesCarnets = lista;
+                    actualizarBadgeCarnets();
+                }
+            } catch (e) {}
+        }
+
         async function initializeApp() {
             modalSubpaginaInstance = new bootstrap.Modal(document.getElementById('modalSubpagina'));
             configurarEventos();
@@ -732,20 +838,17 @@
                 });
             }
 
-            // Verificar permisos cada 5 minutos si hay conexión y modoAdmin activo
+            if (navigator.onLine && modoAdmin) {
+                refrescarBuzonSilencioso();
+                refrescarCarnetsSilencioso();
+                refrescarPermisosSilencioso();
+            }
+
+            // Verificar permisos, buzón y carnets cada 5 minutos si hay conexión y modoAdmin activo
             setInterval(async () => {
-                if (!navigator.onLine || !modoAdmin) return;
-                const pendPerm = (await PB_DB.obtenerPendientes()).filter(p => p.destino === 'permisos');
-                if (pendPerm.length > 0) return;
-                try {
-                    const resp = await fetch(PERMISOS_GESTION_URL + '?accion=listar&t=' + Date.now());
-                    const data = await resp.json();
-                    if (data && data.success) {
-                        await PB_DB.guardarCache('permisos', data.solicitudes || []);
-                        solicitudesPermisos = data.solicitudes || [];
-                        actualizarBadgePermisos();
-                    }
-                } catch (e) {}
+                await refrescarPermisosSilencioso();
+                await refrescarBuzonSilencioso();
+                await refrescarCarnetsSilencioso();
             }, 300000);
         }
 
@@ -808,6 +911,12 @@
                 aplicarEstadoAdminUI();
                 PB_DB.notificarCambio('admin_cambiado', { modoAdmin: true });
 
+                if (navigator.onLine) {
+                    refrescarBuzonSilencioso();
+                    refrescarCarnetsSilencioso();
+                    refrescarPermisosSilencioso();
+                }
+
                 Swal.fire({
                     icon: 'success',
                     title: 'Modo Administrador activado',
@@ -850,11 +959,15 @@
                 $('.admin-only-menu').hide();
                 $('#btn-sync').css('display', 'none');
                 $('#btn-asistencia-header').css('display', 'none');
+                $('#btn-sugerencias-header').css('display', 'none');
+                $('#btn-carnets-header').css('display', 'none');
                 $('#btn-permisos-header').css('display', 'none');
                 $('#modal-badge-pendientes').hide();
             }
 
             verificarAsistenciaHoy();
+            actualizarBadgeSugerencias();
+            actualizarBadgeCarnets();
             actualizarBadgePermisos();
             actualizarBadgePendientes();
         }
@@ -864,9 +977,17 @@
             const permCache = await PB_DB.obtenerCache('permisos');
             solicitudesPermisos = permCache ? (permCache.datos || []) : [];
 
+            const sugCache = await PB_DB.obtenerCache('sugerencias');
+            sugerenciasBuzon = sugCache ? (sugCache.datos || []) : [];
+
+            const carnetCache = await PB_DB.obtenerCache('carnets');
+            solicitudesCarnets = carnetCache ? (carnetCache.datos || []) : [];
+
             actualizarDashboard();
             mostrarCumpleanerosDelMes();
             verificarAsistenciaHoy();
+            actualizarBadgeSugerencias();
+            actualizarBadgeCarnets();
             actualizarBadgePermisos();
             actualizarEstadoConexion();
         }
@@ -917,7 +1038,14 @@
         }
 
         function configurarEventos() {
-            window.addEventListener('online', actualizarEstadoConexion);
+            window.addEventListener('online', () => {
+                actualizarEstadoConexion();
+                if (modoAdmin) {
+                    refrescarBuzonSilencioso();
+                    refrescarCarnetsSilencioso();
+                    refrescarPermisosSilencioso();
+                }
+            });
             window.addEventListener('offline', actualizarEstadoConexion);
 
             document.getElementById('toggle-modo-admin').addEventListener('change', function() {
@@ -992,9 +1120,27 @@
                     });
 
                     try {
-                        const rPerm = await fetch(PERMISOS_GESTION_URL + '?accion=listar&t=' + Date.now());
+                        const rPerm = await fetch(PERMISOS_GESTION_URL + '?accion=listar&t=' + Date.now(), {
+                            credentials: 'omit', redirect: 'follow', cache: 'no-store'
+                        });
                         const dPerm = await rPerm.json();
                         if (dPerm && dPerm.success) await PB_DB.guardarCache('permisos', dPerm.solicitudes || []);
+                    } catch (e) {}
+
+                    try {
+                        const rSug = await fetch(BUZON_SCRIPT_URL + '?accion=listar&t=' + Date.now(), {
+                            credentials: 'omit', redirect: 'follow', cache: 'no-store'
+                        });
+                        const dSug = await rSug.json();
+                        if (dSug && dSug.success) await PB_DB.guardarCache('sugerencias', dSug.sugerencias || []);
+                    } catch (e) {}
+
+                    try {
+                        const rCarnet = await fetch(CARNETS_SCRIPT_URL + '?accion=listar&t=' + Date.now(), {
+                            credentials: 'omit', redirect: 'follow', cache: 'no-store'
+                        });
+                        const dCarnet = await rCarnet.json();
+                        if (dCarnet && dCarnet.success) await PB_DB.guardarCache('carnets', dCarnet.solicitudes || []);
                     } catch (e) {}
 
                     await cargarVistaDesdeIndexedDB();
@@ -1054,6 +1200,20 @@
                 });
             });
 
+            $('#btn-sugerencias-header').on('click', () => {
+                if (!modoAdmin) return;
+                $('#modalSubpaginaTitulo').html('<i class="fas fa-comment-dots me-2"></i><span>Buzón de Sugerencias</span>');
+                $('#iframeSubpagina').attr('src', 'pages/buzon-sugerencias.html');
+                modalSubpaginaInstance.show();
+            });
+
+            $('#btn-carnets-header').on('click', () => {
+                if (!modoAdmin) return;
+                $('#modalSubpaginaTitulo').html('<i class="fas fa-id-badge me-2"></i><span>Solicitud de Carnets</span>');
+                $('#iframeSubpagina').attr('src', 'pages/solicitud-carnets.html');
+                modalSubpaginaInstance.show();
+            });
+
             $('#btn-permisos-header').on('click', () => {
                 if (!modoAdmin) return;
                 $('#modalSubpaginaTitulo').html('<i class="fas fa-file-alt me-2"></i><span>Gestión de Permisos</span>');
@@ -1098,8 +1258,12 @@
                 item.className = 'pend-item' + (req.estado === 'error' ? ' has-error' : '');
                 item.dataset.id = req.id;
 
-                const origenTexto = req.destino === 'permisos' ? 'Permisos' : 'General';
-                const origenClase = req.destino === 'permisos' ? 'permisos' : 'principal';
+                const origenTexto = req.destino === 'permisos' ? 'Permisos'
+                    : (req.destino === 'buzon' ? 'Buzón'
+                    : (req.destino === 'carnets' ? 'Carnets' : 'General'));
+                const origenClase = req.destino === 'permisos' ? 'permisos'
+                    : (req.destino === 'buzon' ? 'buzon'
+                    : (req.destino === 'carnets' ? 'carnets' : 'principal'));
                 const badgeFotos = (req.fotos && req.fotos.length > 0)
                     ? `<span class="badge bg-info text-dark" style="font-size:0.7rem;"><i class="fas fa-camera me-1"></i>${req.fotos.length} foto(s)</span>`
                     : '';
@@ -1578,7 +1742,7 @@
             });
         }
 
-        // ==================== ASISTENCIA Y PERMISOS EN ENCABEZADO (SOLO ADMIN) ====================
+        // ==================== ASISTENCIA, SUGERENCIAS, CARNETS Y PERMISOS EN ENCABEZADO (SOLO ADMIN) ====================
         function verificarAsistenciaHoy() {
             if (!modoAdmin) {
                 $('#btn-asistencia-header').css('display', 'none');
@@ -1586,6 +1750,26 @@
             }
             const existe = datosLocales.asistencia.some(reg => reg.fecha === getHoyStr());
             $('#btn-asistencia-header').css('display', existe ? 'none' : 'flex');
+        }
+
+        function actualizarBadgeSugerencias() {
+            if (!modoAdmin) {
+                $('#btn-sugerencias-header').css('display', 'none');
+                return;
+            }
+            const cantidad = sugerenciasBuzon.filter(s => !s.vista).length;
+            $('#badge-sugerencias').text(cantidad > 99 ? '99+' : cantidad);
+            $('#btn-sugerencias-header').css('display', cantidad > 0 ? 'flex' : 'none');
+        }
+
+        function actualizarBadgeCarnets() {
+            if (!modoAdmin) {
+                $('#btn-carnets-header').css('display', 'none');
+                return;
+            }
+            const cantidad = solicitudesCarnets.filter(s => !s.vista).length;
+            $('#badge-carnets').text(cantidad > 99 ? '99+' : cantidad);
+            $('#btn-carnets-header').css('display', cantidad > 0 ? 'flex' : 'none');
         }
 
         function actualizarBadgePermisos() {

@@ -2,6 +2,7 @@
 const SCRIPT_URL_OBTENER = "https://script.google.com/macros/s/AKfycbzzc0oprrMXsDIAOIkdHZaVj3gwI2u0uliSLtIKWRueTfHn8jJWAbYXkWOz0uPNwDDK/exec";
 const SCRIPT_URL_ENVIAR = "https://script.google.com/macros/s/AKfycbzNhz3UQhdFwL5fOYYJ8nHaQaBCsysAC6O3jiu-zMym4PT20JyQf8YkMcChaSz3PyRnZA/exec";
 const BUZON_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyrOFyYZzu8EFCox-en4loOdb0bG3w0zm3MxgxrbSAb7aeu46DLT6mS_KO2z-ngwyeI/exec";
+const CARNETS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwjoSBUgnB4ZtRv9-6ijNzFo9HufIhEZnsPxRCsmXQvYI25mllyloUo3qSRUaR54KojEQ/exec";
 const PERMISOS_GESTION_URL = "https://script.google.com/macros/s/AKfycbzyW8BXlcFBrVl2Ju_OsIifEfXGz4i7uskZzyd7iUxtozqijjDJBdN00MBcoM-CDAn3-A/exec";
 const SCRIPT_URL_EXAMENES = "https://script.google.com/macros/s/AKfycbwvIb0RKAP5ACSKHbYOTh0GkXt91YraOpwooKL2GvE8KJidAJIqTZo7swzwRARFityS3Q/exec";
 const ENCUESTAS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzsP6rcB5bJ646BTfwA8fiJgSxn3cBVy4NrDQyuZnNYvWuni2-Wq-bNJ4r3TsX2YNYv1A/exec";
@@ -77,14 +78,33 @@ function parsearFechaUTC(fechaStr) {
     }
 }
 
+function parsearFechaFlexible(fechaStr) {
+    if (!fechaStr) return null;
+    const str = String(fechaStr).trim();
+    if (!str) return null;
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+        const d = new Date(str + 'T00:00:00');
+        return isNaN(d.getTime()) ? null : d;
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/.test(str)) {
+        const d = new Date(str.replace(/\s+/, 'T'));
+        return isNaN(d.getTime()) ? null : d;
+    }
+
+    const limpio = str.replace(/\s*\([^)]*\)\s*$/, '').trim();
+    const d = new Date(limpio);
+    return isNaN(d.getTime()) ? null : d;
+}
+
 function formatearFecha(fechaStr) {
     if (!fechaStr) return '';
     try {
-        if (/^\d{2}\/\d{2}\/\d{4}/.test(fechaStr)) return fechaStr;
-        let fecha = (fechaStr.includes('T') && fechaStr.includes('Z'))
-            ? new Date(fechaStr)
-            : new Date(fechaStr + 'T00:00:00');
-        if (isNaN(fecha.getTime())) return fechaStr;
+        const str = String(fechaStr).trim();
+        if (/^\d{2}\/\d{2}\/\d{4}/.test(str)) return str;
+        const fecha = parsearFechaFlexible(str);
+        if (!fecha) return str;
         const dia = String(fecha.getDate()).padStart(2, '0');
         const mes = String(fecha.getMonth() + 1).padStart(2, '0');
         const anio = fecha.getFullYear();
@@ -97,8 +117,10 @@ function formatearFecha(fechaStr) {
 function formatearHoraDesdeFecha(fechaStr) {
     if (!fechaStr) return '';
     try {
-        const fecha = new Date(fechaStr);
-        if (isNaN(fecha.getTime())) return '';
+        const str = String(fechaStr).trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return '';
+        const fecha = parsearFechaFlexible(str);
+        if (!fecha) return '';
         let horas = fecha.getHours();
         const minutos = fecha.getMinutes();
         const ampm = horas >= 12 ? 'PM' : 'AM';

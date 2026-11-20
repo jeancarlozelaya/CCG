@@ -223,61 +223,35 @@
 
         function calcularEstadisticasAusencias() {
             const hoy = new Date();
-            const periodos = [{ id: 'mes', meses: 0 }, { id: '3meses', meses: 3 }, { id: '6meses', meses: 6 }, { id: '12meses', meses: 12 }];
+            hoy.setHours(0, 0, 0, 0);
 
+            const periodos = [{ id: 'mes', meses: 0 }, { id: '3meses', meses: 3 }, { id: '6meses', meses: 6 }, { id: '12meses', meses: 12 }];
             periodos.forEach(p => {
-                const fechaFinPeriodo = new Date(hoy);
                 const fechaInicioPeriodo = (p.meses === 0)
                     ? new Date(hoy.getFullYear(), hoy.getMonth(), 1)
                     : new Date(hoy.getFullYear(), hoy.getMonth() - p.meses + 1, 1);
 
-                let diasAusentePeriodo = 0;
-                let diasLaborablesPosibles = 0;
-
-                colaboradoresActivos.forEach(col => {
-                    const fechaInicio = new Date(col.fechaInicio + 'T00:00:00');
-                    const fechaInicioEfectiva = fechaInicio > fechaInicioPeriodo ? fechaInicio : fechaInicioPeriodo;
-                    if (fechaInicioEfectiva <= fechaFinPeriodo) {
-                        const diffDias = Math.ceil((fechaFinPeriodo - fechaInicioEfectiva) / (1000 * 60 * 60 * 24)) + 1;
-                        const mesesTrabajados = (p.meses === 0) ? 1 : p.meses;
-                        diasLaborablesPosibles += Math.min(diffDias, 22 * mesesTrabajados);
-                    }
-                });
-
-                ausencias.forEach(a => {
-                    const fIni = new Date(a.fecha + 'T00:00:00');
-                    const fFin = new Date((a.fechaFin || a.fecha) + 'T00:00:00');
-                    if (fFin < fechaInicioPeriodo || fIni > fechaFinPeriodo) return;
-                    const ii = fIni < fechaInicioPeriodo ? fechaInicioPeriodo : fIni;
-                    const ff = fFin > fechaFinPeriodo ? fechaFinPeriodo : fFin;
-                    if (ii <= ff) diasAusentePeriodo += Math.ceil((ff - ii) / (1000 * 60 * 60 * 24)) + 1;
-                });
-
-                const porcentaje = diasLaborablesPosibles > 0 ? ((diasAusentePeriodo / diasLaborablesPosibles) * 100).toFixed(2) : '0.00';
+                const porcentaje = calcularAusentismoUnificado(
+                    colaboradoresActivos,
+                    colaboradoresEgresos,
+                    ausencias,
+                    fechaInicioPeriodo,
+                    hoy
+                );
                 $(`#ausentismo-${p.id}`).text(porcentaje + '%');
             });
 
-            let totalDiasAusenciasHistorico = 0;
-            ausencias.forEach(a => { totalDiasAusenciasHistorico += (parseInt(a.diasIncapacidad, 10) || 1); });
+            const fechasInicio = [...colaboradoresActivos, ...colaboradoresEgresos]
+                .map(c => c.fechaInicio ? new Date(c.fechaInicio + 'T00:00:00') : null)
+                .filter(d => d && !isNaN(d.getTime()));
 
-            let totalDiasLaborablesPosiblesHistorico = 0;
-            const idsVistos = new Set();
-            [...colaboradoresActivos, ...colaboradoresEgresos].forEach(emp => {
-                if (idsVistos.has(emp.identidad)) return;
-                idsVistos.add(emp.identidad);
-                const fechaInicio = new Date(emp.fechaInicio + 'T00:00:00');
-                let fechaFin = emp.fechaEgreso ? new Date(emp.fechaEgreso + 'T00:00:00') : new Date(hoy);
-                if (fechaFin > hoy) fechaFin = new Date(hoy);
-                if (fechaFin >= fechaInicio) {
-                    const diffDias = Math.ceil((fechaFin - fechaInicio) / (1000 * 60 * 60 * 24)) + 1;
-                    totalDiasLaborablesPosiblesHistorico += Math.round((diffDias / 30.44) * 22);
-                }
-            });
-
-            const porcentajeHistorico = totalDiasLaborablesPosiblesHistorico > 0
-                ? ((totalDiasAusenciasHistorico / totalDiasLaborablesPosiblesHistorico) * 100).toFixed(2)
-                : '0.00';
-            $('#ausentismo-historico').text(porcentajeHistorico + '%');
+            if (fechasInicio.length > 0) {
+                const fechaMin = new Date(Math.min(...fechasInicio.map(d => d.getTime())));
+                const pctHist = calcularAusentismoUnificado(colaboradoresActivos, colaboradoresEgresos, ausencias, fechaMin, hoy);
+                $('#ausentismo-historico').text(pctHist + '%');
+            } else {
+                $('#ausentismo-historico').text('0.00%');
+            }
         }
 
         function crearGraficoAusencias(ano, mes) {
@@ -599,7 +573,7 @@
                     const fechaInicio = new Date(fecha + 'T00:00:00');
                     const fechaFin = new Date(fechaInicio);
                     fechaFin.setDate(fechaFin.getDate() + diasIncapacidad - 1);
-                    const fechaFinStr = fechaFin.toISOString().split('T')[0];
+                    const fechaFinStr = `${fechaFin.getFullYear()}-${String(fechaFin.getMonth() + 1).padStart(2, '0')}-${String(fechaFin.getDate()).padStart(2, '0')}`;
 
                     return {
                         datosNuevos: {
@@ -634,17 +608,27 @@
                     }
                 });
 
+                let diasRectificados = 0;
                 await PB_DB.actualizarDatosPrincipales(cache => {
                     cache.ausencias = (cache.ausencias || []).map(a =>
                         (a.identidad === ausenciaOriginal.identidad && a.fecha === ausenciaOriginal.fecha)
                             ? { ...datosNuevos, _pendienteSync: true }
                             : a
                     );
+                    const fechasAfectadas = [
+                        ...obtenerRangoFechasStr(ausenciaOriginal.fecha, ausenciaOriginal.fechaFin || ausenciaOriginal.fecha),
+                        ...obtenerRangoFechasStr(datosNuevos.fecha, datosNuevos.fechaFin)
+                    ];
+                    diasRectificados = rectificarAsistenciaEnCache(cache, fechasAfectadas);
                     return cache;
                 });
 
                 await cargarYRenderizar(false);
-                Swal.fire('Guardado Offline', 'Ausencia actualizada localmente y pendiente de sincronizar.', 'success');
+                if (diasRectificados > 0) {
+                    Swal.fire('Guardado Offline', `Ausencia actualizada localmente (se rectificaron ${diasRectificados} día(s) en Control de Asistencia) y pendiente de sincronizar.`, 'success');
+                } else {
+                    Swal.fire('Guardado Offline', 'Ausencia actualizada localmente y pendiente de sincronizar.', 'success');
+                }
             });
         }
 
@@ -672,13 +656,23 @@
                     payload: { identidad, fecha }
                 });
 
+                let diasRectificados = 0;
                 await PB_DB.actualizarDatosPrincipales(cache => {
+                    const ausOrig = (cache.ausencias || []).find(a => a.identidad === identidad && a.fecha === fecha);
                     cache.ausencias = (cache.ausencias || []).filter(a => !(a.identidad === identidad && a.fecha === fecha));
+                    if (ausOrig) {
+                        const fechasAfectadas = obtenerRangoFechasStr(ausOrig.fecha, ausOrig.fechaFin || ausOrig.fecha);
+                        diasRectificados = rectificarAsistenciaEnCache(cache, fechasAfectadas);
+                    }
                     return cache;
                 });
 
                 await cargarYRenderizar(false);
-                Swal.fire('Guardado Offline', 'Eliminación registrada localmente y pendiente de sincronizar.', 'success');
+                if (diasRectificados > 0) {
+                    Swal.fire('Guardado Offline', `Eliminación registrada localmente (se rectificaron ${diasRectificados} día(s) en Control de Asistencia) y pendiente de sincronizar.`, 'success');
+                } else {
+                    Swal.fire('Guardado Offline', 'Eliminación registrada localmente y pendiente de sincronizar.', 'success');
+                }
             });
         }
 

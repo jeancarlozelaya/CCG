@@ -12,17 +12,23 @@
 </head>
 <body class="subpage-body">
     <div class="container-fluid">
-        <div class="alert alert-info py-2 mb-3 small">
-            <i class="fas fa-database me-2"></i>Las ausencias se guardan localmente en IndexedDB y quedan pendientes de sincronizar en la pantalla principal.
+        <div id="alerta-solo-admin" class="alert alert-warning" style="display: none;">
+            <i class="fas fa-lock me-2"></i>El registro de ausencias requiere activar el <strong>Modo Administrador</strong>.
         </div>
 
-        <form id="form-registrar-ausencia">
-            <div id="contenedor-formularios-ausencia"></div>
-            <div class="form-actions">
-                <button type="button" class="btn btn-success" id="btn-agregar-ausencia"><i class="fas fa-plus me-2"></i>Agregar</button>
-                <button type="button" class="btn btn-primary" id="btn-registrar-ausencia"><i class="fas fa-save me-2"></i>Guardar Ausencias Offline</button>
+        <div id="bloque-registrar-ausencia">
+            <div class="alert alert-info py-2 mb-3 small">
+                <i class="fas fa-database me-2"></i>Las ausencias se guardan localmente en IndexedDB, rectifican automáticamente Control de Asistencia si la fecha ya fue reportada, y quedan pendientes de sincronizar.
             </div>
-        </form>
+
+            <form id="form-registrar-ausencia">
+                <div id="contenedor-formularios-ausencia"></div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-success" id="btn-agregar-ausencia"><i class="fas fa-plus me-2"></i>Agregar</button>
+                    <button type="button" class="btn btn-primary" id="btn-registrar-ausencia"><i class="fas fa-save me-2"></i>Guardar Ausencias Offline</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -33,12 +39,20 @@
         let nombresActivos = [];
 
         $(document).ready(async function() {
+            aplicarEstadoAdmin();
             await cargarDatosLocales();
             agregarFormularioAusencia();
 
-            $('#btn-agregar-ausencia').on('click', agregarFormularioAusencia);
-            $('#btn-registrar-ausencia').on('click', registrarAusenciaOffline);
+            $('#btn-agregar-ausencia').on('click', function() {
+                if (!isAdminMode()) return;
+                agregarFormularioAusencia();
+            });
+            $('#btn-registrar-ausencia').on('click', function() {
+                if (!isAdminMode()) return;
+                registrarAusenciaOffline();
+            });
             $(document).on('click', '.btn-quitar-item-ausencia', function() {
+                if (!isAdminMode()) return;
                 $(this).closest('.formulario-item').remove();
             });
 
@@ -66,8 +80,19 @@
                 validarCampo(this);
             });
 
-            if (syncChannel) syncChannel.onmessage = cargarDatosLocales;
+            if (syncChannel) {
+                syncChannel.onmessage = () => {
+                    aplicarEstadoAdmin();
+                    cargarDatosLocales();
+                };
+            }
         });
+
+        function aplicarEstadoAdmin() {
+            const admin = isAdminMode();
+            $('#bloque-registrar-ausencia').toggle(admin);
+            $('#alerta-solo-admin').toggle(!admin);
+        }
 
         async function cargarDatosLocales() {
             datos = await PB_DB.obtenerDatosPrincipales();
@@ -117,6 +142,11 @@
         }
 
         async function registrarAusenciaOffline() {
+            if (!isAdminMode()) {
+                Swal.fire('Acceso restringido', 'Active el Modo Administrador para registrar ausencias.', 'warning');
+                return;
+            }
+
             await cargarDatosLocales();
             const lista = [];
             let esValido = true;
@@ -146,10 +176,10 @@
                         const inicio = new Date(fecha + 'T00:00:00');
                         const fin = new Date(inicio);
                         fin.setDate(fin.getDate() + diasIncapacidad - 1);
-                        const fechaFinStr = fin.toISOString().split('T')[0];
+                        const fechaFinStr = `${fin.getFullYear()}-${String(fin.getMonth() + 1).padStart(2, '0')}-${String(fin.getDate()).padStart(2, '0')}`;
 
                         for (let d = new Date(inicio); d <= fin; d.setDate(d.getDate() + 1)) {
-                            const fStr = d.toISOString().split('T')[0];
+                            const fStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
                             const dupExistente = datos.ausencias.some(a => a.identidad === colInfo.identidad && fStr >= a.fecha && fStr <= (a.fechaFin || a.fecha));
                             const dupLote = lista.some(a => a.identidad === colInfo.identidad && fStr >= a.fecha && fStr <= a.fechaFin);
                             if (dupExistente || dupLote) {
@@ -199,6 +229,7 @@
                 payload: { datos: JSON.stringify(payloadParaEnviar) }
             });
 
+            let diasRectificados = 0;
             await PB_DB.actualizarDatosPrincipales(cache => {
                 const nuevas = lista.map(a => ({
                     fecha: a.fecha,
@@ -213,13 +244,30 @@
                     _pendienteSync: true
                 }));
                 cache.ausencias = [...(cache.ausencias || []), ...nuevas];
+
+                const fechasAfectadas = [];
+                nuevas.forEach(a => {
+                    obtenerRangoFechasStr(a.fecha, a.fechaFin).forEach(f => fechasAfectadas.push(f));
+                });
+                diasRectificados = rectificarAsistenciaEnCache(cache, fechasAfectadas);
                 return cache;
             });
 
             $('#contenedor-formularios-ausencia').empty();
             agregarFormularioAusencia();
             await cargarDatosLocales();
-            Swal.fire({ icon: 'success', title: 'Guardado Offline', timer: 1800, showConfirmButton: false });
+
+            if (diasRectificados > 0) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Guardado Offline',
+                    html: `Ausencias guardadas. Se rectificaron <strong>${diasRectificados}</strong> día(s) en Control de Asistencia.`,
+                    timer: 2400,
+                    showConfirmButton: false
+                });
+            } else {
+                Swal.fire({ icon: 'success', title: 'Guardado Offline', timer: 1800, showConfirmButton: false });
+            }
         }
     </script>
 </body>

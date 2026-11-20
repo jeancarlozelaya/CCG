@@ -12,24 +12,30 @@
 </head>
 <body class="subpage-body">
     <div class="container-fluid">
-        <div class="alert alert-info d-flex align-items-center justify-content-between py-2 mb-3">
-            <span class="small mb-0">
-                <i class="fas fa-database me-2"></i>Los registros se guardan localmente y quedarán pendientes de sincronizar en la pantalla principal.
-            </span>
+        <div id="alerta-solo-admin" class="alert alert-warning" style="display: none;">
+            <i class="fas fa-lock me-2"></i>El registro de colaboradores requiere activar el <strong>Modo Administrador</strong>.
         </div>
 
-        <form id="form-registrar-colaborador">
-            <div id="contenedor-formularios-colaborador"></div>
-
-            <div class="form-actions">
-                <button type="button" class="btn btn-success" id="btn-agregar-colaborador">
-                    <i class="fas fa-plus me-2"></i>Agregar
-                </button>
-                <button type="button" class="btn btn-primary" id="btn-registrar-colaborador">
-                    <i class="fas fa-save me-2"></i>Guardar Offline
-                </button>
+        <div id="bloque-registrar-colaborador">
+            <div class="alert alert-info d-flex align-items-center justify-content-between py-2 mb-3">
+                <span class="small mb-0">
+                    <i class="fas fa-database me-2"></i>Los registros se guardan localmente y quedarán pendientes de sincronizar en la pantalla principal.
+                </span>
             </div>
-        </form>
+
+            <form id="form-registrar-colaborador">
+                <div id="contenedor-formularios-colaborador"></div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-success" id="btn-agregar-colaborador">
+                        <i class="fas fa-plus me-2"></i>Agregar
+                    </button>
+                    <button type="button" class="btn btn-primary" id="btn-registrar-colaborador">
+                        <i class="fas fa-save me-2"></i>Guardar Offline
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <div id="overlay">
@@ -44,13 +50,21 @@
         let colaboradoresActivos = [];
 
         $(document).ready(async function() {
+            aplicarEstadoAdmin();
             await cargarActivosLocales();
             agregarFormularioColaborador();
 
-            $('#btn-agregar-colaborador').on('click', agregarFormularioColaborador);
-            $('#btn-registrar-colaborador').on('click', registrarColaboradorOffline);
+            $('#btn-agregar-colaborador').on('click', function() {
+                if (!isAdminMode()) return;
+                agregarFormularioColaborador();
+            });
+            $('#btn-registrar-colaborador').on('click', function() {
+                if (!isAdminMode()) return;
+                registrarColaboradorOffline();
+            });
 
             $(document).on('click', '.btn-quitar-item-colaborador', function() {
+                if (!isAdminMode()) return;
                 $(this).closest('.formulario-item').remove();
             });
 
@@ -71,14 +85,42 @@
                 validarCampo(this);
             });
 
+            $(document).on('change input', '.fecha-inicio, .duracion-contrato', function() {
+                actualizarVistaPreviaVencimiento($(this).closest('.formulario-item'));
+            });
+
             if (syncChannel) {
-                syncChannel.onmessage = cargarActivosLocales;
+                syncChannel.onmessage = () => {
+                    aplicarEstadoAdmin();
+                    cargarActivosLocales();
+                };
             }
         });
+
+        function aplicarEstadoAdmin() {
+            const admin = isAdminMode();
+            $('#bloque-registrar-colaborador').toggle(admin);
+            $('#alerta-solo-admin').toggle(!admin);
+        }
 
         async function cargarActivosLocales() {
             const datos = await PB_DB.obtenerDatosPrincipales();
             colaboradoresActivos = datos.activos || [];
+        }
+
+        function actualizarVistaPreviaVencimiento($item) {
+            const fechaInicio = $item.find('.fecha-inicio').val();
+            const duracion = $item.find('.duracion-contrato').val();
+            const $preview = $item.find('.preview-vencimiento');
+            const fechaVenc = calcularFechaVencimientoContrato(fechaInicio, duracion);
+            if (fechaVenc) {
+                const yyyy = fechaVenc.getFullYear();
+                const mm = String(fechaVenc.getMonth() + 1).padStart(2, '0');
+                const dd = String(fechaVenc.getDate()).padStart(2, '0');
+                $preview.html(`<i class="fas fa-calendar-check me-1"></i>Vence: ${formatearFecha(`${yyyy}-${mm}-${dd}`)}`);
+            } else {
+                $preview.text('');
+            }
         }
 
         function agregarFormularioColaborador() {
@@ -90,11 +132,19 @@
                 <div class="formulario-item">
                     ${btnQuitar}
                     <div class="row">
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
                             <label class="form-label">Fecha de Inicio</label>
                             <input type="date" class="form-control fecha-inicio" value="${todayStr}" required>
                         </div>
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Tiempo de Contrato</label>
+                            <select class="form-select duracion-contrato" required>
+                                <option value="6 meses" selected>6 meses</option>
+                                <option value="1 año">1 año</option>
+                            </select>
+                            <div class="form-text text-primary fw-semibold preview-vencimiento"></div>
+                        </div>
+                        <div class="col-md-4 mb-3">
                             <label class="form-label">Nombre Completo</label>
                             <input type="text" class="form-control nombre-completo" style="text-transform: uppercase;" required>
                         </div>
@@ -149,7 +199,9 @@
                         </div>
                     </div>
                 </div>`;
-            $('#contenedor-formularios-colaborador').append(html);
+            const $nuevo = $(html);
+            $('#contenedor-formularios-colaborador').append($nuevo);
+            actualizarVistaPreviaVencimiento($nuevo);
         }
 
         function mostrarVistaPrevia(input) {
@@ -177,6 +229,11 @@
         }
 
         async function registrarColaboradorOffline() {
+            if (!isAdminMode()) {
+                Swal.fire('Acceso restringido', 'Active el Modo Administrador para registrar colaboradores.', 'warning');
+                return;
+            }
+
             await cargarActivosLocales();
 
             const colaboradoresParaRegistrar = [];
@@ -201,6 +258,7 @@
                 });
 
                 const fechaInicio = item.find('.fecha-inicio').val();
+                const duracionContrato = normalizarDuracionContrato(item.find('.duracion-contrato').val());
                 const nombre = item.find('.nombre-completo').val().trim().toUpperCase();
                 const identidad = item.find('.identidad').val().trim();
                 const fechaNacimiento = item.find('.fecha-nacimiento').val() || '';
@@ -233,7 +291,7 @@
                 if (!itemValido) esValido = false;
                 else {
                     colaboradoresParaRegistrar.push({
-                        fechaInicio, nombre, identidad, fechaNacimiento, sexo,
+                        fechaInicio, duracionContrato, nombre, identidad, fechaNacimiento, sexo,
                         fotoFile: fotoInput.files[0] || null,
                         movil, contactoEmergencia, movilEmergencia
                     });
@@ -295,7 +353,7 @@
 
                 await PB_DB.agregarPendiente({
                     titulo: `Registrar ${sinFoto.length} Colaborador(es)`,
-                    detalle: sinFoto.map(c => c.nombre).join(', '),
+                    detalle: sinFoto.map(c => `${c.nombre} (${c.duracionContrato})`).join(', '),
                     destino: 'principal',
                     accion: 'registrar_colaboradores_masivo',
                     payload: { datos: JSON.stringify(sinFoto) },

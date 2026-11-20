@@ -341,7 +341,7 @@
 
             const historialAusencias = ausencias.filter(d => d.identidad === identidad).sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
             const historialDisciplina = disciplina.filter(d => d.identidad === identidad).sort((a,b) => new Date(b.fechaFalta) - new Date(a.fechaFalta));
-            const historialEvaluaciones = evaluaciones.filter(d => d.identidad === identidad).sort((a,b) => new Date(a.fechaEvaluacion) - new Date(a.fechaEvaluacion));
+            const historialEvaluaciones = evaluaciones.filter(d => d.identidad === identidad).sort((a,b) => new Date(a.fechaEvaluacion) - new Date(b.fechaEvaluacion));
             const historialIncidentes = incidentes.filter(d => d.identidad === identidad).sort((a,b) => new Date(b.fechaIncidente) - new Date(a.fechaIncidente));
 
             const estadoColor = esEgresado ? '#e74c3c' : '#2ecc71';
@@ -353,6 +353,7 @@
                 const edadCalculada = calcularEdad(colaborador.fechaNacimiento);
                 if (edadCalculada !== null) edad = edadCalculada;
             }
+            const duracion = normalizarDuracionContrato(colaborador.duracionContrato);
 
             function generarContenidoAusencias() {
                 if (historialAusencias.length === 0) {
@@ -542,6 +543,9 @@
                                     <span class="badge" style="background: rgba(46, 204, 113, 0.15); color: #2ecc71; border: 1px solid #2ecc71; padding: 3px 10px; font-size: 0.65rem;">
                                         <i class="fas fa-calendar-plus me-1"></i>${formatearFecha(colaborador.fechaInicio)}
                                     </span>
+                                    ${!esEgresado ? `<span class="badge" style="background: rgba(52, 152, 219, 0.2); color: #a8d8ea; border: 1px solid rgba(52, 152, 219, 0.6); padding: 3px 10px; font-size: 0.65rem;">
+                                        <i class="fas fa-file-signature me-1"></i>Contrato: ${duracion}
+                                    </span>` : ''}
                                 </div>
                             </div>
                         </div>
@@ -874,6 +878,7 @@
             const movil = (colaborador.movil !== undefined && colaborador.movil !== null) ? String(colaborador.movil) : '';
             const contactoEmergencia = (colaborador.contactoEmergencia !== undefined && colaborador.contactoEmergencia !== null) ? String(colaborador.contactoEmergencia) : '';
             const movilEmergencia = (colaborador.movilEmergencia !== undefined && colaborador.movilEmergencia !== null) ? String(colaborador.movilEmergencia) : '';
+            const duracionActual = normalizarDuracionContrato(colaborador.duracionContrato);
 
             const fotoSrc = colaborador.fotoUrl || `https://ui-avatars.com/api/?name=${colaborador.nombre.replace(/\s/g, "+")}&background=3498db&color=fff&size=150`;
             const isMobile = window.innerWidth < 576;
@@ -915,6 +920,9 @@
                                     <span class="badge" style="background: rgba(255,255,255,0.08); padding: 3px 12px; font-size: 0.65rem;">
                                         <i class="fas fa-calendar-plus me-1"></i>${formatearFecha(colaborador.fechaInicio)}
                                     </span>
+                                    <span class="badge" style="background: rgba(52, 152, 219, 0.2); color: #a8d8ea; border: 1px solid rgba(52, 152, 219, 0.6); padding: 3px 12px; font-size: 0.65rem;">
+                                        <i class="fas fa-file-signature me-1"></i>${duracionActual}
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -929,15 +937,24 @@
                                        onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">
                             </div>
                             <div style="text-align: left;">
+                                <label class="form-label" style="${labelStyle}">Tiempo de Contrato <span style="color: #e74c3c;">*</span></label>
+                                <select class="form-select" id="editar-duracion-contrato" required style="${selectStyle}"
+                                        onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                                        onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">
+                                    <option value="6 meses" ${duracionActual === '6 meses' ? 'selected' : ''}>6 meses</option>
+                                    <option value="1 año" ${duracionActual === '1 año' ? 'selected' : ''}>1 año</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: ${isMobile ? '10px' : '15px'}; margin-bottom: 12px;">
+                            <div style="text-align: left;">
                                 <label class="form-label" style="${labelStyle}">Nombre Completo <span style="color: #e74c3c;">*</span></label>
                                 <input type="text" class="form-control" id="editar-nombre" value="${colaborador.nombre}" style="text-transform: uppercase; ${inputStyle}" required
                                        onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
                                        onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';"
                                        oninput="this.value = this.value.toUpperCase();">
                             </div>
-                        </div>
-
-                        <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: ${isMobile ? '10px' : '15px'}; margin-bottom: 12px;">
                             <div style="text-align: left;">
                                 <label class="form-label" style="${labelStyle}">Identidad <span style="color: #e74c3c;">*</span></label>
                                 <input type="text" class="form-control" id="editar-identidad" value="${colaborador.identidad}" pattern="\\d{4}-\\d{4}-\\d{5}" required
@@ -945,15 +962,15 @@
                                        onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';"
                                        oninput="formatearIdentidad(this);">
                             </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: ${isMobile ? '10px' : '15px'}; margin-bottom: 12px;">
                             <div style="text-align: left;">
                                 <label class="form-label" style="${labelStyle}">Fecha de Nacimiento</label>
                                 <input type="date" class="form-control" id="editar-fecha-nacimiento" value="${colaborador.fechaNacimiento || ''}"
                                        style="${inputStyle}" onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
                                        onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">
                             </div>
-                        </div>
-
-                        <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: ${isMobile ? '10px' : '15px'}; margin-bottom: 12px;">
                             <div style="text-align: left;">
                                 <label class="form-label" style="${labelStyle}">Sexo <span style="color: #e74c3c;">*</span></label>
                                 <select class="form-select" id="editar-sexo" required style="${selectStyle}"
@@ -963,25 +980,26 @@
                                     <option value="Femenino" ${colaborador.sexo === 'Femenino' ? 'selected' : ''}>Femenino</option>
                                 </select>
                             </div>
-                            <div style="text-align: left;">
-                                <label class="form-label" style="${labelStyle}">Foto</label>
-                                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-                                    <div style="flex: 1; min-width: 120px;">
-                                        <input type="file" class="form-control" id="editar-foto" accept="image/*" onchange="mostrarVistaPreviaEdicion(this)" capture="environment"
-                                               style="${inputStyle} padding: 8px 12px; font-size: 0.8rem;"
-                                               onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
-                                               onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">
-                                        <div style="font-size: 0.7rem; color: #95a5a6; margin-top: 3px;">JPG, PNG. Máx 5MB</div>
-                                    </div>
-                                    <div id="vista-previa-edicion-container" style="flex-shrink: 0; text-align: center;">
-                                        ${colaborador.fotoUrl ? `<div style="position: relative; display: inline-block;">
-                                            <img src="${colaborador.fotoUrl}" style="width: 60px; height: 60px; border-radius: 8px; object-fit: cover; border: 2px solid #e9ecef;">
-                                            <button type="button" class="btn btn-danger btn-sm" onclick="quitarVistaPreviaEdicion(this)"
-                                                    style="position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; border-radius: 50%; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; background: #e74c3c; border: 2px solid white; color: white;">
-                                                <i class="fas fa-times"></i>
-                                            </button>
-                                        </div>` : ''}
-                                    </div>
+                        </div>
+
+                        <div style="margin-bottom: 12px; text-align: left;">
+                            <label class="form-label" style="${labelStyle}">Foto</label>
+                            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                                <div style="flex: 1; min-width: 120px;">
+                                    <input type="file" class="form-control" id="editar-foto" accept="image/*" onchange="mostrarVistaPreviaEdicion(this)" capture="environment"
+                                           style="${inputStyle} padding: 8px 12px; font-size: 0.8rem;"
+                                           onfocus="this.style.borderColor='#3498db'; this.style.boxShadow='0 0 0 3px rgba(52, 152, 219, 0.15)';"
+                                           onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none';">
+                                    <div style="font-size: 0.7rem; color: #95a5a6; margin-top: 3px;">JPG, PNG. Máx 5MB</div>
+                                </div>
+                                <div id="vista-previa-edicion-container" style="flex-shrink: 0; text-align: center;">
+                                    ${colaborador.fotoUrl ? `<div style="position: relative; display: inline-block;">
+                                        <img src="${colaborador.fotoUrl}" style="width: 60px; height: 60px; border-radius: 8px; object-fit: cover; border: 2px solid #e9ecef;">
+                                        <button type="button" class="btn btn-danger btn-sm" onclick="quitarVistaPreviaEdicion(this)"
+                                                style="position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; border-radius: 50%; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; background: #e74c3c; border: 2px solid white; color: white;">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>` : ''}
                                 </div>
                             </div>
                         </div>
@@ -1082,6 +1100,7 @@
                 preConfirm: () => {
                     const datosEdit = {
                         fechaInicio: $('#editar-fecha-inicio').val(),
+                        duracionContrato: normalizarDuracionContrato($('#editar-duracion-contrato').val()),
                         nombre: $('#editar-nombre').val().toUpperCase(),
                         identidad: $('#editar-identidad').val(),
                         fechaNacimiento: $('#editar-fecha-nacimiento').val() || '',
@@ -1136,7 +1155,7 @@
 
                     await PB_DB.agregarPendiente({
                         titulo: `Editar Colaborador: ${datosNuevos.nombre}`,
-                        detalle: `Identidad: ${datosNuevos.identidad}`,
+                        detalle: `Identidad: ${datosNuevos.identidad} (${datosNuevos.duracionContrato})`,
                         destino: 'principal',
                         accion: 'editar_colaborador',
                         payload: {

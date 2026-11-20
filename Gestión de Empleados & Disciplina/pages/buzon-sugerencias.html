@@ -20,6 +20,11 @@
             border: 1px solid #e9ecef;
             overflow: hidden;
         }
+        .sugerencia-card-modern.no-vista {
+            border: 1px solid #85c1e9;
+            border-left: 5px solid #3498db;
+            box-shadow: 0 4px 14px rgba(52, 152, 219, 0.14);
+        }
         .sugerencia-card-modern:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 25px rgba(0,0,0,0.1);
@@ -33,6 +38,10 @@
             align-items: center;
             flex-wrap: wrap;
             gap: 8px;
+        }
+        .sugerencia-card-modern.no-vista .card-header-modern {
+            background: linear-gradient(135deg, #ebf5fb, #d6eaf8);
+            border-bottom-color: #aed6f1;
         }
         .sugerencia-card-modern .card-body-modern {
             padding: 18px;
@@ -73,21 +82,40 @@
             background: #e9ecef;
             color: #495057;
         }
+        .sugerencia-badge-nueva {
+            font-size: 0.7rem;
+            padding: 3px 10px;
+            border-radius: 20px;
+            background: #3498db;
+            color: white;
+            font-weight: 700;
+        }
+        .sugerencia-badge-vista {
+            font-size: 0.7rem;
+            padding: 3px 10px;
+            border-radius: 20px;
+            background: #d4edda;
+            color: #155724;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body class="subpage-body">
     <div class="container-fluid">
         <div class="card mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <span><i class="fas fa-info-circle me-2"></i>Sugerencias de los Colaboradores</span>
-                <div class="d-flex align-items-center gap-2">
-                    <small class="text-white-50" id="estado-cache-sugerencias"></small>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <button class="btn btn-warning btn-sm" id="btn-marcar-todas-vistas" style="display: none;">
+                        <i class="fas fa-check-double me-1"></i>Marcar todas como vistas (<span id="count-no-vistas">0</span>)
+                    </button>
                     <button class="btn btn-light btn-sm" id="btn-refrescar-sugerencias">
                         <i class="fas fa-sync-alt me-1"></i>Actualizar
                     </button>
                 </div>
             </div>
             <div class="card-body">
+                <div id="aviso-red-sugerencias" class="alert alert-warning py-2 px-3 small mb-3" style="display: none;"></div>
                 <div id="contenedor-sugerencias"></div>
             </div>
         </div>
@@ -104,18 +132,38 @@
         let disciplina = [];
         let evaluaciones = [];
         let incidentes = [];
+        let listaSugerencias = [];
 
         $(document).ready(async function() {
             await cargarDatosBase();
             await cargarSugerencias(false);
 
             $('#btn-refrescar-sugerencias').on('click', () => cargarSugerencias(true));
+            $('#btn-marcar-todas-vistas').on('click', marcarTodasComoVistas);
+
+            $(document).on('click', '.btn-marcar-vista', async function() {
+                const idx = parseInt($(this).data('index'), 10);
+                if (!isNaN(idx)) {
+                    await marcarUnaComoVista(idx, $(this));
+                }
+            });
+
+            $(document).on('click', '.sugerencia-avatar-click', function() {
+                const identidad = $(this).data('identidad');
+                abrirHistorialColaborador(identidad);
+            });
+
             if (syncChannel) {
                 syncChannel.onmessage = async () => {
                     await cargarDatosBase();
                 };
             }
         });
+
+        function escapeHtml(s) {
+            if (s === null || s === undefined) return '';
+            return String(s).replace(/[&<>"']/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[m]));
+        }
 
         async function cargarDatosBase() {
             datos = await PB_DB.obtenerDatosPrincipales();
@@ -127,34 +175,92 @@
             incidentes = datos.incidentes || [];
         }
 
+        async function fetchConReintento(url, options = {}, reintentos = 2) {
+            let ultimoError;
+            for (let i = 0; i <= reintentos; i++) {
+                try {
+                    const resp = await fetch(url, {
+                        credentials: 'omit',
+                        redirect: 'follow',
+                        cache: 'no-store',
+                        ...options
+                    });
+                    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                    return resp;
+                } catch (err) {
+                    ultimoError = err;
+                    if (i < reintentos) {
+                        await new Promise(r => setTimeout(r, 700 * (i + 1)));
+                    }
+                }
+            }
+            throw ultimoError;
+        }
+
+        async function aplicarPendientesLocales(lista) {
+            const pendientes = (await PB_DB.obtenerPendientes()).filter(p => p.destino === 'buzon' && p.accion === 'marcar_vista');
+            if (pendientes.length === 0) return lista;
+
+            const filasPend = new Set();
+            const fechasPend = new Set();
+            pendientes.forEach(p => {
+                (p.payload.items || []).forEach(it => {
+                    if (it.fila) filasPend.add(Number(it.fila));
+                    if (it.fecha) fechasPend.add(String(it.fecha));
+                });
+            });
+
+            return lista.map(s => {
+                if (filasPend.has(Number(s.fila)) || (s.fecha && fechasPend.has(String(s.fecha)))) {
+                    return { ...s, vista: true };
+                }
+                return s;
+            });
+        }
+
         async function cargarSugerencias(forzarRed = false) {
             const container = $('#contenedor-sugerencias');
+            const $avisoRed = $('#aviso-red-sugerencias');
+            $avisoRed.hide().text('');
+
             const cached = await PB_DB.obtenerCache('sugerencias');
 
             if (cached && cached.datos && !forzarRed) {
-                renderSugerencias(cached.datos, cached.updatedAt);
+                listaSugerencias = await aplicarPendientesLocales(cached.datos);
+                renderSugerencias(listaSugerencias);
             } else {
                 container.html('<div class="text-center p-4"><div class="spinner-border text-primary" role="status"></div><p class="mt-2">Cargando sugerencias...</p></div>');
             }
 
             if (navigator.onLine) {
                 try {
-                    const response = await fetch(BUZON_SCRIPT_URL + "?accion=listar&t=" + Date.now());
+                    const response = await fetchConReintento(BUZON_SCRIPT_URL + "?accion=listar&t=" + Date.now(), { method: 'GET' }, 2);
                     const data = await response.json();
-                    if (data.success) {
-                        const lista = data.sugerencias || [];
+                    if (data && data.success) {
+                        const lista = await aplicarPendientesLocales(data.sugerencias || []);
+                        listaSugerencias = lista;
                         await PB_DB.guardarCache('sugerencias', lista);
-                        renderSugerencias(lista, new Date().toISOString());
+                        renderSugerencias(lista);
+                        PB_DB.notificarCambio('sugerencias_actualizadas');
                     } else if (!cached) {
                         mostrarVacio(container);
                     }
                 } catch (error) {
-                    console.error('Error cargando sugerencias:', error);
-                    if (!cached) {
+                    console.warn('No se pudieron actualizar las sugerencias desde el servidor:', error);
+                    if (cached && cached.datos) {
+                        $avisoRed.html('<i class="fas fa-exclamation-circle me-1"></i>No se pudo conectar con Google Apps Script en este momento. Mostrando copia local.').show();
+                        listaSugerencias = await aplicarPendientesLocales(cached.datos);
+                        renderSugerencias(listaSugerencias);
+                    } else {
                         container.html(`
                             <div class="alert alert-danger text-center">
                                 <i class="fas fa-exclamation-triangle me-2"></i>
-                                Error al cargar las sugerencias. Verifica tu conexión.
+                                Error al cargar las sugerencias (${escapeHtml(error.message)}).
+                                <div class="mt-2">
+                                    <button class="btn btn-sm btn-outline-danger" onclick="cargarSugerencias(true)">
+                                        <i class="fas fa-redo me-1"></i>Reintentar
+                                    </button>
+                                </div>
                             </div>`);
                     }
                 }
@@ -162,12 +268,13 @@
                 container.html(`
                     <div class="alert alert-warning text-center">
                         <i class="fas fa-plane me-2"></i>
-                        Modo offline: aún no hay sugerencias guardadas en caché local.
+                        Modo offline: aún no hay sugerencias guardadas localmente.
                     </div>`);
             }
         }
 
         function mostrarVacio(container) {
+            $('#btn-marcar-todas-vistas').hide();
             container.html(`
                 <div class="text-center p-5">
                     <i class="fas fa-inbox" style="font-size: 4rem; color: #bdc3c7; display: block; margin-bottom: 15px;"></i>
@@ -176,8 +283,7 @@
                 </div>`);
         }
 
-        function renderSugerencias(lista, updatedAt) {
-            $('#estado-cache-sugerencias').text(updatedAt ? `Caché: ${new Date(updatedAt).toLocaleString('es-ES')}` : '');
+        function renderSugerencias(lista) {
             const container = $('#contenedor-sugerencias');
 
             if (!lista || lista.length === 0) {
@@ -185,11 +291,20 @@
                 return;
             }
 
+            const noVistas = lista.filter(s => !s.vista).length;
+            if (noVistas > 0) {
+                $('#count-no-vistas').text(noVistas);
+                $('#btn-marcar-todas-vistas').show();
+            } else {
+                $('#btn-marcar-todas-vistas').hide();
+            }
+
             let html = `<div style="max-height: 600px; overflow-y: auto; padding-right: 5px;">`;
 
-            lista.forEach((sug) => {
+            lista.forEach((sug, idx) => {
                 let fotoUrl = '';
-                const iniciales = (sug.nombre || 'U').split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
+                const nombreSeguro = sug.nombre || 'U';
+                const iniciales = nombreSeguro.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
                 let colorFondo = '#3498db';
 
                 let colaborador = colaboradoresActivos.find(c => c.identidad === sug.identidad);
@@ -201,21 +316,33 @@
                 }
                 if (colaborador) {
                     const colores = ['#3498db', '#2ecc71', '#e74c3c', '#f39c12', '#9b59b6', '#1abc9c', '#e67e22', '#2c3e50'];
-                    colorFondo = colores[sug.nombre.length % colores.length];
+                    colorFondo = colores[nombreSeguro.length % colores.length];
                 }
 
                 const fechaFormateada = formatearFecha(sug.fecha);
                 const horaFormateada = formatearHoraDesdeFecha(sug.fecha);
-                const identidadEscapada = sug.identidad ? sug.identidad.replace(/'/g, "\\'") : '';
+                const identidadAttr = escapeHtml(sug.identidad || '');
+                const esVista = Boolean(sug.vista);
 
                 const fotoHtml = fotoUrl
-                    ? `<img src="${fotoUrl}" class="sugerencia-avatar" alt="${sug.nombre}" onclick="abrirHistorialColaborador('${identidadEscapada}')" onerror="this.style.display='none'; this.parentElement.innerHTML = '<div class=\\'sugerencia-avatar-placeholder\\' style=\\'background: ${colorFondo}; cursor: pointer;\\' onclick=\\'abrirHistorialColaborador(\\'${identidadEscapada}\\')\\'>${iniciales}</div>'">`
-                    : `<div class="sugerencia-avatar-placeholder" style="background: ${colorFondo};" onclick="abrirHistorialColaborador('${identidadEscapada}')">${iniciales}</div>`;
+                    ? `<img src="${escapeHtml(fotoUrl)}" class="sugerencia-avatar sugerencia-avatar-click" data-identidad="${identidadAttr}" alt="${escapeHtml(nombreSeguro)}" onerror="this.outerHTML='<div class=\\'sugerencia-avatar-placeholder sugerencia-avatar-click\\' data-identidad=\\'${identidadAttr}\\' style=\\'background:${colorFondo};\\'>${escapeHtml(iniciales)}</div>'">`
+                    : `<div class="sugerencia-avatar-placeholder sugerencia-avatar-click" data-identidad="${identidadAttr}" style="background: ${colorFondo};">${escapeHtml(iniciales)}</div>`;
+
+                const estadoBadge = esVista
+                    ? `<span class="sugerencia-badge-vista"><i class="fas fa-check-double me-1"></i>Vista</span>`
+                    : `<span class="sugerencia-badge-nueva"><i class="fas fa-bell me-1"></i>Nueva</span>`;
+
+                const botonMarcar = esVista
+                    ? ''
+                    : `<button type="button" class="btn btn-outline-primary btn-sm btn-marcar-vista" data-index="${idx}" title="Marcar sugerencia como vista">
+                           <i class="fas fa-check me-1"></i>Marcar como vista
+                       </button>`;
 
                 html += `
-                    <div class="sugerencia-card-modern">
+                    <div class="sugerencia-card-modern ${esVista ? '' : 'no-vista'}">
                         <div class="card-header-modern">
-                            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                ${estadoBadge}
                                 <span class="sugerencia-badge">
                                     <i class="fas fa-comment me-1"></i>Sugerencia
                                 </span>
@@ -224,17 +351,18 @@
                                 </span>
                                 ${horaFormateada ? `<span style="font-size: 0.75rem; color: #6c757d;"><i class="fas fa-clock me-1"></i>${horaFormateada}</span>` : ''}
                             </div>
+                            <div>${botonMarcar}</div>
                         </div>
                         <div class="card-body-modern">
                             <div style="display: flex; gap: 15px; align-items: flex-start;">
                                 ${fotoHtml}
                                 <div style="flex: 1; min-width: 0;">
                                     <h6 style="font-weight: 700; color: #2c3e50; margin: 0 0 2px 0; font-size: 0.95rem;">
-                                        ${sug.nombre}
+                                        ${escapeHtml(nombreSeguro)}
                                     </h6>
                                     <div class="sugerencia-mensaje-box">
                                         <p style="margin: 0; font-size: 0.9rem; color: #34495e; line-height: 1.6; word-wrap: break-word;">
-                                            ${sug.mensaje}
+                                            ${escapeHtml(sug.mensaje)}
                                         </p>
                                     </div>
                                 </div>
@@ -245,10 +373,93 @@
 
             html += `</div>
                 <div class="text-muted small text-center mt-3">
-                    Total: <strong>${lista.length}</strong> sugerencias
+                    Total: <strong>${lista.length}</strong> sugerencias · Sin ver: <strong>${noVistas}</strong>
                 </div>`;
 
             container.html(html);
+        }
+
+        async function enviarMarcadoVista(items, descripcion) {
+            if (navigator.onLine) {
+                try {
+                    const body = new URLSearchParams();
+                    body.append('accion', 'marcar_vista');
+                    body.append('items', JSON.stringify(items));
+
+                    const resp = await fetchConReintento(BUZON_SCRIPT_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+                        body: body.toString()
+                    }, 1);
+
+                    const resJson = await resp.json();
+                    if (!resJson.success) throw new Error(resJson.error || 'Error en servidor');
+                    return { online: true };
+                } catch (err) {
+                    console.warn('Fallo envío inmediato de vista, encolando offline:', err);
+                }
+            }
+
+            await PB_DB.agregarPendiente({
+                titulo: 'Marcar Sugerencia(s) como Vista',
+                detalle: descripcion,
+                destino: 'buzon',
+                accion: 'marcar_vista',
+                payload: { items }
+            });
+            return { online: false };
+        }
+
+        async function marcarUnaComoVista(idx, $btn) {
+            const sug = listaSugerencias[idx];
+            if (!sug || sug.vista) return;
+
+            if ($btn) {
+                $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>Guardando...');
+            }
+
+            sug.vista = true;
+            await PB_DB.guardarCache('sugerencias', listaSugerencias);
+            renderSugerencias(listaSugerencias);
+
+            const item = [{ fila: sug.fila || 0, fecha: sug.fecha || '' }];
+            const res = await enviarMarcadoVista(item, `${sug.nombre} (${formatearFecha(sug.fecha)})`);
+            PB_DB.notificarCambio('sugerencias_actualizadas');
+
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: res.online ? 'success' : 'info',
+                title: res.online ? 'Sugerencia marcada como vista' : 'Marcada localmente (pendiente de sincronizar)',
+                showConfirmButton: false,
+                timer: 2000
+            });
+        }
+
+        async function marcarTodasComoVistas() {
+            const noVistas = listaSugerencias.filter(s => !s.vista);
+            if (noVistas.length === 0) return;
+
+            const $btn = $('#btn-marcar-todas-vistas');
+            $btn.prop('disabled', true);
+
+            const items = noVistas.map(s => ({ fila: s.fila || 0, fecha: s.fecha || '' }));
+            listaSugerencias = listaSugerencias.map(s => ({ ...s, vista: true }));
+            await PB_DB.guardarCache('sugerencias', listaSugerencias);
+            renderSugerencias(listaSugerencias);
+
+            const res = await enviarMarcadoVista(items, `${items.length} sugerencia(s) del buzón`);
+            PB_DB.notificarCambio('sugerencias_actualizadas');
+            $btn.prop('disabled', false);
+
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: res.online ? 'success' : 'info',
+                title: res.online ? 'Todas marcadas como vistas' : 'Guardado en cola para sincronizar',
+                showConfirmButton: false,
+                timer: 2200
+            });
         }
 
         function abrirHistorialColaborador(identidad) {
@@ -269,7 +480,7 @@
             mostrarDetalleColaboradorCompleto(identidad, esEgresado);
         }
 
-        // ==================== MODAL HISTORIAL COMPLETO (DISEÑO ORIGINAL) ====================
+        // ==================== MODAL HISTORIAL COMPLETO ====================
         function mostrarDetalleColaboradorCompleto(identidad, esEgresado = false) {
             const colaborador = esEgresado
                 ? colaboradoresEgresos.find(c => c.identidad === identidad)

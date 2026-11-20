@@ -75,6 +75,13 @@
             filtrarVencimientos();
         }
 
+        function fechaDateAStr(d) {
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+        }
+
         function actualizarVencimientosContrato() {
             const containerPorVencer = $('#contenedor-vencimientos').empty();
             const containerVencidos = $('#contenedor-contratos-vencidos').empty();
@@ -87,17 +94,16 @@
 
             colaboradoresActivos.forEach(col => {
                 if (!col.fechaInicio) return;
-                const fechaInicio = new Date(col.fechaInicio + 'T00:00:00');
-                const fechaVencimiento = new Date(fechaInicio);
-                fechaVencimiento.setMonth(fechaInicio.getMonth() + 6);
-                fechaVencimiento.setDate(fechaVencimiento.getDate() - 1);
+                const duracion = normalizarDuracionContrato(col.duracionContrato);
+                const fechaVencimiento = calcularFechaVencimientoContrato(col.fechaInicio, duracion);
+                if (!fechaVencimiento) return;
 
-                const diasRestantes = Math.ceil((fechaVencimiento - hoy) / (1000 * 60 * 60 * 24));
+                const diasRestantes = Math.round((fechaVencimiento - hoy) / (1000 * 60 * 60 * 24));
 
                 if (diasRestantes < 0) {
-                    empleadosVencidos.push({ ...col, fechaVencimiento, diasRestantes });
+                    empleadosVencidos.push({ ...col, duracion, fechaVencimiento, diasRestantes });
                 } else if (diasRestantes <= 60) {
-                    empleadosPorVencer.push({ ...col, fechaVencimiento, diasRestantes });
+                    empleadosPorVencer.push({ ...col, duracion, fechaVencimiento, diasRestantes });
                 }
             });
 
@@ -114,12 +120,16 @@
                     else if (item.diasRestantes <= 15) color = 'bg-warning text-dark';
 
                     const fotoSrc = item.fotoUrl || `https://ui-avatars.com/api/?name=${item.nombre.replace(/\s/g, "+")}&background=random`;
+                    const fechaVencStr = fechaDateAStr(item.fechaVencimiento);
                     listHtml += `
                         <div class="resumen-disciplina-item" data-identidad="${item.identidad}" style="cursor: pointer;">
                             <img src="${fotoSrc}" class="resumen-disciplina-img" onerror="this.src='https://ui-avatars.com/api/?name=${item.nombre.replace(/\s/g, "+")}&background=random'">
                             <div class="resumen-disciplina-info">
                                 <h6>${item.nombre}</h6>
-                                <p class="mb-0 small"><strong>Vence:</strong> ${formatearFecha(item.fechaVencimiento.toISOString().split('T')[0])}</p>
+                                <p class="mb-0 small">
+                                    <strong>Vence:</strong> ${formatearFecha(fechaVencStr)}
+                                    <span class="badge bg-light text-dark border ms-1">${item.duracion}</span>
+                                </p>
                             </div>
                             <span class="badge ${color}">${item.diasRestantes} día(s) restante(s)</span>
                         </div>`;
@@ -133,12 +143,16 @@
                 let listHtml = '';
                 empleadosVencidos.forEach(item => {
                     const fotoSrc = item.fotoUrl || `https://ui-avatars.com/api/?name=${item.nombre.replace(/\s/g, "+")}&background=random`;
+                    const fechaVencStr = fechaDateAStr(item.fechaVencimiento);
                     listHtml += `
                         <div class="resumen-disciplina-item" data-identidad="${item.identidad}" style="cursor: pointer;">
                             <img src="${fotoSrc}" class="resumen-disciplina-img" onerror="this.src='https://ui-avatars.com/api/?name=${item.nombre.replace(/\s/g, "+")}&background=random'">
                             <div class="resumen-disciplina-info">
                                 <h6>${item.nombre}</h6>
-                                <p class="mb-0 small"><strong>Venció:</strong> ${formatearFecha(item.fechaVencimiento.toISOString().split('T')[0])}</p>
+                                <p class="mb-0 small">
+                                    <strong>Venció:</strong> ${formatearFecha(fechaVencStr)}
+                                    <span class="badge bg-light text-dark border ms-1">${item.duracion}</span>
+                                </p>
                             </div>
                             <span class="badge bg-danger">Vencido (${Math.abs(item.diasRestantes)} día(s))</span>
                         </div>`;
@@ -178,6 +192,8 @@
                 const edadCalculada = calcularEdad(colaborador.fechaNacimiento);
                 if (edadCalculada !== null) edad = edadCalculada;
             }
+
+            const duracion = normalizarDuracionContrato(colaborador.duracionContrato);
 
             function generarContenidoAusencias() {
                 if (historialAusencias.length === 0) {
@@ -366,6 +382,9 @@
                                     </span>` : ''}
                                     <span class="badge" style="background: rgba(46, 204, 113, 0.15); color: #2ecc71; border: 1px solid #2ecc71; padding: 3px 10px; font-size: 0.65rem;">
                                         <i class="fas fa-calendar-plus me-1"></i>${formatearFecha(colaborador.fechaInicio)}
+                                    </span>
+                                    <span class="badge" style="background: rgba(52, 152, 219, 0.2); color: #a8d8ea; border: 1px solid rgba(52, 152, 219, 0.6); padding: 3px 10px; font-size: 0.65rem;">
+                                        <i class="fas fa-file-signature me-1"></i>Contrato: ${duracion}
                                     </span>
                                 </div>
                             </div>

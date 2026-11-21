@@ -57,7 +57,7 @@
         </div>
 
         <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <span>Historial de Acciones Disciplinarias</span>
                 <button class="btn btn-primary btn-sm" id="btn-resumen-disciplina">
                     <i class="fas fa-users-cog me-2"></i>Ver Resumen por Colaborador
@@ -98,6 +98,14 @@
                         <tbody id="tabla-disciplina" class="no-hover"></tbody>
                     </table>
                 </div>
+
+                <!-- PAGINACIÓN -->
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3" id="barra-paginacion-disciplina">
+                    <small class="text-muted" id="info-paginacion-disciplina"></small>
+                    <nav aria-label="Paginación de disciplina">
+                        <ul class="pagination pagination-sm mb-0" id="paginacion-disciplina"></ul>
+                    </nav>
+                </div>
             </div>
         </div>
     </div>
@@ -109,6 +117,12 @@
         let datos = { activos: [], disciplina: [] };
         let colaboradoresActivos = [];
         let disciplina = [];
+
+        let disciplinaPorFecha = [];
+        let disciplinaFiltrada = [];
+        let paginaActualDisciplina = 1;
+        const REGISTROS_POR_PAGINA = 10;
+
         let vistaDisciplina = 'mensual';
         let graficoDisciplina = null;
         let graficoDisciplinaAnual = null;
@@ -145,9 +159,24 @@
                 }
             });
 
-            $('#btn-filtrar-disciplina-personalizado').on('click', filtrarDisciplinaPersonalizado);
-            $('#buscador-disciplina').on('input', filtrarDisciplina);
+            $('#btn-filtrar-disciplina-personalizado').on('click', () => {
+                paginaActualDisciplina = 1;
+                filtrarDisciplinaPersonalizado();
+            });
+            $('#buscador-disciplina').on('input', () => {
+                paginaActualDisciplina = 1;
+                filtrarDisciplina();
+            });
             $('#btn-resumen-disciplina').on('click', mostrarResumenDisciplina);
+
+            $(document).on('click', '.page-link-disciplina', function(e) {
+                e.preventDefault();
+                const pag = parseInt($(this).data('page'), 10);
+                if (!isNaN(pag) && pag >= 1) {
+                    paginaActualDisciplina = pag;
+                    renderizarPaginaDisciplina();
+                }
+            });
 
             $(document).on('click', '.btn-delete-disciplina', function(e) {
                 e.stopPropagation();
@@ -318,18 +347,59 @@
             });
         }
 
-        function mostrarHistorialDisciplina(lista) {
+        function filtrarDisciplinaPersonalizado() {
+            const inicio = $('#fecha-inicio-disciplina').val();
+            const fin = $('#fecha-fin-disciplina').val();
+
+            if (inicio && fin) {
+                disciplinaPorFecha = disciplina.filter(d => d.fechaFalta >= inicio && d.fechaFalta <= fin);
+            } else if (inicio) {
+                disciplinaPorFecha = disciplina.filter(d => d.fechaFalta >= inicio);
+            } else if (fin) {
+                disciplinaPorFecha = disciplina.filter(d => d.fechaFalta <= fin);
+            } else {
+                disciplinaPorFecha = [...disciplina];
+            }
+            filtrarDisciplina();
+        }
+
+        function filtrarDisciplina() {
+            const texto = ($('#buscador-disciplina').val() || '').toLowerCase().trim();
+            const ordenada = [...disciplinaPorFecha].sort((a, b) => new Date(b.fechaFalta) - new Date(a.fechaFalta));
+
+            if (!texto) {
+                disciplinaFiltrada = ordenada;
+            } else {
+                disciplinaFiltrada = ordenada.filter(d =>
+                    (d.nombre || '').toLowerCase().includes(texto) ||
+                    (d.identidad || '').toLowerCase().includes(texto)
+                );
+            }
+            renderizarPaginaDisciplina();
+        }
+
+        function renderizarPaginaDisciplina() {
             const esAdmin = isAdminMode();
-            const datosAMostrar = lista || disciplina;
             const tablaDisciplina = $('#tabla-disciplina').empty();
-            if (datosAMostrar.length === 0) {
+            const total = disciplinaFiltrada.length;
+
+            if (total === 0) {
                 tablaDisciplina.append(`<tr><td colspan="${esAdmin ? 6 : 5}" class="text-center">No hay registros de disciplina para el filtro seleccionado.</td></tr>`);
+                $('#info-paginacion-disciplina').text('0 registros');
+                $('#paginacion-disciplina').empty();
                 return;
             }
-            const disciplinaOrdenada = [...datosAMostrar].sort((a, b) => new Date(b.fechaFalta) - new Date(a.fechaFalta));
 
-            disciplinaOrdenada.forEach((registro) => {
-                const faltasLista = registro.descripcionFaltas.split('; ').map(falta => `<li>${falta}</li>`).join('');
+            const totalPaginas = Math.max(1, Math.ceil(total / REGISTROS_POR_PAGINA));
+            if (paginaActualDisciplina > totalPaginas) paginaActualDisciplina = totalPaginas;
+            if (paginaActualDisciplina < 1) paginaActualDisciplina = 1;
+
+            const inicioIdx = (paginaActualDisciplina - 1) * REGISTROS_POR_PAGINA;
+            const finIdx = Math.min(inicioIdx + REGISTROS_POR_PAGINA, total);
+            const items = disciplinaFiltrada.slice(inicioIdx, finIdx);
+
+            items.forEach((registro) => {
+                const faltasLista = (registro.descripcionFaltas || '').split('; ').map(falta => `<li>${falta}</li>`).join('');
                 const tdAcciones = esAdmin
                     ? `<td style="white-space: nowrap;">
                             <button class="btn btn-danger btn-sm btn-action btn-delete-disciplina"
@@ -351,32 +421,48 @@
                         ${tdAcciones}
                     </tr>`);
             });
-            filtrarDisciplina();
+
+            $('#info-paginacion-disciplina').text(`Mostrando ${inicioIdx + 1}–${finIdx} de ${total} registro(s)`);
+            renderizarControlesPaginacion(paginaActualDisciplina, totalPaginas);
         }
 
-        function filtrarDisciplina() {
-            const texto = $('#buscador-disciplina').val().toLowerCase();
-            $('#tabla-disciplina tr').each(function() {
-                if ($(this).find('td').length < 3) return;
-                const nombre = $(this).find('td:eq(1)').text().toLowerCase();
-                const identidad = $(this).find('td:eq(2)').text().toLowerCase();
-                $(this).toggle(nombre.includes(texto) || identidad.includes(texto));
-            });
-        }
+        function renderizarControlesPaginacion(actual, totalPaginas) {
+            const $ul = $('#paginacion-disciplina').empty();
+            if (totalPaginas <= 1) return;
 
-        function filtrarDisciplinaPersonalizado() {
-            const inicio = $('#fecha-inicio-disciplina').val();
-            const fin = $('#fecha-fin-disciplina').val();
-            let disciplinaFiltrada = disciplina;
+            $ul.append(`
+                <li class="page-item ${actual === 1 ? 'disabled' : ''}">
+                    <a class="page-link page-link-disciplina" href="#" data-page="${actual - 1}">Anterior</a>
+                </li>`);
 
-            if (inicio && fin) {
-                disciplinaFiltrada = disciplina.filter(d => d.fechaFalta >= inicio && d.fechaFalta <= fin);
-            } else if (inicio) {
-                disciplinaFiltrada = disciplina.filter(d => d.fechaFalta >= inicio);
-            } else if (fin) {
-                disciplinaFiltrada = disciplina.filter(d => d.fechaFalta <= fin);
+            const paginas = [];
+            if (totalPaginas <= 7) {
+                for (let i = 1; i <= totalPaginas; i++) paginas.push(i);
+            } else {
+                paginas.push(1);
+                if (actual > 3) paginas.push('...');
+                const start = Math.max(2, actual - 1);
+                const end = Math.min(totalPaginas - 1, actual + 1);
+                for (let i = start; i <= end; i++) paginas.push(i);
+                if (actual < totalPaginas - 2) paginas.push('...');
+                paginas.push(totalPaginas);
             }
-            mostrarHistorialDisciplina(disciplinaFiltrada);
+
+            paginas.forEach(p => {
+                if (p === '...') {
+                    $ul.append(`<li class="page-item disabled"><span class="page-link">...</span></li>`);
+                } else {
+                    $ul.append(`
+                        <li class="page-item ${p === actual ? 'active' : ''}">
+                            <a class="page-link page-link-disciplina" href="#" data-page="${p}">${p}</a>
+                        </li>`);
+                }
+            });
+
+            $ul.append(`
+                <li class="page-item ${actual === totalPaginas ? 'disabled' : ''}">
+                    <a class="page-link page-link-disciplina" href="#" data-page="${actual + 1}">Siguiente</a>
+                </li>`);
         }
 
         function eliminarDisciplinaOffline(identidad, fechaFalta) {

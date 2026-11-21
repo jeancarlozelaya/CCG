@@ -158,7 +158,7 @@
         <div id="incidentes-simbologia" class="mt-4"></div>
 
         <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <span>Historial de Incidentes</span>
                 <button class="btn btn-primary btn-sm" id="btn-resumen-incidentes">
                     <i class="fas fa-users me-2"></i>Ver Resumen por Colaborador
@@ -202,6 +202,14 @@
                         <tbody id="tabla-incidentes" class="no-hover"></tbody>
                     </table>
                 </div>
+
+                <!-- PAGINACIÓN -->
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3" id="barra-paginacion-incidentes">
+                    <small class="text-muted" id="info-paginacion-incidentes"></small>
+                    <nav aria-label="Paginación de incidentes">
+                        <ul class="pagination pagination-sm mb-0" id="paginacion-incidentes"></ul>
+                    </nav>
+                </div>
             </div>
         </div>
     </div>
@@ -213,6 +221,11 @@
         let datos = { activos: [], incidentes: [] };
         let colaboradoresActivos = [];
         let incidentes = [];
+
+        let incidentesPorFecha = [];
+        let incidentesFiltrados = [];
+        let paginaActualIncidentes = 1;
+        const REGISTROS_POR_PAGINA = 10;
 
         let graficoIncidentesAnual = null;
         let graficoIncidentesCategoriaActual = null;
@@ -235,9 +248,24 @@
                 if (mostrar) crearGraficoIncidentesCategoriaFiltrado(ano, mes);
             });
 
-            $('#btn-filtrar-incidentes-personalizado').on('click', filtrarIncidentesPersonalizado);
-            $('#buscador-incidentes').on('input', filtrarIncidentesTabla);
+            $('#btn-filtrar-incidentes-personalizado').on('click', () => {
+                paginaActualIncidentes = 1;
+                filtrarIncidentesPersonalizado();
+            });
+            $('#buscador-incidentes').on('input', () => {
+                paginaActualIncidentes = 1;
+                filtrarIncidentesTabla();
+            });
             $('#btn-resumen-incidentes').on('click', mostrarResumenIncidentes);
+
+            $(document).on('click', '.page-link-incidente', function(e) {
+                e.preventDefault();
+                const pag = parseInt($(this).data('page'), 10);
+                if (!isNaN(pag) && pag >= 1) {
+                    paginaActualIncidentes = pag;
+                    renderizarPaginaIncidentes();
+                }
+            });
 
             $(document).on('click', '.btn-edit-incidente', function() {
                 if (!isAdminMode()) return;
@@ -434,15 +462,58 @@
             graficoIncidentesCategoriaFiltrado = crearGraficoIncidentesCategoria('graficoIncidentesCategoriaFiltrado', datosFiltrados, `Distribución (${nombreMes} ${ano})`);
         }
 
-        function mostrarHistorialIncidentes(lista) {
+        function filtrarIncidentesPersonalizado() {
+            const inicio = $('#fecha-inicio-incidentes').val();
+            const fin = $('#fecha-fin-incidentes').val();
+
+            if (inicio && fin) incidentesPorFecha = incidentes.filter(i => i.fechaIncidente >= inicio && i.fechaIncidente <= fin);
+            else if (inicio) incidentesPorFecha = incidentes.filter(i => i.fechaIncidente >= inicio);
+            else if (fin) incidentesPorFecha = incidentes.filter(i => i.fechaIncidente <= fin);
+            else incidentesPorFecha = [...incidentes];
+
+            filtrarIncidentesTabla();
+        }
+
+        function filtrarIncidentesTabla() {
+            const texto = ($('#buscador-incidentes').val() || '').toLowerCase().trim();
+            const ordenados = [...incidentesPorFecha].sort((a, b) => new Date(b.fechaIncidente) - new Date(a.fechaIncidente));
+
+            if (!texto) {
+                incidentesFiltrados = ordenados;
+            } else {
+                incidentesFiltrados = ordenados.filter(i =>
+                    (i.nombre || '').toLowerCase().includes(texto) ||
+                    (i.identidad || '').toLowerCase().includes(texto) ||
+                    (i.categoriaSiso || '').toLowerCase().includes(texto) ||
+                    (i.descripcion || '').toLowerCase().includes(texto) ||
+                    (i.parteAfectada || '').toLowerCase().includes(texto) ||
+                    (i.causa || '').toLowerCase().includes(texto)
+                );
+            }
+            renderizarPaginaIncidentes();
+        }
+
+        function renderizarPaginaIncidentes() {
             const esAdmin = isAdminMode();
-            const datosAMostrar = lista || incidentes;
             const tabla = $('#tabla-incidentes').empty();
-            if (datosAMostrar.length === 0) {
+            const total = incidentesFiltrados.length;
+
+            if (total === 0) {
                 tabla.append(`<tr><td colspan="${esAdmin ? 9 : 8}" class="text-center">No hay incidentes para el filtro seleccionado.</td></tr>`);
+                $('#info-paginacion-incidentes').text('0 registros');
+                $('#paginacion-incidentes').empty();
                 return;
             }
-            [...datosAMostrar].sort((a, b) => new Date(b.fechaIncidente) - new Date(a.fechaIncidente)).forEach(i => {
+
+            const totalPaginas = Math.max(1, Math.ceil(total / REGISTROS_POR_PAGINA));
+            if (paginaActualIncidentes > totalPaginas) paginaActualIncidentes = totalPaginas;
+            if (paginaActualIncidentes < 1) paginaActualIncidentes = 1;
+
+            const inicioIdx = (paginaActualIncidentes - 1) * REGISTROS_POR_PAGINA;
+            const finIdx = Math.min(inicioIdx + REGISTROS_POR_PAGINA, total);
+            const items = incidentesFiltrados.slice(inicioIdx, finIdx);
+
+            items.forEach(i => {
                 const partesHtml = (i.parteAfectada && i.parteAfectada.length > 0)
                     ? '<ul>' + i.parteAfectada.split('; ').map(p => `<li>${p}</li>`).join('') + '</ul>'
                     : '';
@@ -467,33 +538,48 @@
                         ${tdAcciones}
                     </tr>`);
             });
-            filtrarIncidentesTabla();
+
+            $('#info-paginacion-incidentes').text(`Mostrando ${inicioIdx + 1}–${finIdx} de ${total} registro(s)`);
+            renderizarControlesPaginacion(paginaActualIncidentes, totalPaginas);
         }
 
-        function filtrarIncidentesTabla() {
-            const texto = $('#buscador-incidentes').val().toLowerCase();
-            $('#tabla-incidentes tr').each(function() {
-                if ($(this).find('td').length < 6) return;
-                const nombre = $(this).find('td:eq(1)').text().toLowerCase();
-                const identidad = $(this).find('td:eq(2)').text().toLowerCase();
-                const categoria = $(this).find('td:eq(3)').text().toLowerCase();
-                const descripcion = $(this).find('td:eq(4)').text().toLowerCase();
-                const parteAfectada = $(this).find('td:eq(5)').text().toLowerCase();
-                $(this).toggle(
-                    nombre.includes(texto) || identidad.includes(texto) || categoria.includes(texto) ||
-                    descripcion.includes(texto) || parteAfectada.includes(texto)
-                );
+        function renderizarControlesPaginacion(actual, totalPaginas) {
+            const $ul = $('#paginacion-incidentes').empty();
+            if (totalPaginas <= 1) return;
+
+            $ul.append(`
+                <li class="page-item ${actual === 1 ? 'disabled' : ''}">
+                    <a class="page-link page-link-incidente" href="#" data-page="${actual - 1}">Anterior</a>
+                </li>`);
+
+            const paginas = [];
+            if (totalPaginas <= 7) {
+                for (let i = 1; i <= totalPaginas; i++) paginas.push(i);
+            } else {
+                paginas.push(1);
+                if (actual > 3) paginas.push('...');
+                const start = Math.max(2, actual - 1);
+                const end = Math.min(totalPaginas - 1, actual + 1);
+                for (let i = start; i <= end; i++) paginas.push(i);
+                if (actual < totalPaginas - 2) paginas.push('...');
+                paginas.push(totalPaginas);
+            }
+
+            paginas.forEach(p => {
+                if (p === '...') {
+                    $ul.append(`<li class="page-item disabled"><span class="page-link">...</span></li>`);
+                } else {
+                    $ul.append(`
+                        <li class="page-item ${p === actual ? 'active' : ''}">
+                            <a class="page-link page-link-incidente" href="#" data-page="${p}">${p}</a>
+                        </li>`);
+                }
             });
-        }
 
-        function filtrarIncidentesPersonalizado() {
-            const inicio = $('#fecha-inicio-incidentes').val();
-            const fin = $('#fecha-fin-incidentes').val();
-            let incidentesFiltrados = incidentes;
-            if (inicio && fin) incidentesFiltrados = incidentes.filter(i => i.fechaIncidente >= inicio && i.fechaIncidente <= fin);
-            else if (inicio) incidentesFiltrados = incidentes.filter(i => i.fechaIncidente >= inicio);
-            else if (fin) incidentesFiltrados = incidentes.filter(i => i.fechaIncidente <= fin);
-            mostrarHistorialIncidentes(incidentesFiltrados);
+            $ul.append(`
+                <li class="page-item ${actual === totalPaginas ? 'disabled' : ''}">
+                    <a class="page-link page-link-incidente" href="#" data-page="${actual + 1}">Siguiente</a>
+                </li>`);
         }
 
         // ==================== MODAL EDITAR INCIDENTE (DISEÑO ORIGINAL + OFFLINE) ====================

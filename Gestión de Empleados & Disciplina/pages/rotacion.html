@@ -66,6 +66,14 @@
                         <tbody id="tabla-egresos"></tbody>
                     </table>
                 </div>
+
+                <!-- PAGINACIÓN -->
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3" id="barra-paginacion-egresos">
+                    <small class="text-muted" id="info-paginacion-egresos"></small>
+                    <nav aria-label="Paginación de egresos">
+                        <ul class="pagination pagination-sm mb-0" id="paginacion-egresos"></ul>
+                    </nav>
+                </div>
             </div>
         </div>
     </div>
@@ -75,6 +83,11 @@
     <script src="../js/db.js"></script>
     <script>
         let datos = { activos: [], ingresos: [], egresos: [] };
+        let egresosPorFecha = [];
+        let egresosFiltrados = [];
+        let paginaActualEgresos = 1;
+        const REGISTROS_POR_PAGINA = 10;
+
         let gAnual = null, gActual = null, gHist = null, gFilt = null;
 
         $(document).ready(async function() {
@@ -90,18 +103,22 @@
             });
 
             $('#btn-calcular-rotacion-personalizado').on('click', () => {
-                const ini = $('#fecha-inicio-personalizado').val(), fin = $('#fecha-fin-personalizado').val();
-                let lista = datos.egresos;
-                if (ini) lista = lista.filter(e => e.fechaEgreso >= ini);
-                if (fin) lista = lista.filter(e => e.fechaEgreso <= fin);
-                mostrarEgresos(lista);
+                paginaActualEgresos = 1;
+                aplicarFiltroFechasEgresos();
             });
 
-            $('#buscador-egresos').on('input', function() {
-                const q = $(this).val().toLowerCase();
-                $('#tabla-egresos tr').each(function() {
-                    $(this).toggle($(this).text().toLowerCase().includes(q));
-                });
+            $('#buscador-egresos').on('input', () => {
+                paginaActualEgresos = 1;
+                aplicarFiltroTextoEgresos();
+            });
+
+            $(document).on('click', '.page-link-egreso', function(e) {
+                e.preventDefault();
+                const pag = parseInt($(this).data('page'), 10);
+                if (!isNaN(pag) && pag >= 1) {
+                    paginaActualEgresos = pag;
+                    renderizarPaginaEgresos();
+                }
             });
 
             if (syncChannel) syncChannel.onmessage = cargarYRenderizar;
@@ -117,7 +134,7 @@
                 datos.egresos.filter(e => { const f = new Date(e.fechaEgreso + 'T00:00:00'); return f.getMonth() === hoy.getMonth() && f.getFullYear() === hoy.getFullYear(); }),
                 'Egresos (Mes Actual)');
             crearGraficoPie('graficoEgresosMotivoHistorico', gHist, inst => gHist = inst, datos.egresos, 'Egresos (Histórico)');
-            mostrarEgresos(datos.egresos);
+            aplicarFiltroFechasEgresos();
         }
 
         function calcularPeriodos() {
@@ -192,12 +209,97 @@
             setInst(inst);
         }
 
-        function mostrarEgresos(lista) {
+        function aplicarFiltroFechasEgresos() {
+            const ini = $('#fecha-inicio-personalizado').val();
+            const fin = $('#fecha-fin-personalizado').val();
+            let lista = [...(datos.egresos || [])];
+            if (ini) lista = lista.filter(e => e.fechaEgreso >= ini);
+            if (fin) lista = lista.filter(e => e.fechaEgreso <= fin);
+            egresosPorFecha = lista;
+            aplicarFiltroTextoEgresos();
+        }
+
+        function aplicarFiltroTextoEgresos() {
+            const q = ($('#buscador-egresos').val() || '').toLowerCase().trim();
+            const ordenados = [...egresosPorFecha].sort((a, b) => new Date(b.fechaEgreso) - new Date(a.fechaEgreso));
+
+            if (!q) {
+                egresosFiltrados = ordenados;
+            } else {
+                egresosFiltrados = ordenados.filter(e =>
+                    (e.nombre || '').toLowerCase().includes(q) ||
+                    (e.identidad || '').toLowerCase().includes(q) ||
+                    (e.razon || '').toLowerCase().includes(q) ||
+                    formatearFecha(e.fechaEgreso).toLowerCase().includes(q)
+                );
+            }
+            renderizarPaginaEgresos();
+        }
+
+        function renderizarPaginaEgresos() {
             const tb = $('#tabla-egresos').empty();
-            if (lista.length === 0) return tb.append('<tr><td colspan="4" class="text-center">No hay egresos.</td></tr>');
-            [...lista].sort((a, b) => new Date(b.fechaEgreso) - new Date(a.fechaEgreso)).forEach(e => {
+            const total = egresosFiltrados.length;
+
+            if (total === 0) {
+                tb.append('<tr><td colspan="4" class="text-center">No hay egresos.</td></tr>');
+                $('#info-paginacion-egresos').text('0 registros');
+                $('#paginacion-egresos').empty();
+                return;
+            }
+
+            const totalPaginas = Math.max(1, Math.ceil(total / REGISTROS_POR_PAGINA));
+            if (paginaActualEgresos > totalPaginas) paginaActualEgresos = totalPaginas;
+            if (paginaActualEgresos < 1) paginaActualEgresos = 1;
+
+            const inicioIdx = (paginaActualEgresos - 1) * REGISTROS_POR_PAGINA;
+            const finIdx = Math.min(inicioIdx + REGISTROS_POR_PAGINA, total);
+            const items = egresosFiltrados.slice(inicioIdx, finIdx);
+
+            items.forEach(e => {
                 tb.append(`<tr><td>${formatearFecha(e.fechaEgreso)}</td><td>${e.nombre}</td><td>${e.identidad}</td><td>${e.razon}</td></tr>`);
             });
+
+            $('#info-paginacion-egresos').text(`Mostrando ${inicioIdx + 1}–${finIdx} de ${total} registro(s)`);
+            renderizarControlesPaginacion(paginaActualEgresos, totalPaginas);
+        }
+
+        function renderizarControlesPaginacion(actual, totalPaginas) {
+            const $ul = $('#paginacion-egresos').empty();
+            if (totalPaginas <= 1) return;
+
+            $ul.append(`
+                <li class="page-item ${actual === 1 ? 'disabled' : ''}">
+                    <a class="page-link page-link-egreso" href="#" data-page="${actual - 1}">Anterior</a>
+                </li>`);
+
+            const paginas = [];
+            if (totalPaginas <= 7) {
+                for (let i = 1; i <= totalPaginas; i++) paginas.push(i);
+            } else {
+                paginas.push(1);
+                if (actual > 3) paginas.push('...');
+                const start = Math.max(2, actual - 1);
+                const end = Math.min(totalPaginas - 1, actual + 1);
+                for (let i = start; i <= end; i++) paginas.push(i);
+                if (actual < totalPaginas - 2) paginas.push('...');
+                paginas.push(totalPaginas);
+            }
+
+            paginas.forEach(p => {
+                if (p === '...') {
+                    $ul.append(`<li class="page-item disabled"><span class="page-link">...</span></li>`);
+                } else {
+                    $ul.append(`
+                        <li class="page-item ${p === actual ? 'active' : ''}">
+                            <a class="page-link page-link-egreso" href="#" data-page="${p}">${p}</a>
+                        </li>`);
+                }
+            });
+
+            $ul.append(`
+                <li class="page-item ${actual === totalPaginas ? 'disabled' : ''}">
+                    <a class="page-link page-link-egreso" href="#" data-page="${actual + 1}">Siguiente</a>
+                </li>`);
         }
     </script>
 </body>

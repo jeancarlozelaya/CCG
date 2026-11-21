@@ -100,7 +100,7 @@
         </div>
 
         <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <span>Historial de Evaluaciones Realizadas</span>
                 <button class="btn btn-primary btn-sm" id="btn-resumen-evaluaciones">
                     <i class="fas fa-chart-bar me-2"></i>Ver Resumen por Colaborador
@@ -140,6 +140,14 @@
                         <tbody id="tabla-evaluaciones" class="no-hover"></tbody>
                     </table>
                 </div>
+
+                <!-- PAGINACIÓN -->
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3" id="barra-paginacion-evaluaciones">
+                    <small class="text-muted" id="info-paginacion-evaluaciones"></small>
+                    <nav aria-label="Paginación de evaluaciones">
+                        <ul class="pagination pagination-sm mb-0" id="paginacion-evaluaciones"></ul>
+                    </nav>
+                </div>
             </div>
         </div>
     </div>
@@ -151,6 +159,11 @@
         let datos = { activos: [], evaluaciones: [] };
         let colaboradoresActivos = [];
         let evaluaciones = [];
+
+        let evaluacionesPorFecha = [];
+        let evaluacionesFiltradas = [];
+        let paginaActualEvaluaciones = 1;
+        const REGISTROS_POR_PAGINA = 10;
 
         let graficoEvaluacionesAnual = null;
         let graficoEvaluacionesDesempenoActual = null;
@@ -164,9 +177,24 @@
                 crearGraficoEvaluacionesAnual(parseInt($('#filtro-ano-evaluaciones-grafico').val(), 10));
             });
 
-            $('#btn-filtrar-evaluaciones-personalizado').on('click', filtrarEvaluacionesPersonalizado);
-            $('#buscador-evaluaciones').on('input', filtrarEvaluaciones);
+            $('#btn-filtrar-evaluaciones-personalizado').on('click', () => {
+                paginaActualEvaluaciones = 1;
+                filtrarEvaluacionesPersonalizado();
+            });
+            $('#buscador-evaluaciones').on('input', () => {
+                paginaActualEvaluaciones = 1;
+                filtrarEvaluaciones();
+            });
             $('#btn-resumen-evaluaciones').on('click', mostrarResumenEvaluaciones);
+
+            $(document).on('click', '.page-link-evaluacion', function(e) {
+                e.preventDefault();
+                const pag = parseInt($(this).data('page'), 10);
+                if (!isNaN(pag) && pag >= 1) {
+                    paginaActualEvaluaciones = pag;
+                    renderizarPaginaEvaluaciones();
+                }
+            });
 
             $(document).on('click', '.btn-delete-evaluacion', function(e) {
                 e.stopPropagation();
@@ -376,15 +404,54 @@
             container.html(listHtml);
         }
 
-        function mostrarHistorialEvaluaciones(lista) {
+        function filtrarEvaluacionesPersonalizado() {
+            const inicio = $('#fecha-inicio-evaluaciones').val();
+            const fin = $('#fecha-fin-evaluaciones').val();
+
+            if (inicio && fin) evaluacionesPorFecha = evaluaciones.filter(e => e.fechaEvaluacion >= inicio && e.fechaEvaluacion <= fin);
+            else if (inicio) evaluacionesPorFecha = evaluaciones.filter(e => e.fechaEvaluacion >= inicio);
+            else if (fin) evaluacionesPorFecha = evaluaciones.filter(e => e.fechaEvaluacion <= fin);
+            else evaluacionesPorFecha = [...evaluaciones];
+
+            filtrarEvaluaciones();
+        }
+
+        function filtrarEvaluaciones() {
+            const texto = ($('#buscador-evaluaciones').val() || '').toLowerCase().trim();
+            const ordenadas = [...evaluacionesPorFecha].sort((a, b) => new Date(b.fechaEvaluacion) - new Date(a.fechaEvaluacion));
+
+            if (!texto) {
+                evaluacionesFiltradas = ordenadas;
+            } else {
+                evaluacionesFiltradas = ordenadas.filter(e =>
+                    (e.nombre || '').toLowerCase().includes(texto) ||
+                    (e.identidad || '').toLowerCase().includes(texto)
+                );
+            }
+            renderizarPaginaEvaluaciones();
+        }
+
+        function renderizarPaginaEvaluaciones() {
             const esAdmin = isAdminMode();
-            const datosAMostrar = lista || evaluaciones;
             const tabla = $('#tabla-evaluaciones').empty();
-            if (datosAMostrar.length === 0) {
+            const total = evaluacionesFiltradas.length;
+
+            if (total === 0) {
                 tabla.append(`<tr><td colspan="${esAdmin ? 5 : 4}" class="text-center">No hay evaluaciones para el filtro seleccionado.</td></tr>`);
+                $('#info-paginacion-evaluaciones').text('0 registros');
+                $('#paginacion-evaluaciones').empty();
                 return;
             }
-            [...datosAMostrar].sort((a, b) => new Date(b.fechaEvaluacion) - new Date(a.fechaEvaluacion)).forEach(e => {
+
+            const totalPaginas = Math.max(1, Math.ceil(total / REGISTROS_POR_PAGINA));
+            if (paginaActualEvaluaciones > totalPaginas) paginaActualEvaluaciones = totalPaginas;
+            if (paginaActualEvaluaciones < 1) paginaActualEvaluaciones = 1;
+
+            const inicioIdx = (paginaActualEvaluaciones - 1) * REGISTROS_POR_PAGINA;
+            const finIdx = Math.min(inicioIdx + REGISTROS_POR_PAGINA, total);
+            const items = evaluacionesFiltradas.slice(inicioIdx, finIdx);
+
+            items.forEach(e => {
                 const tdAcciones = esAdmin
                     ? `<td style="white-space: nowrap;">
                             <button class="btn btn-danger btn-sm btn-action btn-delete-evaluacion"
@@ -405,29 +472,48 @@
                         ${tdAcciones}
                     </tr>`);
             });
-            filtrarEvaluaciones();
+
+            $('#info-paginacion-evaluaciones').text(`Mostrando ${inicioIdx + 1}–${finIdx} de ${total} registro(s)`);
+            renderizarControlesPaginacion(paginaActualEvaluaciones, totalPaginas);
         }
 
-        function filtrarEvaluaciones() {
-            const texto = $('#buscador-evaluaciones').val().toLowerCase();
-            $('#tabla-evaluaciones tr').each(function() {
-                if ($(this).find('td').length < 3) return;
-                const nombre = $(this).find('td:eq(1)').text().toLowerCase();
-                const identidad = $(this).find('td:eq(2)').text().toLowerCase();
-                $(this).toggle(nombre.includes(texto) || identidad.includes(texto));
+        function renderizarControlesPaginacion(actual, totalPaginas) {
+            const $ul = $('#paginacion-evaluaciones').empty();
+            if (totalPaginas <= 1) return;
+
+            $ul.append(`
+                <li class="page-item ${actual === 1 ? 'disabled' : ''}">
+                    <a class="page-link page-link-evaluacion" href="#" data-page="${actual - 1}">Anterior</a>
+                </li>`);
+
+            const paginas = [];
+            if (totalPaginas <= 7) {
+                for (let i = 1; i <= totalPaginas; i++) paginas.push(i);
+            } else {
+                paginas.push(1);
+                if (actual > 3) paginas.push('...');
+                const start = Math.max(2, actual - 1);
+                const end = Math.min(totalPaginas - 1, actual + 1);
+                for (let i = start; i <= end; i++) paginas.push(i);
+                if (actual < totalPaginas - 2) paginas.push('...');
+                paginas.push(totalPaginas);
+            }
+
+            paginas.forEach(p => {
+                if (p === '...') {
+                    $ul.append(`<li class="page-item disabled"><span class="page-link">...</span></li>`);
+                } else {
+                    $ul.append(`
+                        <li class="page-item ${p === actual ? 'active' : ''}">
+                            <a class="page-link page-link-evaluacion" href="#" data-page="${p}">${p}</a>
+                        </li>`);
+                }
             });
-        }
 
-        function filtrarEvaluacionesPersonalizado() {
-            const inicio = $('#fecha-inicio-evaluaciones').val();
-            const fin = $('#fecha-fin-evaluaciones').val();
-            let evaluacionesFiltradas = evaluaciones;
-
-            if (inicio && fin) evaluacionesFiltradas = evaluaciones.filter(e => e.fechaEvaluacion >= inicio && e.fechaEvaluacion <= fin);
-            else if (inicio) evaluacionesFiltradas = evaluaciones.filter(e => e.fechaEvaluacion >= inicio);
-            else if (fin) evaluacionesFiltradas = evaluaciones.filter(e => e.fechaEvaluacion <= fin);
-
-            mostrarHistorialEvaluaciones(evaluacionesFiltradas);
+            $ul.append(`
+                <li class="page-item ${actual === totalPaginas ? 'disabled' : ''}">
+                    <a class="page-link page-link-evaluacion" href="#" data-page="${actual + 1}">Siguiente</a>
+                </li>`);
         }
 
         function eliminarEvaluacionOffline(identidad, fechaEvaluacion) {

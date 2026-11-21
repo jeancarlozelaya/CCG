@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="css/styles.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         /* ==================== ENCABEZADO STICKY ==================== */
         .header {
@@ -137,6 +138,16 @@
             margin-bottom: 12px;
         }
         .admin-indicator.active { display: flex; }
+
+        /* ==================== SUBPÁGINA INTEGRADA ==================== */
+        #iframeSubpagina {
+            width: 100%;
+            border: none;
+            display: block;
+            min-height: 450px;
+            overflow: hidden;
+            background: transparent;
+        }
 
         /* ==================== MODAL CONFIGURACIÓN MANUAL (REFERENCIA) ==================== */
         .cfg-modal-backdrop {
@@ -597,6 +608,14 @@
                             </div>
                             <div id="contenedor-cumpleaneros" class="row"></div>
                         </div>
+
+                        <!-- SUBPÁGINA INTEGRADA -->
+                        <div class="tab-pane fade" id="subpagina-pane" role="tabpanel">
+                            <div class="tab-title">
+                                <h2 id="subpagina-titulo">Submódulo</h2>
+                            </div>
+                            <iframe id="iframeSubpagina" src="about:blank" scrolling="no"></iframe>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -627,28 +646,6 @@
                     <div class="form-check form-switch">
                         <input class="form-check-input" type="checkbox" id="toggle-modo-admin">
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL IFRAME PARA SUBPÁGINAS -->
-    <div class="modal fade" id="modalSubpagina" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header d-flex justify-content-between align-items-center">
-                    <h5 class="modal-title m-0" id="modalSubpaginaTitulo">
-                        <i class="fas fa-window-maximize me-2"></i><span>Submódulo</span>
-                    </h5>
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="badge bg-warning text-dark" id="modal-badge-pendientes" style="display:none; cursor:pointer;" title="Abrir gestor de envíos pendientes">
-                            <i class="fas fa-cloud-upload-alt me-1"></i><span id="modal-pendientes-count">0</span> pendiente(s)
-                        </span>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-                    </div>
-                </div>
-                <div class="modal-body">
-                    <iframe id="iframeSubpagina" src="about:blank"></iframe>
                 </div>
             </div>
         </div>
@@ -706,10 +703,16 @@
         let solicitudesPermisos = [];
         let sugerenciasBuzon = [];
         let solicitudesCarnets = [];
-        let modalSubpaginaInstance = null;
         let sincronizando = false;
         let isOnline = navigator.onLine;
         let modoAdmin = isAdminMode();
+
+        // Estado para puente de subpáginas (Swal + Modales Bootstrap + Overlay + postMessage file://)
+        window.__pbEsPaginaPrincipal = true;
+        let activeSwalPopup = null;
+        let activeRemoteReqId = null;
+        const preConfirmResolvers = new Map();
+        const activeMovedModals = new Set();
 
         function fixSwalFocus() {
             const observer = new MutationObserver(() => {
@@ -737,6 +740,500 @@
             fixSwalFocus();
             initializeApp();
         });
+
+        window.mostrarVistaPreviaEdicion = function(input) {
+            const container = document.getElementById('vista-previa-edicion-container');
+            if (!container) return;
+            container.innerHTML = '';
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    container.innerHTML = `
+                        <div style="position: relative; display: inline-block;">
+                            <img src="${e.target.result}" style="width: 60px; height: 60px; border-radius: 8px; object-fit: cover; border: 2px solid #e9ecef;">
+                            <button type="button" class="btn btn-danger btn-sm" onclick="quitarVistaPreviaEdicion(this)"
+                                    style="position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; border-radius: 50%; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; background: #e74c3c; border: 2px solid white; color: white;">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>`;
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        };
+
+        window.quitarVistaPreviaEdicion = function() {
+            const input = document.getElementById('editar-foto');
+            const container = document.getElementById('vista-previa-edicion-container');
+            if (input) input.value = '';
+            if (container) container.innerHTML = '';
+        };
+
+        // ==================== PUENTE GLOBAL PARA SUBPÁGINAS EN IFRAME ====================
+        function limpiarPuenteSwal() {
+            document.querySelectorAll('[data-pb-swal-style="1"]').forEach(el => el.remove());
+            $(document).off('.pbSwalBridge');
+        }
+
+        function obtenerRutaIndiceDesdeRaiz(el, raiz) {
+            const path = [];
+            let curr = el;
+            while (curr && curr !== raiz) {
+                const parent = curr.parentNode;
+                if (!parent) return null;
+                path.unshift(Array.prototype.indexOf.call(parent.children, curr));
+                curr = parent;
+            }
+            return curr === raiz ? path : null;
+        }
+
+        function resolverRutaIndiceDesdeRaiz(path, raiz) {
+            if (!raiz || !Array.isArray(path)) return null;
+            let curr = raiz;
+            for (const idx of path) {
+                if (!curr || !curr.children || !curr.children[idx]) return null;
+                curr = curr.children[idx];
+            }
+            return curr;
+        }
+
+        function reescribirEventosInline(containerEl, iframeWin, remoteSourceWin = null) {
+            if (!containerEl) return;
+            const eventos = [
+                { attr: 'onclick', evt: 'click' },
+                { attr: 'onchange', evt: 'change' },
+                { attr: 'oninput', evt: 'input' },
+                { attr: 'onsubmit', evt: 'submit' }
+            ];
+            eventos.forEach(({ attr, evt }) => {
+                containerEl.querySelectorAll('[' + attr + ']').forEach(el => {
+                    const code = el.getAttribute(attr);
+                    if (!code) return;
+                    el.removeAttribute(attr);
+                    el.setAttribute('data-pb-has-inline-' + evt, '1');
+                    el.addEventListener(evt, function(event) {
+                        if (iframeWin) {
+                            try {
+                                const fn = new iframeWin.Function('event', code);
+                                return fn.call(this, event);
+                            } catch (err) {
+                                console.error('Error ejecutando ' + attr + ':', err);
+                            }
+                        } else {
+                            try {
+                                const fnLocal = new Function('event', code);
+                                return fnLocal.call(this, event);
+                            } catch (err) {
+                                if (err instanceof ReferenceError && remoteSourceWin) {
+                                    try {
+                                        remoteSourceWin.postMessage({
+                                            tipo: 'PB_SWAL_INVOKE',
+                                            code,
+                                            eventType: evt
+                                        }, '*');
+                                    } catch (e2) {}
+                                } else {
+                                    console.error('Error ejecutando ' + attr + ':', err);
+                                }
+                            }
+                        }
+                    });
+                });
+            });
+        }
+
+        function buscarEnContenedoresActivos(sel, tipo) {
+            if (activeSwalPopup) {
+                const res = tipo === 'id'
+                    ? activeSwalPopup.querySelector('#' + CSS.escape(sel))
+                    : (tipo === 'all' ? activeSwalPopup.querySelectorAll(sel) : activeSwalPopup.querySelector(sel));
+                if (res && (tipo !== 'all' || res.length > 0)) return res;
+            }
+            for (const modalEl of activeMovedModals) {
+                const res = tipo === 'id'
+                    ? modalEl.querySelector('#' + CSS.escape(sel))
+                    : (tipo === 'all' ? modalEl.querySelectorAll(sel) : modalEl.querySelector(sel));
+                if (res && (tipo !== 'all' || res.length > 0)) return res;
+            }
+            if (tipo === 'id') return document.getElementById(sel);
+            return null;
+        }
+
+        window.__pbRegistrarSubpagina = function(win) {
+            try {
+                const doc = win && win.document;
+                if (!win || !doc) return;
+
+                if (!doc.__pbDomBridged) {
+                    const origGetById = doc.getElementById.bind(doc);
+                    doc.getElementById = function(id) {
+                        const local = origGetById(id);
+                        if (local) return local;
+                        if (id && (activeSwalPopup || activeMovedModals.size > 0)) {
+                            try { return buscarEnContenedoresActivos(id, 'id'); } catch (e) { return document.getElementById(id); }
+                        }
+                        return null;
+                    };
+
+                    const origQS = doc.querySelector.bind(doc);
+                    doc.querySelector = function(sel) {
+                        const local = origQS(sel);
+                        if (local) return local;
+                        if (sel && (activeSwalPopup || activeMovedModals.size > 0)) {
+                            return buscarEnContenedoresActivos(sel, 'one') || document.querySelector(sel);
+                        }
+                        return null;
+                    };
+
+                    const origQSA = doc.querySelectorAll.bind(doc);
+                    doc.querySelectorAll = function(sel) {
+                        const local = origQSA(sel);
+                        if (local && local.length > 0) return local;
+                        if (sel && (activeSwalPopup || activeMovedModals.size > 0)) {
+                            const found = buscarEnContenedoresActivos(sel, 'all');
+                            if (found && found.length > 0) return found;
+                        }
+                        return local;
+                    };
+
+                    if (doc.head && !doc.head.__pbStyleBridged) {
+                        const origHeadAppend = doc.head.appendChild.bind(doc.head);
+                        doc.head.appendChild = function(node) {
+                            const res = origHeadAppend(node);
+                            try {
+                                if (activeSwalPopup && node && node.tagName === 'STYLE') {
+                                    const clone = document.createElement('style');
+                                    clone.setAttribute('data-pb-swal-style', '1');
+                                    clone.textContent = node.textContent;
+                                    document.head.appendChild(clone);
+                                }
+                            } catch (e) {}
+                            return res;
+                        };
+                        doc.head.__pbStyleBridged = true;
+                    }
+
+                    const setupOverlayMirror = () => {
+                        const subOverlay = origGetById('overlay');
+                        if (!subOverlay || subOverlay.__pbOverlayBridged) return;
+                        subOverlay.__pbOverlayBridged = true;
+                        const obs = new MutationObserver(() => {
+                            const cs = win.getComputedStyle(subOverlay);
+                            const visible = cs.display !== 'none' && subOverlay.style.display !== 'none';
+                            if (visible) {
+                                const msgP = subOverlay.querySelector('#loadingMessage p');
+                                $('#loadingMessage p').text(msgP ? msgP.textContent : '');
+                                $('#overlay').css('display', 'flex');
+                                subOverlay.style.visibility = 'hidden';
+                            } else {
+                                $('#overlay').hide();
+                                $('#loadingMessage p').text('');
+                                subOverlay.style.visibility = '';
+                            }
+                        });
+                        obs.observe(subOverlay, { attributes: true, attributeFilter: ['style', 'class'] });
+                    };
+                    if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', setupOverlayMirror);
+                    else setupOverlayMirror();
+
+                    doc.__pbDomBridged = true;
+                }
+
+                if (win.jQuery && !win.jQuery.__pbBridged) {
+                    const origJQ = win.jQuery;
+                    const bridgedJQ = function(selector, context) {
+                        if (!context && typeof selector === 'string' && !selector.trim().startsWith('<') && (activeSwalPopup || activeMovedModals.size > 0)) {
+                            const resLocal = origJQ(selector);
+                            if (resLocal.length > 0) return resLocal;
+                            if (activeSwalPopup) {
+                                const resPopup = origJQ(selector, activeSwalPopup);
+                                if (resPopup.length > 0) return resPopup;
+                            }
+                            for (const modalEl of activeMovedModals) {
+                                const resMod = origJQ(selector, modalEl);
+                                if (resMod.length > 0) return resMod;
+                            }
+                            return origJQ(selector, document);
+                        }
+                        return origJQ(selector, context);
+                    };
+                    Object.assign(bridgedJQ, origJQ);
+                    bridgedJQ.fn = origJQ.fn;
+                    bridgedJQ.prototype = origJQ.prototype;
+
+                    const origOn = origJQ.fn.on;
+                    origJQ.fn.on = function(events, selector, data, handler) {
+                        const res = origOn.apply(this, arguments);
+                        try {
+                            if (this[0] === doc && typeof selector === 'string' && activeSwalPopup) {
+                                let fn = handler;
+                                let d = data;
+                                if (typeof data === 'function') { fn = data; d = undefined; }
+                                if (typeof fn === 'function') {
+                                    const evNames = String(events).split(/\s+/).map(ev => ev.split('.')[0] + '.pbSwalBridge').join(' ');
+                                    if (d !== undefined) $(document).on(evNames, selector, d, fn);
+                                    else $(document).on(evNames, selector, fn);
+                                }
+                            }
+                        } catch (e) {}
+                        return res;
+                    };
+
+                    const origOff = origJQ.fn.off;
+                    origJQ.fn.off = function(events, selector, handler) {
+                        const res = origOff.apply(this, arguments);
+                        try {
+                            if (this[0] === doc && activeSwalPopup) {
+                                if (typeof selector === 'string') {
+                                    $(document).off('.pbSwalBridge', selector);
+                                } else {
+                                    $(document).off('.pbSwalBridge');
+                                }
+                            }
+                        } catch (e) {}
+                        return res;
+                    };
+
+                    bridgedJQ.__pbBridged = true;
+                    win.jQuery = win.$ = bridgedJQ;
+                }
+
+                if (win.Swal && !win.Swal.__pbBridged) {
+                    const wrapSwalFire = (targetSwal) => {
+                        return function(...args) {
+                            let opts = {};
+                            if (args.length === 1 && args[0] && typeof args[0] === 'object') {
+                                opts = Object.assign({}, args[0]);
+                            } else {
+                                opts = { title: args[0], html: args[1], icon: args[2] };
+                            }
+
+                            const userDidOpen = opts.didOpen;
+                            const userWillClose = opts.willClose;
+
+                            opts.didOpen = (popup) => {
+                                activeSwalPopup = popup;
+                                reescribirEventosInline(popup, win);
+                                if (typeof userDidOpen === 'function') {
+                                    userDidOpen(popup);
+                                }
+                                reescribirEventosInline(popup, win);
+                            };
+
+                            opts.willClose = (popup) => {
+                                try {
+                                    if (typeof userWillClose === 'function') {
+                                        userWillClose(popup);
+                                    }
+                                } finally {
+                                    if (activeSwalPopup === popup) {
+                                        activeSwalPopup = null;
+                                        limpiarPuenteSwal();
+                                    }
+                                }
+                            };
+
+                            return targetSwal.fire(opts);
+                        };
+                    };
+
+                    const crearProxySwal = (targetSwal) => {
+                        return new Proxy(targetSwal, {
+                            get(target, prop) {
+                                if (prop === '__pbBridged') return true;
+                                if (prop === 'fire') return wrapSwalFire(target);
+                                if (prop === 'mixin') {
+                                    return (mixinOpts) => crearProxySwal(target.mixin(mixinOpts));
+                                }
+                                const val = target[prop];
+                                return typeof val === 'function' ? val.bind(target) : val;
+                            }
+                        });
+                    };
+
+                    win.Swal = crearProxySwal(window.Swal);
+                }
+
+                if (win.bootstrap && win.bootstrap.Modal && !win.bootstrap.Modal.__pbBridged) {
+                    const ParentModal = window.bootstrap.Modal;
+
+                    const moverModalAParent = (modalEl) => {
+                        if (!modalEl || modalEl.parentNode === document.body) return;
+                        const placeholder = doc.createComment('pb-modal-placeholder');
+                        modalEl.__pbPlaceholder = placeholder;
+                        modalEl.parentNode.insertBefore(placeholder, modalEl);
+                        reescribirEventosInline(modalEl, win);
+                        document.body.appendChild(modalEl);
+                        activeMovedModals.add(modalEl);
+
+                        if (!modalEl.__pbRestoreAttached) {
+                            modalEl.addEventListener('hidden.bs.modal', () => {
+                                activeMovedModals.delete(modalEl);
+                                if (modalEl.__pbPlaceholder && modalEl.__pbPlaceholder.parentNode) {
+                                    modalEl.__pbPlaceholder.parentNode.insertBefore(modalEl, modalEl.__pbPlaceholder);
+                                    modalEl.__pbPlaceholder.remove();
+                                    modalEl.__pbPlaceholder = null;
+                                }
+                            });
+                            modalEl.__pbRestoreAttached = true;
+                        }
+                    };
+
+                    class BridgedModal {
+                        constructor(element, config) {
+                            const el = typeof element === 'string' ? doc.querySelector(element) : element;
+                            this._el = el;
+                            this._config = config;
+                            this._inst = null;
+                            if (el) el.__pbBridgedInst = this;
+                        }
+                        show() {
+                            if (!this._el) return;
+                            moverModalAParent(this._el);
+                            this._inst = ParentModal.getOrCreateInstance(this._el, this._config);
+                            this._inst.show();
+                        }
+                        hide() {
+                            if (this._inst) this._inst.hide();
+                            else if (this._el) ParentModal.getInstance(this._el)?.hide();
+                        }
+                        toggle() {
+                            if (this._el && this._el.classList.contains('show')) this.hide();
+                            else this.show();
+                        }
+                        dispose() {
+                            if (this._inst) this._inst.dispose();
+                        }
+                        handleUpdate() {
+                            if (this._inst) this._inst.handleUpdate();
+                        }
+                        static getInstance(element) {
+                            const el = typeof element === 'string' ? doc.querySelector(element) : element;
+                            return el ? (el.__pbBridgedInst || null) : null;
+                        }
+                        static getOrCreateInstance(element, config) {
+                            const el = typeof element === 'string' ? doc.querySelector(element) : element;
+                            if (!el) return null;
+                            return el.__pbBridgedInst || new BridgedModal(el, config);
+                        }
+                    }
+                    BridgedModal.__pbBridged = true;
+                    win.bootstrap.Modal = BridgedModal;
+
+                    if (!doc.__pbModalToggleDelegated) {
+                        doc.addEventListener('click', function(ev) {
+                            const trigger = ev.target && ev.target.closest ? ev.target.closest('[data-bs-toggle="modal"]') : null;
+                            if (!trigger) return;
+                            const targetSel = trigger.getAttribute('data-bs-target') || trigger.getAttribute('href');
+                            if (!targetSel) return;
+                            const targetEl = doc.querySelector(targetSel);
+                            if (!targetEl) return;
+                            ev.preventDefault();
+                            ev.stopPropagation();
+                            BridgedModal.getOrCreateInstance(targetEl).show();
+                        }, true);
+                        doc.__pbModalToggleDelegated = true;
+                    }
+
+                    if (win.jQuery && win.jQuery.fn) {
+                        win.jQuery.fn.modal = function(action) {
+                            return this.each(function() {
+                                const inst = BridgedModal.getOrCreateInstance(this);
+                                if (!inst) return;
+                                if (action === 'hide') inst.hide();
+                                else if (action === 'toggle') inst.toggle();
+                                else inst.show();
+                            });
+                        };
+                    }
+                }
+            } catch (err) {
+                if (err && err.name === 'SecurityError') return;
+                console.warn('Error en puente de subpágina:', err);
+            }
+        };
+
+        async function recolectarCamposPopup(popup) {
+            const fields = {};
+            if (!popup) return fields;
+            const controles = popup.querySelectorAll('input[id], select[id], textarea[id]');
+            for (const el of controles) {
+                if (el.type === 'file') {
+                    if (el.files && el.files[0]) {
+                        const f = el.files[0];
+                        try {
+                            const base64 = await archivoABase64(f);
+                            fields[el.id] = {
+                                __pbFile: true,
+                                name: f.name,
+                                type: f.type,
+                                lastModified: f.lastModified,
+                                base64
+                            };
+                        } catch (e) {
+                            fields[el.id] = null;
+                        }
+                    } else {
+                        fields[el.id] = null;
+                    }
+                } else if (el.type === 'checkbox' || el.type === 'radio') {
+                    fields[el.id] = el.checked;
+                } else {
+                    fields[el.id] = el.value;
+                }
+            }
+            return fields;
+        }
+
+        function abrirSubpaginaInline(url, title, icon, $clickedDropdownItem = null) {
+            activeSwalPopup = null;
+            activeRemoteReqId = null;
+            activeMovedModals.clear();
+            limpiarPuenteSwal();
+            $('#overlay').hide();
+
+            $('#dashboard-tab, #cumpleaneros-tab').removeClass('active').attr('aria-selected', 'false');
+            $('#myTab .nav-link.dropdown-toggle').removeClass('active');
+            $('#myTab .dropdown-item').removeClass('active');
+
+            if ($clickedDropdownItem && $clickedDropdownItem.length) {
+                $clickedDropdownItem.addClass('active');
+                $clickedDropdownItem.closest('.nav-item.dropdown').find('.nav-link.dropdown-toggle').addClass('active');
+            } else {
+                const $match = $(`#myTab .open-iframe[data-url="${url}"]`);
+                if ($match.length) {
+                    $match.addClass('active');
+                    $match.closest('.nav-item.dropdown').find('.nav-link.dropdown-toggle').addClass('active');
+                }
+            }
+
+            $('#dashboard, #cumpleaneros').removeClass('show active');
+            $('#subpagina-pane').addClass('show active');
+            $('#subpagina-titulo').html(`<i class="${icon} me-2"></i>${title}`);
+
+            const iframe = document.getElementById('iframeSubpagina');
+            iframe.style.height = '450px';
+            iframe.src = url;
+
+            const navTop = $('.card').first().offset()?.top || 0;
+            window.scrollTo({ top: Math.max(0, navTop - 80), behavior: 'smooth' });
+        }
+
+        async function cerrarSubpaginaInline() {
+            activeSwalPopup = null;
+            activeRemoteReqId = null;
+            activeMovedModals.clear();
+            limpiarPuenteSwal();
+            $('#overlay').hide();
+
+            const iframe = document.getElementById('iframeSubpagina');
+            iframe.src = 'about:blank';
+            iframe.style.height = '450px';
+            $('#subpagina-pane').removeClass('show active');
+            $('#myTab .nav-link.dropdown-toggle').removeClass('active');
+            $('#myTab .dropdown-item').removeClass('active');
+            await cargarVistaDesdeIndexedDB();
+            await actualizarBadgePendientes();
+        }
 
         async function refrescarPermisosSilencioso() {
             if (!navigator.onLine || !modoAdmin) return;
@@ -818,7 +1315,6 @@
         }
 
         async function initializeApp() {
-            modalSubpaginaInstance = new bootstrap.Modal(document.getElementById('modalSubpagina'));
             configurarEventos();
             aplicarEstadoAdminUI();
             actualizarEstadoConexion();
@@ -844,7 +1340,6 @@
                 refrescarPermisosSilencioso();
             }
 
-            // Verificar permisos, buzón y carnets cada 5 minutos si hay conexión y modoAdmin activo
             setInterval(async () => {
                 await refrescarPermisosSilencioso();
                 await refrescarBuzonSilencioso();
@@ -962,7 +1457,6 @@
                 $('#btn-sugerencias-header').css('display', 'none');
                 $('#btn-carnets-header').css('display', 'none');
                 $('#btn-permisos-header').css('display', 'none');
-                $('#modal-badge-pendientes').hide();
             }
 
             verificarAsistenciaHoy();
@@ -1021,7 +1515,6 @@
         async function actualizarBadgePendientes() {
             if (!modoAdmin) {
                 document.getElementById('badge-pendientes').style.display = 'none';
-                $('#modal-badge-pendientes').hide();
                 return;
             }
             const count = await PB_DB.contarPendientes();
@@ -1029,11 +1522,8 @@
             if (count > 0) {
                 badge.textContent = count > 99 ? '99+' : count;
                 badge.style.display = 'flex';
-                $('#modal-pendientes-count').text(count);
-                $('#modal-badge-pendientes').show();
             } else {
                 badge.style.display = 'none';
-                $('#modal-badge-pendientes').hide();
             }
         }
 
@@ -1058,28 +1548,212 @@
                     await actualizarBadgePendientes();
                 };
             }
+
             window.addEventListener('message', async (event) => {
-                if (event.data && event.data.tipo === 'PB_DB_EVENT') {
+                if (!event.data || !event.data.tipo) return;
+                const { tipo } = event.data;
+
+                if (tipo === 'PB_DB_EVENT') {
                     await cargarVistaDesdeIndexedDB();
                     await actualizarBadgePendientes();
+                    return;
+                }
+
+                if (tipo === 'PB_IFRAME_ALTURA') {
+                    const iframe = document.getElementById('iframeSubpagina');
+                    if (iframe && $('#subpagina-pane').hasClass('active')) {
+                        const altura = Math.max(450, Number(event.data.altura) || 450);
+                        iframe.style.height = altura + 'px';
+                    }
+                    return;
+                }
+
+                if (tipo === 'PB_SWAL_STYLE') {
+                    const st = document.createElement('style');
+                    st.setAttribute('data-pb-remote-style', event.data.reqId || '1');
+                    st.textContent = event.data.css || '';
+                    document.head.appendChild(st);
+                    return;
+                }
+
+                if (tipo === 'PB_SWAL_PATCH_HTML') {
+                    if (!activeSwalPopup || event.data.reqId !== activeRemoteReqId) return;
+                    const htmlCont = activeSwalPopup.querySelector('.swal2-html-container');
+                    if (!htmlCont) return;
+                    const target = event.data.targetId
+                        ? htmlCont.querySelector('#' + CSS.escape(event.data.targetId))
+                        : resolverRutaIndiceDesdeRaiz(event.data.path, htmlCont);
+                    if (target) {
+                        target.innerHTML = event.data.html || '';
+                        reescribirEventosInline(target, null, event.source);
+                    }
+                    return;
+                }
+
+                if (tipo === 'PB_SWAL_CHART') {
+                    const container = activeSwalPopup || document;
+                    const canvas = container.querySelector('#' + CSS.escape(event.data.canvasId || ''));
+                    if (canvas && typeof Chart === 'function') {
+                        try {
+                            new Chart(canvas.getContext('2d'), event.data.config);
+                        } catch (e) {
+                            console.error('Error renderizando gráfico remoto:', e);
+                        }
+                    }
+                    return;
+                }
+
+                if (tipo === 'PB_SWAL_PRECONFIRM_RES') {
+                    const resolver = preConfirmResolvers.get(event.data.reqId);
+                    if (resolver) {
+                        preConfirmResolvers.delete(event.data.reqId);
+                        resolver(event.data);
+                    }
+                    return;
+                }
+
+                if (tipo === 'PB_SWAL_VALIDATION') {
+                    Swal.showValidationMessage(event.data.msg || '');
+                    return;
+                }
+
+                if (tipo === 'PB_SWAL_CLOSE') {
+                    Swal.close();
+                    return;
+                }
+
+                if (tipo === 'PB_SWAL_FIRE') {
+                    const { reqId, opts, hasPreConfirm } = event.data;
+                    const sourceWin = event.source;
+                    const swalOpts = Object.assign({}, opts || {});
+
+                    swalOpts.didOpen = (popup) => {
+                        activeSwalPopup = popup;
+                        activeRemoteReqId = reqId;
+                        reescribirEventosInline(popup, null, sourceWin);
+
+                        const htmlCont = popup.querySelector('.swal2-html-container');
+                        if (htmlCont) {
+                            ['input', 'change'].forEach(evtType => {
+                                htmlCont.addEventListener(evtType, (ev) => {
+                                    const el = ev.target;
+                                    if (!el || el.type === 'file') return;
+                                    const path = obtenerRutaIndiceDesdeRaiz(el, htmlCont);
+                                    try {
+                                        sourceWin.postMessage({
+                                            tipo: 'PB_SWAL_EVENT',
+                                            reqId,
+                                            eventType: evtType,
+                                            targetId: el.id || '',
+                                            path,
+                                            value: el.value,
+                                            checked: el.checked
+                                        }, '*');
+                                    } catch (e) {}
+                                });
+                            });
+
+                            htmlCont.addEventListener('click', (ev) => {
+                                const el = ev.target;
+                                if (!el) return;
+                                if (el.closest('a[href], [data-bs-toggle], [data-pb-has-inline-click="1"], input, select, textarea, label')) return;
+                                const clickable = el.closest('button, .resumen-disciplina-item, [role="button"], .clickable') || el;
+                                const path = obtenerRutaIndiceDesdeRaiz(clickable, htmlCont);
+                                if (!path && !clickable.id) return;
+                                try {
+                                    sourceWin.postMessage({
+                                        tipo: 'PB_SWAL_CLICK',
+                                        reqId,
+                                        targetId: clickable.id || '',
+                                        path
+                                    }, '*');
+                                } catch (e) {}
+                            });
+                        }
+
+                        try {
+                            sourceWin.postMessage({ tipo: 'PB_SWAL_DID_OPEN', reqId }, '*');
+                        } catch (e) {}
+                    };
+
+                    if (hasPreConfirm) {
+                        swalOpts.preConfirm = async () => {
+                            const fields = await recolectarCamposPopup(activeSwalPopup);
+                            const respPre = await new Promise((resolve) => {
+                                preConfirmResolvers.set(reqId, resolve);
+                                try {
+                                    sourceWin.postMessage({ tipo: 'PB_SWAL_PRECONFIRM', reqId, fields }, '*');
+                                } catch (e) {
+                                    resolve({ valid: false, validationMessage: 'No se pudo validar el formulario.' });
+                                }
+                            });
+                            if (!respPre.valid) {
+                                if (respPre.validationMessage) {
+                                    Swal.showValidationMessage(respPre.validationMessage);
+                                }
+                                return false;
+                            }
+                            return true;
+                        };
+                    }
+
+                    swalOpts.willClose = () => {
+                        document.querySelectorAll(`[data-pb-remote-style="${reqId}"]`).forEach(el => el.remove());
+                        if (activeRemoteReqId === reqId) {
+                            activeRemoteReqId = null;
+                            activeSwalPopup = null;
+                        }
+                        try {
+                            sourceWin.postMessage({ tipo: 'PB_SWAL_WILL_CLOSE', reqId }, '*');
+                        } catch (e) {}
+                    };
+
+                    Swal.fire(swalOpts).then((result) => {
+                        try {
+                            sourceWin.postMessage({
+                                tipo: 'PB_SWAL_RESULT',
+                                reqId,
+                                result: {
+                                    isConfirmed: Boolean(result.isConfirmed),
+                                    isDenied: Boolean(result.isDenied),
+                                    isDismissed: Boolean(result.isDismissed),
+                                    value: result.value,
+                                    dismiss: result.dismiss
+                                }
+                            }, '*');
+                        } catch (e) {}
+                    });
+                }
+            });
+
+            const iframeEl = document.getElementById('iframeSubpagina');
+            iframeEl.addEventListener('load', () => {
+                if (window.location.protocol === 'file:') return;
+                if (iframeEl.src && !iframeEl.src.endsWith('about:blank')) {
+                    try {
+                        window.__pbRegistrarSubpagina(iframeEl.contentWindow);
+                    } catch (e) {}
                 }
             });
 
             $(document).on('click', '.open-iframe', function(e) {
                 e.preventDefault();
-                const url = $(this).data('url');
-                const title = $(this).data('title');
-                const icon = $(this).data('icon');
+                const $item = $(this);
+                const url = $item.data('url');
+                const title = $item.data('title');
+                const icon = $item.data('icon');
 
-                $('#modalSubpaginaTitulo').html(`<i class="${icon} me-2"></i><span>${title}</span>`);
-                $('#iframeSubpagina').attr('src', url);
-                modalSubpaginaInstance.show();
+                const $toggle = $item.closest('.dropdown').find('[data-bs-toggle="dropdown"]');
+                if ($toggle.length) {
+                    const dd = bootstrap.Dropdown.getInstance($toggle[0]);
+                    if (dd) dd.hide();
+                }
+
+                abrirSubpaginaInline(url, title, icon, $item);
             });
 
-            document.getElementById('modalSubpagina').addEventListener('hidden.bs.modal', async function() {
-                $('#iframeSubpagina').attr('src', 'about:blank');
-                await cargarVistaDesdeIndexedDB();
-                await actualizarBadgePendientes();
+            $('#dashboard-tab, #cumpleaneros-tab').on('shown.bs.tab', async () => {
+                await cerrarSubpaginaInline();
             });
 
             $('#btn-descargar-servidor').on('click', async () => {
@@ -1154,7 +1828,7 @@
                 }
             });
 
-            $('#btn-sync, #modal-badge-pendientes').on('click', () => {
+            $('#btn-sync').on('click', () => {
                 if (!modoAdmin) return;
                 abrirModalSync();
             });
@@ -1193,32 +1867,24 @@
                     width: '520px'
                 }).then(res => {
                     if (res.isConfirmed) {
-                        $('#modalSubpaginaTitulo').html('<i class="fas fa-clipboard-list me-2"></i><span>Control de Asistencia</span>');
-                        $('#iframeSubpagina').attr('src', 'pages/control-asistencia.html');
-                        modalSubpaginaInstance.show();
+                        abrirSubpaginaInline('pages/control-asistencia.html', 'Control de Asistencia', 'fas fa-clipboard-list');
                     }
                 });
             });
 
             $('#btn-sugerencias-header').on('click', () => {
                 if (!modoAdmin) return;
-                $('#modalSubpaginaTitulo').html('<i class="fas fa-comment-dots me-2"></i><span>Buzón de Sugerencias</span>');
-                $('#iframeSubpagina').attr('src', 'pages/buzon-sugerencias.html');
-                modalSubpaginaInstance.show();
+                abrirSubpaginaInline('pages/buzon-sugerencias.html', 'Buzón de Sugerencias', 'fas fa-comment-dots');
             });
 
             $('#btn-carnets-header').on('click', () => {
                 if (!modoAdmin) return;
-                $('#modalSubpaginaTitulo').html('<i class="fas fa-id-badge me-2"></i><span>Solicitud de Carnets</span>');
-                $('#iframeSubpagina').attr('src', 'pages/solicitud-carnets.html');
-                modalSubpaginaInstance.show();
+                abrirSubpaginaInline('pages/solicitud-carnets.html', 'Solicitud de Carnets', 'fas fa-id-badge');
             });
 
             $('#btn-permisos-header').on('click', () => {
                 if (!modoAdmin) return;
-                $('#modalSubpaginaTitulo').html('<i class="fas fa-file-alt me-2"></i><span>Gestión de Permisos</span>');
-                $('#iframeSubpagina').attr('src', 'pages/gestion-permisos.html');
-                modalSubpaginaInstance.show();
+                abrirSubpaginaInline('pages/gestion-permisos.html', 'Gestión de Permisos', 'fas fa-file-alt');
             });
 
             $('#btn-ver-todos-ingresos').on('click', mostrarTodosLosIngresos);

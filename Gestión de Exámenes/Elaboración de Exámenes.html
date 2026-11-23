@@ -1,0 +1,1823 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Elaboración de Exámenes</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<style>
+    :root {
+        --primary-color: #2c3e50;
+        --secondary-color: #3498db;
+        --accent-color: #e74c3c;
+        --success-color: #2ecc71;
+        --success-dark: #27ae60;
+        --warning-color: #f39c12;
+        --dark-color: #34495e;
+        --text-color: #2d3436;
+        --muted-text: #6c757d;
+        --border-color: #dce1e6;
+        --shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+        --transition: all 0.25s ease;
+    }
+
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
+
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f2f5f9;
+        color: var(--text-color);
+        line-height: 1.55;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+    }
+
+    .header {
+        background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+        color: white;
+        text-align: center;
+        padding: 18px 0;
+        font-size: 1.5rem;
+        font-weight: bold;
+        box-shadow: var(--shadow);
+        width: 100%;
+    }
+
+    .container {
+        width: 94%;
+        max-width: 920px;
+        margin: 24px auto 45px;
+        padding: 26px;
+        background-color: white;
+        border-radius: 14px;
+        box-shadow: var(--shadow);
+    }
+
+    h1 {
+        text-align: center;
+        color: var(--primary-color);
+        margin-bottom: 22px;
+        font-size: 1.7rem;
+        position: relative;
+        padding-bottom: 12px;
+    }
+
+    h1:after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 80px;
+        height: 4px;
+        background-color: var(--secondary-color);
+        border-radius: 2px;
+    }
+
+    /* Banner del Examen Activo en el Servidor */
+    .active-exam-banner {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 14px;
+        background: linear-gradient(135deg, #eef6fd, #f7fbff);
+        border: 1.5px solid #c5dff6;
+        border-left: 5px solid var(--secondary-color);
+        border-radius: 10px;
+        padding: 16px 18px;
+        margin-bottom: 22px;
+        transition: var(--transition);
+    }
+
+    .active-exam-banner.disabled-state {
+        background: linear-gradient(135deg, #fdf3f2, #fff9f9);
+        border-color: #f5c6cb;
+        border-left-color: var(--accent-color);
+    }
+
+    .active-exam-info {
+        flex: 1;
+        min-width: 220px;
+    }
+
+    .badge-live {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--secondary-color);
+        margin-bottom: 4px;
+    }
+
+    .active-exam-banner.disabled-state .badge-live {
+        color: var(--accent-color);
+    }
+
+    .active-exam-title {
+        font-size: 1.08rem;
+        font-weight: 700;
+        color: var(--primary-color);
+    }
+
+    .active-exam-meta {
+        font-size: 0.88rem;
+        color: var(--muted-text);
+    }
+
+    .active-exam-buttons {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    /* Pestañas */
+    .tabs {
+        display: flex;
+        gap: 10px;
+        border-bottom: 2px solid #edf0f4;
+        margin-bottom: 22px;
+    }
+
+    .tab-btn {
+        background: transparent;
+        border: none;
+        padding: 12px 18px;
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--muted-text);
+        cursor: pointer;
+        border-bottom: 3px solid transparent;
+        margin-bottom: -2px;
+        transition: var(--transition);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .tab-btn:hover {
+        color: var(--primary-color);
+    }
+
+    .tab-btn.active {
+        color: var(--secondary-color);
+        border-bottom-color: var(--secondary-color);
+    }
+
+    .tab-badge {
+        background: #eef2f7;
+        color: var(--primary-color);
+        font-size: 0.78rem;
+        padding: 2px 8px;
+        border-radius: 99px;
+    }
+
+    .tab-btn.active .tab-badge {
+        background: var(--secondary-color);
+        color: white;
+    }
+
+    .tab-panel {
+        display: none;
+    }
+
+    .tab-panel.active {
+        display: block;
+    }
+
+    /* Botones generales */
+    .btn {
+        border: none;
+        border-radius: 8px;
+        padding: 10px 16px;
+        font-size: 0.92rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: var(--transition);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        font-family: inherit;
+    }
+
+    .btn:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+    }
+
+    .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+
+    .btn-primary {
+        background: var(--secondary-color);
+        color: white;
+    }
+
+    .btn-dark {
+        background: var(--primary-color);
+        color: white;
+    }
+
+    .btn-success {
+        background: linear-gradient(to right, var(--success-color), var(--success-dark));
+        color: white;
+    }
+
+    .btn-warning {
+        background: var(--warning-color);
+        color: white;
+    }
+
+    .btn-danger {
+        background: var(--accent-color);
+        color: white;
+    }
+
+    .btn-outline {
+        background: white;
+        color: var(--primary-color);
+        border: 1.5px solid var(--border-color);
+    }
+
+    .btn-sm {
+        padding: 7px 12px;
+        font-size: 0.84rem;
+    }
+
+    /* Barra de estado del editor */
+    .editor-status-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        background: #f8f9fa;
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        padding: 12px 16px;
+        margin-bottom: 18px;
+    }
+
+    .status-left-group {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .editing-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        padding: 5px 12px;
+        border-radius: 99px;
+        background: #e8f4fd;
+        color: #1c6ea4;
+    }
+
+    .editing-pill.template-mode {
+        background: #fff4e5;
+        color: #b96b00;
+    }
+
+    .autosave-indicator {
+        font-size: 0.8rem;
+        color: var(--success-dark);
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .form-card {
+        background: #ffffff;
+        border: 1.5px solid var(--border-color);
+        border-radius: 10px;
+        padding: 18px 20px;
+        margin-bottom: 20px;
+    }
+
+    .form-label {
+        display: block;
+        font-weight: 700;
+        color: var(--primary-color);
+        margin-bottom: 8px;
+        font-size: 0.96rem;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 11px 14px;
+        border: 1.5px solid var(--border-color);
+        border-radius: 8px;
+        font-size: 1rem;
+        font-family: inherit;
+        transition: var(--transition);
+    }
+
+    .form-control:focus {
+        border-color: var(--secondary-color);
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.16);
+    }
+
+    /* Tarjetas de pregunta en el editor */
+    .q-editor-card {
+        background: #ffffff;
+        border: 1.5px solid var(--border-color);
+        border-left: 5px solid var(--secondary-color);
+        border-radius: 12px;
+        padding: 18px;
+        margin-bottom: 16px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+    }
+
+    .q-editor-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 14px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #eef1f5;
+    }
+
+    .q-num-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 700;
+        color: var(--primary-color);
+        font-size: 1.02rem;
+    }
+
+    .q-num-badge {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: var(--primary-color);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.86rem;
+    }
+
+    .q-toolbar {
+        display: flex;
+        gap: 6px;
+    }
+
+    .icon-action {
+        width: 32px;
+        height: 32px;
+        border: 1px solid var(--border-color);
+        background: #f8f9fa;
+        color: var(--dark-color);
+        border-radius: 6px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: var(--transition);
+    }
+
+    .icon-action:hover:not(:disabled) {
+        background: #e2e6ea;
+    }
+
+    .icon-action:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+    }
+
+    .icon-action.delete:hover {
+        background: #fdecea;
+        color: var(--accent-color);
+        border-color: #f5c6cb;
+    }
+
+    .type-selector {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-bottom: 14px;
+    }
+
+    .type-pill {
+        border: 1.5px solid var(--border-color);
+        background: #fafbfc;
+        border-radius: 8px;
+        padding: 9px 10px;
+        cursor: pointer;
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: var(--muted-text);
+        text-align: center;
+        transition: var(--transition);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+    }
+
+    .type-pill.selected {
+        border-color: var(--secondary-color);
+        background: #e8f4fd;
+        color: var(--primary-color);
+    }
+
+    .vf-correct-group {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 8px;
+    }
+
+    .vf-choice-btn {
+        border: 1.5px solid var(--border-color);
+        background: #fafbfc;
+        padding: 10px;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: var(--transition);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .vf-choice-btn.selected {
+        border-color: var(--success-dark);
+        background: #e6f9ed;
+        color: #1e7e34;
+    }
+
+    .mc-options-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 8px;
+    }
+
+    .mc-option-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .mc-letter {
+        min-width: 30px;
+        height: 30px;
+        border-radius: 7px;
+        background: #eef1f5;
+        color: var(--primary-color);
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85rem;
+    }
+
+    .mc-correct-toggle {
+        border: 1.5px solid var(--border-color);
+        background: white;
+        border-radius: 8px;
+        padding: 9px 12px;
+        cursor: pointer;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--muted-text);
+        white-space: nowrap;
+        transition: var(--transition);
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .mc-correct-toggle.selected {
+        border-color: var(--success-dark);
+        background: #e6f9ed;
+        color: #1e7e34;
+    }
+
+    .editor-actions {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 24px;
+        padding-top: 20px;
+        border-top: 2px solid #edf0f4;
+    }
+
+    .editor-actions .btn {
+        padding: 13px 22px;
+        font-size: 0.98rem;
+    }
+
+    /* Lista de Plantillas */
+    .templates-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 18px;
+    }
+
+    .search-box {
+        flex: 1;
+        min-width: 220px;
+        position: relative;
+    }
+
+    .search-box i {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--muted-text);
+    }
+
+    .search-box input {
+        padding-left: 36px;
+    }
+
+    .template-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+
+    .template-card {
+        border: 1.5px solid var(--border-color);
+        border-left: 5px solid var(--primary-color);
+        border-radius: 10px;
+        padding: 16px 18px;
+        background: #ffffff;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 14px;
+        transition: var(--transition);
+    }
+
+    .template-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+        border-left-color: var(--secondary-color);
+    }
+
+    .template-info {
+        flex: 1;
+        min-width: 230px;
+    }
+
+    .template-title {
+        font-weight: 700;
+        font-size: 1.06rem;
+        color: var(--primary-color);
+        margin-bottom: 4px;
+    }
+
+    .template-meta {
+        font-size: 0.84rem;
+        color: var(--muted-text);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .template-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: var(--muted-text);
+        border: 2px dashed var(--border-color);
+        border-radius: 12px;
+    }
+
+    .empty-state i {
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+        color: #b8c2cc;
+    }
+
+    /* Estilos de Vista Previa en Modal */
+    .preview-container {
+        text-align: left;
+        max-height: 62vh;
+        overflow-y: auto;
+        padding-right: 4px;
+    }
+
+    .preview-meta-box {
+        background: #f4f7fb;
+        border: 1px solid #d9e4f0;
+        border-radius: 8px;
+        padding: 12px 14px;
+        margin-bottom: 14px;
+        font-size: 0.9rem;
+    }
+
+    .preview-q-card {
+        border: 1px solid #dce1e6;
+        border-left: 4px solid var(--secondary-color);
+        border-radius: 8px;
+        padding: 12px 14px;
+        margin-bottom: 10px;
+        background: #ffffff;
+    }
+
+    .preview-q-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 6px;
+    }
+
+    .preview-type-tag {
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 99px;
+        background: #eef2f7;
+        color: var(--dark-color);
+    }
+
+    .preview-option-item {
+        padding: 5px 10px;
+        margin-top: 4px;
+        border-radius: 6px;
+        font-size: 0.88rem;
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+    }
+
+    .preview-option-item.is-correct {
+        background: #e6f9ed;
+        border-color: #2ecc71;
+        color: #1e7e34;
+        font-weight: 600;
+    }
+
+    /* Overlay */
+    #overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(255, 255, 255, 0.92);
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        flex-direction: column;
+    }
+
+    .spinner {
+        width: 55px;
+        height: 55px;
+        border: 5px solid rgba(52, 152, 219, 0.2);
+        border-radius: 50%;
+        border-top-color: var(--secondary-color);
+        animation: spin 1s ease-in-out infinite;
+        margin-bottom: 16px;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    @media (max-width: 768px) {
+        .container {
+            width: 96%;
+            padding: 16px;
+        }
+        .type-selector {
+            grid-template-columns: 1fr;
+        }
+        .mc-option-row {
+            flex-wrap: wrap;
+        }
+        .mc-correct-toggle {
+            width: 100%;
+            justify-content: center;
+        }
+        .editor-actions .btn {
+            width: 100%;
+        }
+        .active-exam-buttons {
+            width: 100%;
+        }
+    }
+</style>
+</head>
+<body>
+    <div class="header">
+        Pisos Brillantes
+    </div>
+
+    <div class="container">
+        <h1>Elaboración de Exámenes</h1>
+
+        <!-- Examen actualmente activo en el Servidor -->
+        <div class="active-exam-banner" id="active-exam-banner">
+            <div class="active-exam-info">
+                <div class="badge-live"><i class="fas fa-broadcast-tower"></i> Publicado actualmente en el Servidor</div>
+                <div class="active-exam-title" id="active-exam-tema">Cargando...</div>
+                <div class="active-exam-meta" id="active-exam-meta">Verificando estado del servidor</div>
+            </div>
+            <div class="active-exam-buttons">
+                <button type="button" class="btn btn-outline btn-sm" id="btn-cargar-activo" onclick="cargarExamenActivoEnEditor()">
+                    <i class="fas fa-edit"></i> Cargar al Editor
+                </button>
+                <button type="button" class="btn btn-danger btn-sm" id="btn-deshabilitar-activo" onclick="confirmarDeshabilitarExamen()">
+                    <i class="fas fa-ban"></i> Deshabilitar
+                </button>
+                <button type="button" class="btn btn-outline btn-sm" onclick="cargarDatosIniciales()">
+                    <i class="fas fa-sync-alt"></i> Actualizar
+                </button>
+            </div>
+        </div>
+
+        <!-- Pestañas -->
+        <div class="tabs">
+            <button type="button" class="tab-btn active" onclick="cambiarTab('editor', this)">
+                <i class="fas fa-pen-nib"></i> Editor de Examen
+            </button>
+            <button type="button" class="tab-btn" onclick="cambiarTab('plantillas', this)">
+                <i class="fas fa-folder-open"></i> Plantillas Guardadas <span class="tab-badge" id="templates-count">0</span>
+            </button>
+        </div>
+
+        <!-- PANEL 1: EDITOR DE EXAMEN -->
+        <div id="tab-editor" class="tab-panel active">
+            <div class="editor-status-bar">
+                <div class="status-left-group">
+                    <span class="editing-pill" id="editing-mode-pill">
+                        <i class="fas fa-file-alt"></i> Creando Nuevo Examen
+                    </span>
+                    <span class="autosave-indicator" id="autosave-indicator">
+                        <i class="fas fa-database"></i> Guardado automático activo
+                    </span>
+                </div>
+                <button type="button" class="btn btn-outline btn-sm" onclick="nuevoExamenEnBlancoConConfirmacion()">
+                    <i class="fas fa-file"></i> Nuevo en Blanco
+                </button>
+            </div>
+
+            <div class="form-card">
+                <label class="form-label" for="exam-tema">
+                    <i class="fas fa-book-open" style="color: var(--secondary-color); margin-right: 6px;"></i>
+                    Tema del Examen:
+                </label>
+                <input type="text" id="exam-tema" class="form-control" placeholder="Ej: Seguridad Industrial y Uso de EPP" oninput="scheduleDraftSave()">
+            </div>
+
+            <div id="questions-editor-list"></div>
+
+            <div style="text-align: center; margin-top: 10px;">
+                <button type="button" class="btn btn-primary" onclick="agregarPregunta()">
+                    <i class="fas fa-plus-circle"></i> Agregar Pregunta
+                </button>
+            </div>
+
+            <div class="editor-actions">
+                <button type="button" class="btn btn-dark" onclick="guardarPlantilla()">
+                    <i class="fas fa-save"></i> Guardar Solo Plantilla
+                </button>
+                <button type="button" class="btn btn-success" onclick="guardarYPublicar()">
+                    <i class="fas fa-rocket"></i> Guardar Plantilla y Publicar
+                </button>
+                <button type="button" class="btn btn-warning" onclick="publicarDirectoDesdeEditor()">
+                    <i class="fas fa-paper-plane"></i> Solo Publicar en Servidor
+                </button>
+            </div>
+        </div>
+
+        <!-- PANEL 2: PLANTILLAS GUARDADAS -->
+        <div id="tab-plantillas" class="tab-panel">
+            <div class="templates-toolbar">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="template-search" class="form-control" placeholder="Buscar plantilla por tema..." oninput="renderPlantillas()">
+                </div>
+                <button type="button" class="btn btn-primary" onclick="nuevoExamenEnBlancoConConfirmacion(true)">
+                    <i class="fas fa-plus"></i> Crear Nueva
+                </button>
+            </div>
+
+            <div id="templates-list" class="template-grid"></div>
+        </div>
+    </div>
+
+    <div id="overlay">
+        <div class="spinner"></div>
+        <p id="overlay-text" style="font-weight: bold; color: var(--primary-color);">Procesando...</p>
+    </div>
+
+<script>
+// ====================================================================
+// === CONFIGURACIÓN: PEGA AQUÍ LA URL DE TU NUEVO GOOGLE APPS SCRIPT ===
+// ====================================================================
+const EXAM_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyeEB4k6aRK4IEoaVatdieFvPEIqquIV0yWvXnSPKFzwkTCSNelozZ0KavKts0B1KLL/exec';
+
+// ====================================================================
+// === INDEXEDDB: PERSISTENCIA AUTOMÁTICA DEL PROGRESO ===
+// ====================================================================
+const IDB_NAME = 'PisosBrillantesExamEditorDB';
+const IDB_VERSION = 1;
+const IDB_STORE = 'drafts';
+const IDB_KEY = 'currentExamDraft';
+
+let draftSaveTimer = null;
+
+function openDraftDB() {
+    return new Promise((resolve, reject) => {
+        if (!window.indexedDB) {
+            reject(new Error('IndexedDB no soportado'));
+            return;
+        }
+        const request = indexedDB.open(IDB_NAME, IDB_VERSION);
+        request.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(IDB_STORE)) {
+                db.createObjectStore(IDB_STORE);
+            }
+        };
+        request.onsuccess = (e) => resolve(e.target.result);
+        request.onerror = (e) => reject(e.target.error);
+    });
+}
+
+async function saveDraftToIDB() {
+    try {
+        const indicator = document.getElementById('autosave-indicator');
+        if (indicator) {
+            indicator.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+        }
+
+        const draft = {
+            currentTemplateId: currentTemplateId,
+            tema: document.getElementById('exam-tema').value || '',
+            questionsState: questionsState,
+            updatedAt: Date.now()
+        };
+
+        const db = await openDraftDB();
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction(IDB_STORE, 'readwrite');
+            const store = tx.objectStore(IDB_STORE);
+            store.put(draft, IDB_KEY);
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+        });
+        db.close();
+
+        if (indicator) {
+            const hora = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            indicator.innerHTML = `<i class="fas fa-check-circle"></i> Guardado (${hora})`;
+        }
+    } catch (err) {
+        console.warn('No se pudo guardar borrador en IndexedDB:', err);
+    }
+}
+
+function scheduleDraftSave() {
+    clearTimeout(draftSaveTimer);
+    draftSaveTimer = setTimeout(() => {
+        saveDraftToIDB();
+    }, 150);
+}
+
+async function loadDraftFromIDB() {
+    try {
+        const db = await openDraftDB();
+        const draft = await new Promise((resolve, reject) => {
+            const tx = db.transaction(IDB_STORE, 'readonly');
+            const store = tx.objectStore(IDB_STORE);
+            const req = store.get(IDB_KEY);
+            req.onsuccess = () => resolve(req.result || null);
+            req.onerror = () => reject(req.error);
+        });
+        db.close();
+        return draft;
+    } catch (err) {
+        console.warn('No se pudo leer borrador de IndexedDB:', err);
+        return null;
+    }
+}
+
+async function clearDraftFromIDB() {
+    try {
+        const db = await openDraftDB();
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction(IDB_STORE, 'readwrite');
+            const store = tx.objectStore(IDB_STORE);
+            store.delete(IDB_KEY);
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+        });
+        db.close();
+    } catch (err) {
+        console.warn('Error al limpiar IndexedDB:', err);
+    }
+}
+
+// Estado en memoria
+let currentTemplateId = null;
+let questionsState = [];
+let activeExamData = null;
+let savedTemplates = [];
+
+document.addEventListener("DOMContentLoaded", async () => {
+    // 1. Restaurar progreso desde IndexedDB si existe
+    const savedDraft = await loadDraftFromIDB();
+    if (savedDraft && (savedDraft.tema || (Array.isArray(savedDraft.questionsState) && savedDraft.questionsState.length > 0))) {
+        currentTemplateId = savedDraft.currentTemplateId || null;
+        document.getElementById("exam-tema").value = savedDraft.tema || "";
+        questionsState = Array.isArray(savedDraft.questionsState) && savedDraft.questionsState.length > 0
+            ? savedDraft.questionsState
+            : [{ tipo: 1, texto: "", opciones: ["", "", "", ""], correctIndex: 0, respuestaCorrecta: "Verdadero" }];
+        renderQuestionsEditor();
+        updateEditingStatusBar();
+        const indicator = document.getElementById('autosave-indicator');
+        if (indicator) indicator.innerHTML = '<i class="fas fa-history"></i> Borrador restaurado';
+    } else {
+        agregarPregunta(1, false);
+    }
+
+    // 2. Conectar con el servidor
+    if (EXAM_SCRIPT_URL.includes('PEGA_AQUI')) {
+        Swal.fire(
+            'Configuración requerida',
+            'Recuerda reemplazar EXAM_SCRIPT_URL en el código HTML con la URL /exec de tu nuevo Google Apps Script.',
+            'info'
+        );
+        renderPlantillas();
+        return;
+    }
+    cargarDatosIniciales();
+});
+
+// Guardar inmediatamente antes de cerrar o recargar pestaña
+window.addEventListener("beforeunload", () => {
+    if (draftSaveTimer) {
+        clearTimeout(draftSaveTimer);
+        saveDraftToIDB();
+    }
+});
+
+function showOverlay(show, text = "Procesando...") {
+    document.getElementById('overlay-text').textContent = text;
+    document.getElementById('overlay').style.display = show ? 'flex' : 'none';
+}
+
+function cambiarTab(tabName, btnEl) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    if (btnEl) btnEl.classList.add('active');
+    document.getElementById(`tab-${tabName}`).classList.add('active');
+}
+
+// ====================================================================
+// === COMUNICACIÓN CON EL SERVIDOR ===
+// ====================================================================
+
+async function cargarDatosIniciales() {
+    if (EXAM_SCRIPT_URL.includes('PEGA_AQUI')) {
+        Swal.fire('Falta URL', 'Configura EXAM_SCRIPT_URL antes de conectar con el servidor.', 'warning');
+        return;
+    }
+
+    showOverlay(true, "Sincronizando con el servidor...");
+    try {
+        const res = await fetch(EXAM_SCRIPT_URL, { method: "GET" });
+        if (!res.ok) throw new Error("Error HTTP " + res.status);
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || "Error al obtener datos del servidor.");
+
+        activeExamData = data.examenActual || { tema: "", preguntas: [] };
+        savedTemplates = data.plantillas || [];
+
+        actualizarBannerActivo();
+        renderPlantillas();
+    } catch (err) {
+        Swal.fire("Error", "No se pudieron cargar los datos del servidor: " + err.message, "error");
+    } finally {
+        showOverlay(false);
+    }
+}
+
+async function enviarAccionScript(action, payload, loadingMsg) {
+    if (EXAM_SCRIPT_URL.includes('PEGA_AQUI')) {
+        Swal.fire('Falta URL', 'Configura EXAM_SCRIPT_URL en el archivo HTML primero.', 'warning');
+        return null;
+    }
+
+    showOverlay(true, loadingMsg);
+    try {
+        const res = await fetch(EXAM_SCRIPT_URL, {
+            method: "POST",
+            body: new URLSearchParams({
+                action: action,
+                payload: JSON.stringify(payload)
+            })
+        });
+        if (!res.ok) throw new Error("Error HTTP " + res.status);
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || "Error en el servidor.");
+
+        if (data.plantillas) {
+            savedTemplates = data.plantillas;
+            renderPlantillas();
+        }
+        if (data.examenActual) {
+            activeExamData = data.examenActual;
+            actualizarBannerActivo();
+        }
+        return data;
+    } catch (err) {
+        Swal.fire("Error", err.message, "error");
+        return null;
+    } finally {
+        showOverlay(false);
+    }
+}
+
+function actualizarBannerActivo() {
+    const banner = document.getElementById("active-exam-banner");
+    const temaEl = document.getElementById("active-exam-tema");
+    const metaEl = document.getElementById("active-exam-meta");
+    const btnCargar = document.getElementById("btn-cargar-activo");
+    const btnDeshabilitar = document.getElementById("btn-deshabilitar-activo");
+
+    const hayExamenActivo = activeExamData && activeExamData.tema && activeExamData.preguntas.length > 0;
+
+    if (!hayExamenActivo) {
+        banner.classList.add("disabled-state");
+        temaEl.textContent = "Ningún examen activo (Deshabilitado)";
+        metaEl.textContent = "El formulario de participación se encuentra deshabilitado para los colaboradores";
+        btnCargar.disabled = true;
+        btnDeshabilitar.disabled = true;
+    } else {
+        banner.classList.remove("disabled-state");
+        temaEl.textContent = activeExamData.tema;
+        metaEl.textContent = `${activeExamData.preguntas.length} pregunta(s) activa(s) para los colaboradores`;
+        btnCargar.disabled = false;
+        btnDeshabilitar.disabled = false;
+    }
+}
+
+async function confirmarDeshabilitarExamen() {
+    const confirm = await Swal.fire({
+        title: "¿Deshabilitar el examen actual?",
+        html: `Se dejará en blanco el examen publicado en el servidor (<strong>"${escapeHtml(activeExamData?.tema || '')}"</strong>).<br><br>Los colaboradores no podrán contestar ni enviar evaluaciones hasta que publiques un nuevo examen.`,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Sí, deshabilitar",
+        cancelButtonText: "Cancelar",
+        confirmButtonColor: "#e74c3c"
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    const res = await enviarAccionScript("disableExam", {}, "Deshabilitando examen en el servidor...");
+    if (res) {
+        Swal.fire("Deshabilitado", res.message, "success");
+    }
+}
+
+// ====================================================================
+// === EDITOR DE PREGUNTAS ===
+// ====================================================================
+
+function updateEditingStatusBar() {
+    const pill = document.getElementById("editing-mode-pill");
+    if (currentTemplateId) {
+        pill.className = "editing-pill template-mode";
+        pill.innerHTML = `<i class="fas fa-edit"></i> Editando Plantilla (${currentTemplateId})`;
+    } else {
+        pill.className = "editing-pill";
+        pill.innerHTML = `<i class="fas fa-file-alt"></i> Creando Nuevo Examen`;
+    }
+}
+
+function editorTieneContenido() {
+    const tema = document.getElementById("exam-tema").value.trim();
+    const algunaPreguntaConTexto = questionsState.some(q =>
+        String(q.texto || "").trim() !== "" ||
+        (q.opciones && q.opciones.some(o => String(o || "").trim() !== ""))
+    );
+    return tema !== "" || algunaPreguntaConTexto;
+}
+
+async function confirmarSobrescribirEditor(titulo, texto) {
+    if (!editorTieneContenido()) return true;
+    const res = await Swal.fire({
+        title: titulo,
+        text: texto,
+        icon: "question",
+        showCancelButton: true,
+        confirmButtonText: "Sí, continuar",
+        cancelButtonText: "Cancelar"
+    });
+    return res.isConfirmed;
+}
+
+async function nuevoExamenEnBlancoConConfirmacion(irAlEditor = false) {
+    const ok = await confirmarSobrescribirEditor(
+        "¿Iniciar examen en blanco?",
+        "Esto borrará el borrador actual del editor."
+    );
+    if (!ok) return;
+
+    await nuevoExamenEnBlanco();
+    if (irAlEditor) {
+        cambiarTab('editor', document.querySelectorAll('.tab-btn')[0]);
+    }
+}
+
+async function nuevoExamenEnBlanco() {
+    currentTemplateId = null;
+    document.getElementById("exam-tema").value = "";
+    questionsState = [];
+    await clearDraftFromIDB();
+    agregarPregunta(1, false);
+    updateEditingStatusBar();
+    saveDraftToIDB();
+}
+
+async function cargarExamenActivoEnEditor() {
+    if (!activeExamData || !activeExamData.preguntas.length) {
+        Swal.fire("Aviso", "No hay un examen activo para cargar.", "info");
+        return;
+    }
+
+    const ok = await confirmarSobrescribirEditor(
+        "¿Cargar el examen del servidor?",
+        "Se reemplazará lo que tienes actualmente en el editor."
+    );
+    if (!ok) return;
+
+    cargarObjetoEnEditor({
+        id: null,
+        tema: activeExamData.tema,
+        preguntas: activeExamData.preguntas
+    });
+    cambiarTab('editor', document.querySelectorAll('.tab-btn')[0]);
+    Swal.fire("Cargado", "Se cargó el examen activo al editor.", "success");
+}
+
+async function cargarPlantillaEnEditor(id) {
+    const tpl = savedTemplates.find(t => t.id === id);
+    if (!tpl) return;
+
+    const ok = await confirmarSobrescribirEditor(
+        "¿Cargar plantilla en el editor?",
+        `Se abrirá "${tpl.tema}" y se reemplazará el borrador actual.`
+    );
+    if (!ok) return;
+
+    cargarObjetoEnEditor(tpl);
+    cambiarTab('editor', document.querySelectorAll('.tab-btn')[0]);
+}
+
+function cargarObjetoEnEditor(obj) {
+    currentTemplateId = obj.id || null;
+    document.getElementById("exam-tema").value = obj.tema || "";
+
+    questionsState = (obj.preguntas || []).map(p => {
+        const tipo = Number(p.tipo) || 1;
+        let opciones = ["", "", "", ""];
+        let correctIndex = 0;
+
+        if (tipo === 2) {
+            const srcOps = Array.isArray(p.opciones) ? p.opciones : [];
+            for (let i = 0; i < 4; i++) {
+                opciones[i] = srcOps[i] ? String(srcOps[i]) : "";
+            }
+            const idx = opciones.findIndex(op => op.trim().toLowerCase() === String(p.respuestaCorrecta || "").trim().toLowerCase());
+            correctIndex = idx >= 0 ? idx : 0;
+        }
+
+        return {
+            tipo: tipo,
+            texto: String(p.texto || ""),
+            opciones: opciones,
+            correctIndex: correctIndex,
+            respuestaCorrecta: String(p.respuestaCorrecta || (tipo === 1 ? "Verdadero" : ""))
+        };
+    });
+
+    if (questionsState.length === 0) {
+        agregarPregunta(1, false);
+    } else {
+        renderQuestionsEditor();
+    }
+    updateEditingStatusBar();
+    saveDraftToIDB();
+}
+
+function agregarPregunta(tipoDefault = 1, shouldScroll = true) {
+    questionsState.push({
+        tipo: tipoDefault,
+        texto: "",
+        opciones: ["", "", "", ""],
+        correctIndex: 0,
+        respuestaCorrecta: tipoDefault === 1 ? "Verdadero" : ""
+    });
+    renderQuestionsEditor();
+    saveDraftToIDB();
+
+    if (shouldScroll) {
+        const cards = document.querySelectorAll(".q-editor-card");
+        const last = cards[cards.length - 1];
+        if (last) last.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+}
+
+async function eliminarPregunta(index) {
+    if (questionsState.length <= 1) {
+        Swal.fire("Aviso", "El examen debe tener al menos una pregunta.", "warning");
+        return;
+    }
+
+    const textoPregunta = String(questionsState[index]?.texto || "").trim();
+    const resumen = textoPregunta
+        ? `<p style="margin-top:6px; color:#555; font-style:italic;">"${escapeHtml(textoPregunta.substring(0, 120))}${textoPregunta.length > 120 ? '...' : ''}"</p>`
+        : "";
+
+    const confirm = await Swal.fire({
+        title: `¿Eliminar la pregunta #${index + 1}?`,
+        html: `Esta acción no se puede deshacer.${resumen}`,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Sí, eliminar",
+        cancelButtonText: "Cancelar",
+        confirmButtonColor: "#e74c3c"
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    questionsState.splice(index, 1);
+    renderQuestionsEditor();
+    saveDraftToIDB();
+}
+
+function moverPregunta(index, delta) {
+    const newIndex = index + delta;
+    if (newIndex < 0 || newIndex >= questionsState.length) return;
+    const item = questionsState.splice(index, 1)[0];
+    questionsState.splice(newIndex, 0, item);
+    renderQuestionsEditor();
+    saveDraftToIDB();
+}
+
+function cambiarTipoPregunta(index, nuevoTipo) {
+    const q = questionsState[index];
+    q.tipo = nuevoTipo;
+    if (nuevoTipo === 1) {
+        q.respuestaCorrecta = (q.respuestaCorrecta === "Falso") ? "Falso" : "Verdadero";
+    } else if (nuevoTipo === 2) {
+        if (!Array.isArray(q.opciones) || q.opciones.length < 4) q.opciones = ["", "", "", ""];
+        q.correctIndex = q.correctIndex || 0;
+        q.respuestaCorrecta = q.opciones[q.correctIndex] || "";
+    } else {
+        q.respuestaCorrecta = "";
+    }
+    renderQuestionsEditor();
+    saveDraftToIDB();
+}
+
+function renderQuestionsEditor() {
+    const container = document.getElementById("questions-editor-list");
+    container.innerHTML = "";
+    const letras = ["A", "B", "C", "D"];
+
+    questionsState.forEach((q, idx) => {
+        const card = document.createElement("div");
+        card.className = "q-editor-card";
+
+        const header = document.createElement("div");
+        header.className = "q-editor-header";
+        header.innerHTML = `
+            <div class="q-num-title">
+                <span class="q-num-badge">${idx + 1}</span>
+                <span>Pregunta ${idx + 1}</span>
+            </div>
+            <div class="q-toolbar">
+                <button type="button" class="icon-action" title="Subir" ${idx === 0 ? 'disabled' : ''} onclick="moverPregunta(${idx}, -1)">
+                    <i class="fas fa-arrow-up"></i>
+                </button>
+                <button type="button" class="icon-action" title="Bajar" ${idx === questionsState.length - 1 ? 'disabled' : ''} onclick="moverPregunta(${idx}, 1)">
+                    <i class="fas fa-arrow-down"></i>
+                </button>
+                <button type="button" class="icon-action delete" title="Eliminar pregunta" onclick="eliminarPregunta(${idx})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `;
+        card.appendChild(header);
+
+        const typeSelector = document.createElement("div");
+        typeSelector.className = "type-selector";
+        const tipos = [
+            { id: 1, icon: "fa-check-double", label: "Verdadero / Falso" },
+            { id: 2, icon: "fa-list-ul", label: "Opción Múltiple" },
+            { id: 3, icon: "fa-align-left", label: "Texto Libre" }
+        ];
+        tipos.forEach(t => {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = `type-pill ${q.tipo === t.id ? 'selected' : ''}`;
+            btn.innerHTML = `<i class="fas ${t.icon}"></i> ${t.label}`;
+            btn.onclick = () => cambiarTipoPregunta(idx, t.id);
+            typeSelector.appendChild(btn);
+        });
+        card.appendChild(typeSelector);
+
+        const qLabel = document.createElement("label");
+        qLabel.className = "form-label";
+        qLabel.textContent = "Texto de la pregunta:";
+        card.appendChild(qLabel);
+
+        const qInput = document.createElement("input");
+        qInput.type = "text";
+        qInput.className = "form-control";
+        qInput.style.marginBottom = "14px";
+        qInput.placeholder = "Escribe aquí la pregunta...";
+        qInput.value = q.texto;
+        qInput.oninput = (e) => {
+            q.texto = e.target.value;
+            scheduleDraftSave();
+        };
+        card.appendChild(qInput);
+
+        if (q.tipo === 1) {
+            const ansLabel = document.createElement("label");
+            ansLabel.className = "form-label";
+            ansLabel.textContent = "Respuesta Correcta:";
+            card.appendChild(ansLabel);
+
+            const vfGroup = document.createElement("div");
+            vfGroup.className = "vf-correct-group";
+            ["Verdadero", "Falso"].forEach(val => {
+                const btn = document.createElement("button");
+                btn.type = "button";
+                btn.className = `vf-choice-btn ${q.respuestaCorrecta === val ? 'selected' : ''}`;
+                btn.innerHTML = `<i class="fas ${val === 'Verdadero' ? 'fa-check' : 'fa-times'}"></i> ${val}`;
+                btn.onclick = () => {
+                    q.respuestaCorrecta = val;
+                    renderQuestionsEditor();
+                    saveDraftToIDB();
+                };
+                vfGroup.appendChild(btn);
+            });
+            card.appendChild(vfGroup);
+
+        } else if (q.tipo === 2) {
+            const ansLabel = document.createElement("label");
+            ansLabel.className = "form-label";
+            ansLabel.textContent = "Opciones (mínimo 2, marca la correcta):";
+            card.appendChild(ansLabel);
+
+            const mcList = document.createElement("div");
+            mcList.className = "mc-options-list";
+
+            for (let i = 0; i < 4; i++) {
+                const row = document.createElement("div");
+                row.className = "mc-option-row";
+
+                const letter = document.createElement("span");
+                letter.className = "mc-letter";
+                letter.textContent = letras[i];
+
+                const opInput = document.createElement("input");
+                opInput.type = "text";
+                opInput.className = "form-control";
+                opInput.placeholder = `Opción ${letras[i]}${i >= 2 ? ' (opcional)' : ''}`;
+                opInput.value = q.opciones[i] || "";
+                opInput.oninput = (e) => {
+                    q.opciones[i] = e.target.value;
+                    if (q.correctIndex === i) {
+                        q.respuestaCorrecta = e.target.value;
+                    }
+                    scheduleDraftSave();
+                };
+
+                const correctBtn = document.createElement("button");
+                correctBtn.type = "button";
+                correctBtn.className = `mc-correct-toggle ${q.correctIndex === i ? 'selected' : ''}`;
+                correctBtn.innerHTML = `<i class="fas fa-check-circle"></i> ${q.correctIndex === i ? 'Correcta' : 'Marcar'}`;
+                correctBtn.onclick = () => {
+                    q.correctIndex = i;
+                    q.respuestaCorrecta = q.opciones[i] || "";
+                    renderQuestionsEditor();
+                    saveDraftToIDB();
+                };
+
+                row.appendChild(letter);
+                row.appendChild(opInput);
+                row.appendChild(correctBtn);
+                mcList.appendChild(row);
+            }
+            card.appendChild(mcList);
+
+        } else if (q.tipo === 3) {
+            const ansLabel = document.createElement("label");
+            ansLabel.className = "form-label";
+            ansLabel.textContent = "Respuesta Correcta Esperada:";
+            card.appendChild(ansLabel);
+
+            const ansInput = document.createElement("input");
+            ansInput.type = "text";
+            ansInput.className = "form-control";
+            ansInput.placeholder = "Palabra o frase exacta esperada...";
+            ansInput.value = q.respuestaCorrecta;
+            ansInput.oninput = (e) => {
+                q.respuestaCorrecta = e.target.value;
+                scheduleDraftSave();
+            };
+            card.appendChild(ansInput);
+        }
+
+        container.appendChild(card);
+    });
+}
+
+// ====================================================================
+// === VALIDACIÓN, GUARDADO Y PUBLICACIÓN ===
+// ====================================================================
+
+function construirYValidarExamen() {
+    const tema = document.getElementById("exam-tema").value.trim();
+    if (!tema) {
+        Swal.fire("Campo requerido", "Escribe el Tema del examen.", "warning");
+        return null;
+    }
+
+    if (questionsState.length === 0) {
+        Swal.fire("Sin preguntas", "Agrega al menos una pregunta.", "warning");
+        return null;
+    }
+
+    const preguntasLimpias = [];
+
+    for (let i = 0; i < questionsState.length; i++) {
+        const q = questionsState[i];
+        const texto = String(q.texto || "").trim();
+        if (!texto) {
+            Swal.fire("Pregunta incompleta", `La pregunta #${i + 1} no tiene texto.`, "warning");
+            return null;
+        }
+
+        if (q.tipo === 1) {
+            if (q.respuestaCorrecta !== "Verdadero" && q.respuestaCorrecta !== "Falso") {
+                Swal.fire("Falta respuesta", `Selecciona la respuesta correcta en la pregunta #${i + 1}.`, "warning");
+                return null;
+            }
+            preguntasLimpias.push({
+                tipo: 1,
+                texto: texto,
+                opciones: [],
+                respuestaCorrecta: q.respuestaCorrecta
+            });
+        } else if (q.tipo === 2) {
+            const opsLimpias = q.opciones.map(o => String(o || "").trim()).filter(o => o !== "");
+            if (opsLimpias.length < 2) {
+                Swal.fire("Faltan opciones", `La pregunta #${i + 1} necesita al menos 2 opciones.`, "warning");
+                return null;
+            }
+            const respElegida = String(q.opciones[q.correctIndex] || "").trim();
+            if (!respElegida) {
+                Swal.fire("Respuesta inválida", `La opción marcada como correcta en la pregunta #${i + 1} está vacía.`, "warning");
+                return null;
+            }
+            preguntasLimpias.push({
+                tipo: 2,
+                texto: texto,
+                opciones: opsLimpias,
+                respuestaCorrecta: respElegida
+            });
+        } else {
+            const respTexto = String(q.respuestaCorrecta || "").trim();
+            if (!respTexto) {
+                Swal.fire("Falta respuesta", `Indica la respuesta esperada para la pregunta abierta #${i + 1}.`, "warning");
+                return null;
+            }
+            preguntasLimpias.push({
+                tipo: 3,
+                texto: texto,
+                opciones: [],
+                respuestaCorrecta: respTexto
+            });
+        }
+    }
+
+    return {
+        id: currentTemplateId,
+        tema: tema,
+        preguntas: preguntasLimpias
+    };
+}
+
+async function guardarPlantilla() {
+    const examen = construirYValidarExamen();
+    if (!examen) return;
+
+    if (currentTemplateId) {
+        const choice = await Swal.fire({
+            title: "Guardar Plantilla",
+            text: "¿Deseas actualizar la plantilla actual o crear una copia nueva?",
+            icon: "question",
+            showDenyButton: true,
+            showCancelButton: true,
+            confirmButtonText: "Actualizar actual",
+            denyButtonText: "Guardar como nueva",
+            cancelButtonText: "Cancelar"
+        });
+        if (choice.isDismissed) return;
+        if (choice.isDenied) examen.id = null;
+    }
+
+    const res = await enviarAccionScript("saveTemplate", examen, "Guardando plantilla...");
+    if (res && res.template) {
+        currentTemplateId = res.template.id;
+        updateEditingStatusBar();
+        saveDraftToIDB();
+        Swal.fire("¡Guardado!", res.message, "success");
+    }
+}
+
+async function guardarYPublicar() {
+    const examen = construirYValidarExamen();
+    if (!examen) return;
+
+    const confirm = await Swal.fire({
+        title: "¿Guardar y Publicar?",
+        html: `Se guardará la plantilla <strong>"${escapeHtml(examen.tema)}"</strong> y se publicará en el servidor (${examen.preguntas.length} preguntas).`,
+        icon: "question",
+        showCancelButton: true,
+        confirmButtonText: "Sí, guardar y publicar",
+        cancelButtonText: "Cancelar",
+        confirmButtonColor: "#27ae60"
+    });
+    if (!confirm.isConfirmed) return;
+
+    const res = await enviarAccionScript("saveAndPublish", examen, "Guardando plantilla y publicando en el servidor...");
+    if (res) {
+        if (res.template) {
+            currentTemplateId = res.template.id;
+            updateEditingStatusBar();
+            saveDraftToIDB();
+        }
+        Swal.fire("¡Publicado!", "Plantilla guardada y examen publicado en el servidor.", "success");
+    }
+}
+
+async function publicarDirectoDesdeEditor() {
+    const examen = construirYValidarExamen();
+    if (!examen) return;
+
+    const confirm = await Swal.fire({
+        title: "¿Publicar en el Servidor?",
+        html: `Esto reemplazará el examen activo actual por <strong>"${escapeHtml(examen.tema)}"</strong> (${examen.preguntas.length} preguntas), sin guardarlo como plantilla.`,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Sí, publicar",
+        cancelButtonText: "Cancelar",
+        confirmButtonColor: "#f39c12"
+    });
+    if (!confirm.isConfirmed) return;
+
+    const res = await enviarAccionScript("publishToPreguntas", examen, "Publicando examen en el servidor...");
+    if (res) {
+        Swal.fire("¡Publicado!", "Examen publicado exitosamente en el servidor.", "success");
+    }
+}
+
+// ====================================================================
+// === GESTIÓN Y VISTA PREVIA DE PLANTILLAS ===
+// ====================================================================
+
+function renderPlantillas() {
+    const listEl = document.getElementById("templates-list");
+    const countBadge = document.getElementById("templates-count");
+    const filtro = (document.getElementById("template-search").value || "").trim().toLowerCase();
+
+    countBadge.textContent = savedTemplates.length;
+
+    const filtradas = savedTemplates.filter(t => t.tema.toLowerCase().includes(filtro));
+
+    if (filtradas.length === 0) {
+        listEl.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-folder-open"></i>
+                <p><strong>${savedTemplates.length === 0 ? 'No hay plantillas guardadas aún' : 'No se encontraron coincidencias'}</strong></p>
+                <p style="font-size: 0.9rem; margin-top: 5px;">Crea un examen en el Editor y presiona "Guardar Solo Plantilla".</p>
+            </div>
+        `;
+        return;
+    }
+
+    listEl.innerHTML = "";
+    filtradas.forEach(tpl => {
+        const card = document.createElement("div");
+        card.className = "template-card";
+        card.innerHTML = `
+            <div class="template-info">
+                <div class="template-title">${escapeHtml(tpl.tema)}</div>
+                <div class="template-meta">
+                    <span><i class="fas fa-list-ol"></i> ${tpl.cantidad} pregunta(s)</span>
+                    <span><i class="far fa-clock"></i> Actualizada: ${escapeHtml(tpl.fechaActualizacion || tpl.fechaCreacion || 'N/A')}</span>
+                </div>
+            </div>
+            <div class="template-actions">
+                <button type="button" class="btn btn-outline btn-sm" onclick="verVistaPreviaPlantilla('${tpl.id}')" title="Vista Previa">
+                    <i class="fas fa-eye"></i> Vista Previa
+                </button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="cargarPlantillaEnEditor('${tpl.id}')">
+                    <i class="fas fa-edit"></i> Editar
+                </button>
+                <button type="button" class="btn btn-success btn-sm" onclick="publicarPlantillaDirecta('${tpl.id}')">
+                    <i class="fas fa-paper-plane"></i> Publicar
+                </button>
+                <button type="button" class="btn btn-danger btn-sm" onclick="confirmarEliminarPlantilla('${tpl.id}')" title="Eliminar plantilla">
+                    <i class="fas fa-trash"></i> Eliminar
+                </button>
+            </div>
+        `;
+        listEl.appendChild(card);
+    });
+}
+
+function verVistaPreviaPlantilla(id) {
+    const tpl = savedTemplates.find(t => t.id === id);
+    if (!tpl) return;
+
+    const letras = ["A", "B", "C", "D"];
+    const tipoLabels = {
+        1: "Verdadero / Falso",
+        2: "Opción Múltiple",
+        3: "Texto Libre"
+    };
+
+    let preguntasHtml = "";
+    (tpl.preguntas || []).forEach((p, idx) => {
+        const tipo = Number(p.tipo) || 1;
+        const respCorrecta = String(p.respuestaCorrecta || "").trim();
+        let detalleOpciones = "";
+
+        if (tipo === 1) {
+            ["Verdadero", "Falso"].forEach(op => {
+                const esCorrecta = op.toLowerCase() === respCorrecta.toLowerCase();
+                detalleOpciones += `
+                    <div class="preview-option-item ${esCorrecta ? 'is-correct' : ''}">
+                        ${esCorrecta ? '<i class="fas fa-check-circle"></i> ' : ''}${op}
+                    </div>
+                `;
+            });
+        } else if (tipo === 2) {
+            (p.opciones || []).forEach((op, oIdx) => {
+                const esCorrecta = String(op).trim().toLowerCase() === respCorrecta.toLowerCase();
+                detalleOpciones += `
+                    <div class="preview-option-item ${esCorrecta ? 'is-correct' : ''}">
+                        <strong>${letras[oIdx] || oIdx + 1}.</strong> ${escapeHtml(op)} ${esCorrecta ? '<i class="fas fa-check-circle" style="float:right; margin-top:3px;"></i>' : ''}
+                    </div>
+                `;
+            });
+        } else {
+            detalleOpciones = `
+                <div class="preview-option-item is-correct">
+                    <i class="fas fa-key"></i> Respuesta esperada: ${escapeHtml(respCorrecta || 'No especificada')}
+                </div>
+            `;
+        }
+
+        preguntasHtml += `
+            <div class="preview-q-card">
+                <div class="preview-q-header">
+                    <strong>${idx + 1}. ${escapeHtml(p.texto)}</strong>
+                    <span class="preview-type-tag">${tipoLabels[tipo] || 'Pregunta'}</span>
+                </div>
+                ${detalleOpciones}
+            </div>
+        `;
+    });
+
+    const htmlModal = `
+        <div class="preview-container">
+            <div class="preview-meta-box">
+                <div><strong>Tema:</strong> ${escapeHtml(tpl.tema)}</div>
+                <div><strong>Total de preguntas:</strong> ${tpl.cantidad}</div>
+                <div><strong>Última actualización:</strong> ${escapeHtml(tpl.fechaActualizacion || tpl.fechaCreacion || 'N/A')}</div>
+            </div>
+            ${preguntasHtml || '<p style="color:#6c757d;">Esta plantilla no contiene preguntas.</p>'}
+        </div>
+    `;
+
+    Swal.fire({
+        title: '<i class="fas fa-eye" style="color:#3498db;"></i> Vista Previa del Examen',
+        html: htmlModal,
+        width: '92%',
+        maxWidth: '720px',
+        showDenyButton: true,
+        showCancelButton: true,
+        confirmButtonText: '<i class="fas fa-edit"></i> Cargar al Editor',
+        denyButtonText: '<i class="fas fa-paper-plane"></i> Publicar',
+        cancelButtonText: 'Cerrar',
+        confirmButtonColor: '#3498db',
+        denyButtonColor: '#27ae60'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            cargarPlantillaEnEditor(id);
+        } else if (result.isDenied) {
+            publicarPlantillaDirecta(id);
+        }
+    });
+}
+
+async function publicarPlantillaDirecta(id) {
+    const tpl = savedTemplates.find(t => t.id === id);
+    if (!tpl) return;
+
+    const confirm = await Swal.fire({
+        title: "¿Publicar esta plantilla?",
+        html: `Se enviará <strong>"${escapeHtml(tpl.tema)}"</strong> (${tpl.cantidad} preguntas) al servidor y reemplazará el examen activo actual.`,
+        icon: "question",
+        showCancelButton: true,
+        confirmButtonText: "Sí, publicar ahora",
+        cancelButtonText: "Cancelar",
+        confirmButtonColor: "#27ae60"
+    });
+    if (!confirm.isConfirmed) return;
+
+    const res = await enviarAccionScript("publishToPreguntas", tpl, "Publicando plantilla en el servidor...");
+    if (res) {
+        Swal.fire("¡Examen Publicado!", "El examen ya está disponible en el servidor.", "success");
+    }
+}
+
+async function confirmarEliminarPlantilla(id) {
+    const tpl = savedTemplates.find(t => t.id === id);
+    if (!tpl) return;
+
+    const confirm = await Swal.fire({
+        title: "¿Eliminar plantilla?",
+        html: `Se eliminará permanentemente la plantilla <strong>"${escapeHtml(tpl.tema)}"</strong>.`,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Sí, eliminar",
+        cancelButtonText: "Cancelar",
+        confirmButtonColor: "#e74c3c"
+    });
+    if (!confirm.isConfirmed) return;
+
+    const res = await enviarAccionScript("deleteTemplate", { id: id }, "Eliminando plantilla...");
+    if (res) {
+        if (currentTemplateId === id) {
+            currentTemplateId = null;
+            updateEditingStatusBar();
+            saveDraftToIDB();
+        }
+        Swal.fire("Eliminada", res.message, "success");
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text ?? '';
+    return div.innerHTML;
+}
+</script>
+</body>
+</html>

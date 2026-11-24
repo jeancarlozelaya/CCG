@@ -1,0 +1,3502 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pisos Brillantes - Gestión de Productos</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --success-color: #2ecc71;
+            --warning-color: #f39c12;
+            --info-color: #9b59b6;
+            --dark-color: #34495e;
+            --light-bg: #f5f7fa;
+            --border-color: #ddd;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --transition: all 0.25s ease;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--light-bg);
+            color: var(--dark-color);
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* HEADER */
+        .header {
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+            color: white;
+            padding: 12px 18px;
+            font-size: 1.35rem;
+            font-weight: bold;
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .header-spacer { width: 92px; }
+        .header-title { flex: 1; text-align: center; }
+        .header-actions { display: flex; align-items: center; gap: 8px; }
+
+        .header-btn {
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            width: 42px; height: 42px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.05rem;
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+        }
+        .header-btn:hover { background: rgba(255,255,255,0.3); transform: translateY(-2px); }
+        .header-btn .badge-pendientes {
+            position: absolute; top: -4px; right: -4px;
+            font-size: 0.65rem; padding: 0.2em 0.45em;
+            background: var(--accent-color);
+            color: white;
+            border-radius: 50%;
+            min-width: 20px; height: 20px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold;
+            border: 2px solid var(--primary-color);
+        }
+
+        .conexion-indicator {
+            width: 42px; height: 42px;
+            border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        .conexion-indicator.online { background-color: rgba(46, 204, 113, 0.28); color: #fff; }
+        .conexion-indicator.offline {
+            background-color: rgba(231, 76, 60, 0.45);
+            color: #fff;
+            animation: pulseRed 2s infinite;
+        }
+        @keyframes pulseRed {
+            0% { transform: scale(1); } 50% { transform: scale(1.06); } 100% { transform: scale(1); }
+        }
+        .conexion-indicator .conexion-tooltip {
+            position: absolute; right: 0; top: 50px;
+            background-color: var(--dark-color);
+            color: white; padding: 6px 10px; border-radius: 6px;
+            font-size: 0.72rem; white-space: nowrap;
+            opacity: 0; pointer-events: none;
+            transition: var(--transition);
+            z-index: 1001;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            font-weight: 500;
+        }
+        .conexion-indicator:hover .conexion-tooltip { opacity: 1; }
+
+        .offline-banner {
+            display: none;
+            background: linear-gradient(to right, #e74c3c, #c0392b);
+            color: white;
+            padding: 9px 18px;
+            text-align: center;
+            font-size: 0.88rem;
+            font-weight: 600;
+            box-shadow: var(--shadow);
+        }
+        .offline-banner.active { display: block; }
+
+        .container-custom {
+            max-width: 1350px;
+            margin: 20px auto 0;
+            padding: 0 15px 50px 15px;
+        }
+
+        /* TABS PRINCIPALES */
+        .main-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 22px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .main-tab {
+            flex: 1;
+            min-width: 180px;
+            padding: 13px 16px;
+            border: 2px solid transparent;
+            border-radius: 50px;
+            font-weight: 700;
+            font-size: 1rem;
+            background: white;
+            color: var(--dark-color);
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+            cursor: pointer;
+        }
+        .main-tab.active {
+            border-color: var(--secondary-color);
+            background: #e8f4fd;
+            color: var(--secondary-color);
+            transform: translateY(-2px);
+        }
+        .main-tab:hover:not(.active) { transform: translateY(-2px); }
+
+        /* SUB-TABS */
+        .sub-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            background: #edf1f5;
+            padding: 6px;
+            border-radius: 12px;
+        }
+        .sub-tab {
+            flex: 1;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            background: transparent;
+            color: #5c6b7a;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .sub-tab.active {
+            background: white;
+            color: var(--secondary-color);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+        }
+        .sub-tab.epp-tab.active { color: var(--info-color); }
+        .sub-tab:hover:not(.active) { color: var(--primary-color); }
+
+        /* TARJETAS */
+        .card-custom {
+            background: white;
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            margin-bottom: 22px;
+            border-top: 5px solid var(--secondary-color);
+            padding: 22px;
+        }
+        .card-header-custom {
+            border-bottom: 2px solid #eee;
+            padding-bottom: 14px;
+            margin-bottom: 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .card-header-custom h5 {
+            margin: 0;
+            color: var(--primary-color);
+            font-weight: 700;
+        }
+
+        /* STATS BAR */
+        .stats-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .stat-pill {
+            background: #f8f9fa;
+            border: 1px solid #e5e8eb;
+            border-radius: 10px;
+            padding: 8px 14px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .stat-pill .stat-val {
+            font-size: 1rem;
+            font-weight: 800;
+            color: var(--secondary-color);
+        }
+        .stat-pill.danger .stat-val { color: var(--accent-color); }
+        .stat-pill.warning .stat-val { color: var(--warning-color); }
+        .stat-pill.success .stat-val { color: #27ae60; }
+
+        /* BUSCADOR & FILTROS */
+        .search-container {
+            margin: 14px 0;
+            position: relative;
+        }
+        .search-container input {
+            width: 100%;
+            padding: 11px 40px 11px 40px;
+            font-size: 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background-color: white;
+            transition: var(--transition);
+        }
+        .search-container input:focus {
+            border-color: var(--secondary-color);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(52,152,219,0.18);
+        }
+        .search-container:before {
+            content: '\f002';
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #aaa;
+            z-index: 2;
+        }
+        .btn-clear-search {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #999;
+            cursor: pointer;
+            display: none;
+            font-size: 1rem;
+        }
+        .btn-clear-search.visible { display: block; }
+
+        .filter-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 16px;
+            align-items: center;
+        }
+        .filter-chip {
+            border: 1px solid #d5dce2;
+            background: #f8f9fa;
+            color: var(--dark-color);
+            border-radius: 20px;
+            padding: 5px 13px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .filter-chip.active {
+            background: var(--secondary-color);
+            color: white;
+            border-color: var(--secondary-color);
+        }
+
+        /* CATEGORÍAS Y PRODUCTOS */
+        .categorias-container {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .categoria-item {
+            background: #f8f9fa;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+        .categoria-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+            color: white;
+            padding: 11px 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: move;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .categoria-header.epp-header {
+            background: linear-gradient(135deg, #6c3483, var(--info-color));
+        }
+        .categoria-header .categoria-nombre {
+            font-weight: bold;
+            font-size: 1.05rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .categoria-count {
+            background: rgba(255,255,255,0.2);
+            font-size: 0.75rem;
+            padding: 2px 9px;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+        .categoria-acciones {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .categoria-acciones button {
+            background: rgba(255,255,255,0.18);
+            border: none;
+            color: white;
+            padding: 5px 11px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.82rem;
+            transition: var(--transition);
+        }
+        .categoria-acciones button:hover { background: rgba(255,255,255,0.35); }
+        .productos-lista {
+            padding: 12px;
+            min-height: 60px;
+        }
+        .categoria-item.collapsed .productos-lista { display: none; }
+
+        .producto-item {
+            background: white;
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            cursor: move;
+            border-left: 4px solid var(--secondary-color);
+            gap: 10px;
+        }
+        .producto-item.epp-item { border-left-color: var(--info-color); }
+        .producto-item:last-child { margin-bottom: 0; }
+        .producto-item.stock-agotado { border-left-color: var(--accent-color); }
+        .producto-item.stock-bajo { border-left-color: var(--warning-color); }
+
+        .producto-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+            min-width: 0;
+        }
+        .producto-info img {
+            width: 42px; height: 42px;
+            object-fit: contain;
+            border-radius: 6px;
+            background: #f4f6f8;
+            padding: 3px;
+            flex-shrink: 0;
+        }
+        .producto-nombre { font-weight: 600; word-break: break-word; }
+        .producto-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+            margin-top: 3px;
+        }
+        .producto-cantidad {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #27ae60;
+        }
+        .producto-cantidad.agotado { color: var(--accent-color); }
+        .producto-cantidad.bajo { color: var(--warning-color); }
+        .producto-cantidad.nomedible { color: var(--info-color); }
+        .badge-tag {
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+        }
+        .badge-retornable { background: var(--success-color); }
+        .badge-nomedible { background: var(--info-color); }
+        .badge-pendiente-img { background: var(--warning-color); }
+
+        .badge-origen {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .badge-origen.general { background: #eaf2f8; color: #2874a6; border: 1px solid #aed6f1; }
+        .badge-origen.epp { background: #f4ecf7; color: #7d3c98; border: 1px solid #d7bde2; }
+
+        .producto-acciones { display: flex; gap: 6px; flex-shrink: 0; }
+        .producto-acciones button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.05rem;
+            padding: 6px 8px;
+            border-radius: 6px;
+            transition: var(--transition);
+        }
+        .producto-acciones button:hover { background: #f0f0f0; }
+        .btn-editar { color: var(--secondary-color); }
+        .btn-eliminar { color: var(--accent-color); }
+
+        .categoria-item.oculto, .producto-item.oculto { display: none; }
+
+        /* BOTONES */
+        .btn-guardar {
+            background: linear-gradient(135deg, var(--success-color), #27ae60);
+            color: white;
+            border: none;
+            padding: 11px 28px;
+            border-radius: 50px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .btn-guardar:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+        .btn-guardar-pendiente {
+            background: linear-gradient(135deg, var(--warning-color), #e67e22) !important;
+            animation: pulseWarn 1.5s infinite;
+        }
+        .btn-cancelar {
+            background: #95a5a6;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 50px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        /* AUTOCOMPLETE RECEPCIONES */
+        .autocomplete-wrapper { position: relative; }
+        .autocomplete-list {
+            position: absolute;
+            top: 100%; left: 0; right: 0;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            max-height: 250px;
+            overflow-y: auto;
+            z-index: 60;
+            box-shadow: 0 6px 14px rgba(0,0,0,0.12);
+            display: none;
+        }
+        .autocomplete-list.active { display: block; }
+        .autocomplete-item {
+            padding: 9px 13px;
+            cursor: pointer;
+            font-size: 0.92rem;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+        .autocomplete-item:last-child { border-bottom: none; }
+        .autocomplete-item:hover, .autocomplete-item.highlighted {
+            background: #eaf4fc;
+            color: var(--secondary-color);
+        }
+        .autocomplete-item.disabled-item {
+            opacity: 0.55;
+            cursor: not-allowed;
+            background: #fafafa;
+        }
+        .ac-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+        .ac-left img { width: 24px; height: 24px; object-fit: contain; border-radius: 4px; }
+        .ac-stock { font-size: 0.78rem; font-weight: 700; color: #27ae60; white-space: nowrap; }
+
+        /* RECEPCIONES */
+        .form-recepcion {
+            background: #f8fafc;
+            padding: 18px;
+            border-radius: 12px;
+            margin-bottom: 22px;
+            border: 2px solid var(--secondary-color);
+        }
+        .form-row-recepcion {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: flex-end;
+        }
+        .form-group-recepcion { flex: 1; min-width: 160px; }
+        .form-control-custom {
+            width: 100%;
+            padding: 10px 13px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 0.95rem;
+            background: white;
+        }
+        .form-control-custom:focus {
+            border-color: var(--secondary-color);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(52,152,219,0.15);
+        }
+        .recepciones-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .recepciones-table th, .recepciones-table td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: middle;
+        }
+        .recepciones-table th {
+            background: var(--primary-color);
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 5;
+        }
+        .recepciones-table tbody tr:hover { background-color: #f8fafc; }
+        .cantidad-input-pendiente {
+            width: 80px;
+            text-align: center;
+            padding: 5px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+        }
+
+        /* HISTORIAL DE REQUISICIONES AGRUPADO */
+        .req-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            justify-content: space-between;
+            background: #f8f9fa;
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px solid #e2e6ea;
+            margin-bottom: 15px;
+        }
+        .req-groups-container {
+            display: block;
+            max-height: 62vh;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+        .req-group-card {
+            border: 1px solid #dce2e8;
+            border-radius: 10px;
+            background: white;
+            overflow: hidden;
+            margin-bottom: 12px;
+            transition: var(--transition);
+        }
+        .req-group-card:last-child { margin-bottom: 0; }
+        .req-group-card.has-selected {
+            border-color: var(--secondary-color);
+            box-shadow: 0 2px 8px rgba(52, 152, 219, 0.15);
+        }
+        .req-group-header {
+            background: #f4f7fa;
+            padding: 12px 15px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            border-bottom: 1px solid transparent;
+            flex-wrap: wrap;
+        }
+        .req-group-card.expanded .req-group-header {
+            border-bottom-color: #e4e9ee;
+            background: #ebf3fa;
+        }
+        .req-group-header input[type="checkbox"] {
+            width: 18px; height: 18px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .req-group-info { flex: 1; min-width: 200px; }
+        .req-group-title {
+            font-weight: 700;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            font-size: 0.96rem;
+        }
+        .req-group-meta {
+            font-size: 0.82rem;
+            color: #6c757d;
+            margin-top: 4px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .req-expand-icon {
+            color: #7f8c8d;
+            transition: transform 0.2s ease;
+        }
+        .req-group-card.expanded .req-expand-icon { transform: rotate(90deg); }
+        .req-group-body {
+            display: none;
+            padding: 10px 14px 12px 42px;
+            background: #fafcff;
+        }
+        .req-group-card.expanded .req-group-body { display: block; }
+        .req-items-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+        }
+        .req-items-table th {
+            text-align: left;
+            padding: 6px 8px;
+            background: #eef2f6;
+            color: #495057;
+            font-size: 0.8rem;
+        }
+        .req-items-table td {
+            padding: 7px 8px;
+            border-bottom: 1px solid #edf0f3;
+            vertical-align: middle;
+        }
+        .req-items-table tr:last-child td { border-bottom: none; }
+        .req-items-table tr.item-selected { background: #e8f4fd; }
+        .req-prod-cell { display: flex; align-items: center; gap: 8px; }
+        .req-prod-cell img { width: 26px; height: 26px; object-fit: contain; border-radius: 4px; background: #f2f4f6; }
+        .retornar-cant-input {
+            width: 78px;
+            text-align: center;
+            padding: 4px 6px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 0.88rem;
+        }
+        .retornar-cant-input:focus {
+            border-color: var(--success-color);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(46, 204, 113, 0.2);
+        }
+
+        /* MODAL SYNC */
+        .modal-sync {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.52);
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        }
+        .modal-sync.active { display: flex; }
+        .modal-sync-content {
+            background: white;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            width: 95%;
+            max-width: 760px;
+            max-height: 86vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .modal-sync-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+            color: white;
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .modal-sync-header h4 { margin: 0; font-size: 1.15rem; display: flex; align-items: center; gap: 10px; }
+        .close-modal-sync {
+            background: none; border: none; color: white; font-size: 1.6rem; cursor: pointer; line-height: 1;
+        }
+        .close-modal-sync:disabled { opacity: 0.4; cursor: not-allowed; }
+        .modal-sync-body { padding: 16px; overflow: auto; flex-grow: 1; }
+        .modal-sync-footer {
+            padding: 14px 20px;
+            background-color: #f8f9fa;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid var(--border-color);
+            gap: 10px;
+            flex-wrap: wrap;
+            flex-shrink: 0;
+        }
+        .lista-scrollable {
+            max-height: 52vh;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            background: white;
+        }
+        .pend-item { border-bottom: 1px solid #eee; }
+        .pend-item:last-child { border-bottom: none; }
+        .pend-item-header {
+            display: flex;
+            align-items: center;
+            padding: 12px 14px;
+            gap: 10px;
+            cursor: pointer;
+        }
+        .pend-item-header:hover { background: #f8f9fa; }
+        .pend-item-header input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; flex-shrink: 0; }
+        .pend-item-info { flex: 1; min-width: 0; }
+        .pend-item-info .titulo { font-weight: 700; font-size: 0.94rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .pend-item-info .meta { font-size: 0.78rem; color: #6c757d; margin-top: 3px; }
+        .pend-expand-icon { color: #999; transition: transform 0.2s ease; }
+        .pend-item.expanded .pend-expand-icon { transform: rotate(90deg); }
+        .pend-item-detail { display: none; padding: 0 14px 12px 42px; background: #fafbfc; }
+        .pend-item.expanded .pend-item-detail { display: block; }
+        .pend-item-detail table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .pend-item-detail th { text-align: left; padding: 6px 8px; background: #f0f3f7; font-size: 0.78rem; color: #555; }
+        .pend-item-detail td { padding: 6px 8px; border-bottom: 1px solid #eee; }
+
+        .btn-sincronizar {
+            background: linear-gradient(to right, var(--success-color), #27ae60);
+            color: white; border: none; border-radius: 6px; padding: 9px 20px; font-weight: 600; cursor: pointer;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .btn-sincronizar:disabled { background: #ccc; cursor: not-allowed; }
+        .btn-delete-sel {
+            background: #fdecea; color: var(--accent-color); border: 1px solid #f5c6cb;
+            border-radius: 6px; padding: 7px 13px; font-size: 0.84rem; font-weight: 600; cursor: pointer;
+        }
+        .btn-delete-sel:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* OVERLAY DE CARGA: NEGRITAS Y COLOR NEGRO SIEMPRE */
+        #overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.94);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 15000;
+            flex-direction: column;
+        }
+        .spinner {
+            width: 58px; height: 58px;
+            border: 5px solid rgba(52, 152, 219, 0.2);
+            border-radius: 50%;
+            border-top-color: var(--secondary-color);
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 16px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #loadingMessage h4 {
+            color: #000000 !important;
+            font-weight: bold !important;
+            margin: 0;
+            font-size: 1.25rem;
+        }
+
+        .pending-changes-indicator {
+            position: fixed;
+            bottom: 20px; right: 20px;
+            background: linear-gradient(135deg, var(--warning-color), #e67e22);
+            color: white;
+            padding: 11px 18px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.88rem;
+            box-shadow: var(--shadow);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            gap: 9px;
+            cursor: pointer;
+            animation: pulseWarn 1.5s infinite;
+        }
+        @keyframes pulseWarn {
+            0% { box-shadow: 0 0 0 0 rgba(243, 156, 18, 0.65); }
+            70% { box-shadow: 0 0 0 10px rgba(243, 156, 18, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(243, 156, 18, 0); }
+        }
+
+        .swal2-container { z-index: 20000 !important; }
+
+        @media (max-width: 768px) {
+            .header-spacer { display: none; }
+            .header-title { text-align: left; font-size: 1.12rem; }
+            .main-tab { min-width: 110px; font-size: 0.85rem; padding: 10px 8px; }
+            .card-custom { padding: 15px; }
+            .categoria-header { flex-direction: column; align-items: flex-start; }
+            .req-group-body { padding: 8px 10px; }
+            .form-row-recepcion { flex-direction: column; align-items: stretch; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="overlay">
+    <div class="spinner"></div>
+    <div id="loadingMessage" class="text-center">
+        <h4>Por favor espera un momento...</h4>
+    </div>
+</div>
+
+<!-- ENCABEZADO -->
+<div class="header">
+    <div class="header-spacer"></div>
+    <div class="header-title">Pisos Brillantes</div>
+    <div class="header-actions">
+        <div class="conexion-indicator online" id="conexion-indicator">
+            <i class="fas fa-wifi" id="conexion-icon"></i>
+            <div class="conexion-tooltip" id="conexion-tooltip">Conectado a internet</div>
+        </div>
+        <button id="btn-sync" class="header-btn" title="Revisar y sincronizar pendientes">
+            <i class="fas fa-cloud-upload-alt"></i>
+            <span id="badge-pendientes" class="badge-pendientes" style="display:none;">0</span>
+        </button>
+    </div>
+</div>
+
+<div class="offline-banner" id="offline-banner">
+    <i class="fas fa-wifi-slash me-2"></i> Modo offline: puedes seguir registrando recepciones. Se sincronizarán cuando vuelva la conexión.
+</div>
+
+<div class="container-custom">
+
+    <div class="main-tabs">
+        <button class="main-tab active" onclick="cambiarSeccion('productos')" id="tab-productos">
+            <i class="fas fa-boxes"></i> Productos
+        </button>
+        <button class="main-tab" onclick="cambiarSeccion('recepciones')" id="tab-recepciones">
+            <i class="fas fa-truck-loading"></i> Recepciones
+        </button>
+        <button class="main-tab" onclick="cambiarSeccion('historial')" id="tab-historial">
+            <i class="fas fa-history"></i> Historial Requisiciones
+        </button>
+    </div>
+
+    <!-- ==================== SECCIÓN 1: PRODUCTOS ==================== -->
+    <div id="seccion-productos">
+        <div class="card-custom">
+            <div class="sub-tabs">
+                <button class="sub-tab active" id="subtab-prod-general" onclick="cambiarSubTabProductos('general')">
+                    <i class="fas fa-boxes"></i> General
+                </button>
+                <button class="sub-tab epp-tab" id="subtab-prod-epp" onclick="cambiarSubTabProductos('epp')">
+                    <i class="fas fa-first-aid"></i> EPP + Botiquín
+                </button>
+            </div>
+
+            <div class="card-header-custom">
+                <h5 id="titulo-seccion-productos"><i class="fas fa-tags me-2"></i> Categorías y Productos</h5>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button class="btn btn-outline-secondary btn-sm" onclick="toggleTodasCategorias(false)">
+                        <i class="fas fa-compress-alt"></i> Colapsar
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="toggleTodasCategorias(true)">
+                        <i class="fas fa-expand-alt"></i> Expandir
+                    </button>
+                    <button class="btn btn-outline-primary btn-sm" onclick="recargarCatalogo()" title="Recargar desde servidor">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    <button class="btn btn-success btn-sm" onclick="abrirModalCategoria()">
+                        <i class="fas fa-plus"></i> Nueva Categoría
+                    </button>
+                </div>
+            </div>
+
+            <div class="stats-bar" id="stats-productos"></div>
+
+            <div class="search-container">
+                <input type="text" id="buscadorProductos" placeholder="Buscar por producto o categoría...">
+                <button class="btn-clear-search" id="btnClearProdSearch" onclick="limpiarBusquedaProductos()" title="Limpiar búsqueda">
+                    <i class="fas fa-times-circle"></i>
+                </button>
+            </div>
+
+            <div class="filter-chips" id="filtros-productos">
+                <button class="filter-chip active" data-filter="todos" onclick="aplicarFiltroProductos('todos')">Todos</button>
+                <button class="filter-chip" data-filter="agotado" onclick="aplicarFiltroProductos('agotado')">Agotados (0)</button>
+                <button class="filter-chip" data-filter="bajo" onclick="aplicarFiltroProductos('bajo')">Stock Bajo (&le; 5)</button>
+                <button class="filter-chip" data-filter="no_medible" onclick="aplicarFiltroProductos('no_medible')">No medible</button>
+                <button class="filter-chip" data-filter="retornable" onclick="aplicarFiltroProductos('retornable')">Retornables</button>
+            </div>
+
+            <div id="categorias-container" class="categorias-container"></div>
+
+            <div class="text-center mt-4">
+                <button class="btn-guardar" id="btnGuardarProductos" onclick="guardarCambios()">
+                    <i class="fas fa-save me-2"></i> Guardar Cambios
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== SECCIÓN 2: RECEPCIONES ==================== -->
+    <div id="seccion-recepciones" style="display: none;">
+        <div class="card-custom">
+            <div class="sub-tabs">
+                <button class="sub-tab active" id="subtab-rec-registrar" onclick="cambiarSubTabRecepciones('registrar')">
+                    <i class="fas fa-plus-circle"></i> Registrar
+                </button>
+                <button class="sub-tab" id="subtab-rec-historial" onclick="cambiarSubTabRecepciones('historial')">
+                    <i class="fas fa-history"></i> Historial
+                </button>
+            </div>
+
+            <!-- SUB-PESTAÑA: REGISTRAR -->
+            <div id="subseccion-rec-registrar">
+                <div class="card-header-custom">
+                    <h5><i class="fas fa-plus-circle me-2"></i> Registrar Recepción de Productos</h5>
+                </div>
+
+                <div class="form-recepcion">
+                    <div class="form-row-recepcion">
+                        <div class="form-group-recepcion" style="max-width: 180px;">
+                            <label class="form-label fw-bold mb-1">Fecha *</label>
+                            <input type="date" id="recepcionFecha" class="form-control-custom">
+                        </div>
+                        <div class="form-group-recepcion" style="flex: 2;">
+                            <label class="form-label fw-bold mb-1">Producto *</label>
+                            <div class="autocomplete-wrapper">
+                                <input type="text" id="recepcionProducto" class="form-control-custom" placeholder="Escribe para buscar producto..." autocomplete="off">
+                                <div class="autocomplete-list" id="autocompleteRecepcion"></div>
+                            </div>
+                        </div>
+                        <div class="form-group-recepcion" style="max-width: 140px;">
+                            <label class="form-label fw-bold mb-1">Cantidad *</label>
+                            <input type="number" id="recepcionCantidad" class="form-control-custom" placeholder="Cant." min="1">
+                        </div>
+                        <div>
+                            <button class="btn btn-success fw-bold px-4" style="height: 43px;" onclick="agregarRecepcionPendiente()">
+                                <i class="fas fa-plus me-1"></i> Agregar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="recepcionesPendientesContainer" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                        <h6 class="fw-bold mb-0"><i class="fas fa-list me-2 text-primary"></i> Productos por registrar:</h6>
+                        <button class="btn btn-outline-danger btn-sm" onclick="limpiarLoteRecepcion()">
+                            <i class="fas fa-trash"></i> Vaciar Lista
+                        </button>
+                    </div>
+                    <div class="table-responsive" style="max-height: 340px;">
+                        <table class="recepciones-table" id="tabla-recepciones-pendientes">
+                            <thead>
+                                <tr>
+                                    <th>Producto</th>
+                                    <th class="text-center">Stock Actual</th>
+                                    <th class="text-center">Cantidad</th>
+                                    <th class="text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div class="text-center mt-3">
+                        <button class="btn-guardar" onclick="guardarRecepcionEnPendientes()">
+                            <i class="fas fa-cloud-upload-alt me-2"></i> Enviar a Pendientes
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SUB-PESTAÑA: HISTORIAL -->
+            <div id="subseccion-rec-historial" style="display: none;">
+                <div class="card-header-custom">
+                    <h5><i class="fas fa-history me-2"></i> Historial de Recepciones</h5>
+                </div>
+
+                <div class="filter-chips" id="filtros-rec-origen">
+                    <button class="filter-chip active" data-origen="todos" onclick="aplicarFiltroOrigenRec('todos')">Todos</button>
+                    <button class="filter-chip" data-origen="general" onclick="aplicarFiltroOrigenRec('general')">General</button>
+                    <button class="filter-chip" data-origen="epp" onclick="aplicarFiltroOrigenRec('epp')">EPP + Botiquín</button>
+                </div>
+
+                <div class="search-container mt-0">
+                    <input type="text" id="buscarRecepcion" placeholder="Buscar por fecha o producto..." oninput="filtrarHistorialRecepciones()">
+                </div>
+
+                <div class="table-responsive" style="max-height: 460px;">
+                    <table class="recepciones-table" id="tabla-recepciones-historial">
+                        <thead>
+                            <tr>
+                                <th style="width: 130px;">Fecha</th>
+                                <th>Producto</th>
+                                <th class="text-center" style="width: 110px;">Cantidad</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== SECCIÓN 3: HISTORIAL REQUISICIONES ==================== -->
+    <div id="seccion-historial" style="display: none;">
+        <div class="card-custom">
+            <div class="card-header-custom">
+                <h5><i class="fas fa-clipboard-list me-2"></i> Historial de Requisiciones</h5>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button class="btn btn-outline-secondary btn-sm" onclick="toggleTodosGruposReq(false)">
+                        <i class="fas fa-compress-alt"></i> Colapsar
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="toggleTodosGruposReq(true)">
+                        <i class="fas fa-expand-alt"></i> Expandir
+                    </button>
+                    <button class="btn btn-outline-primary btn-sm" onclick="cargarHistorialRequisiciones()">
+                        <i class="fas fa-sync"></i> Recargar
+                    </button>
+                </div>
+            </div>
+
+            <div class="stats-bar" id="stats-requisiciones"></div>
+
+            <div class="filter-chips" id="filtros-req-origen">
+                <button class="filter-chip active" data-origen="todos" onclick="aplicarFiltroOrigenReq('todos')">Todos</button>
+                <button class="filter-chip" data-origen="general" onclick="aplicarFiltroOrigenReq('general')">General</button>
+                <button class="filter-chip" data-origen="epp" onclick="aplicarFiltroOrigenReq('epp')">EPP + Botiquín</button>
+            </div>
+
+            <div class="search-container mt-0">
+                <input type="text" id="buscarRequisicion" placeholder="Buscar por fecha, nombre, destino o producto..." oninput="filtrarHistorialRequisiciones()">
+            </div>
+
+            <div class="req-toolbar">
+                <div class="d-flex align-items-center gap-2">
+                    <input type="checkbox" id="seleccionarTodosReq" style="width:18px; height:18px; cursor:pointer;" onchange="toggleSeleccionarTodosReq()">
+                    <label for="seleccionarTodosReq" class="fw-bold mb-0" style="cursor:pointer;">Seleccionar Todos</label>
+                    <span class="badge bg-secondary ms-1" id="badgeSeleccionadosReq">0 sel.</span>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button class="btn btn-success btn-sm fw-bold" id="btnRestaurarSeleccionadas" onclick="retornarSeleccionadas()" disabled>
+                        <i class="fas fa-undo me-1"></i> Retornar
+                    </button>
+                </div>
+            </div>
+
+            <div id="req-groups-container" class="req-groups-container">
+                <div class="text-center text-muted py-4">Cargando historial...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL PRODUCTO -->
+<div class="modal fade" id="modalProducto" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content" style="border-radius: 16px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, var(--primary-color), var(--dark-color)); color: white; border-radius: 16px 16px 0 0;">
+                <h5 class="modal-title" id="modalProductoTitulo">Agregar Producto</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <input type="hidden" id="productoEditandoCategoriaId" value="">
+                <input type="hidden" id="productoNombreOriginal" value="">
+                <input type="hidden" id="productoCantidadOriginal" value="0">
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-5">
+                        <label class="form-label fw-bold">Nombre del Producto <span class="text-danger">*</span></label>
+                        <input type="text" id="productoNombre" class="form-control" placeholder="Ej: Detergente Multiusos">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Categoría</label>
+                        <select id="productoCategoriaSelect" class="form-select"></select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Cantidad</label>
+                        <input type="text" id="productoCantidad" class="form-control" placeholder="Número o '-'">
+                        <small class="text-muted" style="font-size: 0.72rem;">Usa "-" si es no medible</small>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input type="checkbox" id="productoRetornable" class="form-check-input">
+                        <label class="form-check-label fw-bold" for="productoRetornable">
+                            <i class="fas fa-undo-alt me-1 text-success"></i> ¿Es retornable?
+                        </label>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold"><i class="fas fa-image me-1"></i> Subir Imagen</label>
+                    <div id="dropzone" style="border: 2px dashed var(--secondary-color); border-radius: 10px; padding: 14px; text-align: center; cursor: pointer; background-color: #f8fafc;">
+                        <div class="d-flex align-items-center justify-content-center gap-3 flex-wrap">
+                            <i class="fas fa-cloud-upload-alt" style="font-size: 26px; color: var(--secondary-color);"></i>
+                            <span>Arrastra una imagen o haz clic aquí</span>
+                            <small class="text-muted">JPG, PNG, GIF | Máx 5MB</small>
+                        </div>
+                        <input type="file" id="productoImagenFile" style="display: none;" accept="image/*" onchange="handleFileSelect(this.files)">
+                    </div>
+                </div>
+
+                <div class="row g-3 align-items-center">
+                    <div class="col-md-8">
+                        <label class="form-label fw-bold">O URL de imagen</label>
+                        <input type="text" id="productoImagenUrl" class="form-control" placeholder="https://..." oninput="onUrlImagenInput()">
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <div id="imagePreviewContainer" style="display: none;">
+                            <img id="imagePreview" style="max-width: 68px; max-height: 68px; border-radius: 8px; border: 1px solid #ddd; padding: 3px;"><br>
+                            <button type="button" class="btn btn-sm btn-outline-danger mt-1" onclick="limpiarImagenSeleccionada()" style="font-size: 0.72rem; padding: 2px 8px;">
+                                <i class="fas fa-times"></i> Quitar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer justify-content-center gap-3">
+                <button type="button" class="btn-cancelar" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn-guardar" onclick="guardarProducto()">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL CATEGORÍA -->
+<div class="modal fade" id="modalCategoria" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 16px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, var(--primary-color), var(--dark-color)); color: white; border-radius: 16px 16px 0 0;">
+                <h5 class="modal-title" id="modalCategoriaTitulo">Nueva Categoría</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <label class="form-label fw-bold">Nombre de la Categoría *</label>
+                <input type="text" id="categoriaNombre" class="form-control" placeholder="Ej: Limpiadores, Desinfectantes...">
+            </div>
+            <div class="modal-footer justify-content-center gap-3">
+                <button type="button" class="btn-cancelar" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn-guardar" onclick="guardarCategoria()">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL SYNC -->
+<div class="modal-sync" id="modal-sync">
+    <div class="modal-sync-content">
+        <div class="modal-sync-header">
+            <h4><i class="fas fa-sync-alt"></i> Recepciones Pendientes</h4>
+            <button class="close-modal-sync" id="close-modal-sync" onclick="cerrarModalSync()">&times;</button>
+        </div>
+        <div class="modal-sync-body">
+            <div class="d-flex justify-content-between align-items-center bg-light p-2 px-3 rounded border mb-3 flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <input type="checkbox" id="check-all-pendientes" style="width:18px; height:18px; cursor:pointer;">
+                    <label for="check-all-pendientes" class="fw-bold mb-0" style="font-size:0.9rem; cursor:pointer;">Seleccionar Todos</label>
+                </div>
+                <button class="btn-delete-sel" id="btn-delete-sel" onclick="eliminarPendientesSeleccionados()" disabled>
+                    <i class="fas fa-trash-alt"></i> Eliminar Selección
+                </button>
+            </div>
+            <div class="lista-scrollable" id="lista-pendientes"></div>
+        </div>
+        <div class="modal-sync-footer">
+            <span id="contador-pendientes" class="fw-bold text-dark">0 pendientes</span>
+            <button class="btn-sincronizar" id="btn-sincronizar-seleccionados" onclick="sincronizarSeleccionados()" disabled>
+                <i class="fas fa-cloud-upload-alt"></i> Sincronizar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- INDICADOR FLOTANTE DE CAMBIOS SIN GUARDAR EN PRODUCTOS -->
+<div id="pendingChangesIndicator" class="pending-changes-indicator" onclick="guardarCambios()">
+    <i class="fas fa-exclamation-triangle"></i>
+    <span>Cambios sin guardar</span>
+    <i class="fas fa-save"></i>
+</div>
+
+<script>
+// =========================================================================
+// CONFIGURACIÓN Y CONSTANTES
+// =========================================================================
+const URL_OBTENER = "https://script.google.com/macros/s/AKfycbxAiqaB9mjbGLMyuMM21EexYj-F548mm5R5ys5GdyNpNrgyqIfTNBqeHjjmKmoa0QiA/exec";
+const URL_GUARDAR = "https://script.google.com/macros/s/AKfycbyU7ZCQD0pyFNJG27GLWhPTIo6uncWO_HGk7MVOfk35oy_dLeKzujXmJ9Z77hlVdROWwg/exec";
+
+const DB_NAME = "GestionProductosDB";
+const DB_VERSION = 1;
+const STORE_PENDIENTES = "recepciones_pendientes";
+
+const LS_CACHE_CATEGORIAS = "gp_cache_categorias";
+const LS_CACHE_CATEGORIAS_EPP = "gp_cache_categorias_epp";
+const LS_CACHE_HISTORIAL_REC = "gp_cache_historial_recepciones";
+
+// =========================================================================
+// ESTADO GLOBAL
+// =========================================================================
+let db = null;
+let isOnline = navigator.onLine;
+let sincronizando = false;
+
+let subTabProductos = 'general';
+let categorias = [];
+let categoriasEPP = [];
+let productosOriginales = [];
+let productosOriginalesEPP = [];
+let filtroActivoProductos = 'todos';
+let sortableCategorias = null;
+let sortablesProductos = [];
+
+let modalProducto = null;
+let modalCategoria = null;
+let productoEditandoId = null;
+let categoriaEditandoId = null;
+let imagenSeleccionada = null;
+let imagenActualUrl = '';
+let imagenCambiada = false;
+let imagenSubiendo = false;
+let hayCambiosPendientesProductos = false;
+
+let recepcionesBorrador = [];
+let historialRecepciones = [];
+let filtroOrigenRec = 'todos';
+let acRecepcionLista = [];
+let acRecepcionIdx = -1;
+
+let historialRequisiciones = [];
+let historialRequisicionesFiltrado = [];
+let filtroOrigenReq = 'todos';
+let reqItemsSeleccionados = new Set();
+let reqCantidadesRetornar = new Map();
+let gruposExpandidosReq = new Set();
+
+// =========================================================================
+// OVERLAY (SIEMPRE "Por favor espera un momento..." EN NEGRITA NEGRO)
+// =========================================================================
+function showLoading() {
+    document.getElementById('overlay').style.display = 'flex';
+}
+function hideLoading() {
+    document.getElementById('overlay').style.display = 'none';
+}
+
+// =========================================================================
+// INDEXEDDB PARA RECEPCIONES PENDIENTES
+// =========================================================================
+function initDB() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = (e) => {
+            const d = e.target.result;
+            if (!d.objectStoreNames.contains(STORE_PENDIENTES)) {
+                const store = d.createObjectStore(STORE_PENDIENTES, { keyPath: 'id' });
+                store.createIndex('createdAt', 'createdAt', { unique: false });
+            }
+        };
+        req.onsuccess = (e) => { db = e.target.result; resolve(); };
+        req.onerror = (e) => reject(e.target.error);
+    });
+}
+function dbAddPendiente(item) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction([STORE_PENDIENTES], 'readwrite');
+        const req = tx.objectStore(STORE_PENDIENTES).add(item);
+        req.onsuccess = () => resolve();
+        req.onerror = (e) => reject(e.target.error);
+    });
+}
+function dbGetAllPendientes() {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction([STORE_PENDIENTES], 'readonly');
+        const req = tx.objectStore(STORE_PENDIENTES).getAll();
+        req.onsuccess = (e) => {
+            const arr = e.target.result || [];
+            arr.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            resolve(arr);
+        };
+        req.onerror = (e) => reject(e.target.error);
+    });
+}
+function dbDeletePendiente(id) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction([STORE_PENDIENTES], 'readwrite');
+        const req = tx.objectStore(STORE_PENDIENTES).delete(id);
+        req.onsuccess = () => resolve();
+        req.onerror = (e) => reject(e.target.error);
+    });
+}
+function dbUpdatePendiente(item) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction([STORE_PENDIENTES], 'readwrite');
+        const req = tx.objectStore(STORE_PENDIENTES).put(item);
+        req.onsuccess = () => resolve();
+        req.onerror = (e) => reject(e.target.error);
+    });
+}
+
+// =========================================================================
+// CACHE LOCAL Y ESTADO DE CONEXIÓN
+// =========================================================================
+function guardarCacheLocal() {
+    try {
+        localStorage.setItem(LS_CACHE_CATEGORIAS, JSON.stringify(categorias));
+        localStorage.setItem(LS_CACHE_CATEGORIAS_EPP, JSON.stringify(categoriasEPP));
+        localStorage.setItem(LS_CACHE_HISTORIAL_REC, JSON.stringify(historialRecepciones));
+    } catch (e) { console.warn("No se pudo guardar cache:", e); }
+}
+
+function cargarCacheLocal() {
+    try {
+        const c = localStorage.getItem(LS_CACHE_CATEGORIAS);
+        const ce = localStorage.getItem(LS_CACHE_CATEGORIAS_EPP);
+        const r = localStorage.getItem(LS_CACHE_HISTORIAL_REC);
+        if (c) categorias = JSON.parse(c);
+        if (ce) categoriasEPP = JSON.parse(ce);
+        if (r) historialRecepciones = JSON.parse(r);
+        return Boolean(c || ce);
+    } catch (e) { return false; }
+}
+
+function actualizarEstadoConexion() {
+    isOnline = navigator.onLine;
+    const indicator = document.getElementById('conexion-indicator');
+    const icon = document.getElementById('conexion-icon');
+    const tooltip = document.getElementById('conexion-tooltip');
+    const banner = document.getElementById('offline-banner');
+    const btnSync = document.getElementById('btn-sync');
+
+    if (isOnline) {
+        indicator.className = 'conexion-indicator online';
+        icon.className = 'fas fa-wifi';
+        tooltip.textContent = 'Conectado a internet';
+        banner.classList.remove('active');
+        btnSync.title = 'Revisar y sincronizar pendientes';
+    } else {
+        indicator.className = 'conexion-indicator offline';
+        icon.className = 'fas fa-wifi-slash';
+        tooltip.textContent = 'Sin conexión - Modo offline';
+        banner.classList.add('active');
+        btnSync.title = 'Sin conexión - Se guardará localmente';
+    }
+
+    const btnSinc = document.getElementById('btn-sincronizar-seleccionados');
+    if (btnSinc && !sincronizando) {
+        const sel = document.querySelectorAll('.check-pend:checked').length;
+        btnSinc.disabled = sel === 0 || !isOnline;
+    }
+}
+
+window.addEventListener('online', () => {
+    actualizarEstadoConexion();
+    cargarDatosIniciales(true);
+});
+window.addEventListener('offline', () => actualizarEstadoConexion());
+
+// =========================================================================
+// INICIALIZACIÓN
+// =========================================================================
+document.addEventListener('DOMContentLoaded', async () => {
+    modalProducto = new bootstrap.Modal(document.getElementById('modalProducto'));
+    modalCategoria = new bootstrap.Modal(document.getElementById('modalCategoria'));
+
+    await initDB();
+    await actualizarBadgePendientes();
+    actualizarEstadoConexion();
+
+    const hoy = new Date();
+    const yyyy = hoy.getFullYear();
+    const mm = String(hoy.getMonth() + 1).padStart(2, '0');
+    const dd = String(hoy.getDate()).padStart(2, '0');
+    document.getElementById('recepcionFecha').value = `${yyyy}-${mm}-${dd}`;
+
+    configurarDragAndDropImagen();
+    configurarBuscadorProductos();
+    configurarAutocompleteRecepcion();
+
+    document.getElementById('btn-sync').addEventListener('click', abrirModalSync);
+    document.getElementById('check-all-pendientes').addEventListener('change', function() {
+        document.querySelectorAll('.check-pend').forEach(c => c.checked = this.checked);
+        actualizarBotonesModalSync();
+    });
+
+    await cargarDatosIniciales(false);
+});
+
+// =========================================================================
+// CARGA DE DATOS INICIALES
+// =========================================================================
+async function cargarDatosIniciales(silencioso = false) {
+    if (!navigator.onLine) {
+        const hayCache = cargarCacheLocal();
+        if (hayCache) {
+            asegurarIdsLista(categorias, 'g');
+            asegurarIdsLista(categoriasEPP, 'e');
+            productosOriginales = JSON.parse(JSON.stringify(categorias));
+            productosOriginalesEPP = JSON.parse(JSON.stringify(categoriasEPP));
+            renderizarCategorias();
+            filtrarHistorialRecepciones();
+            if (!silencioso) {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Modo offline',
+                    text: 'Se cargaron los datos guardados localmente. Puedes registrar recepciones y se sincronizarán al volver el internet.'
+                });
+            }
+        } else if (!silencioso) {
+            Swal.fire('Sin conexión', 'No hay internet ni datos en caché guardados.', 'warning');
+        }
+        return;
+    }
+
+    if (!silencioso) showLoading();
+
+    try {
+        const [dataProd, dataRec] = await Promise.all([
+            $.get(URL_OBTENER),
+            $.get(URL_OBTENER + '?tipo=recepciones')
+        ]);
+
+        if (!silencioso) hideLoading();
+
+        if (dataProd && !dataProd.error) {
+            categorias = dataProd.categorias || [];
+            categoriasEPP = dataProd.categoriasEPP || [];
+            asegurarIdsLista(categorias, 'g');
+            asegurarIdsLista(categoriasEPP, 'e');
+            productosOriginales = JSON.parse(JSON.stringify(categorias));
+            productosOriginalesEPP = JSON.parse(JSON.stringify(categoriasEPP));
+            renderizarCategorias();
+            cambiosGuardadosExitosamente();
+        }
+
+        if (dataRec && dataRec.recepciones) {
+            historialRecepciones = dataRec.recepciones;
+            filtrarHistorialRecepciones();
+        }
+
+        guardarCacheLocal();
+    } catch (err) {
+        if (!silencioso) hideLoading();
+        console.error('Error cargando datos:', err);
+        if (cargarCacheLocal()) {
+            asegurarIdsLista(categorias, 'g');
+            asegurarIdsLista(categoriasEPP, 'e');
+            productosOriginales = JSON.parse(JSON.stringify(categorias));
+            productosOriginalesEPP = JSON.parse(JSON.stringify(categoriasEPP));
+            renderizarCategorias();
+            filtrarHistorialRecepciones();
+            if (!silencioso) Swal.fire('Advertencia', 'No se pudo conectar al servidor. Se cargó la caché local.', 'warning');
+        } else if (!silencioso) {
+            Swal.fire('Error', 'No se pudo conectar al servidor.', 'error');
+        }
+    }
+}
+
+function asegurarIdsLista(lista, pref) {
+    for (let i = 0; i < lista.length; i++) {
+        if (!lista[i].id) {
+            lista[i].id = `cat_${pref}_` + Date.now() + '_' + i + '_' + Math.random().toString(36).substr(2, 5);
+        }
+        if (!Array.isArray(lista[i].productos)) lista[i].productos = [];
+        for (let j = 0; j < lista[i].productos.length; j++) {
+            if (!lista[i].productos[j].id) {
+                lista[i].productos[j].id = `prod_${pref}_` + Date.now() + '_' + i + '_' + j + '_' + Math.random().toString(36).substr(2, 5);
+            }
+        }
+    }
+}
+
+async function recargarCatalogo() {
+    if (hayCambiosPendientesProductos) {
+        const r = await Swal.fire({
+            title: 'Hay cambios sin guardar',
+            text: 'Si recargas ahora perderás los cambios realizados en Productos.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Recargar igual',
+            cancelButtonText: 'Cancelar'
+        });
+        if (!r.isConfirmed) return;
+    }
+    await cargarDatosIniciales(false);
+}
+
+// =========================================================================
+// CAMBIO DE SECCIONES Y SUB-PESTAÑAS
+// =========================================================================
+function cambiarSeccion(seccion) {
+    document.getElementById('seccion-productos').style.display = seccion === 'productos' ? 'block' : 'none';
+    document.getElementById('seccion-recepciones').style.display = seccion === 'recepciones' ? 'block' : 'none';
+    document.getElementById('seccion-historial').style.display = seccion === 'historial' ? 'block' : 'none';
+
+    document.querySelectorAll('.main-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + seccion).classList.add('active');
+
+    if (seccion === 'historial' && historialRequisiciones.length === 0) {
+        cargarHistorialRequisiciones();
+    }
+}
+
+function cambiarSubTabProductos(subtab) {
+    subTabProductos = subtab;
+    document.getElementById('subtab-prod-general').classList.toggle('active', subtab === 'general');
+    document.getElementById('subtab-prod-epp').classList.toggle('active', subtab === 'epp');
+    document.getElementById('titulo-seccion-productos').innerHTML = subtab === 'epp'
+        ? '<i class="fas fa-first-aid me-2" style="color:var(--info-color);"></i> Categorías y Productos (EPP + Botiquín)'
+        : '<i class="fas fa-tags me-2"></i> Categorías y Productos (General)';
+    renderizarCategorias();
+}
+
+function cambiarSubTabRecepciones(subtab) {
+    document.getElementById('subseccion-rec-registrar').style.display = subtab === 'registrar' ? 'block' : 'none';
+    document.getElementById('subseccion-rec-historial').style.display = subtab === 'historial' ? 'block' : 'none';
+    document.getElementById('subtab-rec-registrar').classList.toggle('active', subtab === 'registrar');
+    document.getElementById('subtab-rec-historial').classList.toggle('active', subtab === 'historial');
+}
+
+function getCategoriasActuales() {
+    return subTabProductos === 'epp' ? categoriasEPP : categorias;
+}
+function setCategoriasActuales(nuevas) {
+    if (subTabProductos === 'epp') categoriasEPP = nuevas;
+    else categorias = nuevas;
+}
+
+// =========================================================================
+// SECCIÓN 1: PRODUCTOS ("Inventario" + "EPP-Botiquin")
+// =========================================================================
+function actualizarStatsProductos() {
+    const lista = getCategoriasActuales();
+    let totalProds = 0, agotados = 0, bajos = 0, retornables = 0;
+    lista.forEach(cat => {
+        cat.productos.forEach(p => {
+            totalProds++;
+            if (p.retornable) retornables++;
+            if (p.cantidad !== '-') {
+                const num = parseInt(p.cantidad, 10) || 0;
+                if (num === 0) agotados++;
+                else if (num <= 5) bajos++;
+            }
+        });
+    });
+
+    document.getElementById('stats-productos').innerHTML = `
+        <div class="stat-pill"><i class="fas fa-folder text-primary"></i> Categorías: <span class="stat-val">${lista.length}</span></div>
+        <div class="stat-pill"><i class="fas fa-box text-primary"></i> Productos: <span class="stat-val">${totalProds}</span></div>
+        <div class="stat-pill danger"><i class="fas fa-exclamation-circle text-danger"></i> Agotados: <span class="stat-val">${agotados}</span></div>
+        <div class="stat-pill warning"><i class="fas fa-battery-quarter text-warning"></i> Stock Bajo: <span class="stat-val">${bajos}</span></div>
+        <div class="stat-pill success"><i class="fas fa-undo text-success"></i> Retornables: <span class="stat-val">${retornables}</span></div>
+    `;
+}
+
+function renderizarCategorias() {
+    const container = document.getElementById('categorias-container');
+    const listaActual = getCategoriasActuales();
+    const esEPP = subTabProductos === 'epp';
+
+    if (sortableCategorias) {
+        sortableCategorias.destroy();
+        sortableCategorias = null;
+    }
+    sortablesProductos.forEach(s => s.destroy());
+    sortablesProductos = [];
+
+    container.innerHTML = '';
+    actualizarStatsProductos();
+
+    if (listaActual.length === 0) {
+        container.innerHTML = `<div class="text-center text-muted py-4">No hay categorías en esta sección. Crea una nueva para empezar.</div>`;
+        return;
+    }
+
+    listaActual.forEach(categoria => {
+        const catDiv = document.createElement('div');
+        catDiv.className = 'categoria-item';
+        catDiv.setAttribute('data-categoria-id', categoria.id);
+
+        catDiv.innerHTML = `
+            <div class="categoria-header${esEPP ? ' epp-header' : ''}">
+                <div class="categoria-nombre">
+                    <i class="fas fa-grip-vertical"></i>
+                    <span class="categoria-titulo">${escapeHtml(categoria.nombre)}</span>
+                    <span class="categoria-count">${categoria.productos.length}</span>
+                </div>
+                <div class="categoria-acciones">
+                    <button type="button" onclick="toggleCategoria('${categoria.id}')" title="Colapsar / Expandir">
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <button type="button" onclick="abrirModalCategoriaEditar('${categoria.id}')" title="Editar categoría">
+                        <i class="fas fa-edit"></i> Editar
+                    </button>
+                    <button type="button" onclick="eliminarCategoria('${categoria.id}')" title="Eliminar categoría">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    <button type="button" onclick="abrirModalProductoNuevo('${categoria.id}')" title="Agregar producto">
+                        <i class="fas fa-plus"></i> Producto
+                    </button>
+                </div>
+            </div>
+            <div class="productos-lista" data-categoria-id="${categoria.id}"></div>
+        `;
+
+        container.appendChild(catDiv);
+        const productosLista = catDiv.querySelector('.productos-lista');
+
+        categoria.productos.forEach(prod => {
+            productosLista.appendChild(crearProductoElement(prod, esEPP));
+        });
+
+        const sp = new Sortable(productosLista, {
+            group: 'productos_' + subTabProductos,
+            animation: 180,
+            handle: '.producto-item',
+            onEnd: function(evt) {
+                sincronizarOrdenProductosDesdeDOM(evt.from, evt.to);
+                marcarCambiosPendientes();
+            }
+        });
+        sortablesProductos.push(sp);
+    });
+
+    sortableCategorias = new Sortable(container, {
+        animation: 180,
+        handle: '.categoria-header',
+        onEnd: function() {
+            reordenarCategoriasDesdeDOM();
+            marcarCambiosPendientes();
+        }
+    });
+
+    aplicarFiltrosYBusquedaProductos();
+}
+
+function crearProductoElement(producto, esEPP = false) {
+    const div = document.createElement('div');
+    let claseExtra = esEPP ? ' epp-item' : '';
+    let cantClass = '';
+    let cantidadDisplay = '';
+
+    if (producto.cantidad === '-') {
+        cantidadDisplay = 'No medible';
+        cantClass = ' nomedible';
+    } else {
+        const num = parseInt(producto.cantidad, 10) || 0;
+        cantidadDisplay = `${num}`;
+        if (num === 0) { claseExtra += ' stock-agotado'; cantClass = ' agotado'; }
+        else if (num <= 5) { claseExtra += ' stock-bajo'; cantClass = ' bajo'; }
+    }
+
+    div.className = 'producto-item' + claseExtra;
+    div.setAttribute('data-producto-id', producto.id);
+
+    let imagenSrc = '';
+    let esPendiente = false;
+    if (producto.imagen && producto.imagen.startsWith('__PENDIENTE__')) {
+        esPendiente = true;
+        if (producto.imagenPreview) imagenSrc = producto.imagenPreview;
+    } else if (producto.imagen) {
+        imagenSrc = producto.imagen;
+    } else if (producto.imagenPreview) {
+        imagenSrc = producto.imagenPreview;
+    }
+
+    div.innerHTML = `
+        <div class="producto-info">
+            <i class="fas fa-grip-vertical text-muted" style="cursor: move;"></i>
+            ${imagenSrc
+                ? `<img src="${escapeHtml(imagenSrc)}" onerror="this.style.display='none'">`
+                : `<div style="width:42px;height:42px;background:#f0f2f5;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#adb5bd;flex-shrink:0;"><i class="fas fa-box"></i></div>`
+            }
+            <div style="min-width:0;">
+                <div class="producto-nombre">${escapeHtml(producto.nombre)}</div>
+                <div class="producto-badges">
+                    <span class="producto-cantidad${cantClass}">Stock: ${cantidadDisplay}</span>
+                    ${producto.retornable ? '<span class="badge-tag badge-retornable">Retornable</span>' : ''}
+                    ${producto.cantidad === '-' ? '<span class="badge-tag badge-nomedible">No medible</span>' : ''}
+                    ${esPendiente ? '<span class="badge-tag badge-pendiente-img">Imagen pendiente</span>' : ''}
+                </div>
+            </div>
+        </div>
+        <div class="producto-acciones">
+            <button type="button" class="btn-editar" onclick="abrirModalProductoEditar('${producto.id}')" title="Editar">
+                <i class="fas fa-edit"></i>
+            </button>
+            <button type="button" class="btn-eliminar" onclick="eliminarProducto('${producto.id}')" title="Eliminar">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `;
+    return div;
+}
+
+function sincronizarOrdenProductosDesdeDOM(fromLista, toLista) {
+    const listaActual = getCategoriasActuales();
+    const mapaTodosProductos = {};
+    listaActual.forEach(c => c.productos.forEach(p => { mapaTodosProductos[p.id] = p; }));
+
+    const actualizarListaCat = (listaEl) => {
+        if (!listaEl) return;
+        const catId = listaEl.getAttribute('data-categoria-id');
+        const cat = listaActual.find(c => c.id === catId);
+        if (!cat) return;
+        const nuevos = [];
+        listaEl.querySelectorAll('.producto-item').forEach(el => {
+            const p = mapaTodosProductos[el.getAttribute('data-producto-id')];
+            if (p) nuevos.push(p);
+        });
+        cat.productos = nuevos;
+        const countEl = listaEl.closest('.categoria-item')?.querySelector('.categoria-count');
+        if (countEl) countEl.textContent = nuevos.length;
+    };
+
+    actualizarListaCat(fromLista);
+    if (toLista && toLista !== fromLista) actualizarListaCat(toLista);
+}
+
+function reordenarCategoriasDesdeDOM() {
+    const listaActual = getCategoriasActuales();
+    const container = document.getElementById('categorias-container');
+    const nuevas = [];
+    container.querySelectorAll('.categoria-item').forEach(el => {
+        const c = listaActual.find(cat => cat.id === el.getAttribute('data-categoria-id'));
+        if (c) nuevas.push(c);
+    });
+    setCategoriasActuales(nuevas);
+}
+
+function toggleCategoria(categoriaId) {
+    const el = document.querySelector(`.categoria-item[data-categoria-id="${categoriaId}"]`);
+    if (el) el.classList.toggle('collapsed');
+}
+
+function toggleTodasCategorias(expandir) {
+    document.querySelectorAll('#categorias-container .categoria-item').forEach(el => {
+        el.classList.toggle('collapsed', !expandir);
+    });
+}
+
+function configurarBuscadorProductos() {
+    const input = document.getElementById('buscadorProductos');
+    const clearBtn = document.getElementById('btnClearProdSearch');
+    input.addEventListener('input', () => {
+        clearBtn.classList.toggle('visible', input.value.length > 0);
+        aplicarFiltrosYBusquedaProductos();
+    });
+}
+
+function limpiarBusquedaProductos() {
+    document.getElementById('buscadorProductos').value = '';
+    document.getElementById('btnClearProdSearch').classList.remove('visible');
+    aplicarFiltrosYBusquedaProductos();
+}
+
+function aplicarFiltroProductos(filtro) {
+    filtroActivoProductos = filtro;
+    document.querySelectorAll('#filtros-productos .filter-chip').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.filter === filtro);
+    });
+    aplicarFiltrosYBusquedaProductos();
+}
+
+function aplicarFiltrosYBusquedaProductos() {
+    const listaActual = getCategoriasActuales();
+    const texto = (document.getElementById('buscadorProductos').value || '').trim().toLowerCase();
+    const filtro = filtroActivoProductos;
+    const hayFiltro = texto !== '' || filtro !== 'todos';
+
+    if (sortableCategorias) sortableCategorias.option('disabled', hayFiltro);
+    sortablesProductos.forEach(s => s.option('disabled', hayFiltro));
+
+    listaActual.forEach(cat => {
+        const catEl = document.querySelector(`.categoria-item[data-categoria-id="${cat.id}"]`);
+        if (!catEl) return;
+
+        const catCoincide = texto !== '' && cat.nombre.toLowerCase().includes(texto);
+        let visiblesEnCat = 0;
+
+        cat.productos.forEach(prod => {
+            const prodEl = catEl.querySelector(`.producto-item[data-producto-id="${prod.id}"]`);
+            if (!prodEl) return;
+
+            let pasaTexto = texto === '' || prod.nombre.toLowerCase().includes(texto) || catCoincide;
+            let pasaFiltro = true;
+
+            if (filtro === 'agotado') {
+                pasaFiltro = prod.cantidad !== '-' && (parseInt(prod.cantidad, 10) || 0) === 0;
+            } else if (filtro === 'bajo') {
+                const n = parseInt(prod.cantidad, 10) || 0;
+                pasaFiltro = prod.cantidad !== '-' && n > 0 && n <= 5;
+            } else if (filtro === 'no_medible') {
+                pasaFiltro = prod.cantidad === '-';
+            } else if (filtro === 'retornable') {
+                pasaFiltro = Boolean(prod.retornable);
+            }
+
+            if (pasaTexto && pasaFiltro) {
+                prodEl.classList.remove('oculto');
+                visiblesEnCat++;
+            } else {
+                prodEl.classList.add('oculto');
+            }
+        });
+
+        if (!hayFiltro || visiblesEnCat > 0 || (catCoincide && filtro === 'todos')) {
+            catEl.classList.remove('oculto');
+            if (hayFiltro) catEl.classList.remove('collapsed');
+        } else {
+            catEl.classList.add('oculto');
+        }
+    });
+}
+
+// =========================================================================
+// CRUD CATEGORÍAS Y PRODUCTOS
+// =========================================================================
+function abrirModalCategoria() {
+    categoriaEditandoId = null;
+    document.getElementById('modalCategoriaTitulo').textContent = 'Nueva Categoría';
+    document.getElementById('categoriaNombre').value = '';
+    modalCategoria.show();
+}
+
+function abrirModalCategoriaEditar(categoriaId) {
+    const cat = getCategoriasActuales().find(c => c.id === categoriaId);
+    if (!cat) return;
+    categoriaEditandoId = categoriaId;
+    document.getElementById('modalCategoriaTitulo').textContent = 'Editar Categoría';
+    document.getElementById('categoriaNombre').value = cat.nombre;
+    modalCategoria.show();
+}
+
+function guardarCategoria() {
+    const listaActual = getCategoriasActuales();
+    const nombre = document.getElementById('categoriaNombre').value.trim();
+    if (!nombre) {
+        Swal.fire('Error', 'El nombre de la categoría es requerido', 'warning');
+        return;
+    }
+
+    const duplicada = listaActual.some(c =>
+        c.id !== categoriaEditandoId && c.nombre.toLowerCase() === nombre.toLowerCase()
+    );
+    if (duplicada) {
+        Swal.fire('Nombre duplicado', `Ya existe una categoría llamada "${escapeHtml(nombre)}".`, 'warning');
+        return;
+    }
+
+    if (categoriaEditandoId) {
+        const cat = listaActual.find(c => c.id === categoriaEditandoId);
+        if (cat) cat.nombre = nombre;
+        categoriaEditandoId = null;
+    } else {
+        listaActual.push({
+            id: `cat_${subTabProductos}_` + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+            nombre: nombre,
+            productos: []
+        });
+    }
+
+    modalCategoria.hide();
+    renderizarCategorias();
+    marcarCambiosPendientes();
+}
+
+function eliminarCategoria(categoriaId) {
+    const listaActual = getCategoriasActuales();
+    const cat = listaActual.find(c => c.id === categoriaId);
+    if (!cat) return;
+
+    Swal.fire({
+        title: '¿Eliminar categoría?',
+        text: `¿Estás seguro de eliminar "${cat.nombre}"? Sus ${cat.productos.length} producto(s) también se eliminarán.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#e74c3c'
+    }).then((res) => {
+        if (res.isConfirmed) {
+            setCategoriasActuales(listaActual.filter(c => c.id !== categoriaId));
+            renderizarCategorias();
+            marcarCambiosPendientes();
+        }
+    });
+}
+
+function llenarSelectCategoriasModal(selectedCatId) {
+    const sel = document.getElementById('productoCategoriaSelect');
+    sel.innerHTML = '';
+    getCategoriasActuales().forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = c.nombre;
+        if (c.id === selectedCatId) opt.selected = true;
+        sel.appendChild(opt);
+    });
+}
+
+function abrirModalProductoNuevo(categoriaId) {
+    productoEditandoId = null;
+    llenarSelectCategoriasModal(categoriaId);
+    document.getElementById('productoEditandoCategoriaId').value = categoriaId;
+    document.getElementById('productoNombre').value = '';
+    document.getElementById('productoNombreOriginal').value = '';
+    document.getElementById('productoCantidad').value = '0';
+    document.getElementById('productoCantidadOriginal').value = '0';
+    document.getElementById('productoRetornable').checked = false;
+    document.getElementById('productoImagenUrl').value = '';
+    document.getElementById('productoImagenFile').value = '';
+    document.getElementById('imagePreviewContainer').style.display = 'none';
+    imagenSeleccionada = null;
+    imagenCambiada = false;
+    imagenActualUrl = '';
+    document.getElementById('modalProductoTitulo').textContent = 'Agregar Producto';
+    modalProducto.show();
+}
+
+function abrirModalProductoEditar(productoId) {
+    const listaActual = getCategoriasActuales();
+    let prodEncontrado = null, catEncontrada = null;
+    for (const cat of listaActual) {
+        const p = cat.productos.find(x => x.id === productoId);
+        if (p) { prodEncontrado = p; catEncontrada = cat; break; }
+    }
+    if (!prodEncontrado) return;
+
+    productoEditandoId = productoId;
+    llenarSelectCategoriasModal(catEncontrada.id);
+    document.getElementById('productoEditandoCategoriaId').value = catEncontrada.id;
+    document.getElementById('productoNombre').value = prodEncontrado.nombre;
+    document.getElementById('productoNombreOriginal').value = prodEncontrado.nombre;
+    document.getElementById('productoCantidad').value = prodEncontrado.cantidad === '-' ? '-' : prodEncontrado.cantidad;
+    document.getElementById('productoCantidadOriginal').value = prodEncontrado.cantidad === '-' ? '-1' : prodEncontrado.cantidad;
+    document.getElementById('productoRetornable').checked = Boolean(prodEncontrado.retornable);
+    document.getElementById('productoImagenFile').value = '';
+
+    imagenSeleccionada = null;
+    imagenCambiada = false;
+
+    const previewContainer = document.getElementById('imagePreviewContainer');
+    const previewImg = document.getElementById('imagePreview');
+    const urlInput = document.getElementById('productoImagenUrl');
+
+    if (prodEncontrado.imagen && prodEncontrado.imagen.startsWith('__PENDIENTE__') && prodEncontrado.imagenPreview) {
+        previewImg.src = prodEncontrado.imagenPreview;
+        previewContainer.style.display = 'block';
+        imagenActualUrl = prodEncontrado.imagenPreview;
+        urlInput.value = '';
+    } else if (prodEncontrado.imagen && !prodEncontrado.imagen.startsWith('__PENDIENTE__')) {
+        previewImg.src = prodEncontrado.imagen;
+        previewContainer.style.display = 'block';
+        imagenActualUrl = prodEncontrado.imagen;
+        urlInput.value = prodEncontrado.imagen;
+    } else {
+        previewContainer.style.display = 'none';
+        imagenActualUrl = '';
+        urlInput.value = '';
+    }
+
+    document.getElementById('modalProductoTitulo').textContent = 'Editar Producto';
+    modalProducto.show();
+}
+
+function configurarDragAndDropImagen() {
+    const dropzone = document.getElementById('dropzone');
+    if (!dropzone) return;
+
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(ev => {
+        dropzone.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); }, false);
+    });
+    ['dragenter', 'dragover'].forEach(ev => {
+        dropzone.addEventListener(ev, () => { dropzone.style.backgroundColor = '#e8f4fd'; }, false);
+    });
+    ['dragleave', 'drop'].forEach(ev => {
+        dropzone.addEventListener(ev, () => { dropzone.style.backgroundColor = '#f8fafc'; }, false);
+    });
+    dropzone.addEventListener('drop', e => handleFileSelect(e.dataTransfer.files), false);
+    dropzone.addEventListener('click', () => document.getElementById('productoImagenFile').click());
+}
+
+function handleFileSelect(files) {
+    if (!files || files.length === 0) return;
+    const file = files[0];
+    if (!file.type.startsWith('image/')) {
+        Swal.fire('Error', 'Selecciona una imagen válida (JPG, PNG, GIF)', 'warning');
+        return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+        Swal.fire('Error', 'La imagen no puede superar los 5MB', 'warning');
+        return;
+    }
+    imagenSeleccionada = file;
+    imagenCambiada = true;
+    const reader = new FileReader();
+    reader.onload = e => {
+        document.getElementById('imagePreview').src = e.target.result;
+        document.getElementById('imagePreviewContainer').style.display = 'block';
+        document.getElementById('productoImagenUrl').value = '';
+    };
+    reader.readAsDataURL(file);
+}
+
+function onUrlImagenInput() {
+    const url = document.getElementById('productoImagenUrl').value.trim();
+    imagenSeleccionada = null;
+    document.getElementById('productoImagenFile').value = '';
+    imagenCambiada = true;
+    if (url) {
+        document.getElementById('imagePreview').src = url;
+        document.getElementById('imagePreviewContainer').style.display = 'block';
+    } else {
+        document.getElementById('imagePreviewContainer').style.display = 'none';
+    }
+}
+
+function limpiarImagenSeleccionada() {
+    imagenSeleccionada = null;
+    imagenActualUrl = '';
+    imagenCambiada = true;
+    document.getElementById('productoImagenFile').value = '';
+    document.getElementById('productoImagenUrl').value = '';
+    document.getElementById('imagePreviewContainer').style.display = 'none';
+}
+
+function guardarProducto() {
+    const listaActual = getCategoriasActuales();
+    const origenCatId = document.getElementById('productoEditandoCategoriaId').value;
+    const destinoCatId = document.getElementById('productoCategoriaSelect').value || origenCatId;
+    const nombre = document.getElementById('productoNombre').value.trim();
+    const nombreOriginal = document.getElementById('productoNombreOriginal').value;
+    let cantidad = document.getElementById('productoCantidad').value.trim();
+    const imagenUrlInput = document.getElementById('productoImagenUrl').value.trim();
+    const retornable = document.getElementById('productoRetornable').checked;
+    const cantidadOriginal = document.getElementById('productoCantidadOriginal').value;
+
+    if (!nombre) {
+        Swal.fire('Error', 'El nombre del producto es requerido', 'warning');
+        return;
+    }
+    if (nombre.startsWith('-')) {
+        Swal.fire('Nombre no válido', 'Un producto no puede iniciar con "-" porque ese prefijo identifica categorías.', 'warning');
+        return;
+    }
+
+    const esEdicion = productoEditandoId !== null;
+    for (const cat of listaActual) {
+        for (const prod of cat.productos) {
+            if (esEdicion && prod.id === productoEditandoId) continue;
+            if (prod.nombre.toLowerCase() === nombre.toLowerCase()) {
+                Swal.fire({
+                    title: 'Nombre duplicado',
+                    html: `El producto <strong>"${escapeHtml(nombre)}"</strong> ya existe en la categoría <strong>"${escapeHtml(cat.nombre)}"</strong>.`,
+                    icon: 'warning'
+                });
+                return;
+            }
+        }
+    }
+
+    if (cantidad !== '-' && (isNaN(parseInt(cantidad, 10)) || parseInt(cantidad, 10) < 0)) {
+        cantidad = '0';
+    }
+
+    const catDestino = listaActual.find(c => c.id === destinoCatId);
+    const catOrigen = listaActual.find(c => c.id === origenCatId);
+    if (!catDestino) {
+        Swal.fire('Error', 'Categoría no encontrada', 'error');
+        return;
+    }
+
+    const estabaNormal = esEdicion && cantidadOriginal !== '-1' && parseInt(cantidadOriginal, 10) > 0;
+    const ahoraNoMedible = cantidad === '-';
+
+    const ejecutar = () => {
+        if (imagenSeleccionada) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                aplicarGuardadoProducto(catOrigen, catDestino, {
+                    nombre, nombreOriginal, cantidad,
+                    imagenFinal: '__PENDIENTE__' + Date.now(),
+                    imagenPreview: reader.result,
+                    imagenPendiente: { file: imagenSeleccionada, preview: reader.result },
+                    retornable, esEdicion
+                });
+            };
+            reader.readAsDataURL(imagenSeleccionada);
+        } else {
+            let urlFinal = '';
+            let prevFinal = '';
+            let pendFinal = null;
+
+            if (imagenUrlInput) {
+                urlFinal = imagenUrlInput;
+                prevFinal = imagenUrlInput;
+            } else if (!imagenCambiada && esEdicion) {
+                const prodPrev = catOrigen?.productos.find(p => p.id === productoEditandoId);
+                if (prodPrev) {
+                    urlFinal = prodPrev.imagen || '';
+                    prevFinal = prodPrev.imagenPreview || '';
+                    pendFinal = prodPrev.imagenPendiente || null;
+                }
+            }
+
+            aplicarGuardadoProducto(catOrigen, catDestino, {
+                nombre, nombreOriginal, cantidad,
+                imagenFinal: urlFinal,
+                imagenPreview: prevFinal,
+                imagenPendiente: pendFinal,
+                retornable, esEdicion
+            });
+        }
+    };
+
+    if (esEdicion && estabaNormal && ahoraNoMedible) {
+        Swal.fire({
+            title: '¡Advertencia!',
+            html: `Estás cambiando <strong>${escapeHtml(nombre)}</strong> de ${cantidadOriginal} unidades a <strong>No medible (-)</strong>.<br>Se perderá el registro de esa cantidad.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, cambiar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#e74c3c'
+        }).then(r => { if (r.isConfirmed) ejecutar(); });
+    } else {
+        ejecutar();
+    }
+}
+
+function aplicarGuardadoProducto(catOrigen, catDestino, datos) {
+    const cantParsed = datos.cantidad === '-' ? '-' : parseInt(datos.cantidad, 10);
+
+    if (datos.esEdicion && productoEditandoId) {
+        const idxOrigen = catOrigen.productos.findIndex(p => p.id === productoEditandoId);
+        if (idxOrigen !== -1) {
+            const actualizado = {
+                ...catOrigen.productos[idxOrigen],
+                nombre: datos.nombre,
+                cantidad: cantParsed,
+                imagen: datos.imagenFinal,
+                imagenPreview: datos.imagenPreview,
+                imagenPendiente: datos.imagenPendiente,
+                retornable: datos.retornable,
+                nombreOriginal: datos.nombreOriginal
+            };
+            if (catOrigen.id === catDestino.id) {
+                catOrigen.productos[idxOrigen] = actualizado;
+            } else {
+                catOrigen.productos.splice(idxOrigen, 1);
+                catDestino.productos.push(actualizado);
+            }
+        }
+    } else {
+        catDestino.productos.push({
+            id: `prod_${subTabProductos}_` + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+            nombre: datos.nombre,
+            cantidad: cantParsed,
+            imagen: datos.imagenFinal,
+            imagenPreview: datos.imagenPreview,
+            imagenPendiente: datos.imagenPendiente,
+            retornable: datos.retornable,
+            nombreOriginal: datos.nombreOriginal
+        });
+    }
+
+    modalProducto.hide();
+    renderizarCategorias();
+    marcarCambiosPendientes();
+}
+
+function eliminarProducto(productoId) {
+    const listaActual = getCategoriasActuales();
+    let catEncontrada = null, prodEncontrado = null;
+    for (const cat of listaActual) {
+        const p = cat.productos.find(x => x.id === productoId);
+        if (p) { catEncontrada = cat; prodEncontrado = p; break; }
+    }
+    if (!prodEncontrado) return;
+
+    Swal.fire({
+        title: '¿Eliminar producto?',
+        text: `¿Estás seguro de eliminar "${prodEncontrado.nombre}"?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#e74c3c'
+    }).then(r => {
+        if (r.isConfirmed) {
+            catEncontrada.productos = catEncontrada.productos.filter(p => p.id !== productoId);
+            renderizarCategorias();
+            marcarCambiosPendientes();
+        }
+    });
+}
+
+function marcarCambiosPendientes() {
+    hayCambiosPendientesProductos = true;
+    document.getElementById('pendingChangesIndicator').style.display = 'flex';
+    const btn = document.getElementById('btnGuardarProductos');
+    if (btn) {
+        btn.classList.add('btn-guardar-pendiente');
+        btn.innerHTML = '<i class="fas fa-save me-2"></i> ¡Guardar Cambios!';
+    }
+}
+
+function cambiosGuardadosExitosamente() {
+    hayCambiosPendientesProductos = false;
+    document.getElementById('pendingChangesIndicator').style.display = 'none';
+    const btn = document.getElementById('btnGuardarProductos');
+    if (btn) {
+        btn.classList.remove('btn-guardar-pendiente');
+        btn.innerHTML = '<i class="fas fa-save me-2"></i> Guardar Cambios';
+    }
+}
+
+window.addEventListener('beforeunload', (e) => {
+    if (hayCambiosPendientesProductos) {
+        e.preventDefault();
+        e.returnValue = '';
+    }
+});
+
+async function subirImagenSiNecesaria(file, nombreProducto) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = function() {
+            const base64Data = reader.result.split(',')[1];
+            $.ajax({
+                url: URL_GUARDAR,
+                method: 'POST',
+                data: {
+                    accion: 'subirImagen',
+                    nombreProducto: nombreProducto,
+                    imagenBase64: base64Data,
+                    tipoArchivo: file.type
+                },
+                dataType: 'json',
+                success: (res) => (res.status === 'success' && res.url) ? resolve(res.url) : reject(new Error(res.message || 'Error subiendo imagen')),
+                error: (_, __, err) => reject(new Error(err || 'Error de red al subir imagen'))
+            });
+        };
+        reader.onerror = () => reject(new Error('No se pudo leer el archivo de imagen'));
+        reader.readAsDataURL(file);
+    });
+}
+
+async function procesarImagenesLista(listaClonada, listaOriginal) {
+    for (let i = 0; i < listaClonada.length; i++) {
+        for (let j = 0; j < listaClonada[i].productos.length; j++) {
+            const prod = listaClonada[i].productos[j];
+            const orig = listaOriginal[i].productos[j];
+            if (prod.imagen && prod.imagen.startsWith('__PENDIENTE__') && orig.imagenPendiente?.file) {
+                const urlImagen = await subirImagenSiNecesaria(orig.imagenPendiente.file, prod.nombre);
+                prod.imagen = urlImagen;
+                prod.imagenPreview = urlImagen;
+                prod.imagenPendiente = null;
+                orig.imagen = urlImagen;
+                orig.imagenPreview = urlImagen;
+                orig.imagenPendiente = null;
+            }
+            delete prod.imagenPendiente;
+            delete prod.imagenPreview;
+        }
+    }
+}
+
+async function guardarCambios(forzado = false) {
+    if (!navigator.onLine) {
+        Swal.fire('Sin conexión', 'Necesitas conexión a internet para guardar cambios del catálogo.', 'warning');
+        return;
+    }
+    if (imagenSubiendo) return;
+
+    showLoading();
+    imagenSubiendo = true;
+
+    try {
+        const catsG = JSON.parse(JSON.stringify(categorias));
+        const catsE = JSON.parse(JSON.stringify(categoriasEPP));
+
+        await procesarImagenesLista(catsG, categorias);
+        await procesarImagenesLista(catsE, categoriasEPP);
+
+        const result = await $.ajax({
+            url: URL_GUARDAR,
+            type: 'POST',
+            data: {
+                accion: forzado ? 'guardarProductosForzado' : 'guardarProductos',
+                categorias: JSON.stringify(catsG),
+                nombresOriginales: JSON.stringify(productosOriginales),
+                categoriasEPP: JSON.stringify(catsE),
+                nombresOriginalesEPP: JSON.stringify(productosOriginalesEPP)
+            },
+            dataType: 'json',
+            timeout: 45000
+        });
+
+        hideLoading();
+        imagenSubiendo = false;
+
+        if (result.status === 'warning') {
+            const lista = (result.productosConHistorial || []).map(p => `• ${escapeHtml(p)}`).join('<br>');
+            const conf = await Swal.fire({
+                title: 'Productos con historial',
+                html: `Los siguientes productos tienen historial en Requisiciones:<br><br><div style="text-align:left;max-height:180px;overflow:auto;">${lista}</div><br>¿Eliminarlos del inventario conservando su historial?`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, continuar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#e74c3c'
+            });
+            if (conf.isConfirmed) await guardarCambios(true);
+            return;
+        }
+
+        if (result.status === 'success') {
+            categorias = JSON.parse(JSON.stringify(catsG));
+            categoriasEPP = JSON.parse(JSON.stringify(catsE));
+            asegurarIdsLista(categorias, 'g');
+            asegurarIdsLista(categoriasEPP, 'e');
+            productosOriginales = JSON.parse(JSON.stringify(categorias));
+            productosOriginalesEPP = JSON.parse(JSON.stringify(categoriasEPP));
+            guardarCacheLocal();
+            renderizarCategorias();
+            cambiosGuardadosExitosamente();
+            Swal.fire('Éxito', result.message || 'Los cambios se guardaron correctamente', 'success');
+        } else {
+            Swal.fire('Error', result.message || 'No se pudieron guardar los cambios', 'error');
+        }
+    } catch (err) {
+        hideLoading();
+        imagenSubiendo = false;
+        Swal.fire('Error', 'Error al guardar: ' + (err.message || err.statusText || 'Conexión'), 'error');
+    }
+}
+
+// =========================================================================
+// SECCIÓN 2: RECEPCIONES (INCLUYE GENERAL + EPP-BOTIQUÍN)
+// =========================================================================
+function obtenerListaPlanaProductos() {
+    const lista = [];
+    categorias.forEach(cat => {
+        cat.productos.forEach(p => {
+            lista.push({
+                nombre: p.nombre,
+                cantidad: p.cantidad,
+                imagen: (p.imagen && !p.imagen.startsWith('__PENDIENTE__')) ? p.imagen : (p.imagenPreview || ''),
+                categoria: cat.nombre,
+                origen: 'general'
+            });
+        });
+    });
+    categoriasEPP.forEach(cat => {
+        cat.productos.forEach(p => {
+            lista.push({
+                nombre: p.nombre,
+                cantidad: p.cantidad,
+                imagen: (p.imagen && !p.imagen.startsWith('__PENDIENTE__')) ? p.imagen : (p.imagenPreview || ''),
+                categoria: cat.nombre,
+                origen: 'epp'
+            });
+        });
+    });
+    return lista;
+}
+
+function obtenerOrigenProductoPorNombre(nombreProducto) {
+    const n = (nombreProducto || '').trim().toLowerCase();
+    for (const cat of categorias) {
+        if (cat.productos.some(p => (p.nombre || '').trim().toLowerCase() === n)) return 'general';
+    }
+    for (const cat of categoriasEPP) {
+        if (cat.productos.some(p => (p.nombre || '').trim().toLowerCase() === n)) return 'epp';
+    }
+    return 'general';
+}
+
+function configurarAutocompleteRecepcion() {
+    const input = document.getElementById('recepcionProducto');
+    const listEl = document.getElementById('autocompleteRecepcion');
+
+    const renderList = () => {
+        const term = input.value.trim().toLowerCase();
+        const todos = obtenerListaPlanaProductos();
+        acRecepcionLista = todos.filter(p => p.nombre.toLowerCase().includes(term)).slice(0, 45);
+
+        if (acRecepcionLista.length === 0) {
+            listEl.innerHTML = `<div class="p-2 text-center text-muted small">Sin coincidencias</div>`;
+        } else {
+            listEl.innerHTML = acRecepcionLista.map((p, idx) => {
+                const noMedible = p.cantidad === '-';
+                const imgHtml = p.imagen ? `<img src="${escapeHtml(p.imagen)}" onerror="this.style.display='none'">` : `<i class="fas fa-box text-muted"></i>`;
+                const origenBadge = p.origen === 'epp'
+                    ? `<span class="badge-origen epp">EPP</span>`
+                    : `<span class="badge-origen general">General</span>`;
+                return `
+                    <div class="autocomplete-item ${noMedible ? 'disabled-item' : ''}" data-idx="${idx}">
+                        <div class="ac-left">
+                            ${imgHtml}
+                            <span class="text-truncate">${escapeHtml(p.nombre)}</span>
+                            ${origenBadge}
+                        </div>
+                        <span class="ac-stock ${noMedible ? 'text-muted' : ''}">
+                            ${noMedible ? 'No medible (No admite)' : 'Stock: ' + p.cantidad}
+                        </span>
+                    </div>
+                `;
+            }).join('');
+
+            listEl.querySelectorAll('.autocomplete-item').forEach(el => {
+                el.addEventListener('click', () => {
+                    const idx = parseInt(el.dataset.idx, 10);
+                    seleccionarAutocompleteRecepcion(idx);
+                });
+            });
+        }
+        listEl.classList.add('active');
+        acRecepcionIdx = -1;
+    };
+
+    input.addEventListener('input', renderList);
+    input.addEventListener('focus', renderList);
+    input.addEventListener('keydown', (e) => {
+        if (!listEl.classList.contains('active')) return;
+        const items = listEl.querySelectorAll('.autocomplete-item:not(.disabled-item)');
+        if (items.length === 0) return;
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            acRecepcionIdx = Math.min(acRecepcionIdx + 1, items.length - 1);
+            items.forEach((it, i) => it.classList.toggle('highlighted', i === acRecepcionIdx));
+            items[acRecepcionIdx].scrollIntoView({ block: 'nearest' });
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            acRecepcionIdx = Math.max(acRecepcionIdx - 1, 0);
+            items.forEach((it, i) => it.classList.toggle('highlighted', i === acRecepcionIdx));
+            items[acRecepcionIdx].scrollIntoView({ block: 'nearest' });
+        } else if (e.key === 'Enter' && acRecepcionIdx >= 0) {
+            e.preventDefault();
+            seleccionarAutocompleteRecepcion(parseInt(items[acRecepcionIdx].dataset.idx, 10));
+        } else if (e.key === 'Escape') {
+            listEl.classList.remove('active');
+        }
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!input.closest('.autocomplete-wrapper').contains(e.target)) {
+            listEl.classList.remove('active');
+        }
+    });
+}
+
+let recepcionOrigenSeleccionado = '';
+
+function seleccionarAutocompleteRecepcion(idx) {
+    const item = acRecepcionLista[idx];
+    if (!item) return;
+    if (item.cantidad === '-') {
+        Swal.fire('No medible', `El producto "${item.nombre}" es no medible y no admite recepciones.`, 'info');
+        return;
+    }
+    document.getElementById('recepcionProducto').value = item.nombre;
+    recepcionOrigenSeleccionado = item.origen;
+    document.getElementById('autocompleteRecepcion').classList.remove('active');
+    document.getElementById('recepcionCantidad').focus();
+}
+
+function agregarRecepcionPendiente() {
+    const productoNombre = document.getElementById('recepcionProducto').value.trim();
+    const cantidad = parseInt(document.getElementById('recepcionCantidad').value, 10);
+
+    if (!productoNombre) {
+        Swal.fire('Error', 'Selecciona un producto válido', 'warning');
+        return;
+    }
+    if (isNaN(cantidad) || cantidad <= 0) {
+        Swal.fire('Error', 'La cantidad debe ser mayor a 0', 'warning');
+        return;
+    }
+
+    const todos = obtenerListaPlanaProductos();
+    const prodObj = todos.find(p => p.nombre === productoNombre && (!recepcionOrigenSeleccionado || p.origen === recepcionOrigenSeleccionado))
+                 || todos.find(p => p.nombre === productoNombre);
+
+    if (!prodObj) {
+        Swal.fire('Error', `El producto "${productoNombre}" no existe en el catálogo.`, 'error');
+        return;
+    }
+    if (prodObj.cantidad === '-') {
+        Swal.fire('Error', `El producto "${productoNombre}" es no medible y no admite recepciones.`, 'error');
+        return;
+    }
+
+    const existente = recepcionesBorrador.find(r => r.producto === prodObj.nombre && r.origen === prodObj.origen);
+    if (existente) {
+        existente.cantidad += cantidad;
+    } else {
+        recepcionesBorrador.push({
+            producto: prodObj.nombre,
+            origen: prodObj.origen,
+            stockActual: prodObj.cantidad,
+            imagen: prodObj.imagen,
+            cantidad: cantidad
+        });
+    }
+
+    document.getElementById('recepcionProducto').value = '';
+    document.getElementById('recepcionCantidad').value = '';
+    recepcionOrigenSeleccionado = '';
+    actualizarTablaRecepcionesBorrador();
+}
+
+function actualizarTablaRecepcionesBorrador() {
+    const container = document.getElementById('recepcionesPendientesContainer');
+    const tbody = document.querySelector('#tabla-recepciones-pendientes tbody');
+
+    if (recepcionesBorrador.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+
+    container.style.display = 'block';
+    tbody.innerHTML = '';
+
+    recepcionesBorrador.forEach((rec, index) => {
+        const badge = rec.origen === 'epp'
+            ? '<span class="badge-origen epp">EPP</span>'
+            : '<span class="badge-origen general">General</span>';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    ${rec.imagen ? `<img src="${escapeHtml(rec.imagen)}" style="width:28px;height:28px;object-fit:contain;" onerror="this.style.display='none'">` : ''}
+                    <strong>${escapeHtml(rec.producto)}</strong>
+                    ${badge}
+                </div>
+            </td>
+            <td class="text-center"><span class="badge bg-light text-dark border">${rec.stockActual}</span></td>
+            <td class="text-center">
+                <input type="number" class="cantidad-input-pendiente" value="${rec.cantidad}" min="1" onchange="editarCantidadBorrador(${index}, this.value)">
+            </td>
+            <td class="text-center">
+                <button class="btn btn-sm btn-outline-danger" onclick="eliminarItemBorrador(${index})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function editarCantidadBorrador(index, valor) {
+    const cant = parseInt(valor, 10);
+    if (!isNaN(cant) && cant > 0) {
+        recepcionesBorrador[index].cantidad = cant;
+    } else {
+        Swal.fire('Error', 'La cantidad debe ser mayor a 0', 'warning');
+        actualizarTablaRecepcionesBorrador();
+    }
+}
+
+function eliminarItemBorrador(index) {
+    recepcionesBorrador.splice(index, 1);
+    actualizarTablaRecepcionesBorrador();
+}
+
+function limpiarLoteRecepcion() {
+    recepcionesBorrador = [];
+    actualizarTablaRecepcionesBorrador();
+}
+
+function generarIdRecepcion() {
+    const ts = Date.now();
+    const r1 = Math.random().toString(36).substring(2, 7).toUpperCase();
+    return `REC-${ts}-${r1}`;
+}
+
+function formatearFechaInputDDMMYYYY(isoDate) {
+    if (!isoDate) {
+        const d = new Date();
+        return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+    }
+    const partes = isoDate.split('-');
+    if (partes.length === 3) return `${partes[2]}/${partes[1]}/${partes[0]}`;
+    return isoDate;
+}
+
+async function guardarRecepcionEnPendientes() {
+    if (recepcionesBorrador.length === 0) {
+        Swal.fire('Sin productos', 'Agrega al menos un producto.', 'info');
+        return;
+    }
+
+    const fechaInput = document.getElementById('recepcionFecha').value;
+    const fechaStr = formatearFechaInputDDMMYYYY(fechaInput);
+    const ahora = new Date();
+    const horaStr = `${String(ahora.getHours()).padStart(2, '0')}:${String(ahora.getMinutes()).padStart(2, '0')}:${String(ahora.getSeconds()).padStart(2, '0')}`;
+
+    const totalUnidades = recepcionesBorrador.reduce((s, r) => s + r.cantidad, 0);
+
+    let resumenHtml = `
+        <div style="text-align:left; font-size:0.9rem;">
+            <p class="mb-2"><strong>Fecha:</strong> ${escapeHtml(fechaStr)} &nbsp;|&nbsp; <strong>Total unidades:</strong> ${totalUnidades}</p>
+            <table class="table table-sm table-bordered mb-0">
+                <thead><tr><th>Producto</th><th class="text-center">Cantidad</th></tr></thead>
+                <tbody>
+                    ${recepcionesBorrador.map(r => `<tr><td>${escapeHtml(r.producto)}</td><td class="text-center fw-bold">${r.cantidad}</td></tr>`).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    const conf = await Swal.fire({
+        title: 'Confirmar Recepción',
+        html: resumenHtml,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, guardar',
+        cancelButtonText: 'Revisar',
+        confirmButtonColor: '#2ecc71'
+    });
+    if (!conf.isConfirmed) return;
+
+    const batchId = generarIdRecepcion();
+    const lotePendiente = {
+        id: batchId,
+        fecha: fechaStr,
+        hora: horaStr,
+        createdAt: Date.now(),
+        totalUnidades: totalUnidades,
+        syncAttempts: 0,
+        items: recepcionesBorrador.map(r => ({
+            producto: r.producto,
+            origen: r.origen || 'general',
+            cantidad: r.cantidad,
+            imagen: r.imagen || ''
+        }))
+    };
+
+    try {
+        await dbAddPendiente(lotePendiente);
+        await actualizarBadgePendientes();
+        recepcionesBorrador = [];
+        actualizarTablaRecepcionesBorrador();
+
+        Swal.fire({
+            icon: 'success',
+            title: 'Recepción guardada localmente',
+            html: `<p class="small text-muted mb-0">${isOnline ? 'Presiona el botón de la nube en la parte superior para sincronizar.' : 'Sin conexión: se sincronizará cuando vuelva el internet.'}</p>`,
+            timer: 3500,
+            confirmButtonColor: '#2ecc71'
+        });
+    } catch (err) {
+        Swal.fire('Error', 'No se pudo guardar localmente: ' + err.message, 'error');
+    }
+}
+
+function normalizarItemsRecepcion(rec) {
+    if (Array.isArray(rec.items) && rec.items.length > 0) return rec.items;
+    const prods = rec.producto ? String(rec.producto).split(';').map(s => s.trim()).filter(Boolean) : [];
+    const cants = rec.cantidad !== undefined ? String(rec.cantidad).split(';').map(s => s.trim()) : [];
+    return prods.map((p, idx) => ({ producto: p, cantidad: cants[idx] ?? '' }));
+}
+
+function obtenerFilasPlanasRecepciones(datos) {
+    const filas = [];
+    (datos || []).forEach(rec => {
+        const items = normalizarItemsRecepcion(rec);
+        items.forEach(it => {
+            const nombreProd = it.producto || '-';
+            filas.push({
+                fecha: rec.fecha || '-',
+                producto: nombreProd,
+                cantidad: it.cantidad !== undefined ? it.cantidad : '',
+                origen: it.origen || obtenerOrigenProductoPorNombre(nombreProd)
+            });
+        });
+    });
+    return filas;
+}
+
+function aplicarFiltroOrigenRec(origen) {
+    filtroOrigenRec = origen;
+    document.querySelectorAll('#filtros-rec-origen .filter-chip').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.origen === origen);
+    });
+    filtrarHistorialRecepciones();
+}
+
+function mostrarHistorialRecepcionesFilas(filas) {
+    const tbody = document.querySelector('#tabla-recepciones-historial tbody');
+    tbody.innerHTML = '';
+
+    if (!filas || filas.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="3" class="text-center text-muted py-3">No hay recepciones registradas</td></tr>`;
+        return;
+    }
+
+    filas.forEach(fila => {
+        const badge = fila.origen === 'epp'
+            ? '<span class="badge-origen epp ms-1">EPP</span>'
+            : '<span class="badge-origen general ms-1">General</span>';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${escapeHtml(fila.fecha)}</td>
+            <td class="fw-semibold">${escapeHtml(fila.producto)} ${badge}</td>
+            <td class="text-center fw-bold">${escapeHtml(fila.cantidad)}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function filtrarHistorialRecepciones() {
+    const q = (document.getElementById('buscarRecepcion').value || '').trim().toLowerCase();
+    const todas = obtenerFilasPlanasRecepciones(historialRecepciones);
+
+    const filtradas = todas.filter(fila => {
+        if (filtroOrigenRec !== 'todos' && fila.origen !== filtroOrigenRec) return false;
+        if (!q) return true;
+        return (fila.fecha && fila.fecha.toLowerCase().includes(q)) ||
+               (fila.producto && fila.producto.toLowerCase().includes(q));
+    });
+    mostrarHistorialRecepcionesFilas(filtradas);
+}
+
+// =========================================================================
+// MODAL SYNC (RECEPCIONES PENDIENTES)
+// =========================================================================
+async function actualizarBadgePendientes() {
+    const pend = await dbGetAllPendientes();
+    const badge = document.getElementById('badge-pendientes');
+    if (pend.length > 0) {
+        badge.textContent = pend.length > 99 ? '99+' : pend.length;
+        badge.style.display = 'flex';
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+async function abrirModalSync() {
+    const pend = await dbGetAllPendientes();
+    const lista = document.getElementById('lista-pendientes');
+    const contador = document.getElementById('contador-pendientes');
+
+    contador.textContent = `${pend.length} pendiente${pend.length !== 1 ? 's' : ''}`;
+
+    if (pend.length === 0) {
+        lista.innerHTML = `
+            <div class="text-center py-5 text-muted">
+                <i class="fas fa-inbox fa-3x mb-2" style="color:#bdc3c7;"></i>
+                <h6>No hay recepciones pendientes</h6>
+                <p class="small mb-0">Las recepciones que guardes aparecerán aquí para sincronizar.</p>
+            </div>`;
+        document.getElementById('modal-sync').classList.add('active');
+        actualizarBotonesModalSync();
+        return;
+    }
+
+    lista.innerHTML = '';
+    pend.forEach(lote => {
+        const item = document.createElement('div');
+        item.className = 'pend-item';
+        item.dataset.id = lote.id;
+
+        const rowsHtml = (lote.items || []).map(p => `
+            <tr>
+                <td>${escapeHtml(p.producto)}</td>
+                <td class="text-center fw-bold">${p.cantidad}</td>
+            </tr>
+        `).join('');
+
+        item.innerHTML = `
+            <div class="pend-item-header">
+                <input type="checkbox" class="check-pend" value="${escapeHtml(lote.id)}" checked>
+                <div class="pend-item-info">
+                    <div class="titulo">
+                        <span class="badge bg-primary">${lote.items.length} prod.</span>
+                        <span class="badge bg-success">${lote.totalUnidades} uds.</span>
+                    </div>
+                    <div class="meta">
+                        <i class="fas fa-calendar"></i> ${escapeHtml(lote.fecha)} &nbsp;·&nbsp;
+                        <i class="fas fa-clock"></i> ${escapeHtml(lote.hora)}
+                    </div>
+                </div>
+                <i class="fas fa-chevron-right pend-expand-icon"></i>
+            </div>
+            <div class="pend-item-detail">
+                <table>
+                    <thead><tr><th>Producto</th><th class="text-center">Cantidad</th></tr></thead>
+                    <tbody>${rowsHtml}</tbody>
+                </table>
+            </div>
+        `;
+
+        const header = item.querySelector('.pend-item-header');
+        const cb = item.querySelector('.check-pend');
+        header.addEventListener('click', (e) => {
+            if (e.target === cb) return;
+            item.classList.toggle('expanded');
+        });
+        cb.addEventListener('change', actualizarBotonesModalSync);
+
+        lista.appendChild(item);
+    });
+
+    document.getElementById('modal-sync').classList.add('active');
+    actualizarBotonesModalSync();
+}
+
+function cerrarModalSync() {
+    if (sincronizando) return;
+    document.getElementById('modal-sync').classList.remove('active');
+}
+
+function actualizarBotonesModalSync() {
+    const sel = document.querySelectorAll('.check-pend:checked').length;
+    const tot = document.querySelectorAll('.check-pend').length;
+    const btnSinc = document.getElementById('btn-sincronizar-seleccionados');
+    const btnDel = document.getElementById('btn-delete-sel');
+    const checkAll = document.getElementById('check-all-pendientes');
+
+    btnSinc.disabled = sel === 0 || sincronizando || !isOnline;
+    btnDel.disabled = sel === 0 || sincronizando;
+    checkAll.disabled = sincronizando || tot === 0;
+    checkAll.checked = tot > 0 && sel === tot;
+}
+
+async function sincronizarSeleccionados() {
+    if (sincronizando) return;
+    if (!navigator.onLine) {
+        Swal.fire('Sin conexión', 'No hay internet. Los pendientes siguen guardados localmente.', 'warning');
+        return;
+    }
+
+    const ids = Array.from(document.querySelectorAll('.check-pend:checked')).map(c => c.value);
+    if (ids.length === 0) return;
+
+    const pend = await dbGetAllPendientes();
+    const aEnviar = pend.filter(r => ids.includes(r.id));
+
+    sincronizando = true;
+    const btn = document.getElementById('btn-sincronizar-seleccionados');
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sincronizando...';
+    actualizarBotonesModalSync();
+    document.getElementById('close-modal-sync').disabled = true;
+
+    for (const lote of aEnviar) {
+        lote.syncAttempts = (lote.syncAttempts || 0) + 1;
+        await dbUpdatePendiente(lote);
+    }
+
+    try {
+        const payload = {
+            accion: 'syncRecepciones',
+            payload: { recepciones: aEnviar }
+        };
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000);
+        const response = await fetch(URL_GUARDAR, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify(payload),
+            redirect: 'follow',
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        const text = await response.text();
+        const data = JSON.parse(text);
+
+        if (!data.success && !data.idsProcesados && !data.idsExistentes) {
+            throw new Error(data.message || 'Error en sincronización');
+        }
+
+        const procesados = data.idsProcesados || [];
+        const existentes = data.idsExistentes || [];
+        const conError = data.idsConError || [];
+
+        for (const id of [...procesados, ...existentes]) {
+            await dbDeletePendiente(id);
+        }
+        await actualizarBadgePendientes();
+        document.getElementById('modal-sync').classList.remove('active');
+
+        sincronizando = false;
+        btn.innerHTML = originalHtml;
+        document.getElementById('close-modal-sync').disabled = false;
+
+        let icon = 'success', title = 'Sincronización Exitosa';
+        if (conError.length > 0 && procesados.length === 0 && existentes.length === 0) { icon = 'error'; title = 'Error'; }
+        else if (conError.length > 0) { icon = 'warning'; title = 'Sincronización Parcial'; }
+        else if (existentes.length > 0 && procesados.length === 0) { icon = 'info'; title = 'Ya sincronizado'; }
+
+        await Swal.fire({
+            title, icon,
+            html: `
+                <p>${escapeHtml(data.message || 'Sincronización completada.')}</p>
+                <div class="text-start bg-light p-2 rounded small">
+                    <div class="text-success"><i class="fas fa-check-circle"></i> Sincronizados: ${procesados.length}</div>
+                    ${existentes.length > 0 ? `<div class="text-warning"><i class="fas fa-exclamation-triangle"></i> Duplicados ignorados: ${existentes.length}</div>` : ''}
+                    ${conError.length > 0 ? `<div class="text-danger"><i class="fas fa-times-circle"></i> Con error: ${conError.length}</div>` : ''}
+                </div>
+            `
+        });
+
+        await cargarDatosIniciales(true);
+    } catch (err) {
+        sincronizando = false;
+        btn.innerHTML = originalHtml;
+        document.getElementById('close-modal-sync').disabled = false;
+        actualizarBotonesModalSync();
+        Swal.fire('Error', 'No se pudo sincronizar: ' + (err.message || 'Error de red'), 'error');
+    }
+}
+
+async function eliminarPendientesSeleccionados() {
+    if (sincronizando) return;
+    const ids = Array.from(document.querySelectorAll('.check-pend:checked')).map(c => c.value);
+    if (ids.length === 0) return;
+
+    const r = await Swal.fire({
+        title: '¿Descartar recepciones?',
+        text: `Se eliminarán ${ids.length} recepción(es) pendiente(s) sin sincronizar.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#e74c3c',
+        confirmButtonText: 'Sí, descartar',
+        cancelButtonText: 'Cancelar'
+    });
+    if (!r.isConfirmed) return;
+
+    for (const id of ids) await dbDeletePendiente(id);
+    await actualizarBadgePendientes();
+    abrirModalSync();
+}
+
+// =========================================================================
+// SECCIÓN 3: HISTORIAL DE REQUISICIONES ("Requisiciones" + "RequiEPP")
+// =========================================================================
+function obtenerImagenProducto(nombreProducto, origen) {
+    const lista = origen === 'epp' ? categoriasEPP : categorias;
+    for (const cat of lista) {
+        const p = cat.productos.find(x => x.nombre === nombreProducto);
+        if (p) {
+            if (p.imagen && !p.imagen.startsWith('__PENDIENTE__')) return p.imagen;
+            if (p.imagenPreview) return p.imagenPreview;
+        }
+    }
+    return '';
+}
+
+function normalizarRequisicionesAgrupadas(listaRaw) {
+    if (!Array.isArray(listaRaw) || listaRaw.length === 0) return [];
+
+    if (Array.isArray(listaRaw[0].productos)) {
+        return listaRaw.map((g, idx) => ({
+            id: g.id || `REQ_${idx}`,
+            origen: g.origen || 'general',
+            fecha: g.fecha || '-',
+            hora: g.hora || '-',
+            nombre: g.nombre || '-',
+            destino: g.destino || '',
+            productos: g.productos || [],
+            totalProductos: (g.productos || []).length,
+            totalUnidades: g.totalUnidades !== undefined
+                ? g.totalUnidades
+                : (g.productos || []).reduce((s, p) => s + (parseFloat(p.cantidad) || 0), 0)
+        }));
+    }
+
+    const mapa = {};
+    const orden = [];
+    listaRaw.forEach((r, idx) => {
+        const origen = r.origen || 'general';
+        const key = `${origen}_${r.id || `${r.fecha || ''}_${r.hora || ''}_${r.nombre || ''}_${r.destino || ''}` || idx}`;
+        if (!mapa[key]) {
+            mapa[key] = {
+                id: r.id || `ITEM_${idx}`,
+                origen: origen,
+                fecha: r.fecha || '-',
+                hora: r.hora || '-',
+                nombre: r.nombre || '-',
+                destino: r.destino || '',
+                productos: [],
+                totalProductos: 0,
+                totalUnidades: 0
+            };
+            orden.push(key);
+        }
+        if (r.producto) {
+            const cant = parseFloat(r.cantidad) || 0;
+            mapa[key].productos.push({ producto: r.producto, cantidad: cant });
+            mapa[key].totalUnidades += cant;
+            mapa[key].totalProductos = mapa[key].productos.length;
+        }
+    });
+    return orden.map(k => mapa[k]);
+}
+
+function getGroupUniqueKey(grupo) {
+    return `${grupo.origen || 'general'}::${grupo.id}`;
+}
+
+function makeItemKey(origen, id, producto) {
+    return `${origen || 'general'}::${id}|||${producto}`;
+}
+
+async function cargarHistorialRequisiciones() {
+    if (!navigator.onLine) {
+        Swal.fire('Sin conexión', 'Se requiere internet para consultar el historial de requisiciones.', 'warning');
+        return;
+    }
+
+    showLoading();
+    try {
+        const response = await $.get(URL_OBTENER + '?tipo=requisiciones');
+        hideLoading();
+
+        if (response.error) {
+            Swal.fire('Error', 'No se pudo cargar el historial de requisiciones', 'error');
+            return;
+        }
+
+        historialRequisiciones = normalizarRequisicionesAgrupadas(response.requisiciones || []);
+        reqItemsSeleccionados.clear();
+        reqCantidadesRetornar.clear();
+        filtrarHistorialRequisiciones();
+    } catch (error) {
+        hideLoading();
+        console.error('Error cargando historial de requisiciones:', error);
+        Swal.fire('Error', 'No se pudo conectar al servidor', 'error');
+    }
+}
+
+function aplicarFiltroOrigenReq(origen) {
+    filtroOrigenReq = origen;
+    document.querySelectorAll('#filtros-req-origen .filter-chip').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.origen === origen);
+    });
+    filtrarHistorialRequisiciones();
+}
+
+function filtrarHistorialRequisiciones() {
+    const q = (document.getElementById('buscarRequisicion').value || '').trim().toLowerCase();
+
+    historialRequisicionesFiltrado = historialRequisiciones.filter(grupo => {
+        if (filtroOrigenReq !== 'todos' && grupo.origen !== filtroOrigenReq) return false;
+        if (!q) return true;
+        const matchHeader =
+            (grupo.fecha && grupo.fecha.toLowerCase().includes(q)) ||
+            (grupo.hora && grupo.hora.toLowerCase().includes(q)) ||
+            (grupo.nombre && grupo.nombre.toLowerCase().includes(q)) ||
+            (grupo.destino && grupo.destino.toLowerCase().includes(q));
+        const matchProd = (grupo.productos || []).some(p => (p.producto || '').toLowerCase().includes(q));
+        return matchHeader || matchProd;
+    });
+
+    renderizarHistorialRequisiciones();
+}
+
+function getCantidadRetornarItem(key, maxCantidad) {
+    if (reqCantidadesRetornar.has(key)) {
+        const v = reqCantidadesRetornar.get(key);
+        if (!isNaN(v) && v >= 1 && v <= maxCantidad) return v;
+    }
+    return maxCantidad;
+}
+
+function renderizarHistorialRequisiciones() {
+    const container = document.getElementById('req-groups-container');
+    container.innerHTML = '';
+
+    let totalItems = 0;
+    let totalUnidades = 0;
+    historialRequisicionesFiltrado.forEach(g => {
+        totalItems += (g.productos || []).length;
+        totalUnidades += (g.totalUnidades || 0);
+    });
+
+    document.getElementById('stats-requisiciones').innerHTML = `
+        <div class="stat-pill"><i class="fas fa-clipboard-check text-primary"></i> Requisiciones: <span class="stat-val">${historialRequisicionesFiltrado.length}</span></div>
+        <div class="stat-pill"><i class="fas fa-boxes text-primary"></i> Productos: <span class="stat-val">${totalItems}</span></div>
+        <div class="stat-pill success"><i class="fas fa-cubes text-success"></i> Total Unidades: <span class="stat-val">${totalUnidades}</span></div>
+    `;
+
+    if (historialRequisicionesFiltrado.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-muted py-5">
+                <i class="fas fa-clipboard fa-3x mb-2" style="color:#ced4da;"></i>
+                <p class="mb-0">No se encontraron requisiciones para mostrar.</p>
+            </div>`;
+        actualizarControlesSeleccionReq();
+        return;
+    }
+
+    historialRequisicionesFiltrado.forEach(grupo => {
+        const groupKey = getGroupUniqueKey(grupo);
+        const productosGrupo = grupo.productos || [];
+        const seleccionadosEnGrupo = productosGrupo.filter(p => reqItemsSeleccionados.has(makeItemKey(grupo.origen, grupo.id, p.producto))).length;
+        const todosGrupoSel = productosGrupo.length > 0 && seleccionadosEnGrupo === productosGrupo.length;
+        const parcialGrupoSel = seleccionadosEnGrupo > 0 && seleccionadosEnGrupo < productosGrupo.length;
+        const expandido = gruposExpandidosReq.has(groupKey);
+
+        const origenBadge = grupo.origen === 'epp'
+            ? '<span class="badge-origen epp">EPP + Botiquín</span>'
+            : '<span class="badge-origen general">General</span>';
+
+        const card = document.createElement('div');
+        card.className = `req-group-card${expandido ? ' expanded' : ''}${seleccionadosEnGrupo > 0 ? ' has-selected' : ''}`;
+
+        const filasHtml = productosGrupo.map(p => {
+            const key = makeItemKey(grupo.origen, grupo.id, p.producto);
+            const checked = reqItemsSeleccionados.has(key);
+            const img = obtenerImagenProducto(p.producto, grupo.origen);
+            const valRetornar = getCantidadRetornarItem(key, p.cantidad);
+
+            return `
+                <tr class="${checked ? 'item-selected' : ''}">
+                    <td style="width: 36px;">
+                        <input type="checkbox" class="cb-req-item"
+                               data-origen="${escapeHtml(grupo.origen)}"
+                               data-group-id="${escapeHtml(grupo.id)}"
+                               data-producto="${escapeHtml(p.producto)}"
+                               data-cantidad="${p.cantidad}"
+                               ${checked ? 'checked' : ''}>
+                    </td>
+                    <td>
+                        <div class="req-prod-cell">
+                            ${img ? `<img src="${escapeHtml(img)}" onerror="this.style.display='none'">` : `<i class="fas fa-box text-muted"></i>`}
+                            <span class="fw-semibold">${escapeHtml(p.producto)}</span>
+                        </div>
+                    </td>
+                    <td class="text-center fw-bold" style="width: 95px;">${p.cantidad}</td>
+                    <td class="text-center" style="width: 110px;">
+                        <input type="number" class="retornar-cant-input"
+                               min="1" max="${p.cantidad}" step="1"
+                               value="${valRetornar}"
+                               data-origen="${escapeHtml(grupo.origen)}"
+                               data-group-id="${escapeHtml(grupo.id)}"
+                               data-producto="${escapeHtml(p.producto)}"
+                               data-max="${p.cantidad}">
+                    </td>
+                    <td class="text-end" style="width: 120px;">
+                        <button type="button" class="btn btn-sm btn-success fw-semibold btn-retornar-uno"
+                                data-origen="${escapeHtml(grupo.origen)}"
+                                data-group-id="${escapeHtml(grupo.id)}"
+                                data-producto="${escapeHtml(p.producto)}"
+                                data-max="${p.cantidad}"
+                                title="Retornar al inventario">
+                            <i class="fas fa-undo me-1"></i> Retornar
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        card.innerHTML = `
+            <div class="req-group-header">
+                <input type="checkbox" class="cb-req-grupo" ${todosGrupoSel ? 'checked' : ''}>
+                <div class="req-group-info">
+                    <div class="req-group-title">
+                        ${origenBadge}
+                        <span><i class="fas fa-user text-primary me-1"></i>${escapeHtml(grupo.nombre)}</span>
+                        ${grupo.destino && grupo.destino !== '-' ? `<span class="badge bg-info text-dark">${escapeHtml(grupo.destino)}</span>` : ''}
+                        <span class="badge bg-secondary">${productosGrupo.length} prod. / ${grupo.totalUnidades} uds.</span>
+                        ${seleccionadosEnGrupo > 0 ? `<span class="badge bg-primary">${seleccionadosEnGrupo} sel.</span>` : ''}
+                    </div>
+                    <div class="req-group-meta">
+                        <span><i class="fas fa-calendar"></i> ${escapeHtml(grupo.fecha)}</span>
+                        <span><i class="fas fa-clock"></i> ${escapeHtml(grupo.hora)}</span>
+                    </div>
+                </div>
+                <i class="fas fa-chevron-right req-expand-icon"></i>
+            </div>
+            <div class="req-group-body">
+                <table class="req-items-table">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>Producto</th>
+                            <th class="text-center">Cantidad</th>
+                            <th class="text-center">A Retornar</th>
+                            <th class="text-end">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>${filasHtml}</tbody>
+                </table>
+            </div>
+        `;
+
+        const cbGrupo = card.querySelector('.cb-req-grupo');
+        cbGrupo.indeterminate = parcialGrupoSel;
+
+        card.querySelector('.req-group-header').addEventListener('click', (e) => {
+            if (e.target === cbGrupo) return;
+            if (gruposExpandidosReq.has(groupKey)) {
+                gruposExpandidosReq.delete(groupKey);
+                card.classList.remove('expanded');
+            } else {
+                gruposExpandidosReq.add(groupKey);
+                card.classList.add('expanded');
+            }
+        });
+
+        cbGrupo.addEventListener('change', () => {
+            productosGrupo.forEach(p => {
+                const key = makeItemKey(grupo.origen, grupo.id, p.producto);
+                if (cbGrupo.checked) reqItemsSeleccionados.add(key);
+                else reqItemsSeleccionados.delete(key);
+            });
+            renderizarHistorialRequisiciones();
+        });
+
+        card.querySelectorAll('.cb-req-item').forEach(cb => {
+            cb.addEventListener('change', () => {
+                const key = makeItemKey(cb.dataset.origen, cb.dataset.groupId, cb.dataset.producto);
+                if (cb.checked) reqItemsSeleccionados.add(key);
+                else reqItemsSeleccionados.delete(key);
+                renderizarHistorialRequisiciones();
+            });
+        });
+
+        card.querySelectorAll('.retornar-cant-input').forEach(inp => {
+            const validarInput = (mostrarAviso) => {
+                const maxVal = parseFloat(inp.dataset.max);
+                const key = makeItemKey(inp.dataset.origen, inp.dataset.groupId, inp.dataset.producto);
+                let val = parseFloat(inp.value);
+
+                if (isNaN(val) || val < 1) {
+                    val = 1;
+                    inp.value = 1;
+                } else if (val > maxVal) {
+                    val = maxVal;
+                    inp.value = maxVal;
+                    if (mostrarAviso) {
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'warning',
+                            title: `Máximo permitido: ${maxVal}`,
+                            showConfirmButton: false,
+                            timer: 2000
+                        });
+                    }
+                }
+                reqCantidadesRetornar.set(key, val);
+            };
+
+            inp.addEventListener('input', () => {
+                const maxVal = parseFloat(inp.dataset.max);
+                const key = makeItemKey(inp.dataset.origen, inp.dataset.groupId, inp.dataset.producto);
+                const val = parseFloat(inp.value);
+                if (!isNaN(val) && val > maxVal) {
+                    inp.value = maxVal;
+                    reqCantidadesRetornar.set(key, maxVal);
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'warning',
+                        title: `No puede ser mayor a ${maxVal}`,
+                        showConfirmButton: false,
+                        timer: 2000
+                    });
+                } else if (!isNaN(val) && val >= 1) {
+                    reqCantidadesRetornar.set(key, val);
+                }
+            });
+            inp.addEventListener('change', () => validarInput(true));
+            inp.addEventListener('blur', () => validarInput(false));
+        });
+
+        card.querySelectorAll('.btn-retornar-uno').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const key = makeItemKey(btn.dataset.origen, btn.dataset.groupId, btn.dataset.producto);
+                const maxCant = parseFloat(btn.dataset.max);
+                const cantRetornar = getCantidadRetornarItem(key, maxCant);
+                ejecutarRetornoRequisiciones([{
+                    origen: btn.dataset.origen,
+                    id: btn.dataset.groupId,
+                    producto: btn.dataset.producto,
+                    cantidadOriginal: maxCant,
+                    cantidadRetornar: cantRetornar
+                }]);
+            });
+        });
+
+        container.appendChild(card);
+    });
+
+    actualizarControlesSeleccionReq();
+}
+
+function toggleTodosGruposReq(expandir) {
+    if (expandir) {
+        historialRequisicionesFiltrado.forEach(g => gruposExpandidosReq.add(getGroupUniqueKey(g)));
+    } else {
+        gruposExpandidosReq.clear();
+    }
+    renderizarHistorialRequisiciones();
+}
+
+function toggleSeleccionarTodosReq() {
+    const checkAll = document.getElementById('seleccionarTodosReq');
+    historialRequisicionesFiltrado.forEach(g => {
+        (g.productos || []).forEach(p => {
+            const key = makeItemKey(g.origen, g.id, p.producto);
+            if (checkAll.checked) reqItemsSeleccionados.add(key);
+            else reqItemsSeleccionados.delete(key);
+        });
+    });
+    renderizarHistorialRequisiciones();
+}
+
+function actualizarControlesSeleccionReq() {
+    let totalVisibles = 0;
+    let visiblesSel = 0;
+    historialRequisicionesFiltrado.forEach(g => {
+        (g.productos || []).forEach(p => {
+            totalVisibles++;
+            if (reqItemsSeleccionados.has(makeItemKey(g.origen, g.id, p.producto))) visiblesSel++;
+        });
+    });
+
+    const checkAll = document.getElementById('seleccionarTodosReq');
+    checkAll.checked = totalVisibles > 0 && visiblesSel === totalVisibles;
+    checkAll.indeterminate = visiblesSel > 0 && visiblesSel < totalVisibles;
+
+    const totalSel = reqItemsSeleccionados.size;
+    document.getElementById('badgeSeleccionadosReq').textContent = `${totalSel} sel.`;
+    document.getElementById('btnRestaurarSeleccionadas').disabled = totalSel === 0;
+}
+
+function obtenerItemsSeleccionadosLista() {
+    const items = [];
+    historialRequisiciones.forEach(g => {
+        (g.productos || []).forEach(p => {
+            const key = makeItemKey(g.origen, g.id, p.producto);
+            if (reqItemsSeleccionados.has(key)) {
+                items.push({
+                    origen: g.origen,
+                    id: g.id,
+                    producto: p.producto,
+                    cantidadOriginal: p.cantidad,
+                    cantidadRetornar: getCantidadRetornarItem(key, p.cantidad)
+                });
+            }
+        });
+    });
+    return items;
+}
+
+function retornarSeleccionadas() {
+    const items = obtenerItemsSeleccionadosLista();
+    if (items.length === 0) return;
+    ejecutarRetornoRequisiciones(items);
+}
+
+async function ejecutarRetornoRequisiciones(items) {
+    if (!navigator.onLine) {
+        Swal.fire('Sin conexión', 'Necesitas internet para retornar productos al inventario.', 'warning');
+        return;
+    }
+
+    for (const item of items) {
+        if (isNaN(item.cantidadRetornar) || item.cantidadRetornar <= 0 || item.cantidadRetornar > item.cantidadOriginal) {
+            Swal.fire('Cantidad inválida', `La cantidad a retornar de "${item.producto}" debe estar entre 1 y ${item.cantidadOriginal}.`, 'warning');
+            return;
+        }
+    }
+
+    const totalUnidades = items.reduce((s, x) => s + (parseFloat(x.cantidadRetornar) || 0), 0);
+    const previewHtml = `
+        <div style="text-align:left; font-size:0.88rem; max-height:220px; overflow:auto;">
+            <p class="mb-2">Se devolverán al inventario <strong>${items.length}</strong> producto(s) (<strong>${totalUnidades}</strong> unidades):</p>
+            <ul class="ps-3 mb-0">
+                ${items.map(i => `<li><strong>${escapeHtml(i.producto)}</strong>: retornar <strong>${i.cantidadRetornar}</strong> de ${i.cantidadOriginal}</li>`).join('')}
+            </ul>
+        </div>
+    `;
+
+    const conf = await Swal.fire({
+        title: '¿Retornar al inventario?',
+        html: previewHtml,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, retornar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#2ecc71'
+    });
+    if (!conf.isConfirmed) return;
+
+    showLoading();
+    try {
+        const response = await fetch(URL_GUARDAR, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({
+                accion: 'restaurarRequisicionesPorId',
+                payload: {
+                    items: items.map(i => ({
+                        origen: i.origen,
+                        id: i.id,
+                        producto: i.producto,
+                        cantidadRetornar: i.cantidadRetornar
+                    }))
+                }
+            }),
+            redirect: 'follow'
+        });
+
+        const text = await response.text();
+        const data = JSON.parse(text);
+        hideLoading();
+
+        if (data.status === 'success') {
+            await Swal.fire('Éxito', data.message || 'Retorno realizado correctamente.', 'success');
+            await cargarHistorialRequisiciones();
+            await cargarDatosIniciales(true);
+        } else {
+            Swal.fire('Error', data.message || 'No se pudo completar el retorno', 'error');
+        }
+    } catch (err) {
+        hideLoading();
+        Swal.fire('Error', 'Error de conexión: ' + (err.message || 'Desconocido'), 'error');
+    }
+}
+
+// =========================================================================
+// UTILIDADES
+// =========================================================================
+function escapeHtml(text) {
+    if (text === null || text === undefined) return '';
+    return String(text).replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[m]));
+}
+</script>
+</body>
+</html>
